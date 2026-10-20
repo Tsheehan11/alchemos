@@ -1,0 +1,17 @@
+{
+    "animatedBg": true,
+    "background": "#05090f",
+    "clock24": true,
+    "effectsFps": 24,
+    "greetName": "TREVOR",
+    "pauseBehindWindows": true,
+    "preset": "STARK",
+    "primary": "#4fd8ff",
+    "reactorScale": 1.45,
+    "secondary": "#ffb347",
+    "showDiag": true,
+    "showGrid": true,
+    "showMedia": true,
+    "showReactor": true,
+    "unlockSound": true
+}

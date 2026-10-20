@@ -1,0 +1,47 @@
+// Shared state for Jarvis. The voice listener sends a heartbeat every few
+// seconds; if it stops, the bar indicator goes dark on its own.
+pragma Singleton
+import QtQuick
+import Quickshell
+
+Singleton {
+    id: root
+    property bool online: false
+    property double lastBeat: 0
+    property bool showing: false
+    property bool listening: false
+    property string message: ""
+
+    function beat() {
+        root.lastBeat = Date.now();
+        root.online = true;
+    }
+
+    // Short pop-up (e.g. "Opening Spotify")
+    function heard(msg) {
+        root.listening = false;
+        root.message = msg;
+        root.showing = true;
+        hideTimer.interval = 2600;
+        hideTimer.restart();
+    }
+
+    // Longer-lived status (e.g. "Listening…", "Thinking…")
+    function status(msg) {
+        root.listening = true;
+        root.message = msg;
+        root.showing = true;
+        hideTimer.interval = 12000;
+        hideTimer.restart();
+    }
+
+    Timer {
+        id: hideTimer
+        onTriggered: { root.showing = false; root.listening = false; }
+    }
+
+    Timer {
+        interval: 5000; running: true; repeat: true
+        onTriggered: if (Date.now() - root.lastBeat > 15000) root.online = false
+    }
+}
