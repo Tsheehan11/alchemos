@@ -49,6 +49,17 @@ ShellRoot {
     }
     Variants {
         model: Quickshell.screens
+        DisplayConfirm {}
+    }
+    Variants {
+        model: Quickshell.screens
+        Osd {}
+    }
+
+    // Start the background services that react on their own (TV sound, cast cleanup)
+    Component.onCompleted: { Audio.castSink; Cast.active; }
+    Variants {
+        model: Quickshell.screens
         ControlCenter {}
     }
     Variants {
@@ -93,10 +104,18 @@ ShellRoot {
         function toggle(): void { LauncherState.toggleOverview() }
     }
 
+    //   qs ipc call osd brightness   (brightness keys)
+    IpcHandler {
+        target: "osd"
+        function brightness(): void { OsdState.brightness() }
+    }
+
     //   qs ipc call settings toggle
     IpcHandler {
         target: "settings"
         function toggle(): void { LauncherState.toggleSettings() }
+        //   qs ipc call settings display   (Super+P)
+        function display(): void { LauncherState.openSettings("DISPLAY") }
     }
 
     //   used by ~/.config/hypr/stark-lock.sh

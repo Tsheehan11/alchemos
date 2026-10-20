@@ -9,6 +9,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Hyprland
 
 Singleton {
@@ -38,11 +39,31 @@ Singleton {
             "keyword decoration:blur:enabled " + (blurOn ? "true" : "false"),
             "keyword decoration:shadow:enabled " + (blurOn ? "true" : "false")
         ]);
-        const hz = (s && Theme.cfg.saverLowRefresh) ? 48 : 60;
-        Quickshell.execDetached(["sh", "-c",
-            "hyprctl monitors -j | grep -q '\"name\": \"eDP-1\"' && hyprctl keyword monitor 'eDP-1,1920x1200@" + hz + ",5120x120,1'"]);
+        laptopProbe.running = true;
         Quickshell.execDetached(["sh", "-c",
             "command -v powerprofilesctl >/dev/null && powerprofilesctl set " + (s ? "power-saver" : "balanced")]);
+    }
 
+    // Laptop screen 60 ↔ 48 Hz, keeping whatever position / scale / rotation
+    // Settings → Display gave it (and leaving it alone if it's off or mirrored)
+    Process {
+        id: laptopProbe
+        command: ["hyprctl", "monitors", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let mons = [];
+                try { mons = JSON.parse(text); } catch (e) { return; }
+                const m = mons.find(x => x.name === "eDP-1");
+                if (!m || (m.mirrorOf && m.mirrorOf !== "none")) return;
+                const low = root.saver && Theme.cfg.saverLowRefresh;
+                const hz = Math.round(m.refreshRate);
+                let want = hz;
+                if (low && hz > 48) want = 48;
+                else if (!low && hz === 48) want = 60;
+                if (want === hz) return;
+                Quickshell.execDetached(["hyprctl", "keyword", "monitor",
+                    "eDP-1," + m.width + "x" + m.height + "@" + want + "," + m.x + "x" + m.y + "," + m.scale + ",transform," + m.transform]);
+            }
+        }
     }
 }

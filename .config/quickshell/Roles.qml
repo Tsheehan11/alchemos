@@ -21,7 +21,7 @@ Singleton {
         const arr = [];
         for (let i = 0; i < Quickshell.screens.length; i++) {
             const s = Quickshell.screens[i];
-            if (s.name !== root.laptopName) arr.push(s);
+            if (s.name !== root.laptopName && s.name !== "STARK-TV") arr.push(s);
         }
         return arr.sort((a, b) => a.x - b.x);
     }
@@ -29,6 +29,9 @@ Singleton {
 
     function role(screen) {
         if (!screen) return "none";
+        // Virtual TV screen while casting: the full HUD if it's the only screen
+        // showing (duplicate mode), otherwise just background + bar
+        if (screen.name === "STARK-TV") return Quickshell.screens.length > 1 ? "extra" : "main";
         if (!root.docked) return "main";
         if (screen.name === root.laptopName) return "media";
         const i = root.externals.findIndex(s => s.name === screen.name);
@@ -46,7 +49,7 @@ Singleton {
 
     // After docking, send workspaces back to their home screens
     function arrangeWorkspaces() {
-        if (!root.docked) return;
+        if (!root.docked || Cast.active) return;   // don't shuffle workspaces mid-cast
         const homes = {};
         homes[1] = homes[2] = homes[3] = root.externals[0].name;
         const second = root.externals.length > 1 ? root.externals[1].name : root.externals[0].name;

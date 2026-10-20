@@ -10,7 +10,7 @@ PanelWindow {
     screen: modelData
 
     // Main screen = leftmost external monitor when docked, the laptop when not
-    visible: Roles.role(modelData) === "main" && Theme.cfg.showReactor
+    visible: Roles.role(modelData) === "main" && Theme.cfg.showReactor && !Perf.hidden(modelData)
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-hud"

@@ -22,7 +22,7 @@ PanelWindow {
     color: "transparent"
 
     readonly property string mono: "JetBrainsMono Nerd Font"
-    readonly property var tabs: ["NETWORK", "BLUETOOTH", "APPEARANCE", "HUD", "SYSTEM"]
+    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
     onVisibleChanged: if (visible) { focusCatcher.forceActiveFocus(); refreshAll(); }
@@ -390,6 +390,18 @@ PanelWindow {
                     }
                 }
 
+                // ════════ DISPLAY ════════
+                DisplayPage {
+                    visible: LauncherState.settingsTab === "DISPLAY" && st.visible
+                    width: parent.width
+                }
+
+                // ════════ AUDIO ════════
+                AudioPage {
+                    visible: LauncherState.settingsTab === "AUDIO" && st.visible
+                    width: parent.width
+                }
+
                 // ════════ HUD ════════
                 Column {
                     visible: LauncherState.settingsTab === "HUD"
@@ -399,6 +411,8 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Arc-reactor clock"; hint: "Main screen"; checked: Theme.cfg.showReactor; onToggled: Theme.cfg.showReactor = !Theme.cfg.showReactor }
                     Toggle { width: parent.width; label: "Diagnostics wall"; hint: "Second monitor, when docked"; checked: Theme.cfg.showDiag; onToggled: Theme.cfg.showDiag = !Theme.cfg.showDiag }
                     Toggle { width: parent.width; label: "Audio deck"; hint: "Laptop screen, when docked"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
+                    Toggle { width: parent.width; label: "Hide panels behind windows"; hint: "Clock, diagnostics and audio deck only show on screens with no windows open"; checked: Theme.cfg.hideHudBehindWindows; onToggled: Theme.cfg.hideHudBehindWindows = !Theme.cfg.hideHudBehindWindows }
+                    Toggle { width: parent.width; label: "Volume & brightness pop-up"; hint: "Shows on the screen you're using"; checked: Theme.cfg.osd; onToggled: Theme.cfg.osd = !Theme.cfg.osd }
                     Toggle { width: parent.width; label: "Jarvis when docked"; hint: "Starts automatically when you plug into the monitors"; checked: Theme.cfg.jarvisDocked; onToggled: Theme.cfg.jarvisDocked = !Theme.cfg.jarvisDocked }
                     Toggle { width: parent.width; label: "Jarvis on laptop only"; hint: "Off by default to save battery"; checked: Theme.cfg.jarvisLaptop; onToggled: Theme.cfg.jarvisLaptop = !Theme.cfg.jarvisLaptop }
                     Toggle {

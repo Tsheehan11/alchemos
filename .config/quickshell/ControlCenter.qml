@@ -108,7 +108,7 @@ PanelWindow {
                 SmallButton { text: "◈ LOCK"; onClicked: LockState.requestLock() }
                 SmallButton { text: "☾ SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["systemctl", "suspend"]); } }
                 SmallButton { text: "⏻ POWER"; onClicked: LauncherState.togglePower() }
-                SmallButton { text: "⇪ CAST"; onClicked: { Hyprland.dispatch("exec gnome-network-displays"); LauncherState.closeAll(); } }
+                SmallButton { text: Cast.active ? "■ STOP CAST" : "⇪ CAST"; active: Cast.active; onClicked: { Cast.active ? Cast.stop() : Cast.start(); LauncherState.closeAll(); } }
             }
 
             // Toggles
@@ -198,6 +198,7 @@ PanelWindow {
                         ["STARK settings", "@settings"],
                         ["Wi-Fi networks", "@settings:NETWORK"],
                         ["Bluetooth devices", "@settings:BLUETOOTH"],
+                        ["Displays & monitors", "@settings:DISPLAY"],
                         ["Colors & theme", "@settings:APPEARANCE"],
                         ["Full KDE settings", "systemsettings"]
                     ]

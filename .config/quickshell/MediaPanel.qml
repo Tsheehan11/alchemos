@@ -11,7 +11,7 @@ PanelWindow {
     id: media
     required property var modelData
     screen: modelData
-    visible: Roles.role(modelData) === "media" && Theme.cfg.showMedia
+    visible: Roles.role(modelData) === "media" && Theme.cfg.showMedia && !Perf.hidden(modelData)
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-media"

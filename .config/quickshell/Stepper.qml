@@ -13,18 +13,21 @@ Item {
 
     Column {
         anchors.left: parent.left
+        anchors.right: ctl.left; anchors.rightMargin: 16
         anchors.verticalCenter: parent.verticalCenter
         spacing: 3
-        Text { text: sp.label; color: Theme.text; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14 }
-        Text { visible: sp.hint !== ""; text: sp.hint; color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
+        Text { width: parent.width; elide: Text.ElideRight; text: sp.label; color: Theme.text; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14 }
+        Text { width: parent.width; elide: Text.ElideRight; visible: sp.hint !== ""; text: sp.hint; color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
     }
     Row {
+        id: ctl
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
         SmallButton { text: "−"; onClicked: sp.dec() }
         Text {
-            width: 90; anchors.verticalCenter: parent.verticalCenter
+            // Grows to fit long values like "2560 × 1440 @ 144 Hz"
+            width: Math.max(90, implicitWidth + 16); anchors.verticalCenter: parent.verticalCenter
             horizontalAlignment: Text.AlignHCenter
             text: sp.valueText
             color: Theme.primary

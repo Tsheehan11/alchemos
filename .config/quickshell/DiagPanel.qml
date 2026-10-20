@@ -8,7 +8,7 @@ PanelWindow {
     id: diag
     required property var modelData
     screen: modelData
-    visible: Roles.role(modelData) === "diag" && Theme.cfg.showDiag
+    visible: Roles.role(modelData) === "diag" && Theme.cfg.showDiag && !Perf.hidden(modelData)
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-diag"

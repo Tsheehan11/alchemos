@@ -34,6 +34,12 @@ Singleton {
         return true;
     }
 
+    // Should the clock / diagnostics / audio deck hide on this screen right now?
+    // (They peek through the gaps between tiled windows otherwise.)
+    function hidden(screen) {
+        return !!screen && Theme.cfg.hideHudBehindWindows && root.busy[screen.name] === true;
+    }
+
     Process {
         id: poll
         command: ["sh", "-c", "hyprctl monitors -j; echo '@@@'; hyprctl workspaces -j"]
