@@ -399,15 +399,14 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Arc-reactor clock"; hint: "Main screen"; checked: Theme.cfg.showReactor; onToggled: Theme.cfg.showReactor = !Theme.cfg.showReactor }
                     Toggle { width: parent.width; label: "Diagnostics wall"; hint: "Second monitor, when docked"; checked: Theme.cfg.showDiag; onToggled: Theme.cfg.showDiag = !Theme.cfg.showDiag }
                     Toggle { width: parent.width; label: "Audio deck"; hint: "Laptop screen, when docked"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
+                    Toggle { width: parent.width; label: "Jarvis when docked"; hint: "Starts automatically when you plug into the monitors"; checked: Theme.cfg.jarvisDocked; onToggled: Theme.cfg.jarvisDocked = !Theme.cfg.jarvisDocked }
+                    Toggle { width: parent.width; label: "Jarvis on laptop only"; hint: "Off by default to save battery"; checked: Theme.cfg.jarvisLaptop; onToggled: Theme.cfg.jarvisLaptop = !Theme.cfg.jarvisLaptop }
                     Toggle {
                         width: parent.width
-                        label: "Jarvis voice assistant"
-                        hint: JarvisState.online ? "Listening for \"Hey Jarvis\"" : "Off"
+                        label: "Jarvis running now"
+                        hint: JarvisState.online ? "Listening for \"Hey Jarvis\" — this switch is a temporary override" : "Off"
                         checked: JarvisState.online
-                        onToggled: st.act(["sh", "-c", JarvisState.online
-                            ? "pkill -f jarvis.py; true"
-                            : "nohup ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/jarvis.py >/dev/null 2>&1 &"],
-                            JarvisState.online ? "Stopping Jarvis" : "Starting Jarvis")
+                        onToggled: JarvisState.online ? JarvisState.stop() : JarvisState.start()
                     }
                     Row {
                         spacing: 10
@@ -449,6 +448,15 @@ PanelWindow {
                                 }
                             }
                         }
+                    }
+
+                    Text { text: "FINGERPRINT"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "Unlock the lock screen with your finger (your password always works too)."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                    Row {
+                        spacing: 10
+                        SmallButton { text: "ENROLL A FINGER"; onClicked: { Hyprland.dispatch("exec kitty -e sh -c 'fprintd-enroll; echo; read -p \"Press Enter to close\"'"); LauncherState.closeAll(); } }
+                        SmallButton { text: "TEST"; onClicked: { Hyprland.dispatch("exec kitty -e sh -c 'fprintd-verify; echo; read -p \"Press Enter to close\"'"); LauncherState.closeAll(); } }
+                        ConfirmButton { label: "REMOVE ALL"; onConfirmed: st.act(["fprintd-delete", Quickshell.env("USER")], "Removing fingerprints") }
                     }
 
                     Text { text: "SLEEP & SCREEN"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }

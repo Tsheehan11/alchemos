@@ -42,6 +42,8 @@ Singleton {
             property bool saverNoBlur: true
             property bool saverLowRefresh: true      // laptop screen 60 → 48 Hz on battery
             property bool saverStopJarvis: false
+            property bool jarvisDocked: true          // Jarvis listens when docked
+            property bool jarvisLaptop: false         // …and when it's just the laptop
             property int idleDim: 3                  // minutes (0 = never)
             property int idleLock: 5
             property int idleScreenOff: 10

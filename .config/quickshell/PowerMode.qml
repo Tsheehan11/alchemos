@@ -4,7 +4,7 @@
 //   • laptop screen 60 → 48 Hz
 //   • power profile → power-saver (if power-profiles-daemon is installed)
 //   • stats refresh every 5 s instead of 2 s
-//   • optionally pauses Jarvis
+//   • optionally pauses Jarvis (handled in JarvisState)
 // Everything goes back the moment you plug in.
 pragma Singleton
 import QtQuick
@@ -16,7 +16,6 @@ Singleton {
 
     readonly property bool onBattery: SysStats.discharging
     readonly property bool saver: Theme.cfg.autoSaver && onBattery
-    property bool stoppedJarvis: false
 
     onSaverChanged: applyTimer.restart()
     Component.onCompleted: applyTimer.restart()
@@ -45,12 +44,5 @@ Singleton {
         Quickshell.execDetached(["sh", "-c",
             "command -v powerprofilesctl >/dev/null && powerprofilesctl set " + (s ? "power-saver" : "balanced")]);
 
-        if (s && Theme.cfg.saverStopJarvis && JarvisState.online) {
-            root.stoppedJarvis = true;
-            Quickshell.execDetached(["pkill", "-f", "jarvis.py"]);
-        } else if (!s && root.stoppedJarvis) {
-            root.stoppedJarvis = false;
-            Quickshell.execDetached(["sh", "-c", "nohup ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/jarvis.py >/dev/null 2>&1 &"]);
-        }
     }
 }

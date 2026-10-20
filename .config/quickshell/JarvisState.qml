@@ -44,4 +44,22 @@ Singleton {
         interval: 5000; running: true; repeat: true
         onTriggered: if (Date.now() - root.lastBeat > 15000) root.online = false
     }
+
+    // ── Auto on/off ──
+    // Docked → on, laptop only → off (both changeable in Settings → HUD),
+    // and off on battery if the battery saver is set to pause it.
+    readonly property bool wanted: (Roles.docked ? Theme.cfg.jarvisDocked : Theme.cfg.jarvisLaptop)
+                                   && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
+    function start() {
+        Quickshell.execDetached(["sh", "-c",
+            "pgrep -f '[j]arvis.py' >/dev/null || nohup ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/jarvis.py >/dev/null 2>&1 &"]);
+    }
+    function stop() {
+        Quickshell.execDetached(["pkill", "-f", "jarvis.py"]);
+        root.online = false;
+    }
+    function sync() { if (root.wanted) root.start(); else root.stop(); }
+    onWantedChanged: syncTimer.restart()
+    Component.onCompleted: syncTimer.restart()
+    Timer { id: syncTimer; interval: 3000; onTriggered: root.sync() }
 }

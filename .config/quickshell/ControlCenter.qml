@@ -108,6 +108,7 @@ PanelWindow {
                 SmallButton { text: "◈ LOCK"; onClicked: LockState.requestLock() }
                 SmallButton { text: "☾ SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["systemctl", "suspend"]); } }
                 SmallButton { text: "⏻ POWER"; onClicked: LauncherState.togglePower() }
+                SmallButton { text: "⇪ CAST"; onClicked: { Hyprland.dispatch("exec gnome-network-displays"); LauncherState.closeAll(); } }
             }
 
             // Toggles
@@ -125,9 +126,7 @@ PanelWindow {
                         { label: "MUTE", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
                           act: () => { if (cc.sink && cc.sink.audio) cc.sink.audio.muted = !cc.muted; } },
                         { label: "JARVIS", sub: JarvisState.online ? "listening" : "offline", on: JarvisState.online,
-                          act: () => cc.run(JarvisState.online
-                                ? "pkill -f jarvis.py"
-                                : "~/.config/jarvis/.venv/bin/python ~/.config/jarvis/jarvis.py >/dev/null 2>&1 &") }
+                          act: () => JarvisState.online ? JarvisState.stop() : JarvisState.start() }
                     ]
                     delegate: Rectangle {
                         required property var modelData
