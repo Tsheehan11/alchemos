@@ -108,7 +108,6 @@ PanelWindow {
                 SmallButton { text: "◈ LOCK"; onClicked: LockState.requestLock() }
                 SmallButton { text: "☾ SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["systemctl", "suspend"]); } }
                 SmallButton { text: "⏻ POWER"; onClicked: LauncherState.togglePower() }
-                SmallButton { text: Cast.active ? "■ STOP CAST" : "⇪ CAST"; active: Cast.active; onClicked: { Cast.active ? Cast.stop() : Cast.start(); LauncherState.closeAll(); } }
             }
 
             // Toggles

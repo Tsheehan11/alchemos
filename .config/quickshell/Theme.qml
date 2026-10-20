@@ -45,8 +45,6 @@ Singleton {
             property bool jarvisDocked: true          // Jarvis listens when docked
             property bool jarvisLaptop: false         // …and when it's just the laptop
             property string displayLayout: "extend"  // extend | mirror | external | laptop
-            property string castRes: "1920x1080"      // virtual TV screen size when casting
-            property bool castAudio: true             // send sound to the TV while casting
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open
             property bool osd: true                   // volume / brightness pop-up
             property int idleDim: 3                  // minutes (0 = never)

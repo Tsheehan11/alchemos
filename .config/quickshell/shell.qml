@@ -56,8 +56,6 @@ ShellRoot {
         Osd {}
     }
 
-    // Start the background services that react on their own (TV sound, cast cleanup)
-    Component.onCompleted: { Audio.castSink; Cast.active; }
     Variants {
         model: Quickshell.screens
         ControlCenter {}

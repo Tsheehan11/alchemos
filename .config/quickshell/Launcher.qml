@@ -91,12 +91,8 @@ PanelWindow {
         from: 0; to: 1; duration: 700
         easing.type: Easing.OutBack; easing.overshoot: 1.1
     }
-    // While casting, the launcher goes still after it opens: every animated
-    // frame has to be video-encoded for the TV, and a constantly moving
-    // full-screen overlay was enough to stall the stream
-    readonly property bool calm: Cast.active
     NumberAnimation on t {
-        running: win.visible && !win.calm
+        running: win.visible
         from: 0; to: 2 * Math.PI * 20; duration: 160000
         loops: Animation.Infinite
     }
@@ -127,7 +123,7 @@ PanelWindow {
         function ny(i) { return cy + Math.sin(ang(i)) * rad(i) + 8 * Math.cos(win.t * 0.6 + i * 2.3); }
 
         // Hologram glow + flicker on open
-        layer.enabled: !win.calm
+        layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: Theme.primary
@@ -244,13 +240,13 @@ PanelWindow {
                 radius: 76; thickness: 1; value: 1
                 dashed: true; dash: [3, 6]
                 color: win.cyan; trackColor: "transparent"
-                RotationAnimation on rotation { running: win.visible && !win.calm; from: 0; to: 360; duration: 14000; loops: Animation.Infinite }
+                RotationAnimation on rotation { running: win.visible; from: 0; to: 360; duration: 14000; loops: Animation.Infinite }
             }
             Ring {
                 anchors.centerIn: parent
                 radius: 66; thickness: 3; value: 0.6
                 color: win.amber; trackColor: Theme.s(0.1)
-                RotationAnimation on rotation { running: win.visible && !win.calm; from: 360; to: 0; duration: 7000; loops: Animation.Infinite }
+                RotationAnimation on rotation { running: win.visible; from: 360; to: 0; duration: 7000; loops: Animation.Infinite }
             }
             Rectangle {
                 anchors.centerIn: parent
@@ -348,7 +344,7 @@ PanelWindow {
                     radius: node.size / 2 + 10; thickness: 1; value: 1
                     dashed: true; dash: [3, 5]
                     color: win.amber; trackColor: "transparent"
-                    RotationAnimation on rotation { running: win.visible && !win.calm; from: 0; to: 360; duration: 3000; loops: Animation.Infinite }
+                    RotationAnimation on rotation { running: win.visible; from: 0; to: 360; duration: 3000; loops: Animation.Infinite }
                 }
 
                 Column {
