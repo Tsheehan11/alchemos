@@ -4,14 +4,16 @@
     "background": "#0c0505",
     "batteryFps": 0,
     "clock24": true,
+    "customPresets": [
+    ],
     "displayLayout": "extend",
     "effectsFps": 24,
     "greetName": "TREVOR",
     "hideHudBehindWindows": true,
-    "idleDim": 3,
-    "idleLock": 5,
-    "idleScreenOff": 10,
-    "idleSleep": 20,
+    "idleDim": 5,
+    "idleLock": 15,
+    "idleScreenOff": 20,
+    "idleSleep": 30,
     "jarvisDocked": true,
     "jarvisLaptop": false,
     "osd": true,
@@ -28,6 +30,5 @@
     "showMedia": true,
     "showReactor": true,
     "terminalGlass": false,
-    "unlockSound": true,
-    "customPresets": []
+    "unlockSound": true
 }
