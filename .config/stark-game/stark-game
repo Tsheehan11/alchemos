@@ -1,0 +1,437 @@
+#!/usr/bin/env python3
+"""stark-game: STARK OS combat mode (gaming mode).
+
+The daemon watches Hyprland for game windows and switches the desktop into a
+low-overhead mode while one is open. Whatever it changes is read first and put
+back exactly as it was when the last game closes.
+
+Usage:
+  stark-game daemon            watch Hyprland for game windows (Hyprland exec-once)
+  stark-game on                force on (stays on until `off` / `toggle`)
+  stark-game off               force off (auto-detect resumes once the game closes)
+  stark-game toggle
+  stark-game status            current state as JSON
+  stark-game gamemode-start    gamemoded hooks, see ~/.config/gamemode.ini
+  stark-game gamemode-end
+
+Game windows: class steam_app_<id>, gamescope, or any regex in
+~/.config/stark-game/games.conf. Options live in the HUD's settings.json
+(Settings → System → Combat mode). The HUD reads the state file to quiet
+itself and pause Jarvis.
+
+Triggers (window / gamemode / manual) are merged under one lock, so they can
+fire in any order, or at the same time, without double-saving or
+double-restoring anything.
+"""
+import fcntl, json, os, re, shutil, signal, socket, subprocess, sys, time
+from contextlib import contextmanager
+from pathlib import Path
+
+CFG_DIR = Path(os.environ.get("STARK_GAME_DIR", Path.home() / ".config/stark-game"))
+GAMES_CONF = CFG_DIR / "games.conf"
+HUD_SETTINGS = Path.home() / ".config/quickshell/settings.json"
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+STATE_DIR = RUNTIME / "stark-game"
+STATE, LOCK, DAEMON_LOCK = STATE_DIR / "state.json", STATE_DIR / "lock", STATE_DIR / "daemon.lock"
+
+BUILTIN_GAMES = [r"steam_app_\d+", r"gamescope"]
+# Same names + defaults as the game* properties in quickshell/Theme.qml
+DEFAULTS = {"gameAuto": True, "gameHypr": True, "gameNoVfr": False, "gamePower": True, "gameNotify": True}
+# Hyprland keywords while engaged (runtime only, never written to hyprland.conf)
+HYPR_GAME = {
+    "decoration:blur:enabled": "false",
+    "decoration:shadow:enabled": "false",
+    "animations:enabled": "false",
+    "general:allow_tearing": "true",
+}
+NO_VFR = {"debug:vfr": "false"}   # misc:vfr moved here in 0.5x; Hyprland says leave it on
+AC_POLL = 5.0                     # seconds between AC checks while engaged
+
+EMPTY = {"active": False, "window": False, "gamemode": False, "manual": None,
+         "since": 0, "games": [], "owns": [], "saved": {}, "profile": "", "onBattery": False}
+
+
+def log(*a):
+    print("[stark-game]", *a, file=sys.stderr, flush=True)
+
+
+# ---------- files ----------
+def load_json(path, defaults):
+    out = dict(defaults)
+    try:
+        out.update(json.loads(path.read_text()))
+    except (OSError, ValueError):
+        pass
+    return out
+
+
+def save_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    os.replace(tmp, path)
+
+
+def settings():
+    s = load_json(HUD_SETTINGS, {})
+    return {k: bool(s.get(k, v)) for k, v in DEFAULTS.items()}
+
+
+@contextmanager
+def locked():
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(LOCK, "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
+
+
+def game_patterns():
+    pats = list(BUILTIN_GAMES)
+    try:
+        for line in GAMES_CONF.read_text().splitlines():
+            line = line.split("#", 1)[0].strip()
+            if line:
+                pats.append(line)
+    except OSError:
+        pass
+    out = []
+    for p in pats:
+        try:
+            out.append(re.compile(p, re.I))
+        except re.error:
+            out.append(re.compile(re.escape(p), re.I))   # not a regex → exact class name
+    return out
+
+
+def is_game(cls, pats):
+    return bool(cls) and any(p.fullmatch(cls) for p in pats)
+
+
+# ---------- Hyprland ----------
+def find_hyprland():
+    """gamemoded's hooks may not inherit HYPRLAND_INSTANCE_SIGNATURE; pick the live instance."""
+    sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
+    base = RUNTIME / "hypr"
+    if sig and (base / sig / ".socket.sock").exists():
+        return sig
+    live = sorted((d for d in base.glob("*") if (d / ".socket2.sock").exists()),
+                  key=lambda d: d.stat().st_mtime, reverse=True)
+    if live:
+        os.environ["HYPRLAND_INSTANCE_SIGNATURE"] = live[0].name
+        return live[0].name
+    return None
+
+
+def hyprctl(*args):
+    try:
+        return subprocess.run(["hyprctl", *args], capture_output=True, text=True, timeout=4).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def hypr_batch(cmds):
+    if cmds:
+        hyprctl("--batch", " ; ".join(cmds))
+
+
+def get_option(name):
+    try:
+        d = json.loads(hyprctl("getoption", name, "-j"))
+    except ValueError:
+        return None
+    for k in ("int", "float", "str", "custom"):
+        if k in d:
+            return str(d[k]).strip()
+    return None
+
+
+def game_windows():
+    try:
+        clients = json.loads(hyprctl("clients", "-j") or "[]")
+    except ValueError:
+        return {}
+    pats = game_patterns()
+    return {c["address"].removeprefix("0x"): c.get("class", "") for c in clients if is_game(c.get("class", ""), pats)}
+
+
+def immediate(addrs):
+    hypr_batch([f"dispatch setprop address:0x{a} immediate 1" for a in addrs])
+
+
+# ---------- power ----------
+def on_ac():
+    supplies = list(Path("/sys/class/power_supply").glob("*"))
+    mains = [p for p in supplies if (p / "type").exists() and (p / "type").read_text().strip() == "Mains"]
+    if not mains:
+        return True   # desktop
+    return any((p / "online").read_text().strip() == "1" for p in mains if (p / "online").exists())
+
+
+def profile_get():
+    if not shutil.which("powerprofilesctl"):
+        return None
+    try:
+        return subprocess.run(["powerprofilesctl", "get"], capture_output=True, text=True, timeout=4).stdout.strip() or None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def profile_set(p):
+    subprocess.run(["powerprofilesctl", "set", p], capture_output=True, timeout=4)
+
+
+def game_profile():
+    return "performance" if on_ac() else "balanced"
+
+
+# ---------- notifications ----------
+def running(name):
+    return subprocess.run(["pgrep", "-xu", str(os.getuid()), name], capture_output=True).returncode == 0
+
+
+def out(cmd):
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=4).stdout.strip()
+
+
+def notify_mute():
+    """Do-not-disturb on whichever daemon is running. Returns what to restore."""
+    try:
+        if running("mako") and shutil.which("makoctl"):
+            modes = out(["makoctl", "mode"]).split()
+            subprocess.run(["makoctl", "mode", "-a", "do-not-disturb"], capture_output=True, timeout=4)
+            return {"mako": modes}
+        if running("swaync") and shutil.which("swaync-client"):
+            was = out(["swaync-client", "-D"]) == "true"
+            subprocess.run(["swaync-client", "-dn"], capture_output=True, timeout=4)
+            return {"swaync": was}
+        if running("dunst") and shutil.which("dunstctl"):
+            was = out(["dunstctl", "is-paused"]) == "true"
+            subprocess.run(["dunstctl", "set-paused", "true"], capture_output=True, timeout=4)
+            return {"dunst": was}
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def notify_restore(saved):
+    try:
+        if "mako" in saved:
+            subprocess.run(["makoctl", "mode", "-s", *(saved["mako"] or ["default"])], capture_output=True, timeout=4)
+        elif "swaync" in saved:
+            subprocess.run(["swaync-client", "-dn" if saved["swaync"] else "-df"], capture_output=True, timeout=4)
+        elif "dunst" in saved:
+            subprocess.run(["dunstctl", "set-paused", "true" if saved["dunst"] else "false"], capture_output=True, timeout=4)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+# ---------- engage / disengage ----------
+def hypr_game_cmds(st):
+    want = dict(HYPR_GAME)
+    want.update({k: v for k, v in NO_VFR.items() if k in st["saved"].get("hypr", {})})
+    return [f"keyword {k} {v}" for k, v in want.items()]
+
+
+def engage(st, cfg):
+    st["saved"], st["owns"] = {}, []
+    if cfg["gameHypr"]:
+        opts = list(HYPR_GAME) + (list(NO_VFR) if cfg["gameNoVfr"] else [])
+        st["saved"]["hypr"] = {o: v for o in opts if (v := get_option(o)) is not None}
+        hypr_batch(hypr_game_cmds(st))
+        immediate(game_windows())
+        st["owns"].append("hypr")
+    if cfg["gamePower"] and (prev := profile_get()):
+        st["saved"]["power"] = prev
+        st["profile"] = game_profile()
+        profile_set(st["profile"])
+        st["owns"].append("power")
+    if cfg["gameNotify"] and (n := notify_mute()) is not None:
+        st["saved"]["notify"] = n
+        st["owns"].append("notify")
+    st["active"], st["since"] = True, int(time.time())
+    log("engaged:", ", ".join(st["owns"]) or "HUD only")
+
+
+def disengage(st):
+    s = st["saved"]
+    if "hypr" in s:
+        hypr_batch([f"keyword {k} {v}" for k, v in s["hypr"].items()])
+    if "power" in s:
+        profile_set(s["power"])
+    if "notify" in s:
+        notify_restore(s["notify"])
+    st.update(active=False, since=0, saved={}, owns=[], profile="")
+    log("disengaged: restored", ", ".join(s) or "nothing")
+
+
+def update(**changes):
+    """Merge a trigger change and engage/disengage if the outcome changed. Idempotent."""
+    with locked():
+        st = load_json(STATE, EMPTY)
+        if changes.get("manual") == "toggle":
+            changes["manual"] = not st["active"]
+        st.update(changes)
+        if st["manual"] is False and not (st["window"] or st["gamemode"]):
+            st["manual"] = None          # forced off → auto again once the games are gone
+        cfg = settings()
+        want = st["manual"] if st["manual"] is not None else cfg["gameAuto"] and (st["window"] or st["gamemode"])
+        if want and not st["active"]:
+            engage(st, cfg)
+        elif not want and st["active"]:
+            disengage(st)
+        st["onBattery"] = not on_ac()
+        save_json(STATE, st)
+    nudge_hud()
+    return st
+
+
+def nudge_hud():
+    # The HUD watches the state file too; this covers it starting before the file existed
+    try:
+        subprocess.run(["qs", "ipc", "call", "game", "refresh"], capture_output=True, timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def reapply_hypr():
+    """`hyprctl reload` resets runtime keywords — put the game ones back."""
+    with locked():
+        st = load_json(STATE, EMPTY)
+        if st["active"] and "hypr" in st["saved"]:
+            hypr_batch(hypr_game_cmds(st))
+            immediate(game_windows())
+
+
+def check_power():
+    """AC plugged / unplugged while engaged: performance ↔ balanced."""
+    with locked():
+        st = load_json(STATE, EMPTY)
+        bat = not on_ac()
+        if not st["active"] or st["onBattery"] == bat:
+            return False
+        st["onBattery"] = bat
+        if "power" in st["saved"] and st["profile"] != game_profile():
+            st["profile"] = game_profile()
+            profile_set(st["profile"])
+            log("power:", st["profile"])
+        save_json(STATE, st)
+    nudge_hud()
+    return True
+
+
+# ---------- daemon ----------
+class Daemon:
+    def __init__(self):
+        self.games = {}      # address (no 0x) → class
+
+    def sync(self):
+        classes = sorted(set(self.games.values()))
+        st = load_json(STATE, EMPTY)
+        if bool(self.games) != st["window"] or classes != st["games"]:
+            update(window=bool(self.games), games=classes)
+
+    def event(self, line):
+        name, _, data = line.partition(">>")
+        if name == "openwindow":
+            addr, _ws, cls, _title = (data.split(",", 3) + ["", "", ""])[:4]
+            if is_game(cls, game_patterns()):
+                self.games[addr] = cls
+                log("game window:", cls)
+                self.sync()
+                st = load_json(STATE, EMPTY)
+                if st["active"] and "hypr" in st["saved"]:
+                    immediate([addr])
+        elif name == "closewindow":
+            if self.games.pop(data.strip(), None) is not None:
+                self.sync()
+        elif name == "configreloaded":
+            reapply_hypr()
+
+    def run(self):
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        single = open(DAEMON_LOCK, "w")
+        try:
+            fcntl.flock(single, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            log("already running")
+            return 0
+        sig = find_hyprland()
+        if not sig:
+            log("Hyprland isn't running")
+            return 1
+
+        def stop(*_):
+            raise SystemExit(0)
+        signal.signal(signal.SIGTERM, stop)
+        signal.signal(signal.SIGHUP, stop)
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(str(RUNTIME / "hypr" / sig / ".socket2.sock"))
+        sock.settimeout(AC_POLL)
+
+        # Catch up: games already open, or a stale state from a session that died
+        self.games = game_windows()
+        gm = load_json(STATE, EMPTY)["gamemode"] and gamemode_active()
+        update(window=bool(self.games), games=sorted(set(self.games.values())), gamemode=gm)
+        log("watching for games", f"({len(self.games)} open)" if self.games else "")
+
+        buf = b""
+        try:
+            while True:
+                try:
+                    chunk = sock.recv(65536)
+                except socket.timeout:
+                    check_power()
+                    continue
+                if not chunk:
+                    log("Hyprland went away")
+                    break
+                buf += chunk
+                *lines, buf = buf.split(b"\n")
+                for raw in lines:
+                    try:
+                        self.event(raw.decode("utf-8", "replace"))
+                    except Exception as e:     # one odd event must not kill the daemon
+                        log("event error:", e)
+        finally:
+            # Logging out mid-game: put power / notifications back on the way out
+            self.games = {}
+            update(window=False, games=[])
+        return 0
+
+
+def gamemode_active():
+    if not shutil.which("gamemoded"):
+        return False
+    try:
+        return "is active" in out(["gamemoded", "-s"])
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else "status"
+    if cmd == "daemon":
+        return Daemon().run()
+    find_hyprland()
+    if cmd == "on":
+        update(manual=True)
+    elif cmd == "off":
+        update(manual=False)
+    elif cmd == "toggle":
+        update(manual="toggle")
+    elif cmd == "gamemode-start":
+        update(gamemode=True)
+    elif cmd == "gamemode-end":
+        update(gamemode=False)
+    elif cmd != "status":
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    st = load_json(STATE, EMPTY)
+    st["settings"] = settings()
+    print(json.dumps(st, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

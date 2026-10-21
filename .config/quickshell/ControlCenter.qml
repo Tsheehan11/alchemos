@@ -130,7 +130,12 @@ PanelWindow {
                              : JarvisState.online ? "listening" : "starting…",
                           act: () => JarvisState.setWanted(!JarvisState.userWantsJarvis) },
                         { label: "AMBIENT LIGHTS", on: Govee.mode !== "off", sub: Govee.mode,
-                          act: () => Govee.setMode(Govee.mode === "off" ? "auto" : "off") }
+                          act: () => Govee.setMode(Govee.mode === "off" ? "auto" : "off") },
+                        { label: "COMBAT MODE", on: GameMode.active,
+                          sub: GameMode.batteryWarn ? "engaged · on battery"
+                             : GameMode.active ? (GameMode.manual ? "engaged · manual" : "engaged · " + (GameMode.games[0] || "gamemode"))
+                             : Theme.cfg.gameAuto ? "auto-detect" : "off",
+                          act: () => GameMode.toggle() }
                     ]
                     delegate: Rectangle {
                         required property var modelData

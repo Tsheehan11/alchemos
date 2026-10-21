@@ -14,7 +14,7 @@ Singleton {
     id: root
 
     property real time: 0                  // seconds, advances at `fps`
-    readonly property int fps: PowerMode.saver ? Theme.cfg.batteryFps : Theme.cfg.effectsFps
+    readonly property int fps: GameMode.quiet ? 0 : PowerMode.saver ? Theme.cfg.batteryFps : Theme.cfg.effectsFps
     readonly property double t0: Date.now()
 
     Timer {
@@ -37,6 +37,7 @@ Singleton {
     // Should the clock / diagnostics / audio deck hide on this screen right now?
     // (They peek through the gaps between tiled windows otherwise.)
     function hidden(screen) {
+        if (screen && GameMode.quiet) return true;     // combat mode: everything but the bar
         return !!screen && Theme.cfg.hideHudBehindWindows && root.busy[screen.name] === true;
     }
 
@@ -59,7 +60,7 @@ Singleton {
         }
     }
     Timer { id: debounce; interval: 150; onTriggered: poll.running = true }
-    Timer { interval: 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: poll.running = true }
+    Timer { interval: 5000; running: !GameMode.quiet; repeat: true; triggeredOnStart: true; onTriggered: poll.running = true }
 
     Connections {
         target: Hyprland

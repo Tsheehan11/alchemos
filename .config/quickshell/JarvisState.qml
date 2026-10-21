@@ -49,12 +49,13 @@ Singleton {
     // ── Auto on/off ──
     // The toggle (control center, or Settings → HUD) only sets userWantsJarvis;
     // plugging into the monitors only changes docked. Jarvis runs when both are
-    // true — and not on battery saver, if that's set to pause it.
+    // true — and not on battery saver / in combat mode, if those are set to pause it.
     readonly property bool userWantsJarvis: Theme.cfg.jarvisDocked   // saved in settings.json
     function setWanted(on) { Theme.cfg.jarvisDocked = on; }
     readonly property bool docked: Roles.docked
     readonly property bool enabled: root.userWantsJarvis && root.docked
                                     && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
+                                    && !(GameMode.active && Theme.cfg.gameJarvis)
     readonly property bool running: proc.running
 
     readonly property string home: Quickshell.env("HOME")

@@ -1,4 +1,4 @@
-// Shared system stats, updated every 2 s:
+// Shared system stats, updated every 2 s (5 s on battery saver, 10 s in combat mode):
 // CPU, GPU, RAM, battery, Wi-Fi signal, network speed, disk, uptime + history for graphs.
 pragma Singleton
 import QtQuick
@@ -8,7 +8,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property int interval: PowerMode.saver ? 5000 : 2000
+    readonly property int interval: GameMode.quiet ? 10000 : PowerMode.saver ? 5000 : 2000
     readonly property int historyLength: 60
 
     property real cpu: 0            // 0..1

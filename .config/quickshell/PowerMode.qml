@@ -6,6 +6,8 @@
 //   • stats refresh every 5 s instead of 2 s
 //   • optionally pauses Jarvis (handled in JarvisState)
 // Everything goes back the moment you plug in.
+// While combat mode (GameMode) has taken over blur / the power profile, those
+// are left to it; if the saver flipped during the game, they're re-applied after.
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -35,13 +37,25 @@ Singleton {
     function apply() {
         const s = root.saver;
         const blurOn = !(s && Theme.cfg.saverNoBlur);
-        hypr([
-            "keyword decoration:blur:enabled " + (blurOn ? "true" : "false"),
-            "keyword decoration:shadow:enabled " + (blurOn ? "true" : "false")
-        ]);
+        if (GameMode.owns.indexOf("hypr") < 0)
+            hypr([
+                "keyword decoration:blur:enabled " + (blurOn ? "true" : "false"),
+                "keyword decoration:shadow:enabled " + (blurOn ? "true" : "false")
+            ]);
         laptopProbe.running = true;
-        Quickshell.execDetached(["sh", "-c",
-            "command -v powerprofilesctl >/dev/null && powerprofilesctl set " + (s ? "power-saver" : "balanced")]);
+        if (GameMode.owns.indexOf("power") < 0)
+            Quickshell.execDetached(["sh", "-c",
+                "command -v powerprofilesctl >/dev/null && powerprofilesctl set " + (s ? "power-saver" : "balanced")]);
+    }
+
+    // stark-game restores what it found on entry; that's stale if the saver flipped meanwhile
+    property bool saverAtGame: false
+    Connections {
+        target: GameMode
+        function onActiveChanged() {
+            if (GameMode.active) root.saverAtGame = root.saver;
+            else if (root.saver !== root.saverAtGame) applyTimer.restart();
+        }
     }
 
     // Laptop screen 60 ↔ 48 Hz, keeping whatever position / scale / rotation

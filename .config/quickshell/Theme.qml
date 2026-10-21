@@ -53,6 +53,14 @@ Singleton {
             property int idleSleep: 20
             property bool terminalGlass: false         // kitty background_opacity 0.85 instead of solid
             property var customPresets: []             // user presets: [{ name, primary, secondary, background }]
+            // Combat mode (GameMode.qml); the stark-game daemon reads these too
+            property bool gameAuto: true                // engage when a game window opens / gamemode starts
+            property bool gameHypr: true                // blur, shadows, animations off + tearing for the game
+            property bool gameNoVfr: false              // also debug:vfr off (Hyprland advises against it)
+            property bool gamePower: true               // performance profile on AC, balanced on battery
+            property bool gameHud: true                 // HUD effects / panels pause, stats refresh slowly
+            property bool gameJarvis: true              // pause Jarvis (frees the mic)
+            property bool gameNotify: true              // do-not-disturb on the notification daemon
         }
     }
 

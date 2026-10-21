@@ -1,0 +1,62 @@
+// Combat mode (gaming mode). ~/.local/bin/stark-game (daemon started from
+// hyprland.conf) does the switching: it spots game windows, turns Hyprland
+// effects / the power profile / notifications over and puts them back after.
+// The HUD just follows its state file:
+//   • quiet: ambient effects, reactor, panels and the visualizer stop (Perf),
+//     bar stats + clock refresh slowly (SysStats, Bar)
+//   • Jarvis pauses (JarvisState)
+//   • "COMBAT MODE ENGAGED / DISENGAGED" toast + sound (GameToast)
+// Options are the game* settings in Theme (Settings → System → Combat mode).
+pragma Singleton
+import QtQuick
+import Quickshell
+import Quickshell.Io
+
+Singleton {
+    id: root
+
+    property bool active: false
+    property var owns: []                 // what the daemon took over: hypr | power | notify
+    property var games: []                // window classes that triggered it
+    property bool manual: false
+    readonly property bool quiet: active && Theme.cfg.gameHud
+    readonly property bool batteryWarn: active && owns.indexOf("power") >= 0 && PowerMode.onBattery
+
+    function toggle() { Quickshell.execDetached(["stark-game", "toggle"]); }
+    function refresh() { file.reload(); }
+
+    // Toast
+    property bool showing: false
+    property bool loaded: false
+    readonly property string soundDir: Quickshell.env("HOME") + "/.config/quickshell/sounds/"
+    Timer { id: hide; interval: 2600; onTriggered: root.showing = false }
+
+    FileView {
+        id: file
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/stark-game/state.json"
+        blockLoading: true                // known before PowerMode / Jarvis act at startup
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: root.read(text())
+        onLoadFailed: root.read("{}")
+    }
+
+    function read(t) {
+        let s = {};
+        try { s = JSON.parse(t); } catch (e) {}
+        root.owns = s.owns || [];
+        root.games = s.games || [];
+        root.manual = s.manual === true;
+        const a = !!s.active;
+        if (a !== root.active) {
+            root.active = a;
+            // No toast for the state we find on HUD start
+            if (root.loaded) {
+                root.showing = true;
+                hide.restart();
+                Quickshell.execDetached(["pw-play", root.soundDir + (a ? "combat-on.wav" : "combat-off.wav")]);
+            }
+        }
+        root.loaded = true;
+    }
+}

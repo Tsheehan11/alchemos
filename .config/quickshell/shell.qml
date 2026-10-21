@@ -55,6 +55,10 @@ ShellRoot {
         model: Quickshell.screens
         Osd {}
     }
+    Variants {
+        model: Quickshell.screens
+        GameToast {}
+    }
 
     Variants {
         model: Quickshell.screens
@@ -124,6 +128,13 @@ ShellRoot {
         function unlocked(): void { LockState.unlocked() }
         function power(action: string): void { LockState.power(action) }   // shutdown | reboot | logout
         function menu(): void { LauncherState.togglePower() }        // power button / Super + Esc
+    }
+
+    //   used by ~/.local/bin/stark-game after each state change
+    IpcHandler {
+        target: "game"
+        function refresh(): void { GameMode.refresh() }
+        function toggle(): void { GameMode.toggle() }
     }
 
     //   used by ~/.config/jarvis/jarvis.py

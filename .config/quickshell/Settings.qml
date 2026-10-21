@@ -589,6 +589,38 @@ PanelWindow {
                         }
                     }
 
+                    Text { text: "COMBAT MODE"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Item {
+                        width: parent.width; height: 34
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: GameMode.batteryWarn ? "Engaged — on battery, balanced profile"
+                                : GameMode.active ? "Engaged — " + (GameMode.manual ? "manual" : (GameMode.games.join(", ") || "gamemode"))
+                                : "Standing by"
+                            color: GameMode.batteryWarn ? "#ff5f5f" : GameMode.active ? Theme.secondary : Theme.textSoft
+                            font.family: st.mono; font.pixelSize: 13
+                        }
+                        SmallButton {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            text: GameMode.active ? "DISENGAGE" : "ENGAGE"
+                            active: GameMode.active
+                            onClicked: GameMode.toggle()
+                        }
+                    }
+                    Toggle { width: parent.width; label: "Auto-detect games"; hint: "Steam / gamescope / games.conf windows, or gamemoderun"; checked: Theme.cfg.gameAuto; onToggled: Theme.cfg.gameAuto = !Theme.cfg.gameAuto }
+                    Toggle { width: parent.width; label: "Hyprland effects off"; hint: "Blur, shadows, animations off · tearing allowed for the game"; checked: Theme.cfg.gameHypr; onToggled: Theme.cfg.gameHypr = !Theme.cfg.gameHypr }
+                    Toggle { width: parent.width; label: "Also turn off VFR"; hint: "Renders every frame — more iGPU load; Hyprland advises against it"; checked: Theme.cfg.gameNoVfr; onToggled: Theme.cfg.gameNoVfr = !Theme.cfg.gameNoVfr }
+                    Toggle { width: parent.width; label: "Performance power profile"; hint: "On AC · balanced (and a warning) on battery"; checked: Theme.cfg.gamePower; onToggled: Theme.cfg.gamePower = !Theme.cfg.gamePower }
+                    Toggle { width: parent.width; label: "Pause HUD animations"; hint: "Effects, clock, panels, visualizer stop · bar refreshes every 10 s"; checked: Theme.cfg.gameHud; onToggled: Theme.cfg.gameHud = !Theme.cfg.gameHud }
+                    Toggle { width: parent.width; label: "Pause Jarvis"; hint: "Frees the mic · comes back afterwards if it was on"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
+                    Toggle { width: parent.width; label: "Mute notifications"; hint: "Do-not-disturb on mako, swaync or dunst, if one is running"; checked: Theme.cfg.gameNotify; onToggled: Theme.cfg.gameNotify = !Theme.cfg.gameNotify }
+                    Text { text: "Effects, power and notification changes apply the next time it engages."; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
+                    Row {
+                        spacing: 10
+                        SmallButton { text: "EDIT GAMES LIST"; onClicked: { Hyprland.dispatch("exec kate ~/.config/stark-game/games.conf"); LauncherState.closeAll(); } }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/stark-game/games.conf"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                    }
+
                     Text { text: "CONFIG"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10

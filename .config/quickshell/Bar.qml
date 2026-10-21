@@ -26,7 +26,8 @@ PanelWindow {
     implicitHeight: 34
     color: "transparent"
 
-    SystemClock { id: clock; precision: SystemClock.Seconds }
+    // Minute ticks in combat mode instead of a redraw every second
+    SystemClock { id: clock; precision: GameMode.quiet ? SystemClock.Minutes : SystemClock.Seconds }
 
     Rectangle {
         anchors.fill: parent
@@ -90,7 +91,8 @@ PanelWindow {
     // Center: clock
     Text {
         anchors.centerIn: parent
-        text: Qt.formatDateTime(clock.date, Theme.cfg.clock24 ? "hh:mm:ss" : "h:mm:ss AP")
+        text: Qt.formatDateTime(clock.date, GameMode.quiet ? (Theme.cfg.clock24 ? "hh:mm" : "h:mm AP")
+                                                          : (Theme.cfg.clock24 ? "hh:mm:ss" : "h:mm:ss AP"))
         color: Theme.textSoft
         font.family: bar.mono
         font.pixelSize: 13
@@ -124,6 +126,12 @@ PanelWindow {
             Text { text: "RAM " + Math.round(SysStats.ram * 100) + "%"; color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
             Text { text: "BAT " + Math.round(SysStats.battery * 100) + "%"; color: SysStats.charging ? "#7cf5c1" : bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
             Text { visible: PowerMode.saver; text: "SAVER"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
+            Text {
+                visible: GameMode.active
+                text: String.fromCodePoint(0xF0170) + (GameMode.batteryWarn ? " COMBAT · BATTERY" : " COMBAT")
+                color: GameMode.batteryWarn ? "#ff5f5f" : Theme.secondary
+                font.family: bar.mono; font.pixelSize: 12; font.bold: true; font.letterSpacing: 2
+            }
             Text { text: "◈"; color: bar.cyan; font.pixelSize: 13 }
         }
 
