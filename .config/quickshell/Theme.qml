@@ -52,6 +52,7 @@ Singleton {
             property int idleScreenOff: 10
             property int idleSleep: 20
             property bool terminalGlass: false         // kitty background_opacity 0.85 instead of solid
+            property var customPresets: []             // user presets: [{ name, primary, secondary, background }]
         }
     }
 
@@ -69,6 +70,32 @@ Singleton {
         adapter.primary = p.primary;
         adapter.secondary = p.secondary;
         adapter.background = p.background;
+    }
+
+    // ── Custom presets ──────────────────────────
+    // Built-ins first, then the user's (tagged custom: true). Colour fields are
+    // whatever a built-in defines, so new fields get saved automatically.
+    readonly property var presetFields: Object.keys(presets[0]).filter(k => k !== "name")
+    readonly property var allPresets: presets.concat((adapter.customPresets || []).map(c => Object.assign({ custom: true }, c)))
+    function presetName(raw) { return (raw || "").trim().toUpperCase().slice(0, 14); }
+    function isBuiltin(name) { return presets.some(b => b.name === name); }
+
+    // Saves the colours currently applied. Returns "" on success, else the reason.
+    function savePreset(raw) {
+        const name = presetName(raw);
+        if (name === "") return "Give it a name";
+        if (isBuiltin(name) || name === "CUSTOM") return name + " is a built-in name";
+        const entry = { name: name };
+        for (const k of presetFields) entry[k] = adapter[k];
+        const list = (adapter.customPresets || []).filter(c => c.name !== name);
+        list.push(entry);
+        adapter.customPresets = list;     // new array → JsonAdapter notices and saves
+        adapter.preset = name;
+        return "";
+    }
+    function deletePreset(name) {
+        adapter.customPresets = (adapter.customPresets || []).filter(c => c.name !== name);
+        if (adapter.preset === name) adapter.preset = "CUSTOM";   // colours stay as they are
     }
 
     // ── Colors ──────────────────────────────────

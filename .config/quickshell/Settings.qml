@@ -303,16 +303,35 @@ PanelWindow {
 
                 // ════════ APPEARANCE ════════
                 Column {
+                    id: look
                     visible: LauncherState.settingsTab === "APPEARANCE"
                     width: parent.width
                     spacing: 16
+                    property bool naming: false        // SAVE AS PRESET name field open
+                    property string saveError: ""
+                    function startNaming() {
+                        look.saveError = "";
+                        presetIn.text = Theme.isBuiltin(Theme.cfg.preset) || Theme.cfg.preset === "CUSTOM" ? "" : Theme.cfg.preset;
+                        look.naming = true;
+                        presetIn.forceActiveFocus();
+                        presetIn.selectAll();
+                    }
+                    function finishNaming(save) {
+                        if (save) {
+                            look.saveError = Theme.savePreset(presetIn.text);
+                            if (look.saveError !== "") return;
+                            st.status = "✓ Saved preset " + Theme.presetName(presetIn.text);
+                        }
+                        look.naming = false;
+                        focusCatcher.forceActiveFocus();
+                    }
 
                     Text { text: "THEME"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Grid {
                         columns: 3
                         columnSpacing: 12; rowSpacing: 12
                         Repeater {
-                            model: Theme.presets
+                            model: Theme.allPresets
                             delegate: Rectangle {
                                 required property var modelData
                                 readonly property bool on: Theme.cfg.preset === modelData.name
@@ -332,7 +351,58 @@ PanelWindow {
                                     font.family: st.mono; font.pixelSize: 12; font.letterSpacing: 3
                                 }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Theme.applyPreset(modelData) }
+                                // Custom presets: marker + delete
+                                Text {
+                                    visible: modelData.custom === true
+                                    anchors.right: parent.right; anchors.top: parent.top
+                                    anchors.rightMargin: 10; anchors.topMargin: 8
+                                    text: "◆ USER"
+                                    color: modelData.secondary
+                                    font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2
+                                }
+                                ConfirmButton {
+                                    visible: modelData.custom === true
+                                    anchors.right: parent.right; anchors.bottom: parent.bottom
+                                    anchors.rightMargin: 8; anchors.bottomMargin: 8
+                                    label: "✕"
+                                    onConfirmed: Theme.deletePreset(modelData.name)
+                                }
                             }
+                        }
+                    }
+
+                    // Save the colours currently applied as a new preset
+                    Row {
+                        spacing: 10
+                        SmallButton { visible: !look.naming; text: "+ SAVE AS PRESET"; onClicked: look.startNaming() }
+                        Rectangle {
+                            visible: look.naming
+                            width: 240; height: 32
+                            color: Theme.d(0.9)
+                            border.color: presetIn.activeFocus ? Theme.primary : Theme.p(0.4)
+                            TextInput {
+                                id: presetIn
+                                anchors.fill: parent; anchors.margins: 7
+                                maximumLength: 14
+                                color: Theme.text
+                                font.family: st.mono; font.pixelSize: 14; font.letterSpacing: 2
+                                font.capitalization: Font.AllUppercase
+                                onTextEdited: look.saveError = ""
+                                Keys.onReturnPressed: look.finishNaming(true)
+                                Keys.onEnterPressed: look.finishNaming(true)
+                                Keys.onEscapePressed: look.finishNaming(false)
+                                Text { visible: presetIn.text === ""; text: "PRESET NAME"; color: Theme.faint; font: presetIn.font }
+                            }
+                        }
+                        SmallButton { visible: look.naming; text: "SAVE"; onClicked: look.finishNaming(true) }
+                        SmallButton { visible: look.naming; text: "CANCEL"; onClicked: look.finishNaming(false) }
+                        Text {
+                            visible: look.naming
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: look.saveError !== "" ? "✕ " + look.saveError
+                                : (Theme.cfg.customPresets || []).some(c => c.name === Theme.presetName(presetIn.text)) ? "overwrites existing preset" : ""
+                            color: look.saveError !== "" ? Theme.secondary : Theme.dim
+                            font.family: st.mono; font.pixelSize: 11
                         }
                     }
 

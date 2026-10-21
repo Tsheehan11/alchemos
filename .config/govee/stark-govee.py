@@ -14,6 +14,7 @@ Usage:
   stark-govee color <hex>               manual colour (mode becomes "manual")
   stark-govee status
   stark-govee setup                     find the strip and save its IP
+  stark-govee home [--clear]            remember the current network as home
   stark-govee oneshot <name>            play an animation without the daemon
   stark-govee scan
 """
@@ -37,6 +38,10 @@ DEFAULTS = {
     "music_floor": 0.12,       # dimmest point while music is playing
     "music_gain": 1.0,
     "silence_seconds": 3.0,    # auto mode drops back to theme after this much silence
+    "gamma": 2.2,              # LED hue correction: screen colours look washed/purple without it
+    "white_balance": [1.0, 1.0, 1.0],  # per-channel trim (r, g, b) if whites look tinted
+    "require_docked": True,    # only light up with an external monitor connected
+    "home_gateways": [],       # router MACs that count as home (set with: stark-govee home)
 }
 DEFAULT_THEME = {"primary": "#00dcff", "accent": "#ffffff"}
 MODES = ("auto", "music", "theme", "off", "manual")
@@ -155,8 +160,96 @@ def wait_for_route(ip, timeout):
     return False
 
 
+def correct(c, gamma, wb):
+    """Gamma-correct the hue while keeping brightness (the max channel) linear."""
+    m = max(c)
+    if m <= 0:
+        return (0, 0, 0)
+    return tuple(m * ((x / m) ** gamma) * g for x, g in zip(c, wb))
+
+
+# ---------- "docked at home" gate ----------
+def docked():
+    """True if any external display connector (not the laptop panel) is connected."""
+    for st in Path("/sys/class/drm").glob("card*-*/status"):
+        name = st.parent.name.split("-", 1)[1]
+        if name.startswith(("eDP", "LVDS", "DSI", "Writeback")):
+            continue
+        try:
+            if st.read_text().strip() == "connected":
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def _default_gateways():
+    gws = set()
+    try:
+        for line in Path("/proc/net/route").read_text().splitlines()[1:]:
+            f = line.split()
+            if len(f) > 3 and f[1] == "00000000" and int(f[3], 16) & 2:
+                gws.add(socket.inet_ntoa(struct.pack("<L", int(f[2], 16))))
+    except (OSError, ValueError):
+        pass
+    return gws
+
+
+def _arp():
+    out = {}
+    try:
+        for line in Path("/proc/net/arp").read_text().splitlines()[1:]:
+            f = line.split()
+            if len(f) >= 4 and f[3] != "00:00:00:00:00:00":
+                out[f[0]] = f[3].lower()
+    except OSError:
+        pass
+    return out
+
+
+def gateway_macs():
+    gws = _default_gateways()
+    if not gws:
+        return set()
+    arp = _arp()
+    if not all(g in arp for g in gws):  # nudge the kernel to resolve the router's MAC
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        for g in gws:
+            try:
+                s.sendto(b"", (g, 9))
+            except OSError:
+                pass
+        s.close()
+        time.sleep(0.3)
+        arp = _arp()
+    return {arp[g] for g in gws if g in arp}
+
+
+def at_home(cfg):
+    homes = {m.lower() for m in cfg.get("home_gateways") or []}
+    if not homes:
+        return True  # no home saved yet: don't block anything
+    return bool(gateway_macs() & homes)
+
+
+def should_run(cfg):
+    if cfg.get("require_docked", True) and not docked():
+        return False
+    return at_home(cfg)
+
+
+def _calib(cfg):
+    try:
+        g = float(cfg.get("gamma", 2.2))
+        wb = tuple(float(x) for x in cfg.get("white_balance", (1, 1, 1)))[:3]
+        return clamp(g, 1.0, 3.5), wb if len(wb) == 3 else (1.0, 1.0, 1.0)
+    except (TypeError, ValueError):
+        return 2.2, (1.0, 1.0, 1.0)
+
+
 class Strip:
-    def __init__(self, ip, max_fps):
+    def __init__(self, ip, max_fps, gamma=2.2, wb=(1.0, 1.0, 1.0)):
+        self.gamma, self.wb = gamma, tuple(wb)
         self.ip = ip
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.min_dt = 1.0 / max(1, max_fps)
@@ -180,7 +273,7 @@ class Strip:
         self.send("brightness", {"value": int(clamp(v, 1, 100))})
 
     def rgb(self, c, force=False):
-        c = tuple(int(round(clamp(x, 0, 255))) for x in c)
+        c = tuple(int(round(clamp(x, 0, 255))) for x in correct(c, self.gamma, self.wb))
         now = time.monotonic()
         if not force:
             if now - self.last_t < self.min_dt:
@@ -279,7 +372,7 @@ class Daemon:
         self.cfg = load_json(CONFIG, DEFAULTS)
         self.theme = load_json(THEME, DEFAULT_THEME)
         self.fps = int(clamp(self.cfg.get("max_fps", 12), 2, 30))
-        self.strip = Strip(resolve_ip(self.cfg), self.fps)
+        self.strip = Strip(resolve_ip(self.cfg), self.fps, *_calib(self.cfg))
         self.q = queue.Queue()
         self.running = True
         self.locked = self.asleep = False
@@ -287,6 +380,8 @@ class Daemon:
         self.cur = BLACK
         self.anim = self.anim_done = self.anim_after = None
         self.wake_until = 0.0
+        self.parked = False       # not docked at home: strip left alone
+        self.gate_vote, self.last_gate = 0, 0.0
         self.mtimes = {}
         self.last_poll = self.last_scan = 0.0
         # audio state (written by the cava thread)
@@ -330,12 +425,13 @@ class Daemon:
         return {"ip": self.strip.ip, "mode": self.cfg.get("mode"), "locked": self.locked,
                 "asleep": self.asleep, "music_active": self.music_active(),
                 "level": round(self.level, 2), "theme": self.theme,
-                "rgb": [int(x) for x in self.cur], "cava": self.cava is not None}
+                "rgb": [int(x) for x in self.cur], "cava": self.cava is not None,
+                "parked": self.parked, "docked": docked(), "home": at_home(self.cfg)}
 
     # --- audio via cava ---
     def want_audio(self):
         return (self.cfg.get("mode") in ("auto", "music") and not self.locked
-                and not self.asleep and self.strip.ip is not None)
+                and not self.asleep and not self.parked and self.strip.ip is not None)
 
     def manage_cava(self):
         want = self.want_audio()
@@ -414,6 +510,8 @@ class Daemon:
         self.theme = load_json(THEME, DEFAULT_THEME)
         if self.cfg.get("ip"):
             self.strip.ip = os.environ.get("GOVEE_IP") or self.cfg["ip"]
+        self.strip.gamma, self.strip.wb = _calib(self.cfg)
+        self.strip.last_rgb = None  # resend with new calibration
 
     # --- commands / events ---
     def drain(self):
@@ -444,6 +542,9 @@ class Daemon:
         elif name == "wake":
             self.asleep = False
             self.wake_until = now + 15  # network may still be coming up after resume
+        if self.parked:
+            done.set()
+            return
         if self.cfg.get("mode") == "off":
             if name in GOES_DARK:
                 self.asleep = True
@@ -465,6 +566,31 @@ class Daemon:
         if self.anim_done:
             self.anim_done.set()
         self.anim = self.anim_done = self.anim_after = None
+
+    # --- docked-at-home gate ---
+    def gate(self):
+        now = time.monotonic()
+        if now - self.last_gate < 3.0:
+            return
+        self.last_gate = now
+        ok = should_run(self.cfg)
+        if ok == (not self.parked):
+            self.gate_vote = 0
+            return
+        self.gate_vote += 1
+        if self.gate_vote < 2:  # need two readings in a row (~6 s) so docking blips don't flicker
+            return
+        self.gate_vote = 0
+        if ok:
+            log("docked at home: lights on")
+            self.parked = self.asleep = False
+            if self.cfg.get("mode") != "off":
+                self.start_anim("login")
+        else:
+            log("not docked at home: lights off")
+            self.parked = True
+            if self.cfg.get("mode") != "off":
+                self.start_anim("sleep")
 
     # --- rendering ---
     def target(self):
@@ -505,7 +631,7 @@ class Daemon:
                 self.cur = f
                 self.strip.rgb(f, force=True)
             return
-        if self.asleep:
+        if self.asleep or self.parked:
             return
         now = time.monotonic()
         if now < self.wake_until and now - self.strip.last_t > 1.0:
@@ -544,13 +670,18 @@ class Daemon:
         else:
             log("no strip IP yet; will rescan every 30 s")
         self.poll_files()
-        if self.cfg.get("mode") != "off":
+        self.parked = not should_run(self.cfg)
+        self.last_gate = time.monotonic()
+        if self.parked:
+            log("not docked at home: idling")
+        elif self.cfg.get("mode") != "off":
             self.start_anim("login")
         tick = 1.0 / self.fps
         while self.running:
             t0 = time.monotonic()
             self.poll_files()
             self.drain()
+            self.gate()
             self.manage_cava()
             self.step()
             time.sleep(max(0.0, tick - (time.monotonic() - t0)))
@@ -582,8 +713,11 @@ def play_direct(name, route_timeout=3.0):
     if not ip or not wait_for_route(ip, route_timeout):
         log("strip not reachable; skipping", name)
         return
+    if not should_run(cfg):
+        log("not docked at home; skipping", name)
+        return
     fps = int(clamp(cfg.get("max_fps", 12), 2, 30))
-    strip = Strip(ip, fps)
+    strip = Strip(ip, fps, *_calib(cfg))
     p, a = theme_colors(load_json(THEME, DEFAULT_THEME))
     start = BLACK if name in ("boot", "login", "wake") else p
     if name == "boot":
@@ -664,6 +798,19 @@ def main(argv):
         if not THEME.exists():
             save_json(THEME, DEFAULT_THEME)
         print("saved", CONFIG)
+    elif cmd == "home":
+        if args and args[0] == "--clear":
+            update_config(home_gateways=[])
+            print("home cleared: lights run on any network (still needs docking)")
+        else:
+            macs = gateway_macs()
+            if not macs:
+                sys.exit("couldn't read your router's address; are you online?")
+            cfg = load_json(CONFIG, {})
+            homes = sorted(set(cfg.get("home_gateways") or []) | macs)
+            update_config(home_gateways=homes)
+            print("home network saved:", ", ".join(sorted(macs)))
+        _poke()
     elif cmd == "scan":
         for d in scan():
             print(f"{d.get('sku')}  {d['ip']}  {d.get('device')}")

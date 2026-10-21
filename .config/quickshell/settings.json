@@ -28,5 +28,6 @@
     "showMedia": true,
     "showReactor": true,
     "terminalGlass": false,
-    "unlockSound": true
+    "unlockSound": true,
+    "customPresets": []
 }
