@@ -2,12 +2,14 @@
 //   • ambient effects drop to the battery frame rate (static by default)
 //   • window blur + shadows off (the biggest GPU cost in Hyprland)
 //   • laptop screen 60 → 48 Hz
-//   • power profile → power-saver (if power-profiles-daemon is installed)
+//   • power profile → power-saver (if power-profiles-daemon is installed); the
+//     profile you had goes back on plug-in. Only an actual saver on/off changes
+//     it — a HUD restart leaves whatever profile you picked alone.
 //   • stats refresh every 5 s instead of 2 s
 //   • optionally pauses Jarvis (handled in JarvisState)
 // Everything goes back the moment you plug in.
 // While combat mode (GameMode) has taken over blur / the power profile, those
-// are left to it; if the saver flipped during the game, they're re-applied after.
+// are left to it, and the saver catches up when the game ends.
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -43,19 +45,34 @@ Singleton {
                 "keyword decoration:shadow:enabled " + (blurOn ? "true" : "false")
             ]);
         laptopProbe.running = true;
-        if (GameMode.owns.indexOf("power") < 0)
-            Quickshell.execDetached(["sh", "-c",
-                "command -v powerprofilesctl >/dev/null && powerprofilesctl set " + (s ? "power-saver" : "balanced")]);
+        // Wait for the first battery reading: until then `saver` is just a default
+        if (GameMode.owns.indexOf("power") < 0 && SysStats.polled)
+            Quickshell.execDetached(["sh", "-c", root.profileScript, "sh", s ? "on" : "off"]);
     }
 
-    // stark-game restores what it found on entry; that's stale if the saver flipped meanwhile
-    property bool saverAtGame: false
+    // Power profile, only on a real saver toggle. The last state acted on is kept in
+    // $XDG_RUNTIME_DIR (survives HUD restarts, cleared at logout), so restarting the
+    // HUD is a no-op. First run of a session: saver on → power-saver, off → untouched.
+    readonly property string profileScript: [
+        "command -v powerprofilesctl >/dev/null || exit 0",
+        "d=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/stark-power; mkdir -p $d",
+        "last=$(cat $d/saver 2>/dev/null)",
+        "[ \"$last\" = \"$1\" ] && exit 0",
+        "echo $1 > $d/saver",
+        "if [ $1 = on ]; then",
+        "  cur=$(powerprofilesctl get); [ \"$cur\" != power-saver ] && echo $cur > $d/before",
+        "  powerprofilesctl set power-saver",
+        "elif [ -n \"$last\" ]; then",
+        "  powerprofilesctl set $(cat $d/before 2>/dev/null || echo balanced); rm -f $d/before",
+        "fi"
+    ].join("\n")
+
+    Connections { target: SysStats; function onPolledChanged() { applyTimer.restart(); } }
+    // stark-game restores the blur / profile it found on entry; re-apply in case the
+    // saver flipped meanwhile (no-op for the profile if it didn't)
     Connections {
         target: GameMode
-        function onActiveChanged() {
-            if (GameMode.active) root.saverAtGame = root.saver;
-            else if (root.saver !== root.saverAtGame) applyTimer.restart();
-        }
+        function onActiveChanged() { if (!GameMode.active) applyTimer.restart(); }
     }
 
     // Laptop screen 60 ↔ 48 Hz, keeping whatever position / scale / rotation

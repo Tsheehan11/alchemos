@@ -27,6 +27,7 @@ Singleton {
     property real diskUsedGb: 0
     property real diskTotalGb: 0
     property real uptimeS: 0
+    property bool polled: false     // first reading is in (battery state is real)
 
     property var cpuHistory: []
     property var gpuHistory: []
@@ -162,5 +163,6 @@ Singleton {
             }
         }
         if (!sawWifi) root.wifi = 0;
+        root.polled = true;
     }
 }
