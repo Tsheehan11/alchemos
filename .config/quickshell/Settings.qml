@@ -341,6 +341,7 @@ PanelWindow {
                     Text { text: "CUSTOM — ACCENT COLOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Swatches { selected: Theme.cfg.secondary; onPicked: c => { Theme.cfg.secondary = c; Theme.cfg.preset = "CUSTOM"; } }
 
+                    Toggle { width: parent.width; label: "TERMINAL GLASS"; hint: "Kitty turns 85% see-through — off keeps it solid"; checked: Theme.cfg.terminalGlass; onToggled: Theme.cfg.terminalGlass = !Theme.cfg.terminalGlass }
                     Toggle { width: parent.width; label: "Animated background"; hint: "Data streams, scanline, blinking nodes, spinning rings"; checked: Theme.cfg.animatedBg; onToggled: Theme.cfg.animatedBg = !Theme.cfg.animatedBg }
                     Toggle { width: parent.width; label: "Pause effects behind windows"; hint: "Big GPU saver — effects only run on screens you can actually see"; checked: Theme.cfg.pauseBehindWindows; onToggled: Theme.cfg.pauseBehindWindows = !Theme.cfg.pauseBehindWindows }
                     Column {
