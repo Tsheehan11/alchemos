@@ -1,0 +1,8 @@
+#!/bin/sh
+# STARK OS: fade the Govee strip out on suspend, bring it back on resume.
+BIN="@HOME@/.local/bin/stark-govee"
+case "$1" in
+  pre)  runuser -u @USER@ -- "$BIN" event sleep --wait ;;
+  post) runuser -u @USER@ -- "$BIN" event wake ;;
+esac
+exit 0

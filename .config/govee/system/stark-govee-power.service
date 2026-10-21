@@ -1,0 +1,16 @@
+[Unit]
+Description=STARK OS Govee strip boot/shutdown animation
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+RemainAfterExit=yes
+User=@USER@
+ExecStart=@HOME@/.local/bin/stark-govee oneshot boot
+ExecStop=@HOME@/.local/bin/stark-govee oneshot shutdown
+TimeoutStartSec=30
+TimeoutStopSec=8
+
+[Install]
+WantedBy=multi-user.target

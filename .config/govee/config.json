@@ -1,0 +1,11 @@
+{
+  "ip": "1E:D2:E8:6E:C3:C6:05:38",
+  "mode": "auto",
+  "manual_color": "#00dcff",
+  "max_fps": 12,
+  "device_brightness": 100,
+  "idle_level": 1.0,
+  "music_floor": 0.12,
+  "music_gain": 1.0,
+  "silence_seconds": 3.0
+}

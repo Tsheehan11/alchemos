@@ -178,16 +178,22 @@ Singleton {
             "sh", kittyConf()]);
     }
 
-    onPrimaryChanged: { hyprSync.restart(); kittySync.restart(); }
+    // ── Ambient lights (Govee strip) ────────────
+    function pushToGovee() {
+        Quickshell.execDetached(["stark-govee", "theme", hex(primary), hex(secondary)]);
+    }
+
+    onPrimaryChanged: { hyprSync.restart(); kittySync.restart(); goveeSync.restart(); }
     onBgChanged: { hyprSync.restart(); kittySync.restart(); }
-    onSecondaryChanged: { hyprSync.restart(); kittySync.restart(); }
+    onSecondaryChanged: { hyprSync.restart(); kittySync.restart(); goveeSync.restart(); }
     Connections {
         target: adapter
         function onTerminalGlassChanged() { kittySync.restart(); }
     }
     Timer { id: hyprSync; interval: 300; onTriggered: root.pushToHyprland() }
     Timer { id: kittySync; interval: 300; onTriggered: root.pushToKitty() }
-    Component.onCompleted: { hyprSync.restart(); kittySync.restart(); }
+    Timer { id: goveeSync; interval: 300; onTriggered: root.pushToGovee() }
+    Component.onCompleted: { hyprSync.restart(); kittySync.restart(); goveeSync.restart(); }
     // `hyprctl reload` resets border colors → push them again
     Connections {
         target: Hyprland

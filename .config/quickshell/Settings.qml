@@ -341,6 +341,24 @@ PanelWindow {
                     Text { text: "CUSTOM — ACCENT COLOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Swatches { selected: Theme.cfg.secondary; onPicked: c => { Theme.cfg.secondary = c; Theme.cfg.preset = "CUSTOM"; } }
 
+                    Column {
+                        spacing: 8
+                        Text { text: "AMBIENT LIGHTS"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "Govee strip: AUTO follows the theme and pulses to music when audio plays."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                        Row {
+                            spacing: 10
+                            Repeater {
+                                model: Govee.modes
+                                delegate: SmallButton {
+                                    required property var modelData
+                                    text: modelData.toUpperCase()
+                                    active: Govee.mode === modelData
+                                    onClicked: Govee.setMode(modelData)
+                                }
+                            }
+                        }
+                    }
+
                     Toggle { width: parent.width; label: "TERMINAL GLASS"; hint: "Kitty turns 85% see-through — off keeps it solid"; checked: Theme.cfg.terminalGlass; onToggled: Theme.cfg.terminalGlass = !Theme.cfg.terminalGlass }
                     Toggle { width: parent.width; label: "Animated background"; hint: "Data streams, scanline, blinking nodes, spinning rings"; checked: Theme.cfg.animatedBg; onToggled: Theme.cfg.animatedBg = !Theme.cfg.animatedBg }
                     Toggle { width: parent.width; label: "Pause effects behind windows"; hint: "Big GPU saver — effects only run on screens you can actually see"; checked: Theme.cfg.pauseBehindWindows; onToggled: Theme.cfg.pauseBehindWindows = !Theme.cfg.pauseBehindWindows }

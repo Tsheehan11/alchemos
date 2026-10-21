@@ -128,7 +128,9 @@ PanelWindow {
                           sub: !JarvisState.userWantsJarvis ? "off"
                              : !JarvisState.docked ? "waits for dock"
                              : JarvisState.online ? "listening" : "starting…",
-                          act: () => JarvisState.setWanted(!JarvisState.userWantsJarvis) }
+                          act: () => JarvisState.setWanted(!JarvisState.userWantsJarvis) },
+                        { label: "AMBIENT LIGHTS", on: Govee.mode !== "off", sub: Govee.mode,
+                          act: () => Govee.setMode(Govee.mode === "off" ? "auto" : "off") }
                     ]
                     delegate: Rectangle {
                         required property var modelData

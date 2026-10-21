@@ -8,6 +8,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Hyprland
 
 Singleton {
@@ -32,6 +33,7 @@ Singleton {
     function requestLock() {
         if (root.doors !== "open") return;
         LauncherState.closeAll();
+        Govee.event("lock");
         lockSeq.start();
     }
     SequentialAnimation {
@@ -74,6 +76,8 @@ Singleton {
     // ── Lid / idle lock (no animation — must be instant) ──
     function locked() {
         if (lockSeq.running) return;
+        // requestLock() already sent "lock" and stark-lock.sh calls back here once the doors are shut
+        if (root.doors !== "closed") Govee.event("lock");
         unlockSeq.stop();
         LauncherState.closeAll();
         root.doorPos = 1; root.crt = 0;
@@ -98,7 +102,7 @@ Singleton {
         NumberAnimation { target: root; property: "msgP"; from: 0; to: 1; duration: 450 }
         PauseAnimation { duration: 450 }
         NumberAnimation { target: root; property: "doorPos"; from: 1; to: 0; duration: 850; easing.type: Easing.InOutCubic }
-        ScriptAction { script: root.doors = "open" }
+        ScriptAction { script: { root.doors = "open"; Govee.event("unlock"); } }
     }
 
     // ── Shut down / restart / log out ──
@@ -124,8 +128,19 @@ Singleton {
         PauseAnimation { duration: 250 }
         ScriptAction { script: {
             if (root.pendingAction === "reboot") Quickshell.execDetached(["systemctl", "reboot"]);
-            else if (root.pendingAction === "logout") Hyprland.dispatch("exit");
+            else if (root.pendingAction === "logout") { logoutLights.running = true; logoutFallback.restart(); }
             else Quickshell.execDetached(["systemctl", "poweroff"]);
         } }
+    }
+    // Log out: let the strip finish its sign-off animation (~2 s), then leave Hyprland
+    Process {
+        id: logoutLights
+        command: ["stark-govee", "event", "logout", "--wait"]
+        onExited: root.exitHyprland()
+    }
+    Timer { id: logoutFallback; interval: 6000; onTriggered: root.exitHyprland() }   // daemon hung? leave anyway
+    function exitHyprland() {
+        logoutFallback.stop();
+        Hyprland.dispatch("exit");
     }
 }
