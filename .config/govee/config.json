@@ -10,5 +10,8 @@
   "silence_seconds": 3.0,
   "home_gateways": [
     "7c:d4:a8:d3:27:cd"
-  ]
+  ],
+  "strip_overrides": {
+    "#ff5a4d": "#ff0a00"
+  }
 }

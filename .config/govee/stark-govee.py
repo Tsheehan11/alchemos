@@ -15,6 +15,8 @@ Usage:
   stark-govee status
   stark-govee setup                     find the strip and save its IP
   stark-govee home [--clear]            remember the current network as home
+  stark-govee override <hud> <strip>    send <strip> whenever the theme uses <hud>
+  stark-govee override <hud> --clear    remove one (no args: list them)
   stark-govee oneshot <name>            play an animation without the daemon
   stark-govee scan
 """
@@ -42,6 +44,7 @@ DEFAULTS = {
     "white_balance": [1.0, 1.0, 1.0],  # per-channel trim (r, g, b) if whites look tinted
     "require_docked": True,    # only light up with an external monitor connected
     "home_gateways": [],       # router MACs that count as home (set with: stark-govee home)
+    "strip_overrides": {},     # {"#hudcolour": "#stripcolour"} for colours LEDs render badly
 }
 DEFAULT_THEME = {"primary": "#00dcff", "accent": "#ffffff"}
 MODES = ("auto", "music", "theme", "off", "manual")
@@ -97,7 +100,24 @@ def scale(c, k):
     return tuple(x * k for x in c)
 
 
-def theme_colors(theme):
+def _norm(h):
+    return "#%02x%02x%02x" % hex_to_rgb(h)
+
+
+def theme_colors(theme, cfg=None):
+    ov = {}
+    for k, v in ((cfg or {}).get("strip_overrides") or {}).items():
+        try:
+            ov[_norm(k)] = _norm(v)
+        except ValueError:
+            pass
+    if ov:
+        theme = dict(theme)
+        for key in ("primary", "accent"):
+            try:
+                theme[key] = ov.get(_norm(theme.get(key) or ""), theme.get(key))
+            except ValueError:
+                pass
     try:
         p = hex_to_rgb(theme.get("primary", DEFAULT_THEME["primary"]))
     except ValueError:
@@ -555,7 +575,7 @@ class Daemon:
     def start_anim(self, name, done=None):
         if self.anim_done:
             self.anim_done.set()  # interrupted: release any waiter, skip its after-action
-        p, a = theme_colors(self.theme)
+        p, a = theme_colors(self.theme, self.cfg)
         self.anim = ANIMS[name](p, a, self.cur, self.fps)
         self.anim_done = done
         self.anim_after = name
@@ -597,7 +617,7 @@ class Daemon:
         mode = self.cfg.get("mode", "auto")
         if mode == "off":
             return None
-        p, a = theme_colors(self.theme)
+        p, a = theme_colors(self.theme, self.cfg)
         if self.locked:  # slow standby breathing
             return scale(p, 0.09 + 0.06 * math.sin(time.monotonic() * 2 * math.pi / 4))
         if mode == "manual":
@@ -718,7 +738,7 @@ def play_direct(name, route_timeout=3.0):
         return
     fps = int(clamp(cfg.get("max_fps", 12), 2, 30))
     strip = Strip(ip, fps, *_calib(cfg))
-    p, a = theme_colors(load_json(THEME, DEFAULT_THEME))
+    p, a = theme_colors(load_json(THEME, DEFAULT_THEME), cfg)
     start = BLACK if name in ("boot", "login", "wake") else p
     if name == "boot":
         strip.brightness(cfg.get("device_brightness", 100))
@@ -810,6 +830,22 @@ def main(argv):
             homes = sorted(set(cfg.get("home_gateways") or []) | macs)
             update_config(home_gateways=homes)
             print("home network saved:", ", ".join(sorted(macs)))
+        _poke()
+    elif cmd == "override":
+        cfg = load_json(CONFIG, {})
+        ov = dict(cfg.get("strip_overrides") or {})
+        if not args:
+            for k, v in ov.items():
+                print(f"{k} -> {v}")
+            return
+        key = _norm(args[0])
+        if len(args) > 1 and args[1] == "--clear":
+            ov.pop(key, None)
+        elif len(args) > 1:
+            ov[key] = _norm(args[1])
+        else:
+            sys.exit("usage: stark-govee override <hud> <strip>")
+        update_config(strip_overrides=ov)
         _poke()
     elif cmd == "scan":
         for d in scan():
