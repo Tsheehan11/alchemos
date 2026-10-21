@@ -3,6 +3,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 Singleton {
     id: root
@@ -46,20 +47,28 @@ Singleton {
     }
 
     // ── Auto on/off ──
-    // Docked → on, laptop only → off (both changeable in Settings → HUD),
-    // and off on battery if the battery saver is set to pause it.
-    readonly property bool wanted: (Roles.docked ? Theme.cfg.jarvisDocked : Theme.cfg.jarvisLaptop)
-                                   && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
-    function start() {
-        Quickshell.execDetached(["sh", "-c",
-            "pgrep -f '[j]arvis.py' >/dev/null || nohup ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/jarvis.py >/dev/null 2>&1 &"]);
+    // The toggle (control center, or Settings → HUD) only sets userWantsJarvis;
+    // plugging into the monitors only changes docked. Jarvis runs when both are
+    // true — and not on battery saver, if that's set to pause it.
+    readonly property bool userWantsJarvis: Theme.cfg.jarvisDocked   // saved in settings.json
+    function setWanted(on) { Theme.cfg.jarvisDocked = on; }
+    readonly property bool docked: Roles.docked
+    readonly property bool enabled: root.userWantsJarvis && root.docked
+                                    && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
+    readonly property bool running: proc.running
+
+    readonly property string home: Quickshell.env("HOME")
+    Process {
+        id: proc
+        // pdeathsig: if qs dies (pkill qs), Jarvis goes with it instead of lingering as a duplicate
+        command: ["setpriv", "--pdeathsig", "TERM",
+                  root.home + "/.config/jarvis/.venv/bin/python", root.home + "/.config/jarvis/jarvis.py"]
+        onExited: root.online = false
     }
-    function stop() {
-        Quickshell.execDetached(["pkill", "-f", "jarvis.py"]);
-        root.online = false;
-    }
-    function sync() { if (root.wanted) root.start(); else root.stop(); }
-    onWantedChanged: syncTimer.restart()
+
+    function sync() { proc.running = root.enabled; }
+    onEnabledChanged: syncTimer.restart()
     Component.onCompleted: syncTimer.restart()
-    Timer { id: syncTimer; interval: 3000; onTriggered: root.sync() }
+    // Short delay so a dock that briefly drops a monitor doesn't bounce Jarvis
+    Timer { id: syncTimer; interval: 1500; onTriggered: root.sync() }
 }

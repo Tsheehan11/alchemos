@@ -124,8 +124,11 @@ PanelWindow {
                           act: () => cc.run("bluetoothctl power " + (cc.btOn ? "off" : "on")) },
                         { label: "MUTE", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
                           act: () => { if (cc.sink && cc.sink.audio) cc.sink.audio.muted = !cc.muted; } },
-                        { label: "JARVIS", sub: JarvisState.online ? "listening" : "offline", on: JarvisState.online,
-                          act: () => JarvisState.online ? JarvisState.stop() : JarvisState.start() }
+                        { label: "JARVIS", on: JarvisState.userWantsJarvis,
+                          sub: !JarvisState.userWantsJarvis ? "off"
+                             : !JarvisState.docked ? "waits for dock"
+                             : JarvisState.online ? "listening" : "starting…",
+                          act: () => JarvisState.setWanted(!JarvisState.userWantsJarvis) }
                     ]
                     delegate: Rectangle {
                         required property var modelData
