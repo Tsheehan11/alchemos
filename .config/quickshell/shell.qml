@@ -145,4 +145,11 @@ ShellRoot {
         function heard(msg: string): void { JarvisState.heard(msg) }
         function status(msg: string): void { JarvisState.status(msg) }
     }
+
+    //   qs ipc call profiles status | recheck   (display profiles, see Profiles.qml)
+    IpcHandler {
+        target: "profiles"
+        function status(): string { return Profiles.key + " · " + Profiles.name + " · " + Theme.cfg.displayLayout }
+        function recheck(): void { Profiles.recheck(true) }
+    }
 }

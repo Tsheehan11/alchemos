@@ -21,7 +21,7 @@ audio deck with visualizer · full themeable settings — all reacting to how ma
 | **Lock** | `Super + L` — security doors slam shut, lock screen lines up with them, doors open on unlock |
 | **Power menu** | Power button or `Super + Escape` — shutdown plays a CRT power-off animation |
 | **Jarvis** | "Hey Jarvis, open Spotify" / "Hey Jarvis, what's…" (offline wake word + Whisper) |
-| **Docking aware** | Laptop alone: everything on one screen. Docked: clock / diagnostics / audio deck across 3 screens |
+| **Docking aware** | Laptop alone: everything on one screen. Docked: clock / diagnostics / audio deck across 3 screens. Display profiles per setup (desk / laptop / TV), switched on plug-in |
 | **Battery saver** | Unplugged → static effects, no blur, 48 Hz, power-saver profile |
 | **Themes** | Stark, Mark III, Vibranium, Matrix, Arctic, Solar, or custom colors |
 
@@ -158,6 +158,33 @@ wake. So they must never wait on anything in the session: the Govee hook doesn't
 (frozen) daemon before sleep, and all of them hand their wake work to a background unit that
 runs once the suspend is over. `stark-thaw`'s unit is the backstop: if anything under
 `user.slice` is still frozen by then, it thaws it. To check timings: `journalctl -b -o short-precise | grep -E 'Lid|systemd-sleep|froze|thawed'`.
+
+## Display profiles
+
+What's plugged in picks a display profile, and switching applies it at once (no 15 s
+keep-or-revert prompt):
+
+| Profile | When | Gets |
+| --- | --- | --- |
+| HOME DESK | the USB-C dock (its card reader `0bda:5350` serial `202503061002`, or its LAN adapter `0bda:8153`) **and** both Acers (serials `16220214A4B00` left/main, `1622022294B00` middle/diag) | extend, left Acer / middle Acer / laptop, workspaces 1–3 / 4–6 / 7–9, Jarvis on, Govee strip on in the mode you last used at the desk |
+| LAPTOP ONLY | no external monitor | Jarvis off, strip off, battery saver |
+| anything else | keyed by the connected monitors' descriptions, e.g. the TV over HDMI | starts as extend with Jarvis and the strip off; keeps whatever you save for it |
+
+Each profile remembers its own arrangement and layout mode, so mirroring the TV is saved
+for the TV only and never reaches the desk. Settings → DISPLAY shows the active profile;
+APPLY + KEEP saves into it, **SAVE CURRENT AS THIS PROFILE** stores what's on screen now
+(plus the current Jarvis / strip / battery-saver settings), and **RESET PROFILE** forgets
+it and puts the defaults back.
+
+Switches happen on Hyprland's `monitoradded` / `monitorremoved` (debounced 2.5 s, as the dock
+brings its monitors up one at a time) and after a resume. While a switch settles, the old
+layout mode isn't re-applied to the new screens. The profile's reload still goes through the
+Displays loop guard (at most one `hyprctl reload` per 20 s), deferred rather than dropped.
+
+Files: `~/.config/quickshell/Profiles.qml` (switching), `ProfileLogic.js` (detection and
+defaults), `display-profiles.json` (saved profiles). `~/.config/hypr/monitors.conf` is
+generated from the active profile and not tracked. By hand: `qs ipc call profiles status`,
+and `qs ipc call profiles recheck` re-detects and re-applies the profile.
 
 ## Notes
 
