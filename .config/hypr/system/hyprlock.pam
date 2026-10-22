@@ -5,8 +5,8 @@
 # still pending, and system-auth counted that abort as a failed login, so three
 # fingerprint unlocks locked the account. An aborted prompt (authtok_err / conv_err,
 # no password was checked) now ends the stack without a faillock record. A wrong
-# password is still recorded and still locks the account (deny/unlock_time from
-# /etc/security/faillock.conf).
+# password is still recorded and still locks the account. No deny=/unlock_time= here on
+# purpose: /etc/security/faillock.conf sets them for every service (deny = 5, 10 min).
 auth       required                                           pam_shells.so
 auth       requisite                                          pam_nologin.so
 auth       required                                           pam_faillock.so  preauth

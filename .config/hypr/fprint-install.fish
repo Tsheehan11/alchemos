@@ -8,6 +8,17 @@ echo ":: installing /etc/pam.d/hyprlock and the suspend hooks (needs sudo)"
 sudo install -m 644 -b --suffix=.orig $sys/hyprlock.pam /etc/pam.d/hyprlock; or exit 1
 sudo install -m 755 $sys/stark-fprintd-sleep /usr/lib/systemd/system-sleep/stark-fprintd; or exit 1
 sudo install -m 755 $sys/stark-thaw-sleep /usr/lib/systemd/system-sleep/stark-thaw; or exit 1
+
+echo ":: faillock: lock after 5 wrong passwords (was 3), unlock_time stays 10 min"
+set -l fl /etc/security/faillock.conf
+# Keep the first original; re-runs don't overwrite it. Drop any active deny line, then
+# put deny = 5 right under the stock "# deny = 3" comment.
+sudo cp -n $fl $fl.orig; or exit 1
+sudo sed -i -E '/^[[:space:]]*deny[[:space:]]*=/d; s/^# deny = 3$/&\ndeny = 5/' $fl; or exit 1
+if not grep -qx 'deny = 5' $fl
+    echo "!! couldn't set deny = 5 in $fl (no '# deny = 3' line); add it by hand"
+end
+
 # The old hook masked fprintd before sleep; make sure no mask is left behind.
 sudo systemctl unmask --runtime --quiet fprintd.service
 faillock --user (id -un) --reset

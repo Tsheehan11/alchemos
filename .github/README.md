@@ -59,8 +59,14 @@ hyprlock and on the TTY, until `unlock_time` ran out.
 
 `~/.config/hypr/system/hyprlock.pam` is the same stack as login with one change: an aborted
 prompt (`authtok_err` / `conv_err`: no password was checked) ends it without a faillock record.
-Wrong passwords are still counted and still lock the account, and faillock's global settings
-are untouched. Check the tally with `faillock --user $USER`.
+Wrong passwords are still counted and still lock the account. Check the tally with
+`faillock --user $USER`.
+
+**faillock settings.** `/etc/security/faillock.conf` sets `deny = 5`: five wrong passwords
+within 15 minutes (`fail_interval`, default) lock the account for 10 minutes (`unlock_time`,
+default), for every PAM service: hyprlock, the TTY, sudo. Stock Arch is `deny = 3`. No PAM
+file passes its own `deny=`/`unlock_time=`, so this one file is the only place to change it.
+The installer keeps the original as `faillock.conf.orig`.
 
 **Fingerprint across suspend.** The Elan reader (`04f3:0c88`) sometimes wedges across suspend:
 fprintd logs `fpi_ssm_mark_failed: assertion 'machine != NULL' failed` (or
@@ -78,6 +84,7 @@ does.
 | Installed file | Source in this repo |
 | --- | --- |
 | `/etc/pam.d/hyprlock` | `~/.config/hypr/system/hyprlock.pam` |
+| `/etc/security/faillock.conf` (`deny = 5`) | edited in place by the installer |
 | `/usr/lib/systemd/system-sleep/stark-fprintd` | `~/.config/hypr/system/stark-fprintd-sleep` |
 | `/usr/lib/systemd/system-sleep/stark-thaw` | `~/.config/hypr/system/stark-thaw-sleep` |
 
@@ -94,6 +101,8 @@ Manual equivalent:
 sudo install -m 644 ~/.config/hypr/system/hyprlock.pam /etc/pam.d/hyprlock
 sudo install -m 755 ~/.config/hypr/system/stark-fprintd-sleep /usr/lib/systemd/system-sleep/stark-fprintd
 sudo install -m 755 ~/.config/hypr/system/stark-thaw-sleep /usr/lib/systemd/system-sleep/stark-thaw
+sudo cp -n /etc/security/faillock.conf /etc/security/faillock.conf.orig
+sudo sed -i -E '/^[[:space:]]*deny[[:space:]]*=/d; s/^# deny = 3$/&\ndeny = 5/' /etc/security/faillock.conf
 sudo systemctl unmask --runtime fprintd; faillock --user $USER --reset
 ```
 
