@@ -134,6 +134,11 @@ Closing the lid (undocked) runs `~/.config/hypr/lid.sh`: the screen goes dark at
 inhibitor until hyprlock is really up, so the session is never asleep unlocked, and nothing
 waits on fixed sleeps. Opening the lid turns the screen back on with hyprlock already drawn.
 The lid lock skips the security-door animation, and the HUD's animations pause while locked.
+The doors shut under the lock screen there, so the `stark-doors` layer has no fade-in
+(`layerrule ... no_anim`): Hyprland holds a layer's fade-in until the session unlocks, and
+hyprlock's fade-out used to show the bare desktop (a black flash) before the doors. The
+reveal starts as soon as hyprlock logs `Unlocked`, not when it exits: after a fingerprint
+unlock it lingers ~2 s while PAM's fail delay ends the aborted password prompt.
 
 The system-sleep hooks (`stark-fprintd`, `stark-govee`, `stark-thaw`) run while systemd has the
 whole user session frozen, and the screen stays frozen until they finish, before sleep and after
