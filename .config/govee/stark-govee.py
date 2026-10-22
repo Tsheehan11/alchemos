@@ -468,7 +468,19 @@ def toward_start(n):  # retreats from the far end toward the visible end
     return [n - 1 - i for i in range(n)]
 
 
-def front(frm, to, order, sec, fps, head=WHITE, glow=0.8, curve=ease_in_out, soft=2.0):
+EDGE_WHITE = 0.2  # how far edges lean toward white; above ~0.25 red reads as pink/white
+
+
+def edge_color(p):
+    """Door/sweep edges and flashes: the theme colour at full value, only nudged toward white.
+    p is already override-mapped, and Strip applies gamma per pixel, so the hue survives."""
+    m = max(p)
+    if m <= 0:
+        return WHITE
+    return mix(scale(p, 255 / m), WHITE, EDGE_WHITE)
+
+
+def front(frm, to, order, sec, fps, head=None, glow=0.8, curve=ease_in_out, soft=2.0):
     """A soft edge travelling along `order`: segments it has passed show `to`.
     The edge spans `soft` segments so motion reads smoothly on big physical segments."""
     n = len(order)
@@ -490,55 +502,56 @@ def front(frm, to, order, sec, fps, head=WHITE, glow=0.8, curve=ease_in_out, sof
 def anim_boot(p, a, cur, fps, n):  # arc reactor charging: three accelerating sweeps, then ignite
     yield "on"
     yield from hold(BLACK, 0.3, fps, n)
-    lvl = BLACK
+    lvl, e = BLACK, edge_color(p)
     for k, sec in ((0.15, 0.9), (0.4, 0.6), (0.75, 0.4)):
         nxt = scale(p, k)
-        yield from front(lvl, nxt, from_start(n), sec, fps, curve=lambda t: t)
+        yield from front(lvl, nxt, from_start(n), sec, fps, head=e, curve=lambda t: t)
         lvl = nxt
-    yield from fade(lvl, WHITE, 0.15, fps, n)
+    yield from fade(lvl, WHITE, 0.15, fps, n)  # the one white flash: reactor ignition
     yield from fade(WHITE, p, 1.0, fps, n)
 
 
 def anim_login(p, a, cur, fps, n):
     yield "on"
-    yield from front(cur, scale(p, 0.3), from_start(n), 0.6, fps, curve=lambda t: t)
-    yield from front(scale(p, 0.3), p, from_start(n), 0.4, fps, curve=lambda t: t)
-    yield from fade(p, WHITE, 0.15, fps, n)
-    yield from fade(WHITE, p, 0.8, fps, n)
+    e = edge_color(p)
+    yield from front(cur, scale(p, 0.3), from_start(n), 0.6, fps, head=e, curve=lambda t: t)
+    yield from front(scale(p, 0.3), p, from_start(n), 0.4, fps, head=e, curve=lambda t: t)
+    yield from fade(p, e, 0.15, fps, n)
+    yield from fade(e, p, 0.8, fps, n)
 
 
 LOCK_GLOW = 0.12  # standby level the lock settles at (target() breathes around it)
 
 
 def anim_lock(p, a, cur, fps, n):  # security doors close from both ends, flash where they meet
-    shut = scale(p, LOCK_GLOW)
-    yield from front(cur, shut, ends_in(n), 1.2, fps, glow=1.0)
+    shut, e = scale(p, LOCK_GLOW), edge_color(p)
+    yield from front(cur, shut, ends_in(n), 1.2, fps, head=e, glow=1.0)
     mid, m = (n - 1) / 2, _n(0.6, fps)
     for k in range(m):
         g = 1 - k / m
-        yield [mix(shut, WHITE, g * max(0.0, 1 - abs(i - mid) / 2.5)) for i in range(n)]
+        yield [mix(shut, e, g * max(0.0, 1 - abs(i - mid) / 2.5)) for i in range(n)]
     yield solid(shut, n)
 
 
 def anim_unlock(p, a, cur, fps, n):  # doors part from the middle
     yield "on"
-    yield from front(cur, p, centre_out(n), 1.3, fps)
+    yield from front(cur, p, centre_out(n), 1.3, fps, head=edge_color(p))
 
 
 def anim_theme(p, a, cur, fps, n):  # wipe from the old colour (whatever is showing) to the new
-    yield from front(cur, p, from_start(n), 1.4, fps, glow=0.6)
+    yield from front(cur, p, from_start(n), 1.4, fps, head=edge_color(p), glow=0.6)
 
 
 def anim_logout(p, a, cur, fps, n):  # drain toward the visible end
     yield from fade(cur, p, 0.3, fps, n)
-    yield from front(p, BLACK, toward_start(n), 1.6, fps, head=None)
+    yield from front(p, BLACK, toward_start(n), 1.6, fps)
     yield "off"
 
 
 def anim_shutdown(p, a, cur, fps, n):  # reactor power-down, then drain
     yield from fade(cur, p, 0.2, fps, n)
     yield from flicker(p, (0.4, 1.0, 0.25, 0.7), fps, n)
-    yield from front(scale(p, 0.7), BLACK, toward_start(n), 1.4, fps, head=None)
+    yield from front(scale(p, 0.7), BLACK, toward_start(n), 1.4, fps)
     yield "off"
 
 
