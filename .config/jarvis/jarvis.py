@@ -45,7 +45,8 @@ CHUNK = 1280               # 80 ms
 ALIASES = {
     "claude": f"zen-browser --new-window {CLAUDE_URL}",
     "claude code": "kitty -e claude",
-    "code": "kitty -e claude",
+    "code": "code", "vs code": "code", "vscode": "code", "v s code": "code",
+    "visual studio code": "code", "visual studio": "code",
     "browser": "zen-browser", "zen": "zen-browser", "web": "zen-browser", "internet": "zen-browser",
     "terminal": "kitty", "kitty": "kitty", "console": "kitty",
     "files": "dolphin", "file manager": "dolphin", "dolphin": "dolphin",

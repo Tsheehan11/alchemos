@@ -41,6 +41,8 @@ PanelWindow {
                                  { label: "DISCORD", cmd: "discord" }] },
         { name: "MEDIA",  apps: [{ label: "MUSIC",   cmd: "spotify-launcher" },
                                  { label: "GAMES",   cmd: "steam" }] },
+        { name: "DEV",    apps: [{ label: "VS CODE", cmd: "code" },
+                                 { label: "HUD",     cmd: "code " + Quickshell.env("HOME") + "/.config/quickshell" }] },
         { name: "SYS",    apps: [{ label: "TERM",    cmd: "kitty" },
                                  { label: "FILES",   cmd: "dolphin" }] },
         { name: "CTRL",   apps: [{ label: "CONTROL", cmd: "@control" },
