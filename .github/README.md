@@ -129,10 +129,16 @@ Then switch back with Ctrl+Alt+F2 and, if a fresh lock came up, type your passwo
 
 ## Lid close / suspend
 
-Closing the lid (undocked) runs `~/.config/hypr/lid.sh`: the screen goes dark at once
-(`dpms off`), the lock starts, and logind suspends. hypridle's `before_sleep_cmd` holds a sleep
-inhibitor until hyprlock is really up, so the session is never asleep unlocked, and nothing
-waits on fixed sleeps. Opening the lid turns the screen back on with hyprlock already drawn.
+Closing the lid runs `~/.config/hypr/lid.sh`. Docked (more than one monitor in
+`hyprctl monitors -j`) it does nothing, and logind doesn't suspend either
+(`HandleLidSwitchDocked=ignore`). Undocked, it shuts the doors, waits until hyprlock has the
+session locked (at most ~1.5 s), and only then turns the screen off (`dpms off`): locking with
+the screen already off left the HUD undrawn under the lock, which flashed at unlock. logind
+suspends on its own; hypridle's `before_sleep_cmd` holds a sleep inhibitor until hyprlock is up,
+so the session is never asleep unlocked. For 5 s after waking logind ignores the lid
+(`HoldoffTimeoutSec=5s` in `/etc/systemd/logind.conf.d/stark.conf`); if logind isn't preparing
+to sleep within 2 s and the lid is still closed, `lid.sh` suspends itself. Opening the lid turns
+the screen back on with hyprlock already drawn.
 The lid lock skips the security-door animation, and the HUD's animations pause while locked.
 Unlocking cuts straight from the lock screen (a picture of the shut doors) to the real doors,
 then they open. Four things keep that seamless:
