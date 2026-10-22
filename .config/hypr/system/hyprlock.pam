@@ -1,0 +1,18 @@
+#%PAM-1.0
+# STARK OS: /etc/pam.d/hyprlock (installed by ~/.config/hypr/fprint-install.fish).
+# The same checks as login (system-login -> system-auth), with one change: when hyprlock
+# unlocks some other way (fingerprint, SIGUSR1) it aborts the password prompt that is
+# still pending, and system-auth counted that abort as a failed login, so three
+# fingerprint unlocks locked the account. An aborted prompt (authtok_err / conv_err,
+# no password was checked) now ends the stack without a faillock record. A wrong
+# password is still recorded and still locks the account (deny/unlock_time from
+# /etc/security/faillock.conf).
+auth       required                                           pam_shells.so
+auth       requisite                                          pam_nologin.so
+auth       required                                           pam_faillock.so  preauth
+-auth      [success=2 default=ignore]                         pam_systemd_home.so
+auth       [success=1 authtok_err=die conv_err=die default=bad] pam_unix.so    try_first_pass nullok
+auth       [default=die]                                      pam_faillock.so  authfail
+auth       optional                                           pam_permit.so
+auth       required                                           pam_env.so
+auth       required                                           pam_faillock.so  authsucc

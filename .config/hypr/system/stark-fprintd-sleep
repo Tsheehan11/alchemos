@@ -1,42 +1,41 @@
 #!/bin/sh
-# STARK OS: take fprintd down before suspend, bring the Elan reader back on resume.
-# libfprint's Elan MOC driver doesn't survive suspend: a verify that's running when the
-# system sleeps fails ("Cannot run while suspended"), the driver's state machine wedges
-# (fpi_ssm_mark_failed: machine != NULL) and every Claim after that fails until the
-# sensor is USB-reset. hyprlock releases the device on logind's PrepareForSleep and
-# re-claims it on wake.
-# Neither half may hold up the suspend or the wake: pre kills fprintd outright, post
-# hands the restart + wedge check to a background unit that runs after the suspend.
+# STARK OS: bring the Elan reader back when it wedges on resume, without ever pulling
+# fprintd out from under the lock screen.
+# libfprint's Elan MOC driver sometimes wedges across suspend (fpi_ssm_mark_failed:
+# machine != NULL, or "Cannot run while suspended" after wake) and only a USB reset of
+# the sensor clears it. hyprlock claims the reader once when it starts and keeps that
+# claim across suspend, so killing or restarting fprintd while hyprlock runs leaves it
+# with "Device was not claimed" and no fingerprint until the next lock. So fprintd is
+# never touched before sleep (fprintd and hyprlock both handle PrepareForSleep), and a
+# wedge found after wake is only reset once no hyprlock is running. The password works
+# throughout, and fingerprint errors never reach PAM / faillock.
+# Neither half may hold up the suspend or the wake: post hands everything to a
+# background unit that runs after the suspend.
 ELAN="04f3:0c88"   # lsusb ID of "Elan MOC Sensors"
-WEDGED='machine != NULL|already claimed|Cannot run while suspended'
+WEDGED='machine != NULL|Cannot run while suspended'
 
 case "$1" in
-  pre)
-    # Mask first so nothing D-Bus-activates fprintd again, then kill it: no verify can
-    # be running when the system sleeps, and a wedged fprintd ignores SIGTERM anyway.
-    systemctl mask --runtime --quiet fprintd.service
-    systemctl kill --signal=SIGKILL fprintd.service 2>/dev/null
-    systemctl stop --no-block fprintd.service 2>/dev/null
-    ;;
   post)
-    systemctl unmask --runtime --quiet fprintd.service
-    systemctl reset-failed fprintd.service 2>/dev/null
     systemd-run --quiet --no-block --collect --unit=stark-fprintd-wake \
-      --property=After=systemd-suspend.service -- "$0" wake
+      --property=After="systemd-$2.service" -- "$0" wake "$(date +%s)"
     ;;
   wake)
-    # Runs once the suspend has finished. Start fprintd now so hyprlock's claim is
-    # instant, then watch it briefly; only USB-reset the sensor if it really wedged.
-    since=$(date +%s)
+    # $2: when the system woke. hyprlock (if up) restarts its scan now; without it,
+    # starting fprintd opens the sensor. Either shows a wedge within a few seconds.
+    resumed=$2
+    pidof hyprlock >/dev/null || systemctl start fprintd.service
+    timeout 8 journalctl -u fprintd --since "@$resumed" -f -o cat 2>/dev/null \
+      | grep -q -m1 -E "$WEDGED" || exit 0
+
+    echo "sensor wedged after resume; resetting it once the lock screen is gone"
+    while pidof hyprlock >/dev/null; do sleep 2; done
+    systemctl kill --signal=SIGKILL fprintd.service 2>/dev/null
+    systemctl stop fprintd.service
+    systemctl reset-failed fprintd.service 2>/dev/null
+    usbreset "$ELAN" >/dev/null 2>&1
+    sleep 1
     systemctl start fprintd.service
-    if timeout 8 journalctl -u fprintd --since "@$since" -f -o cat 2>/dev/null | grep -q -m1 -E "$WEDGED"; then
-      echo "sensor wedged after resume; resetting it"
-      systemctl kill --signal=SIGKILL fprintd.service
-      systemctl stop fprintd.service
-      usbreset "$ELAN" >/dev/null 2>&1
-      sleep 1
-      systemctl start fprintd.service
-    fi
+    echo "sensor reset"
     ;;
 esac
 exit 0

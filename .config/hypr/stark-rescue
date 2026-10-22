@@ -1,0 +1,86 @@
+#!/bin/sh
+# STARK OS rescue: run from a TTY (Ctrl+Alt+F3, log in) when the lock screen won't let you in.
+#   1. clears faillock for you (first, so sudo works again)
+#   2. thaws the session if suspend left it frozen (only then asks for sudo)
+#   3. turns the screens back on
+#   4. unlocks hyprlock (SIGUSR1); if hyprlock is gone or hung, puts a fresh lock back
+# Then switch back to Hyprland with Ctrl+Alt+F2.
+set -u
+uid=$(id -u)
+user=$(id -un)
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$uid}"
+say() { printf ':: %s\n' "$*"; }
+
+# 1. faillock: the tally file is yours, no sudo needed. sudo itself goes through faillock.
+faillock --user "$user" --reset && say "faillock cleared"
+
+# 2. Thaw. user.slice first: thawing it also thaws everything frozen-by-parent below it.
+for unit in user.slice "user-$uid.slice" "user@$uid.service"; do
+    state=$(systemctl show -P FreezerState "$unit" 2>/dev/null)
+    case "$state" in
+        running|frozen-by-parent|"") ;;
+        *) say "$unit is $state; thawing it (sudo: touch the sensor or wait for the password prompt)"
+           sudo systemctl thaw "$unit" ;;
+    esac
+done
+
+# 3. Find the running Hyprland. Everything below goes through hyprctl, with a timeout in
+# case the compositor itself is stuck.
+sig=""
+for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
+    [ -S "$d.socket.sock" ] && sig=$(basename "$d")
+done
+if [ -z "$sig" ]; then
+    say "no Hyprland running; nothing to unlock"
+    exit 0
+fi
+export HYPRLAND_INSTANCE_SIGNATURE="$sig"
+hc() { timeout 3 hyprctl "$@" >/dev/null 2>&1; }
+
+if hc dispatch dpms on; then
+    say "screens on"
+else
+    say "Hyprland isn't answering (hyprctl timed out). If the desktop stays frozen after"
+    say "you switch back, log out the session: loginctl terminate-user $user"
+    exit 1
+fi
+
+# 4. Unlock, or restore the lock.
+restore_lock() {
+    hc keyword misc:allow_session_lock_restore true
+    hc dispatch exec "$HOME/.config/hypr/stark-lock.sh"
+    sleep 3
+    # stark-lock.sh does nothing if its lock file is still held by a stuck run; go direct.
+    pgrep -u "$uid" -x hyprlock >/dev/null || hc dispatch exec hyprlock
+    sleep 1
+    if pgrep -u "$uid" -x hyprlock >/dev/null; then
+        say "lock screen restored; unlock it with your password"
+    else
+        say "couldn't start hyprlock; the session is still locked. Try again, or: loginctl terminate-user $user"
+    fi
+}
+
+pids=$(pgrep -u "$uid" -x hyprlock)
+if [ -n "$pids" ]; then
+    kill -USR1 $pids
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        pgrep -u "$uid" -x hyprlock >/dev/null || break
+        sleep 0.5
+    done
+    if pgrep -u "$uid" -x hyprlock >/dev/null; then
+        say "hyprlock is hung (ignored SIGUSR1); killing it and restoring the lock"
+        pkill -KILL -u "$uid" -x hyprlock
+        sleep 0.5
+        restore_lock
+    else
+        say "unlocked"
+    fi
+else
+    say "hyprlock isn't running (the lock may have died); restoring it"
+    restore_lock
+fi
+
+# hyprlock's aborted prompt doesn't count any more (see /etc/pam.d/hyprlock), but clear
+# again so nothing from this run is left on the tally.
+faillock --user "$user" --reset
+say "done; switch back with Ctrl+Alt+F2"

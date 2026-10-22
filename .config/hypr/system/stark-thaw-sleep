@@ -1,0 +1,21 @@
+#!/bin/sh
+# STARK OS: the session must never stay frozen after resume.
+# systemd-sleep freezes user.slice before suspend and thaws it once the post hooks are
+# done. If it dies, or a hook never returns, the desktop stays frozen. post queues a
+# backstop that runs once the suspend job is over and thaws anything still frozen.
+case "$1" in
+  post)
+    systemd-run --quiet --no-block --collect --unit=stark-thaw-wake \
+      --property=After="systemd-$2.service" -- "$0" wake
+    ;;
+  wake)
+    for unit in user.slice $(systemctl list-units --plain --no-legend 'user-*.slice' | cut -d' ' -f1); do
+      state=$(systemctl show -P FreezerState "$unit")
+      case "$state" in
+        running|frozen-by-parent) ;;
+        *) echo "$unit was left $state; thawing it"; systemctl thaw "$unit" ;;
+      esac
+    done
+    ;;
+esac
+exit 0

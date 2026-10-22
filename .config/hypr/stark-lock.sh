@@ -9,5 +9,8 @@ pidof hyprlock >/dev/null && exit 0
 
 # Snap the HUD doors shut in parallel; hyprlock must not wait on Quickshell.
 qs ipc call stark locked >/dev/null 2>&1 &
-hyprlock
+# Keep hyprlock's own log (auth, fingerprint, sleep) for the last two locks.
+log="${XDG_STATE_HOME:-$HOME/.local/state}/stark/hyprlock.log"
+mkdir -p "${log%/*}" && { [ -f "$log" ] && mv -f "$log" "$log.1"; }
+hyprlock >"$log" 2>&1
 qs ipc call stark unlocked >/dev/null 2>&1
