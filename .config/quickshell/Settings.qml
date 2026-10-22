@@ -448,11 +448,25 @@ PanelWindow {
                             }
                         }
                     }
+                    Slider {
+                        width: parent.width
+                        label: "PANEL OPACITY"
+                        valueText: Math.round(Theme.panelAlpha * 100) + "%"
+                        value: (Theme.panelAlpha - 0.5) / 0.5
+                        onMoved: v => Theme.cfg.panelOpacity = Math.round((0.5 + v * 0.5) * 100) / 100
+                    }
                     Column {
                         width: parent.width
                         spacing: 8
                         Text { text: "CURSOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                         Stepper { width: parent.width; label: "Cursor size"; hint: "24 standard · 32 / 48 for HiDPI screens"; valueText: Theme.cursorStep(0) + " PX"; onDec: Theme.cfg.cursorSize = Theme.cursorStep(-1); onInc: Theme.cfg.cursorSize = Theme.cursorStep(1) }
+                        Slider {
+                            width: parent.width
+                            label: "CURSOR OPACITY"
+                            valueText: Theme.cursorFill() + "%"
+                            value: (Theme.cursorFill() - 20) / 70
+                            onMoved: v => Theme.cfg.cursorOpacity = Math.round((20 + v * 70) / 5) * 5
+                        }
                         Toggle { width: parent.width; label: "ANIMATED BUSY CURSOR"; hint: PowerMode.saver && Theme.cfg.cursorAnimated ? "Still frame while battery saver is on" : "Arc reactor spins while apps load · off shows a still frame"; checked: Theme.cfg.cursorAnimated; onToggled: Theme.cfg.cursorAnimated = !Theme.cfg.cursorAnimated }
                     }
                     Toggle { width: parent.width; label: "Background grid"; checked: Theme.cfg.showGrid; onToggled: Theme.cfg.showGrid = !Theme.cfg.showGrid }

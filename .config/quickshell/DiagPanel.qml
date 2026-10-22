@@ -37,6 +37,7 @@ PanelWindow {
 
         // CPU + GPU graph
         HudFrame {
+            fill: 0.55   // ambient wall panel: keeps its see-through look
             width: parent.width; height: 190
             title: "PROCESSOR LOAD"
             detail: "CPU " + Math.round(SysStats.cpu * 100) + "%   GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--")
@@ -51,6 +52,7 @@ PanelWindow {
 
         // Network graph
         HudFrame {
+            fill: 0.55   // ambient wall panel: keeps its see-through look
             width: parent.width; height: 190
             title: "NETWORK"
             detail: "↓ " + SysStats.fmtRate(SysStats.rxRate) + "   ↑ " + SysStats.fmtRate(SysStats.txRate)
@@ -76,6 +78,7 @@ PanelWindow {
                     { label: "WI-FI", value: Math.round(SysStats.wifi * 100) + "%", frac: SysStats.wifi }
                 ]
                 delegate: HudFrame {
+                    fill: 0.55   // ambient wall panel: keeps its see-through look
                     required property var modelData
                     width: (col.width - 36) / 3; height: 112
                     title: modelData.label
@@ -102,6 +105,7 @@ PanelWindow {
         }
 
         HudFrame {
+            fill: 0.55   // ambient wall panel: keeps its see-through look
             width: parent.width; height: 74
             title: "UPTIME"
             detail: Quickshell.env("USER") + "@" + "stark"

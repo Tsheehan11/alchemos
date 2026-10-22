@@ -1,4 +1,4 @@
-// Hologram panel frame: faint fill, corner brackets, title strip.
+// Hologram panel frame: tinted fill, corner brackets, title strip.
 // Put content inside it; it's laid out in the area under the title.
 import QtQuick
 
@@ -6,6 +6,7 @@ Item {
     id: f
     property string title: ""
     property string detail: ""
+    property real fill: Theme.panelAlpha    // background alpha; ambient desktop panels pass their own
     default property alias content: body.data
 
     readonly property color cyan: Theme.primary
@@ -13,7 +14,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.d(0.55)
+        color: Theme.d(f.fill)
         border.color: Theme.p(0.22)
         border.width: 1
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STARK OS cursor theme.
-#   build.sh <rrggbb> [animated|static] [24|32|48]
+#   build.sh <rrggbb> [animated|static] [24|32|48] [fill opacity %, 20-90]
 # Renders src/*.svg in that accent, builds an XCursor theme (rsvg-convert + xcursorgen)
 # and a hyprcursor theme (hyprcursor-util, SVG) into ~/.local/share/icons/STARK-OS,
 # points GTK / Qt / KDE / XWayland at it, and applies it live with `hyprctl setcursor`.
@@ -19,8 +19,10 @@ src=$here/src
 hex=${1:-}; hex=${hex#\#}; hex=${hex,,}
 mode=${2:-animated}
 size=${3:-24}
-if [[ ! $hex =~ ^[0-9a-f]{6}$ || ! $mode =~ ^(animated|static)$ || ! $size =~ ^(24|32|48)$ ]]; then
-    echo "usage: build.sh <rrggbb> [animated|static] [24|32|48]" >&2
+alpha=${4:-45}
+if [[ ! $hex =~ ^[0-9a-f]{6}$ || ! $mode =~ ^(animated|static)$ || ! $size =~ ^(24|32|48)$
+      || ! $alpha =~ ^[0-9]+$ ]] || ((alpha < 20 || alpha > 90)); then
+    echo "usage: build.sh <rrggbb> [animated|static] [24|32|48] [20-90]" >&2
     exit 2
 fi
 
@@ -34,8 +36,9 @@ flock 9
 
 # Any edit to the templates or this script invalidates the cache
 ver=$(cat "$src"/* "$0" "$here/xcursorgen.py" | md5sum | cut -c1-8)
-key=$hex-$mode-$ver
+key=$hex-$mode-a$alpha-$ver
 out=$cache/$key
+fill=$(awk -v a="$alpha" 'BEGIN { printf "%.2f", a / 100 }')
 
 make_xcursor() {
     if command -v xcursorgen >/dev/null; then command xcursorgen "$@"
@@ -62,7 +65,7 @@ build_one() {
     : > "$w/conf"
     local i=0 s px
     for s in "${spins[@]}"; do
-        sed -e "s/{{ACCENT}}/#$hex/g" -e "s/{{ROT}}/$rot/g" -e "s/{{SPIN}}/$s/g" "$src/$tpl" > "$hc/$name-$i.svg"
+        sed -e "s/{{ACCENT}}/#$hex/g" -e "s/{{FILL_ALPHA}}/$fill/g" -e "s/{{ROT}}/$rot/g" -e "s/{{SPIN}}/$s/g" "$src/$tpl" > "$hc/$name-$i.svg"
         if ((delay)); then echo "define_size = 0, $name-$i.svg, $delay"; else echo "define_size = 0, $name-$i.svg"; fi >> "$hc/meta.hl"
         for px in "${SIZES[@]}"; do
             rsvg-convert -w "$px" -h "$px" -o "$w/$px-$i.png" "$hc/$name-$i.svg"
@@ -100,7 +103,7 @@ EOF
     cat > "$work/theme/index.theme" <<EOF
 [Icon Theme]
 Name=$THEME
-Comment=STARK OS holographic HUD cursors (#$hex, $mode)
+Comment=STARK OS holographic HUD cursors (#$hex, $mode, $alpha% fill)
 Inherits=Adwaita
 EOF
     echo "$key" > "$work/theme/.stark-build"
@@ -188,4 +191,4 @@ dbus-update-activation-environment --systemd XCURSOR_THEME="$THEME" XCURSOR_SIZE
 if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
     hyprctl setcursor "$THEME" "$size" >/dev/null
 fi
-echo "$THEME #$hex $mode $size"
+echo "$THEME #$hex $mode $size $alpha%"

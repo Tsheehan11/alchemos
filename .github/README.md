@@ -167,16 +167,17 @@ runs once the suspend is over. `stark-thaw`'s unit is the backstop: if anything 
 
 ## Cursor
 
-`~/.config/stark-cursor/build.sh <rrggbb> [animated|static] [24|32|48]` renders the SVG
-templates in `src/` (`{{ACCENT}}` is the theme colour) into one theme directory,
+`~/.config/stark-cursor/build.sh <rrggbb> [animated|static] [24|32|48] [20-90]` renders the SVG
+templates in `src/` (`{{ACCENT}}` is the theme colour, `{{FILL_ALPHA}}` the body fill opacity
+in %) into one theme directory,
 `~/.local/share/icons/STARK-OS`, holding both an XCursor theme (all three sizes) and a
 hyprcursor theme (SVG). It then applies the theme with `hyprctl setcursor`. `src/cursors.txt`
 lists every cursor with its hotspot and aliases (X11, CSS and Qt-hash names), so no app falls
 back to Adwaita. Builds are cached per colour in `~/.cache/stark-cursor` (about 1 s cold,
 0.15 s cached).
 
-Theme.qml runs it whenever the accent, Settings → APPEARANCE → CURSOR (size, ANIMATED BUSY
-CURSOR) or battery saver changes, 600 ms after the last change and one build at a time.
+Theme.qml runs it whenever the accent, Settings → APPEARANCE → CURSOR (size, CURSOR OPACITY,
+ANIMATED BUSY CURSOR) or battery saver changes, 600 ms after the last change and one build at a time.
 Battery saver always uses the still busy cursor. build.sh also keeps everything else pointed
 at the theme, rewriting a file only when a value changes: the `env =` lines in `hyprland.conf`, gsettings, GTK 3/4
 `settings.ini`, xsettingsd, `~/.icons/default`, `kcminputrc` (KDE / Dolphin), Xresources and
@@ -188,6 +189,18 @@ so build.sh briefly switches GTK to `STARK-OS-reload` (an alias of the same them
 That reliably recolours Zen, but a size change may only show in Zen after a restart.
 XWayland apps (Steam, Spotify) read the theme when they start, so they need a restart to
 pick up a new colour or size.
+
+## Panel opacity
+
+Settings → APPEARANCE → PANEL OPACITY (50–100 %, default 85 %) sets the background of the
+HUD's pop-up panels: Settings, the control center and app search (`Theme.panelAlpha`, used by
+`HudFrame.qml` and `AppSearch.qml`). The diagnostics wall keeps its own 55 % so the desktop
+still looks like a hologram. The HUD layers are never blurred, so battery saver doesn't change
+how the panels look.
+
+Preferences can also be set from a shell: `qs ipc call theme set panelOpacity 0.9`,
+`qs ipc call theme get cursorOpacity`, `qs ipc call theme preset matrix`, and
+`qs ipc call settings open appearance` opens a Settings tab.
 
 ## Display profiles
 

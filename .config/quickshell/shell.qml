@@ -118,6 +118,8 @@ ShellRoot {
         function toggle(): void { LauncherState.toggleSettings() }
         //   qs ipc call settings display   (Super+P)
         function display(): void { LauncherState.openSettings("DISPLAY") }
+        //   qs ipc call settings open appearance
+        function open(tab: string): void { LauncherState.openSettings(tab.toUpperCase()) }
     }
 
     //   used by ~/.config/hypr/stark-lock.sh
@@ -151,5 +153,22 @@ ShellRoot {
         target: "profiles"
         function status(): string { return Profiles.key + " · " + Profiles.name + " · " + Theme.cfg.displayLayout }
         function recheck(): void { Profiles.recheck(true) }
+    }
+    // Saved preferences from the shell: `qs ipc call theme set panelOpacity 0.9`
+    IpcHandler {
+        target: "theme"
+        function get(key: string): string { return JSON.stringify(Theme.cfg[key]) }
+        function set(key: string, value: string): string {
+            const cur = Theme.cfg[key];
+            if (cur === undefined || typeof cur === "object") return "unknown key " + key;
+            Theme.cfg[key] = typeof cur === "number" ? Number(value) : typeof cur === "boolean" ? value === "true" : value;
+            return key + " = " + JSON.stringify(Theme.cfg[key]);
+        }
+        function preset(name: string): string {
+            const p = Theme.allPresets.find(x => x.name === name.toUpperCase());
+            if (!p) return "no preset " + name;
+            Theme.applyPreset(p);
+            return "preset " + p.name;
+        }
     }
 }

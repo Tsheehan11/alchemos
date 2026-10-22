@@ -6,6 +6,7 @@ Column {
     property string label: ""
     property real value: 0
     property color accent: Theme.primary
+    property string valueText: Math.round(value * 100) + "%"   // for sliders whose range isn't 0–100%
     signal moved(real v)
 
     spacing: 8
@@ -13,7 +14,7 @@ Column {
     Item {
         width: sl.width; height: 14
         Text { text: sl.label; color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.letterSpacing: 2 }
-        Text { anchors.right: parent.right; text: Math.round(sl.value * 100) + "%"; color: sl.accent; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
+        Text { anchors.right: parent.right; text: sl.valueText; color: sl.accent; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
     }
 
     Item {

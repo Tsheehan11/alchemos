@@ -87,7 +87,7 @@ PanelWindow {
         y: parent.height * 0.22
         width: 660
         height: col.implicitHeight + 40
-        color: Theme.d(0.92)
+        color: Theme.d(Theme.panelAlpha)
         border.color: Theme.p(0.45)
         border.width: 1
 

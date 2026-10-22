@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-<!-- STARK OS cursor template: {{ACCENT}} = theme accent. Built by ../build.sh -->
+<!-- STARK OS cursor template: {{ACCENT}} = theme accent, {{FILL_ALPHA}} = body fill opacity. Built by ../build.sh -->
 <defs><g id="s"><path d="M4 3 V20 L8.3 16.2 L11.3 23 L14 21.8 L11.1 15.2 H16.8 Z"/><circle cx="23.5" cy="23.5" r="2.7"/><path fill="none" d="M23.5 19.9 V19 M26.62 25.3 L27.4 25.75 M20.38 25.3 L19.6 25.75"/></g></defs>
-<use href="#s" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="3.1" stroke-linejoin="round" stroke-linecap="round"/>
-<use href="#s" fill="{{ACCENT}}" fill-opacity=".18" stroke="{{ACCENT}}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#s" fill="none" stroke="#000" stroke-opacity=".6" stroke-width="3.8" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#s" fill="{{ACCENT}}" fill-opacity="{{FILL_ALPHA}}" stroke="{{ACCENT}}" stroke-opacity="1" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="23.5" cy="23.5" r="6.5" fill="none" stroke="{{ACCENT}}" stroke-opacity=".3" stroke-width="1"/>
 <g transform="rotate({{SPIN}} 23.5 23.5)">
 <path d="M23.5 17 A6.5 6.5 0 0 1 29.13 26.75" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="4" stroke-linecap="round"/>

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-<!-- STARK OS cursor template: {{ACCENT}} = theme accent. Built by ../build.sh -->
+<!-- STARK OS cursor template: {{ACCENT}} = theme accent, {{FILL_ALPHA}} = body fill opacity. Built by ../build.sh -->
 <defs><g id="s"><circle cx="13" cy="13" r="8.5"/><path d="M19 21.1 L21.1 19 L28.3 26.2 L26.2 28.3 Z"/><path fill="none" d="M9.2 13 H16.8"/></g></defs>
-<use href="#s" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="3.1" stroke-linejoin="round" stroke-linecap="round"/>
-<use href="#s" fill="{{ACCENT}}" fill-opacity=".18" stroke="{{ACCENT}}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#s" fill="none" stroke="#000" stroke-opacity=".6" stroke-width="3.8" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#s" fill="{{ACCENT}}" fill-opacity="{{FILL_ALPHA}}" stroke="{{ACCENT}}" stroke-opacity="1" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="13" cy="13" r="1.5" fill="{{ACCENT}}" stroke="#000" stroke-opacity=".5" stroke-width="1"/><circle cx="13" cy="13" r=".6" fill="#fff" fill-opacity=".9"/>
 </svg>

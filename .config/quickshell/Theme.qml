@@ -55,6 +55,8 @@ Singleton {
             property bool terminalGlass: false         // kitty background_opacity 0.85 instead of solid
             property int cursorSize: 24                // STARK-OS cursor: 24 | 32 | 48
             property bool cursorAnimated: true         // spinning arc-reactor busy cursor (static frame when off)
+            property int cursorOpacity: 45             // cursor body fill, % (20–90)
+            property real panelOpacity: 0.85           // HUD panel backgrounds: settings, control center, search (0.5–1)
             property var customPresets: []             // user presets: [{ name, primary, secondary, background }]
             // Combat mode (GameMode.qml); the stark-game daemon reads these too
             property bool gameAuto: true                // engage when a game window opens / gamemode starts
@@ -125,6 +127,7 @@ Singleton {
     readonly property color dim: Qt.hsla(primary.hslHue, Math.min(1, primary.hslSaturation) * 0.38, 0.68, 1)   // labels
     readonly property color faint: Qt.hsla(primary.hslHue, Math.min(1, primary.hslSaturation) * 0.25, 0.42, 1)  // hints
     readonly property color deep: mix(bg, primary, 0.09)             // panel fill
+    readonly property real panelAlpha: Math.max(0.5, Math.min(1, adapter.panelOpacity))   // HudFrame / search panel background
 
     function p(a)  { return Qt.rgba(primary.r, primary.g, primary.b, a); }
     function s(a)  { return Qt.rgba(secondary.r, secondary.g, secondary.b, a); }
@@ -353,6 +356,7 @@ Singleton {
     property bool cursorSaver: false     // battery saver (PowerMode) forces the still busy cursor
     readonly property bool cursorAnimated: adapter.cursorAnimated && !cursorSaver
     readonly property var cursorSizes: [24, 32, 48]
+    function cursorFill() { return Math.max(20, Math.min(90, Math.round(adapter.cursorOpacity / 5) * 5)); }   // 5% steps keep the cache useful
     function cursorStep(dir) {
         const i = cursorSizes.indexOf(adapter.cursorSize);
         return cursorSizes[Math.max(0, Math.min(cursorSizes.length - 1, (i < 0 ? 0 : i) + dir))];
@@ -362,7 +366,7 @@ Singleton {
         if (!root.loaded) return;
         if (cursorBuild.running) { cursorPending = true; return; }
         cursorBuild.command = [Quickshell.env("HOME") + "/.config/stark-cursor/build.sh", hex(primary),
-            cursorAnimated ? "animated" : "static", String(cursorStep(0))];
+            cursorAnimated ? "animated" : "static", String(cursorStep(0)), String(cursorFill())];
         cursorBuild.running = true;
     }
     Process {
@@ -377,6 +381,7 @@ Singleton {
         target: adapter
         function onTerminalGlassChanged() { kittySync.restart(); }
         function onCursorSizeChanged() { cursorSync.restart(); }
+        function onCursorOpacityChanged() { cursorSync.restart(); }
     }
     onCursorAnimatedChanged: cursorSync.restart()
     onLoadedChanged: cursorSync.restart()
