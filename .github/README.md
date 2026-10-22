@@ -148,11 +148,14 @@ the screen back on with hyprlock already drawn.
 The lid lock skips the security-door animation, and the HUD's animations pause while locked.
 Unlocking cuts straight from the lock screen (a picture of the shut doors) to the real doors,
 then they open. Five things keep that seamless:
-- the picture (`stark-lock-bg.png`) always shows the current theme: the HUD redraws it
-  offscreen whenever the colours or the main screen's size change (a stamp, `.png.key`, records
-  what it was drawn with, so a stale one is redrawn at startup too), and Super+L re-captures
-  it from the live doors; the emblem always rests at 0° when the doors are shut, so both match
-  the real doors pixel for pixel;
+- every monitor has its own picture (`stark-lock-bg-<NAME>.png`: its size, and the emblem on
+  the main screen or ◈ on the others) and its own `background` block in `hyprlock.conf`; the
+  clock and password sit on the main screen only. The HUD redraws a picture offscreen whenever
+  the theme, the screen's size or its role changes (dock / undock / TV); a stamp next to it
+  (`.png.key`) records what it was drawn with, so a stale one is redrawn at startup too. Super+L
+  captures only a picture that's still stale (re-writing current ones just before hyprlock
+  started left it showing a blank background for a few frames). The emblem always rests at 0°
+  when the doors are shut, so the pictures match the real doors pixel for pixel;
 - while the session is locked, Hyprland draws only black under hyprlock, so hyprlock has no
   fade-out (`fadeOut, 0` in `hyprlock.template.conf`), which would show that black;
 - `stark-lock.sh` shuts the doors and waits (at most ~0.6 s) until they're on screen before
@@ -238,4 +241,13 @@ and `qs ipc call profiles recheck` re-detects and re-applies the profile.
 
 - Monitors are matched by model + serial in `hyprland.conf` — change those two lines for your own screens.
 - Sounds in `quickshell/sounds/` are synthesized from scratch (no samples).
+- Files the HUD writes from its theme aren't tracked: `hypr/hyprlock.conf`, `hypr/stark-lock-bg-*`,
+  `hypr/monitors.conf`, `kitty/stark-theme.conf`, `govee/theme.json` (listed in the repo's
+  `info/exclude`). VS Code's `settings.json` is tracked without the three theme keys
+  `stark-code-theme` merges in, via a clean filter. After cloning, set both up:
+  ```sh
+  stark config filter.stark-code-theme.clean '$HOME/.local/bin/stark-code-settings-clean'
+  stark config filter.stark-code-theme.smudge cat
+  echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.stark-os/info/attributes
+  ```
 - Built with help from Claude.
