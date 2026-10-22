@@ -19,106 +19,19 @@ PanelWindow {
     mask: Region {}
     color: "transparent"
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property bool isMain: Roles.role(modelData) === "main"
-    readonly property real halfH: height / 2
-    readonly property real doorP: Math.min(1.05, LockState.doorPos)
-
-    // One door panel (top or bottom)
-    component Door: Rectangle {
-        id: door
-        property bool upper: true
-        color: Theme.bg
-        clip: true
-
-        // faint grid
-        Canvas {
-            anchors.fill: parent
-            property color tint: Theme.primary
-            onTintChanged: requestPaint()
-            onWidthChanged: requestPaint()
-            onPaint: {
-                const ctx = getContext("2d");
-                ctx.clearRect(0, 0, width, height);
-                ctx.strokeStyle = Theme.pc(0.05); ctx.lineWidth = 1;
-                ctx.beginPath();
-                for (let x = 0.5; x < width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
-                for (let y = 0.5; y < height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
-                ctx.stroke();
-                // hazard chevrons along the meeting edge
-                const ey = door.upper ? height - 34 : 34;
-                ctx.strokeStyle = Theme.sc(0.35); ctx.lineWidth = 3;
-                ctx.beginPath();
-                for (let x = -40; x < width + 40; x += 46) {
-                    ctx.moveTo(x, ey - 10); ctx.lineTo(x + 18, ey); ctx.lineTo(x, ey + 10);
-                }
-                ctx.stroke();
-            }
-        }
-        // glowing edge where the doors meet
-        Rectangle {
-            width: parent.width; height: 26
-            y: door.upper ? parent.height - height : 0
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: door.upper ? Theme.p(0.0) : Theme.p(0.55) }
-                GradientStop { position: 1.0; color: door.upper ? Theme.p(0.55) : Theme.p(0.0) }
-            }
-        }
-        Rectangle {
-            width: parent.width; height: 2
-            y: door.upper ? parent.height - 2 : 0
-            color: Theme.primary
-        }
-    }
 
     // Everything that makes up the closed-doors picture (captured for the lock screen)
-    Item {
+    DoorScene {
         id: scene
         anchors.fill: parent
-        Door { upper: true;  width: dw.width; height: dw.halfH + 2; y: -dw.halfH + dw.doorP * dw.halfH - 2 }
-        Door { upper: false; width: dw.width; height: dw.halfH + 2; y: dw.height - dw.doorP * dw.halfH }
-
-        // Emblem + message across the seam (main screen gets the text)
-        Item {
-            anchors.centerIn: parent
-            width: 420; height: 420
-            opacity: Math.max(0, Math.min(1, (LockState.doorPos - 0.85) / 0.15)) * (1 - LockState.crt)
-
-            Ring { anchors.centerIn: parent; radius: 190; thickness: 1; value: 1; dashed: true; dash: [3, 7]; trackColor: "transparent"; rotation: LockState.spin }
-            Ring { anchors.centerIn: parent; radius: 165; thickness: 5; value: 0.75; color: Theme.p(0.6); trackColor: Theme.p(0.1); rotation: -LockState.spin * 1.5 }
-            Ring { anchors.centerIn: parent; radius: 140; thickness: 2; value: 1; color: Theme.secondary; dashed: true; dash: [10, 6]; trackColor: "transparent"; rotation: LockState.spin * 0.7 }
-            Rectangle {
-                anchors.centerIn: parent
-                width: 230; height: 230; radius: 115
-                color: Theme.d(0.95)
-                border.color: Theme.p(0.6)
-            }
-            Column {
-                anchors.centerIn: parent
-                spacing: 6
-                visible: dw.isMain
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: LockState.message.slice(0, Math.ceil(LockState.msgP * LockState.message.length))
-                    color: Theme.text
-                    font.family: dw.mono; font.pixelSize: LockState.message.length > 11 ? 17 : 22; font.letterSpacing: 4
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: LockState.submessage
-                    opacity: Math.max(0, (LockState.msgP - 0.5) * 2)
-                    color: Theme.secondary
-                    font.family: dw.mono; font.pixelSize: 8; font.letterSpacing: 2
-                }
-            }
-            Text {
-                anchors.centerIn: parent
-                visible: !dw.isMain
-                text: "◈"
-                color: Theme.primary
-                font.pixelSize: 40
-            }
-        }
+        isMain: dw.isMain
+        doorP: Math.min(1.05, LockState.doorPos)
+        emblemOpacity: Math.max(0, Math.min(1, (LockState.doorPos - 0.85) / 0.15)) * (1 - LockState.crt)
+        message: LockState.message
+        submessage: LockState.submessage
+        msgP: LockState.msgP
+        spin: LockState.spin
     }
 
     // On the main screen, save a picture of the shut doors → becomes the lock screen's background,
@@ -128,9 +41,61 @@ PanelWindow {
         enabled: dw.isMain
         function onCaptureRequested(path) {
             scene.grabToImage(function(result) {
-                result.saveToFile(path);
+                LockState.saveBg(result, dw.bgKey, false);
                 LockState.captureDone();
             });
+        }
+    }
+
+    // Theme or screen size changed (or the picture is stale at startup): redraw the shut doors
+    // offscreen, without showing them. The window is 1×1 and the scene sits just outside it, so
+    // nothing reaches the screen; grabToImage renders the whole scene regardless.
+    // (the window itself is unmapped while the doors are open, so size comes from the screen)
+    readonly property int screenW: dw.modelData.width
+    readonly property int screenH: dw.modelData.height
+    readonly property string bgKey: LockState.bgKey(screenW + "x" + screenH)
+    function checkBg() {
+        if (dw.isMain && dw.screenW > 0 && Theme.loaded && dw.bgKey !== LockState.savedBgKey) bgCheck.restart();
+    }
+    onBgKeyChanged: checkBg()
+    onIsMainChanged: checkBg()
+    Connections { target: Theme; function onLoadedChanged() { dw.checkBg(); } }
+    Component.onCompleted: checkBg()
+    Timer {
+        id: bgCheck
+        interval: 800     // let a burst of colour changes settle
+        onTriggered: if (dw.isMain && dw.bgKey !== LockState.savedBgKey) bgRender.active = true
+    }
+    LazyLoader {
+        id: bgRender
+        active: false
+        PanelWindow {
+            screen: dw.modelData
+            WlrLayershell.layer: WlrLayer.Background
+            WlrLayershell.namespace: "stark-lock-render"
+            exclusionMode: ExclusionMode.Ignore
+            anchors { top: true; left: true }
+            implicitWidth: 1; implicitHeight: 1
+            mask: Region {}
+            color: "transparent"
+
+            DoorScene {
+                id: still
+                x: 1     // outside the 1×1 window
+                width: dw.screenW; height: dw.screenH
+                isMain: true
+            }
+            Timer {
+                interval: 150; running: still.painted   // a few frames after the canvases paint
+                onTriggered: {
+                    const key = dw.bgKey;
+                    still.grabToImage(function(result) {
+                        LockState.saveBg(result, key, true);
+                        bgRender.active = false;
+                        dw.checkBg();     // colours changed mid-render? go again
+                    });
+                }
+            }
         }
     }
 

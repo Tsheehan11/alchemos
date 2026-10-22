@@ -27,7 +27,9 @@ Singleton {
         if (Theme.cfg.unlockSound) Quickshell.execDetached(["pw-play", root.soundDir + file]);
     }
 
-    NumberAnimation on spin { from: 0; to: 360; duration: 6000; loops: Animation.Infinite; running: root.doors === "closing" || root.doors === "opening" }   // hidden behind hyprlock while closed
+    // The emblem turns while the doors move and always comes to rest at 0° when shut, so the
+    // shut doors match the lock screen's picture of them (LockBg) exactly.
+    NumberAnimation on spin { from: 0; to: 360; duration: 6000; loops: Animation.Infinite; running: root.doors === "opening" || (powerSeq.running && root.doors === "closing") }
 
     // ── Manual lock ──
     function requestLock() {
@@ -46,6 +48,7 @@ Singleton {
         ParallelAnimation {
             NumberAnimation { target: root; property: "doorPos"; from: 0; to: 1; duration: 700; easing.type: Easing.OutBounce }
             NumberAnimation { target: root; property: "msgP"; from: 0; to: 1; duration: 500 }
+            NumberAnimation { target: root; property: "spin"; from: -42; to: 0; duration: 700 }   // same speed as the open spin
         }
         ScriptAction { script: root.doors = "closed" }
         PauseAnimation { duration: 300 }
@@ -58,6 +61,26 @@ Singleton {
 
     // Snapshot the shut doors for the lock screen background, then start the lock screen
     readonly property string lockBg: Quickshell.env("HOME") + "/.config/hypr/stark-lock-bg.png"
+
+    // stark-lock-bg.png must always show the current theme's shut doors, because lid / idle
+    // locks don't capture. A stamp next to it records the colours + size it was drawn with;
+    // SecurityDoors redraws it offscreen whenever that differs from the current key.
+    readonly property string lockBgStamp: lockBg + ".key"
+    function bgKey(size) {
+        return ["v1", Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size].join(" ");
+    }
+    readonly property string savedBgKey: savedKeyOverride !== "" ? savedKeyOverride : stampFile.text().trim()
+    property string savedKeyOverride: ""
+    FileView { id: stampFile; path: root.lockBgStamp; blockLoading: true; printErrors: false }
+    // Live capture writes straight to the file (hyprlock starts right after);
+    // offscreen renders go through a temp file so a lock never reads half a PNG.
+    function saveBg(result, key, atomic) {
+        const target = atomic ? root.lockBg + ".tmp.png" : root.lockBg;
+        if (!result.saveToFile(target)) { console.warn("lock bg: could not save " + target); return; }
+        root.savedKeyOverride = key;
+        Quickshell.execDetached(["sh", "-c", (atomic ? 'mv -f "$1" "$2" && ' : "") + 'printf "%s\\n" "$3" > "$4"',
+            "sh", target, root.lockBg, key, root.lockBgStamp]);
+    }
     signal captureRequested(string path)
     property bool waitingCapture: false
     function captureAndLock() {
@@ -80,7 +103,7 @@ Singleton {
         if (root.doors !== "closed") Govee.event("lock");
         unlockSeq.stop();
         LauncherState.closeAll();
-        root.doorPos = 1; root.crt = 0;
+        root.doorPos = 1; root.crt = 0; root.spin = 0;
         root.message = ""; root.submessage = ""; root.msgP = 0;     // centre left clear for the clock
         root.doors = "closed";
     }
@@ -88,7 +111,7 @@ Singleton {
     // ── Unlock ──
     function unlocked() {
         lockSeq.stop();
-        root.doorPos = 1;
+        root.doorPos = 1; root.spin = 0;
         unlockSeq.start();
     }
     SequentialAnimation {

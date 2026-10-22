@@ -147,7 +147,12 @@ to sleep within 2 s and the lid is still closed, `lid.sh` suspends itself. Openi
 the screen back on with hyprlock already drawn.
 The lid lock skips the security-door animation, and the HUD's animations pause while locked.
 Unlocking cuts straight from the lock screen (a picture of the shut doors) to the real doors,
-then they open. Four things keep that seamless:
+then they open. Five things keep that seamless:
+- the picture (`stark-lock-bg.png`) always shows the current theme: the HUD redraws it
+  offscreen whenever the colours or the main screen's size change (a stamp, `.png.key`, records
+  what it was drawn with, so a stale one is redrawn at startup too), and Super+L re-captures
+  it from the live doors; the emblem always rests at 0° when the doors are shut, so both match
+  the real doors pixel for pixel;
 - while the session is locked, Hyprland draws only black under hyprlock, so hyprlock has no
   fade-out (`fadeOut, 0` in `hyprlock.template.conf`), which would show that black;
 - `stark-lock.sh` shuts the doors and waits (at most ~0.6 s) until they're on screen before
