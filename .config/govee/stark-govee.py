@@ -269,10 +269,46 @@ def at_home(cfg):
     return bool(gateway_macs() & homes)
 
 
-def should_run(cfg):
+def gate_reason(cfg):
+    """Why the dock+home gate is closed, or None if the lights may run."""
     if cfg.get("require_docked", True) and not docked():
-        return False
-    return at_home(cfg)
+        return "not docked"
+    if not at_home(cfg):
+        return "not on the home network"
+    return None
+
+
+def should_run(cfg):
+    return gate_reason(cfg) is None
+
+
+def strip_answers(ip, timeout=1.0):
+    rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        rx.bind(("", LISTEN_PORT))
+        rx.settimeout(timeout)
+        rx.sendto(json.dumps({"msg": {"cmd": "devStatus", "data": {}}}).encode(), (ip, CMD_PORT))
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            if rx.recvfrom(4096)[1][0] == ip:
+                return True
+    except OSError:
+        pass
+    finally:
+        rx.close()
+    return False
+
+
+def wait_ready(cfg, ip, timeout, check_strip):
+    """Before login the router's ARP entry, the dock's screens and the strip can each lag
+    a few seconds behind network-online, so keep retrying until `timeout`."""
+    end = time.monotonic() + timeout
+    while True:
+        why = gate_reason(cfg) or (None if not check_strip or strip_answers(ip) else "strip not answering")
+        if why is None or time.monotonic() >= end:
+            return why
+        time.sleep(1.0)
 
 
 def _calib(cfg):
@@ -1004,8 +1040,10 @@ def play_direct(name, route_timeout=3.0):
     if not ip or not wait_for_route(ip, route_timeout):
         log("strip not reachable; skipping", name)
         return
-    if not should_run(cfg):
-        log("not docked at home; skipping", name)
+    boot = name == "boot"
+    why = wait_ready(cfg, ip, 15.0 if boot else 0.0, check_strip=boot)
+    if why:
+        log(f"{why}; skipping", name)
         return
     strip = make_strip(cfg, ip)
     n, stream, seg_fps, speed = _seg_cfg(cfg)

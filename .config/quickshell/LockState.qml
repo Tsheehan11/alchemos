@@ -145,13 +145,14 @@ Singleton {
             else Quickshell.execDetached(["systemctl", "poweroff"]);
         } }
     }
-    // Log out: let the strip finish its sign-off animation (~2 s), then leave Hyprland
+    // Log out: let the strip finish its drain (event logout --wait returns when it ends), then leave Hyprland
     Process {
         id: logoutLights
         command: ["stark-govee", "event", "logout", "--wait"]
         onExited: root.exitHyprland()
     }
-    Timer { id: logoutFallback; interval: 6000; onTriggered: root.exitHyprland() }   // daemon hung? leave anyway
+    // daemon hung? leave anyway. The drain is ~1.9 s at NORMAL; stretch for the SLOW setting
+    Timer { id: logoutFallback; interval: Math.max(3000, Math.round(2500 / Govee.animSpeed)); onTriggered: root.exitHyprland() }
     function exitHyprland() {
         logoutFallback.stop();
         Hyprland.dispatch("exit");
