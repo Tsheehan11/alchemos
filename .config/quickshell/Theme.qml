@@ -174,10 +174,10 @@ Singleton {
                         "\n    color = " + back + "\n}");
         }
         // One pass, so a colour that's swapped in (SOLAR's primary is STARK's secondary)
-        // isn't swapped again
-        const swap = { "4fd8ff": hex(primary), "ffb347": hex(secondary), "05090f": hex(bg),
+        // isn't swapped again. 8fb4c4 = muted text (placeholder, battery) → the HUD's label colour.
+        const swap = { "4fd8ff": hex(primary), "ffb347": hex(secondary), "05090f": hex(bg), "8fb4c4": hex(dim),
                        "__HOME__": Quickshell.env("HOME"), "__BACKGROUNDS__": blocks.join("\n"), "__MAIN__": main };
-        return t.replace(/4fd8ff|ffb347|05090f|__HOME__|__BACKGROUNDS__|__MAIN__/g, m => swap[m]);
+        return t.replace(/4fd8ff|ffb347|05090f|8fb4c4|__HOME__|__BACKGROUNDS__|__MAIN__/g, m => swap[m]);
     }
     function pushLockConf() {
         const conf = lockConf();
