@@ -18,7 +18,8 @@ Singleton {
         watchChanges: true
         onFileChanged: reload()
         onAdapterUpdated: writeAdapter()
-        onLoadFailed: error => writeAdapter()   // first run: create the file with defaults
+        onLoaded: root.loaded = true
+        onLoadFailed: error => { writeAdapter(); root.loaded = true; }   // first run: create the file with defaults
 
         JsonAdapter {
             id: adapter
@@ -61,8 +62,10 @@ Singleton {
             property bool gameHud: true                 // HUD effects / panels pause, stats refresh slowly
             property bool gameJarvis: true              // pause Jarvis (frees the mic)
             property bool gameNotify: true              // do-not-disturb on the notification daemon
+            property var launcherApps: []               // radial launcher (LauncherApps.qml); seeded on first run
         }
     }
+    property bool loaded: false   // settings.json has been read at least once
 
     // ── Presets ─────────────────────────────────
     readonly property var presets: [

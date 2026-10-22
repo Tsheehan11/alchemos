@@ -1,6 +1,6 @@
-// Flow-cloud launcher — apps drift out of the mouse cursor in five curving
-// branches (AI, NET, MEDIA, SYS, CTRL) fed by streams of light from the core, with a swirl of particles
-// flowing around everything.
+// Flow-cloud launcher — apps drift out of the mouse cursor in curving branches
+// fed by streams of light from the core, with a swirl of particles flowing
+// around everything. The apps come from Settings → LAUNCHER (LauncherApps.qml).
 // Keys: arrows/Tab cycle · Enter launch · 1–9 / 0 launch directly
 //       start typing a letter → app search · Esc closes
 import QtQuick
@@ -31,35 +31,19 @@ PanelWindow {
     readonly property color amber: Theme.secondary
     readonly property string mono: "JetBrainsMono Nerd Font"
 
-    // ── Edit your apps here ──────────────────
-    // Apps come in pairs that form one branch: [main app, related app].
-    // The main app sits close to the core; the related one flows out from it.
-    readonly property var branches: [
-        { name: "AI",     apps: [{ label: "CLAUDE",  cmd: "zen-browser --new-window https://claude.ai" },
-                                 { label: "CODE",    cmd: "kitty -e claude" }] },
-        { name: "NET",    apps: [{ label: "WEB",     cmd: "zen-browser" },
-                                 { label: "DISCORD", cmd: "discord" }] },
-        { name: "MEDIA",  apps: [{ label: "MUSIC",   cmd: "spotify-launcher" },
-                                 { label: "GAMES",   cmd: "steam" }] },
-        { name: "DEV",    apps: [{ label: "VS CODE", cmd: "code" },
-                                 { label: "HUD",     cmd: "code " + Quickshell.env("HOME") + "/.config/quickshell" }] },
-        { name: "SYS",    apps: [{ label: "TERM",    cmd: "kitty" },
-                                 { label: "FILES",   cmd: "dolphin" }] },
-        { name: "CTRL",   apps: [{ label: "CONTROL", cmd: "@control" },
-                                 { label: "LOCK",    cmd: "@lock" }] }
-    ]
-    readonly property var apps: {
-        const out = [];
-        for (const b of branches) for (const a of b.apps) out.push(a);
-        return out;
-    }
+    // Apps in launch order. Consecutive pairs form one branch: the first sits
+    // close to the core, the second flows out from it.
+    readonly property var apps: LauncherApps.list
+    readonly property int branchCount: Math.ceil(apps.length / 2)
     function branchOf(i) { return Math.floor(i / 2); }
     function tierOf(i) { return i % 2; }              // 0 = near the core, 1 = flows outward
+    onAppsChanged: if (selected >= apps.length) selected = 0
 
     // Layout: branches fan out evenly; each related app sits further out and
     // a little further round, so every branch curves the same way.
+    // Past 6 branches there's no room for the jitter — neighbours would touch.
     readonly property var jitter: [0, 7, -5, 5, -6]
-    function branchAngle(b) { return -90 + b * (360 / branches.length) + jitter[b % jitter.length]; }
+    function branchAngle(b) { return -90 + b * (360 / branchCount) + (branchCount <= 6 ? jitter[b % jitter.length] : 0); }
     function baseAngle(i) { return branchAngle(branchOf(i)) + (tierOf(i) === 1 ? 18 : 0); }
     function baseRadius(i) { return tierOf(i) === 1 ? 325 : 172; }
     function nodeSize(i) { return tierOf(i) === 1 ? 76 : 94; }
@@ -70,12 +54,9 @@ PanelWindow {
 
     function close() { LauncherState.open = false }
     function launch(i) {
-        const cmd = apps[i].cmd;
-        if (cmd === "@control") { LauncherState.openControl(); return; }
-        if (cmd === "@lock") { LockState.requestLock(); return; }
-        Hyprland.dispatch("exec " + cmd);
-        close();
+        if (LauncherApps.launch(apps[i])) close();
     }
+    readonly property var current: apps[selected] || ({ name: "", available: true })
 
     onVisibleChanged: {
         if (visible) {
@@ -145,6 +126,7 @@ PanelWindow {
 
         Keys.onPressed: function(event) {
             const n = win.apps.length;
+            if (n === 0 && event.key !== Qt.Key_Escape) return;
             if (event.key === Qt.Key_Escape) {
                 win.close();
             } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Down || event.key === Qt.Key_Tab) {
@@ -270,14 +252,18 @@ PanelWindow {
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: win.apps[win.selected].label
-                    color: "#ffffff"
-                    font.family: win.mono; font.pixelSize: win.apps[win.selected].label.length > 6 ? 14 : 18
+                    width: Math.min(implicitWidth, 108)
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                    text: win.current.name
+                    color: win.current.available ? "#ffffff" : Theme.faint
+                    font.family: win.mono; font.pixelSize: win.current.name.length > 6 ? 14 : 18
+                    font.capitalization: Font.AllUppercase
                     font.letterSpacing: 1
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "TYPE TO SEARCH"
+                    text: win.current.available ? "TYPE TO SEARCH" : "NOT INSTALLED"
                     color: win.amber
                     font.family: win.mono; font.pixelSize: 7; font.letterSpacing: 2
                 }
@@ -286,20 +272,26 @@ PanelWindow {
 
         // ── Branch labels ──
         Repeater {
-            model: win.branches.length
+            model: win.branchCount
             delegate: Text {
                 required property int index
                 readonly property int i0: index * 2
+                // A lone app (odd count) gets its label just beyond it, on the way out from the core
+                readonly property int i1: i0 + 1 < win.apps.length ? i0 + 1 : -1
                 readonly property bool hot: win.branchOf(win.selected) === index
+                readonly property real outX: i1 >= 0 ? core.nx(i1) : core.cx + (core.nx(i0) - core.cx) * 1.5
+                readonly property real outY: i1 >= 0 ? core.ny(i1) : core.cy + (core.ny(i0) - core.cy) * 1.5
                 // halfway between the two apps, nudged off the stream
-                readonly property real mx: (core.nx(i0) + core.nx(i0 + 1)) / 2
-                readonly property real my: (core.ny(i0) + core.ny(i0 + 1)) / 2
-                readonly property real ox: (core.ny(i0 + 1) - core.ny(i0))
-                readonly property real oy: -(core.nx(i0 + 1) - core.nx(i0))
+                readonly property real mx: (core.nx(i0) + outX) / 2
+                readonly property real my: (core.ny(i0) + outY) / 2
+                readonly property real ox: (outY - core.ny(i0))
+                readonly property real oy: -(outX - core.nx(i0))
                 readonly property real ol: Math.max(1, Math.hypot(ox, oy))
                 x: mx + ox / ol * 30 - width / 2
                 y: my + oy / ol * 30 - height / 2
-                text: win.branches[index].name
+                // The inner app's label, else the outer one's — so labels survive reordering
+                text: (win.apps[i0] || {}).group || (i1 >= 0 ? win.apps[i1].group : "") || ""
+                font.capitalization: Font.AllUppercase
                 color: hot ? win.amber : Theme.dim
                 opacity: Math.min(1, win.spread) * (hot ? 1 : 0.6)
                 font.family: win.mono; font.pixelSize: 11; font.letterSpacing: 4
@@ -314,6 +306,7 @@ PanelWindow {
                 id: node
                 required property int index
                 readonly property bool sel: win.selected === index
+                readonly property var app: win.apps[index] || ({ name: "", icon: "", available: false })
                 readonly property int size: win.nodeSize(index)
                 readonly property bool branchHot: win.branchOf(index) === win.branchOf(win.selected)
                 readonly property color tint: win.branchOf(index) % 2 === 1 ? win.amber : win.cyan
@@ -323,7 +316,8 @@ PanelWindow {
                 y: core.ny(index) - height / 2
                 z: sel ? 20 : 10
                 scale: Math.min(1, win.spread) * (sel ? 1.15 : 1)
-                opacity: Math.min(1, win.spread * 1.3)
+                // Not installed (any more): dimmed, and launching does nothing
+                opacity: Math.min(1, win.spread * 1.3) * (app.available ? 1 : 0.35)
                 Behavior on scale { NumberAnimation { duration: 150 } }
 
                 gradient: Gradient {
@@ -352,17 +346,29 @@ PanelWindow {
                 Column {
                     anchors.centerIn: parent
                     spacing: 1
+                    Image {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: node.app.icon !== "" && status === Image.Ready
+                        width: node.size > 80 ? 28 : 22; height: width
+                        source: node.app.icon
+                        sourceSize: Qt.size(64, 64)
+                        smooth: true
+                    }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: win.apps[node.index].label
+                        width: Math.min(implicitWidth, node.size - 14)
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        text: node.app.name
                         color: node.sel ? "#ffffff" : Theme.textSoft
                         font.family: win.mono
-                        font.pixelSize: win.apps[node.index].label.length > 6 ? 10 : 12
+                        font.pixelSize: node.app.name.length > 6 ? 10 : 12
+                        font.capitalization: Font.AllUppercase
                         font.letterSpacing: 1
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: (node.index + 1) % 10
+                        text: !node.app.available ? "N/A" : node.index < 10 ? (node.index + 1) % 10 : ""   // keys 1–9, 0
                         color: node.tint
                         font.family: win.mono; font.pixelSize: 9
                         opacity: 0.8

@@ -23,6 +23,86 @@
     "idleSleep": 30,
     "jarvisDocked": true,
     "jarvisLaptop": false,
+    "launcherApps": [
+        {
+            "exec": "zen-browser --new-window https://claude.ai",
+            "group": "AI",
+            "icon": "",
+            "id": "seed-claude",
+            "name": "CLAUDE"
+        },
+        {
+            "exec": "kitty -e claude",
+            "icon": "",
+            "id": "seed-cc",
+            "name": "CODE"
+        },
+        {
+            "exec": "zen-browser",
+            "group": "NET",
+            "icon": "",
+            "id": "seed-web",
+            "name": "WEB"
+        },
+        {
+            "exec": "discord",
+            "icon": "",
+            "id": "seed-discord",
+            "name": "DISCORD"
+        },
+        {
+            "exec": "spotify-launcher",
+            "group": "MEDIA",
+            "icon": "",
+            "id": "seed-music",
+            "name": "MUSIC"
+        },
+        {
+            "exec": "steam",
+            "icon": "",
+            "id": "seed-games",
+            "name": "GAMES"
+        },
+        {
+            "exec": "code",
+            "group": "DEV",
+            "icon": "",
+            "id": "seed-vscode",
+            "name": "VS CODE"
+        },
+        {
+            "exec": "code ~/.config/quickshell",
+            "icon": "",
+            "id": "seed-hud",
+            "name": "HUD"
+        },
+        {
+            "exec": "kitty",
+            "group": "SYS",
+            "icon": "",
+            "id": "seed-term",
+            "name": "TERM"
+        },
+        {
+            "exec": "dolphin",
+            "icon": "",
+            "id": "seed-files",
+            "name": "FILES"
+        },
+        {
+            "exec": "@control",
+            "group": "CTRL",
+            "icon": "",
+            "id": "seed-control",
+            "name": "CONTROL"
+        },
+        {
+            "exec": "@lock",
+            "icon": "",
+            "id": "seed-lock",
+            "name": "LOCK"
+        }
+    ],
     "osd": true,
     "pauseBehindWindows": true,
     "preset": "MARK III",

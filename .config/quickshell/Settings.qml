@@ -1,4 +1,4 @@
-// STARK OS settings — Wi-Fi, Bluetooth, appearance, HUD and system.
+// STARK OS settings — Wi-Fi, Bluetooth, appearance, HUD, launcher and system.
 // Open with Super + , (comma), the SETTINGS button in the control center,
 // or: qs ipc call settings toggle
 import QtQuick
@@ -22,7 +22,7 @@ PanelWindow {
     color: "transparent"
 
     readonly property string mono: "JetBrainsMono Nerd Font"
-    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "SYSTEM"]
+    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "LAUNCHER", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
     onVisibleChanged: if (visible) { focusCatcher.forceActiveFocus(); refreshAll(); }
@@ -508,6 +508,13 @@ PanelWindow {
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
                         SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch("exec kate ~/.config/quickshell"); LauncherState.closeAll(); } }
                     }
+                }
+
+                // ════════ LAUNCHER ════════
+                LauncherPage {
+                    visible: LauncherState.settingsTab === "LAUNCHER" && st.visible
+                    width: parent.width
+                    onReleaseFocus: focusCatcher.forceActiveFocus()
                 }
 
                 // ════════ SYSTEM ════════
