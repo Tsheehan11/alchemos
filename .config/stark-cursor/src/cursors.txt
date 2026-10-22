@@ -1,0 +1,38 @@
+# STARK OS cursors — one line per cursor file:
+#   name  template  hotspot-x  hotspot-y  rotation  aliases...
+# Hotspots are in the templates' 32×32 viewBox. Rotation fills {{ROT}} (- = none).
+# Aliases become symlinks (XCursor) / define_override (hyprcursor), so apps asking
+# for any legacy X11, CSS or Qt-hash name still get a STARK cursor.
+default        default.svg        4    3    -    left_ptr arrow top_left_arrow center_ptr right_ptr dnd-move dnd-none size-hor size-ver size-bdiag size-fdiag up-arrow down-arrow left-arrow right-arrow wayland-cursor
+pointer        pointer.svg        13   3.2  -    hand1 hand2 pointing_hand 9d800788f1b08800ae810202380a0822 e29285e634086352946a0e7090d73106
+text           text.svg           16   16   -    xterm ibeam
+vertical-text  vertical-text.svg  16   16   -
+progress       progress.svg       4    3    -    left_ptr_watch half-busy 00000000000000020006000e7e9ffc3f 08e8e1c95fe2fc01f976f1e063a24ccd 3ecb610c1bf2410f44200f48c40d3599
+wait           wait.svg           16   16   -    watch clock
+crosshair      crosshair.svg      16   16   -    cross tcross cross_reverse diamond_cross target color-picker pencil draft
+cell           cell.svg           16   16   -    plus
+move           move.svg           16   16   -    fleur all-scroll size_all all-resize 4498f0e0c1937ffe01fd06f973665830 9081237383d90e509aa00f00170e968f
+grab           grab.svg           15   16   -    openhand fcf21c00b30f7e3f83fe0dfd12e71cff
+grabbing       grabbing.svg       15.5 17   -    closedhand
+not-allowed    not-allowed.svg    16   16   -    crossed_circle circle forbidden X_cursor x-cursor pirate 03b6e0fcb3499374a867c041f52298f0
+no-drop        no-drop.svg        4    3    -    dnd-no-drop
+help           help.svg           4    3    -    left_ptr_help question_arrow whats_this dnd-ask 5c6cd98b3f3ebcb1f9c7f1c204630408 d9ce0ab605698f320427677b458ad60b
+copy           copy.svg           4    3    -    dnd-copy 1081e37283d90000800003c07f3ef6bf 6407b0e94181790501fd1e167b474872 b66166c04f8c3109214a4fbd64a50fc8
+alias          alias.svg          4    3    -    link dnd-link 3085a0e285430894940527032f8b26df 640fb0e74195791501fd1ed57b41487f a2a266d0498c3104214a47bd64ab0fc8
+context-menu   context-menu.svg   4    3    -
+zoom-in        zoom-in.svg        13   13   -
+zoom-out       zoom-out.svg       13   13   -
+ns-resize      resize-axis.svg    16   16   0    sb_v_double_arrow v_double_arrow size_ver 00008160000006810000408080010102
+ew-resize      resize-axis.svg    16   16   90   sb_h_double_arrow h_double_arrow size_hor 028006030e0e7ebffc7f7070c0600140
+nesw-resize    resize-axis.svg    16   16   45   size_bdiag fd_double_arrow fcf1c3c7cd4491d801f1e1c78f100000
+nwse-resize    resize-axis.svg    16   16   -45  size_fdiag bd_double_arrow c7088f0f3e6c8088236ef8e1e3e70000
+n-resize       resize-edge.svg    16   16   0    top_side
+e-resize       resize-edge.svg    16   16   90   right_side
+s-resize       resize-edge.svg    16   16   180  bottom_side
+w-resize       resize-edge.svg    16   16   270  left_side
+nw-resize      resize-corner.svg  16   16   0    top_left_corner ul_angle
+ne-resize      resize-corner.svg  16   16   90   top_right_corner ur_angle
+se-resize      resize-corner.svg  16   16   180  bottom_right_corner lr_angle
+sw-resize      resize-corner.svg  16   16   270  bottom_left_corner ll_angle
+col-resize     resize-split.svg   16   16   0    split_h 14fef782d02440884392942c11205230
+row-resize     resize-split.svg   16   16   90   split_v 2870a09082c103050810ffdffffe0204

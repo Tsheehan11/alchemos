@@ -4,6 +4,8 @@
     "background": "#0c0505",
     "batteryFps": 0,
     "clock24": true,
+    "cursorAnimated": true,
+    "cursorSize": 24,
     "customPresets": [],
     "displayLayout": "extend",
     "effectsFps": 24,
@@ -20,7 +22,7 @@
     "idleLock": 15,
     "idleScreenOff": 20,
     "idleSleep": 30,
-    "jarvisDocked": true,
+    "jarvisDocked": false,
     "jarvisLaptop": false,
     "launcherApps": [
         {
@@ -42,7 +44,7 @@
             "group": "NET",
             "icon": "",
             "id": "seed-web",
-            "name": "WEB"
+            "name": "Zen"
         },
         {
             "desktopId": "discord",

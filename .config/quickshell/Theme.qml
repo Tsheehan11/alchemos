@@ -53,6 +53,8 @@ Singleton {
             property int idleScreenOff: 10
             property int idleSleep: 20
             property bool terminalGlass: false         // kitty background_opacity 0.85 instead of solid
+            property int cursorSize: 24                // STARK-OS cursor: 24 | 32 | 48
+            property bool cursorAnimated: true         // spinning arc-reactor busy cursor (static frame when off)
             property var customPresets: []             // user presets: [{ name, primary, secondary, background }]
             // Combat mode (GameMode.qml); the stark-game daemon reads these too
             property bool gameAuto: true                // engage when a game window opens / gamemode starts
@@ -344,21 +346,49 @@ Singleton {
         Quickshell.execDetached(["stark-govee", "theme", hex(primary), hex(secondary)]);
     }
 
-    onPrimaryChanged: { hyprSync.restart(); kittySync.restart(); codeSync.restart(); goveeSync.restart(); }
+    // ── Cursor ──────────────────────────────────
+    // ~/.config/stark-cursor/build.sh renders the STARK-OS cursor theme in the accent
+    // (cached per colour) and applies it with `hyprctl setcursor`. One build at a time;
+    // a change mid-build runs once more afterwards with whatever is current then.
+    property bool cursorSaver: false     // battery saver (PowerMode) forces the still busy cursor
+    readonly property bool cursorAnimated: adapter.cursorAnimated && !cursorSaver
+    readonly property var cursorSizes: [24, 32, 48]
+    function cursorStep(dir) {
+        const i = cursorSizes.indexOf(adapter.cursorSize);
+        return cursorSizes[Math.max(0, Math.min(cursorSizes.length - 1, (i < 0 ? 0 : i) + dir))];
+    }
+    property bool cursorPending: false
+    function pushCursor() {
+        if (!root.loaded) return;
+        if (cursorBuild.running) { cursorPending = true; return; }
+        cursorBuild.command = [Quickshell.env("HOME") + "/.config/stark-cursor/build.sh", hex(primary),
+            cursorAnimated ? "animated" : "static", String(cursorStep(0))];
+        cursorBuild.running = true;
+    }
+    Process {
+        id: cursorBuild
+        onExited: if (root.cursorPending) { root.cursorPending = false; root.pushCursor(); }
+    }
+
+    onPrimaryChanged: { hyprSync.restart(); kittySync.restart(); codeSync.restart(); goveeSync.restart(); cursorSync.restart(); }
     onBgChanged: { hyprSync.restart(); kittySync.restart(); codeSync.restart(); }
     onSecondaryChanged: { hyprSync.restart(); kittySync.restart(); codeSync.restart(); goveeSync.restart(); }
     Connections {
         target: adapter
         function onTerminalGlassChanged() { kittySync.restart(); }
+        function onCursorSizeChanged() { cursorSync.restart(); }
     }
+    onCursorAnimatedChanged: cursorSync.restart()
+    onLoadedChanged: cursorSync.restart()
     Timer { id: hyprSync; interval: 300; onTriggered: root.pushToHyprland() }
     Timer { id: kittySync; interval: 300; onTriggered: root.pushToKitty() }
     Timer { id: codeSync; interval: 300; onTriggered: root.pushToCode() }
     Timer { id: goveeSync; interval: 300; onTriggered: root.pushToGovee() }
+    Timer { id: cursorSync; interval: 600; onTriggered: root.pushCursor() }   // longer: a cold build is ~1 s
     Component.onCompleted: { hyprSync.restart(); kittySync.restart(); codeSync.restart(); goveeSync.restart(); }
     // `hyprctl reload` resets border colors → push them again
     Connections {
         target: Hyprland
-        function onRawEvent(event) { if (event.name === "configreloaded") hyprSync.restart(); }
+        function onRawEvent(event) { if (event.name === "configreloaded") { hyprSync.restart(); cursorSync.restart(); } }
     }
 }

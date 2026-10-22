@@ -7,6 +7,7 @@
 //     it — a HUD restart leaves whatever profile you picked alone.
 //   • stats refresh every 5 s instead of 2 s
 //   • optionally pauses Jarvis (handled in JarvisState)
+//   • busy cursor stops spinning (Theme rebuilds it static)
 // Everything goes back the moment you plug in.
 // While combat mode (GameMode) has taken over blur / the power profile, those
 // are left to it, and the saver catches up when the game ends.
@@ -23,6 +24,8 @@ Singleton {
     readonly property bool saver: Theme.cfg.autoSaver && onBattery
 
     onSaverChanged: applyTimer.restart()
+    // Still busy cursor on battery (Theme rebuilds the cursor when this flips)
+    Binding { target: Theme; property: "cursorSaver"; value: root.saver }
     Component.onCompleted: applyTimer.restart()
     Timer { id: applyTimer; interval: 400; onTriggered: root.apply() }
 

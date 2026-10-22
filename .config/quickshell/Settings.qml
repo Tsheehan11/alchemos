@@ -448,6 +448,13 @@ PanelWindow {
                             }
                         }
                     }
+                    Column {
+                        width: parent.width
+                        spacing: 8
+                        Text { text: "CURSOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Stepper { width: parent.width; label: "Cursor size"; hint: "24 standard · 32 / 48 for HiDPI screens"; valueText: Theme.cursorStep(0) + " PX"; onDec: Theme.cfg.cursorSize = Theme.cursorStep(-1); onInc: Theme.cfg.cursorSize = Theme.cursorStep(1) }
+                        Toggle { width: parent.width; label: "ANIMATED BUSY CURSOR"; hint: PowerMode.saver && Theme.cfg.cursorAnimated ? "Still frame while battery saver is on" : "Arc reactor spins while apps load · off shows a still frame"; checked: Theme.cfg.cursorAnimated; onToggled: Theme.cfg.cursorAnimated = !Theme.cfg.cursorAnimated }
+                    }
                     Toggle { width: parent.width; label: "Background grid"; checked: Theme.cfg.showGrid; onToggled: Theme.cfg.showGrid = !Theme.cfg.showGrid }
                     Toggle { width: parent.width; label: "24-hour clock"; checked: Theme.cfg.clock24; onToggled: Theme.cfg.clock24 = !Theme.cfg.clock24 }
                     Toggle { width: parent.width; label: "Lock / unlock sounds"; checked: Theme.cfg.unlockSound; onToggled: Theme.cfg.unlockSound = !Theme.cfg.unlockSound }

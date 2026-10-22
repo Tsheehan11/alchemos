@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+<!-- STARK OS cursor template: {{ACCENT}} = theme accent. Built by ../build.sh -->
+<defs><g id="s"><path d="M4 3 V20 L8.3 16.2 L11.3 23 L14 21.8 L11.1 15.2 H16.8 Z"/><circle cx="23.5" cy="23.5" r="6"/><path fill="none" d="M20.6 26.4 C20.6 22.4 22.6 21.1 26.2 21.1 M24 19 L26.4 21.1 L24 23.2"/></g></defs>
+<use href="#s" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="3.1" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#s" fill="{{ACCENT}}" fill-opacity=".18" stroke="{{ACCENT}}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="4" cy="3" r="1.5" fill="{{ACCENT}}" stroke="#000" stroke-opacity=".5" stroke-width="1"/><circle cx="4" cy="3" r=".6" fill="#fff" fill-opacity=".9"/>
+</svg>

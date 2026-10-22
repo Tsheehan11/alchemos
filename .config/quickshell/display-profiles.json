@@ -1,5 +1,6 @@
 {
-  "active": "desk",
-  "deskGovee": "theme",
-  "profiles": {}
+    "active": "laptop",
+    "deskGovee": "theme",
+    "profiles": {
+    }
 }

@@ -24,6 +24,7 @@ audio deck with visualizer · full themeable settings — all reacting to how ma
 | **Docking aware** | Laptop alone: everything on one screen. Docked: clock / diagnostics / audio deck across 3 screens. Display profiles per setup (desk / laptop / TV), switched on plug-in |
 | **Battery saver** | Unplugged → static effects, no blur, 48 Hz, power-saver profile |
 | **Themes** | Stark, Mark III, Vibranium, Matrix, Arctic, Solar, or custom colors |
+| **Cursor** | Holographic STARK-OS cursor theme, rebuilt in the accent colour on every theme change; arc-reactor busy cursor |
 
 ## Layout
 
@@ -32,14 +33,17 @@ audio deck with visualizer · full themeable settings — all reacting to how ma
 ~/.config/hypr/system/  Files installed outside $HOME (hyprlock PAM stack, suspend hooks)
 ~/.config/quickshell/   The whole HUD (shell.qml is the entry point)
 ~/.config/jarvis/       Voice assistant (jarvis.py; its .venv is not tracked)
+~/.config/stark-cursor/ Cursor theme: SVG templates (src/) and build.sh
 ```
 
 ## Requirements
 
 ```
 hyprland quickshell hyprlock hypridle cava kitty fuzzel brightnessctl playerctl
-ttf-jetbrains-mono-nerd networkmanager bluez-utils uv
+ttf-jetbrains-mono-nerd networkmanager bluez-utils uv librsvg hyprcursor python-pillow
 ```
+
+`xorg-xcursorgen` is optional: without it the cursor build uses its own `xcursorgen.py`.
 
 Jarvis: `cd ~/.config/jarvis && uv venv --python 3.11 && uv pip install --python .venv openwakeword faster-whisper`
 
@@ -160,6 +164,30 @@ wake. So they must never wait on anything in the session: the Govee hook doesn't
 (frozen) daemon before sleep, and all of them hand their wake work to a background unit that
 runs once the suspend is over. `stark-thaw`'s unit is the backstop: if anything under
 `user.slice` is still frozen by then, it thaws it. To check timings: `journalctl -b -o short-precise | grep -E 'Lid|systemd-sleep|froze|thawed'`.
+
+## Cursor
+
+`~/.config/stark-cursor/build.sh <rrggbb> [animated|static] [24|32|48]` renders the SVG
+templates in `src/` (`{{ACCENT}}` is the theme colour) into one theme directory,
+`~/.local/share/icons/STARK-OS`, holding both an XCursor theme (all three sizes) and a
+hyprcursor theme (SVG). It then applies the theme with `hyprctl setcursor`. `src/cursors.txt`
+lists every cursor with its hotspot and aliases (X11, CSS and Qt-hash names), so no app falls
+back to Adwaita. Builds are cached per colour in `~/.cache/stark-cursor` (about 1 s cold,
+0.15 s cached).
+
+Theme.qml runs it whenever the accent, Settings → APPEARANCE → CURSOR (size, ANIMATED BUSY
+CURSOR) or battery saver changes, 600 ms after the last change and one build at a time.
+Battery saver always uses the still busy cursor. build.sh also keeps everything else pointed
+at the theme, rewriting a file only when a value changes: the `env =` lines in `hyprland.conf`, gsettings, GTK 3/4
+`settings.ini`, xsettingsd, `~/.icons/default`, `kcminputrc` (KDE / Dolphin), Xresources and
+the systemd / D-Bus environment.
+
+Hyprland draws the cursor for Qt 6, Electron and the HUD itself, so those recolour at once.
+GTK apps like Zen draw their own cursor and reload it only when the theme *name* changes,
+so build.sh briefly switches GTK to `STARK-OS-reload` (an alias of the same theme) and back.
+That reliably recolours Zen, but a size change may only show in Zen after a restart.
+XWayland apps (Steam, Spotify) read the theme when they start, so they need a restart to
+pick up a new colour or size.
 
 ## Display profiles
 
