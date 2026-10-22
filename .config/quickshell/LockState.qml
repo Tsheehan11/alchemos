@@ -27,7 +27,7 @@ Singleton {
         if (Theme.cfg.unlockSound) Quickshell.execDetached(["pw-play", root.soundDir + file]);
     }
 
-    NumberAnimation on spin { from: 0; to: 360; duration: 6000; loops: Animation.Infinite; running: root.doors !== "open" }
+    NumberAnimation on spin { from: 0; to: 360; duration: 6000; loops: Animation.Infinite; running: root.doors === "closing" || root.doors === "opening" }   // hidden behind hyprlock while closed
 
     // ── Manual lock ──
     function requestLock() {

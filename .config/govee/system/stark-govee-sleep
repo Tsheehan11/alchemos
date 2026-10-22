@@ -1,8 +1,12 @@
 #!/bin/sh
 # STARK OS: fade the Govee strip out on suspend, bring it back on resume.
+# The user session (and the daemon in it) is frozen while these hooks run, so neither
+# side may wait on the daemon: pre plays directly with a short timeout, and post is
+# queued to run after the suspend finishes and the session thaws.
 BIN="@HOME@/.local/bin/stark-govee"
 case "$1" in
   pre)  runuser -u @USER@ -- "$BIN" event sleep --wait ;;
-  post) runuser -u @USER@ -- "$BIN" event wake ;;
+  post) systemd-run --quiet --no-block --collect --uid=@USER@ \
+          --property=After=systemd-suspend.service -- "$BIN" event wake ;;
 esac
 exit 0

@@ -4,6 +4,8 @@
 //    Effects), instead of every animation redrawing at the monitors' full 144 Hz.
 // 2. Effects on a screen pause while that screen's workspace has windows on it
 //    (you can't see the background then anyway), and resume when it's empty.
+// 3. Everything stops while the session is locked (hyprlock covers it all), so the
+//    lock screen and fingerprint prompt get the CPU/GPU right after a wake.
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -14,7 +16,8 @@ Singleton {
     id: root
 
     property real time: 0                  // seconds, advances at `fps`
-    readonly property int fps: GameMode.quiet ? 0 : PowerMode.saver ? Theme.cfg.batteryFps : Theme.cfg.effectsFps
+    readonly property bool locked: LockState.doors === "closed"
+    readonly property int fps: GameMode.quiet || locked ? 0 : PowerMode.saver ? Theme.cfg.batteryFps : Theme.cfg.effectsFps
     readonly property double t0: Date.now()
 
     Timer {
@@ -60,7 +63,7 @@ Singleton {
         }
     }
     Timer { id: debounce; interval: 150; onTriggered: poll.running = true }
-    Timer { interval: 5000; running: !GameMode.quiet; repeat: true; triggeredOnStart: true; onTriggered: poll.running = true }
+    Timer { interval: 5000; running: !GameMode.quiet && !root.locked; repeat: true; triggeredOnStart: true; onTriggered: poll.running = true }
 
     Connections {
         target: Hyprland

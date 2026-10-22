@@ -725,6 +725,14 @@ def ask(line, timeout=15):
         s.close()
 
 
+def session_frozen():
+    # systemd freezes user.slice for suspend; a frozen daemon accepts the connection but never answers
+    try:
+        return "frozen 1" in Path("/sys/fs/cgroup/user.slice/cgroup.events").read_text()
+    except OSError:
+        return False
+
+
 def play_direct(name, route_timeout=3.0):
     cfg = load_json(CONFIG, DEFAULTS)
     if cfg.get("mode") == "off" and name not in GOES_DARK:
@@ -763,6 +771,9 @@ def main(argv):
     elif cmd == "event":
         if not args or args[0] not in ANIMS:
             sys.exit("events: " + ", ".join(ANIMS))
+        if session_frozen():  # suspend hook: network is already down, so don't hold up sleep
+            play_direct(args[0], route_timeout=0.5)
+            return
         try:
             ask(" ".join(["event"] + args))
         except OSError:
