@@ -212,10 +212,12 @@ Column {
                             if (eExec.text.trim() === "") { lp.note = "✕ The command can't be empty"; return; }
                             f.exec = eExec.text.trim();
                         }
-                        LauncherApps.update(row.modelData.id, f);
+                        // Saving rebuilds the list (and this row), so finish with the page first
+                        const id = row.modelData.id;
                         lp.note = "✓ Saved " + f.name.toUpperCase();
                         lp.editing = "";
                         lp.releaseFocus();
+                        LauncherApps.update(id, f);
                     }
                     function cancel() { lp.editing = ""; lp.releaseFocus(); }
 

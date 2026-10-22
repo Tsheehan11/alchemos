@@ -4,8 +4,7 @@
     "background": "#0c0505",
     "batteryFps": 0,
     "clock24": true,
-    "customPresets": [
-    ],
+    "customPresets": [],
     "displayLayout": "extend",
     "effectsFps": 24,
     "gameAuto": true,
@@ -38,6 +37,7 @@
             "name": "CODE"
         },
         {
+            "desktopId": "zen",
             "exec": "zen-browser",
             "group": "NET",
             "icon": "",
@@ -45,12 +45,14 @@
             "name": "WEB"
         },
         {
+            "desktopId": "discord",
             "exec": "discord",
             "icon": "",
             "id": "seed-discord",
             "name": "DISCORD"
         },
         {
+            "desktopId": "spotify-launcher",
             "exec": "spotify-launcher",
             "group": "MEDIA",
             "icon": "",
@@ -58,12 +60,14 @@
             "name": "MUSIC"
         },
         {
+            "desktopId": "steam",
             "exec": "steam",
             "icon": "",
             "id": "seed-games",
             "name": "GAMES"
         },
         {
+            "desktopId": "com.microsoft.VSCode",
             "exec": "code",
             "group": "DEV",
             "icon": "",
@@ -77,6 +81,7 @@
             "name": "HUD"
         },
         {
+            "desktopId": "kitty",
             "exec": "kitty",
             "group": "SYS",
             "icon": "",
@@ -84,6 +89,7 @@
             "name": "TERM"
         },
         {
+            "desktopId": "org.kde.dolphin",
             "exec": "dolphin",
             "icon": "",
             "id": "seed-files",
@@ -98,6 +104,7 @@
         },
         {
             "exec": "@lock",
+            "group": "",
             "icon": "",
             "id": "seed-lock",
             "name": "LOCK"

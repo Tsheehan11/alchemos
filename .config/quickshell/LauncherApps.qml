@@ -23,22 +23,30 @@ Singleton {
 
     // ── Defaults (also the first-run seed) ──────
     readonly property string codeId: "com.microsoft.VSCode"
+    // Plain apps use their desktop entry (real icon, launched like the app menu does);
+    // if one isn't installed it falls back to the bare command.
+    function seedApp(id, name, exec, desktopId, group) {
+        const a = { id: id, name: name, icon: "", exec: exec };
+        if (desktopId && DesktopEntries.byId(desktopId)) a.desktopId = desktopId;
+        if (group) a.group = group;
+        return a;
+    }
     function defaults() {
         const list = [
-            { id: "seed-claude",  name: "CLAUDE",  icon: "", exec: "zen-browser --new-window https://claude.ai", group: "AI" },
-            { id: "seed-cc",      name: "CODE",    icon: "", exec: "kitty -e claude" },
-            { id: "seed-web",     name: "WEB",     icon: "", exec: "zen-browser", group: "NET" },
-            { id: "seed-discord", name: "DISCORD", icon: "", exec: "discord" },
-            { id: "seed-music",   name: "MUSIC",   icon: "", exec: "spotify-launcher", group: "MEDIA" },
-            { id: "seed-games",   name: "GAMES",   icon: "", exec: "steam" }
+            seedApp("seed-claude",  "CLAUDE",  "zen-browser --new-window https://claude.ai", "", "AI"),
+            seedApp("seed-cc",      "CODE",    "kitty -e claude"),
+            seedApp("seed-web",     "WEB",     "zen-browser", "zen", "NET"),
+            seedApp("seed-discord", "DISCORD", "discord", "discord"),
+            seedApp("seed-music",   "MUSIC",   "spotify-launcher", "spotify-launcher", "MEDIA"),
+            seedApp("seed-games",   "GAMES",   "steam", "steam")
         ];
         if (DesktopEntries.byId(codeId))
-            list.push({ id: "seed-vscode", name: "VS CODE", icon: "", exec: "code", group: "DEV" },
-                      { id: "seed-hud",    name: "HUD",     icon: "", exec: "code ~/.config/quickshell" });
-        list.push({ id: "seed-term",    name: "TERM",    icon: "", exec: "kitty", group: "SYS" },
-                  { id: "seed-files",   name: "FILES",   icon: "", exec: "dolphin" },
-                  { id: "seed-control", name: "CONTROL", icon: "", exec: "@control", group: "CTRL" },
-                  { id: "seed-lock",    name: "LOCK",    icon: "", exec: "@lock" });
+            list.push(seedApp("seed-vscode", "VS CODE", "code", codeId, "DEV"),
+                      seedApp("seed-hud",    "HUD",     "code ~/.config/quickshell"));
+        list.push(seedApp("seed-term",    "TERM",    "kitty", "kitty", "SYS"),
+                  seedApp("seed-files",   "FILES",   "dolphin", "org.kde.dolphin"),
+                  seedApp("seed-control", "CONTROL", "@control", "", "CTRL"),
+                  seedApp("seed-lock",    "LOCK",    "@lock"));
         return list;
     }
 
