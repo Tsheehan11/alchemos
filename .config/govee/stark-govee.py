@@ -3,12 +3,16 @@
 
 The daemon owns the strip: it follows the HUD theme colour, pulses to music
 (via cava), and plays boot / login / lock / unlock / logout / shutdown /
-sleep animations. Govee's LAN API is single-zone, so every effect is a
-whole-strip colour.
+sleep animations. Animations and the music spectrum are drawn per segment
+through the LAN "razer" (DreamView) stream; steady colours use the plain
+whole-strip command. If segment streaming is turned off or fails, every
+frame collapses to its average colour.
 
 Usage:
   stark-govee daemon                    run the light daemon (Hyprland exec-once)
   stark-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
+  stark-govee anim <name>               play an animation only (no lock/sleep state), for testing
+  stark-govee speed <0.5-2.0>           animation speed multiplier
   stark-govee mode <auto|music|theme|off>
   stark-govee theme <primary> [accent]  hex colours, e.g. 00dcff ff8a00
   stark-govee color <hex>               manual colour (mode becomes "manual")
@@ -20,7 +24,7 @@ Usage:
   stark-govee oneshot <name>            play an animation without the daemon
   stark-govee scan
 """
-import json, math, os, queue, shutil, signal, socket, struct, subprocess, sys, threading, time
+import base64, json, math, os, queue, shutil, signal, socket, struct, subprocess, sys, threading, time
 from pathlib import Path
 
 CFG_DIR = Path(os.environ.get("STARK_GOVEE_DIR", Path.home() / ".config/govee"))
@@ -45,6 +49,10 @@ DEFAULTS = {
     "require_docked": True,    # only light up with an external monitor connected
     "home_gateways": [],       # router MACs that count as home (set with: stark-govee home)
     "strip_overrides": {},     # {"#hudcolour": "#stripcolour"} for colours LEDs render badly
+    "segments": 15,            # H618C: 15 segments, index 0 = the visible end
+    "segment_stream": True,    # per-segment frames via razer; False = whole-strip only
+    "segment_fps": 30,         # probe: 30 fps renders cleanly (network fine to 60)
+    "anim_speed": 1.0,         # animation speed multiplier (0.5 slow - 2.0 fast)
 }
 DEFAULT_THEME = {"primary": "#00dcff", "accent": "#ffffff"}
 MODES = ("auto", "music", "theme", "off", "manual")
@@ -104,13 +112,22 @@ def _norm(h):
     return "#%02x%02x%02x" % hex_to_rgb(h)
 
 
-def theme_colors(theme, cfg=None):
+def _overrides_hex(cfg):
     ov = {}
     for k, v in ((cfg or {}).get("strip_overrides") or {}).items():
         try:
             ov[_norm(k)] = _norm(v)
         except ValueError:
             pass
+    return ov
+
+
+def overrides_rgb(cfg):
+    return {hex_to_rgb(k): hex_to_rgb(v) for k, v in _overrides_hex(cfg).items()}
+
+
+def theme_colors(theme, cfg=None):
+    ov = _overrides_hex(cfg)
     if ov:
         theme = dict(theme)
         for key in ("primary", "accent"):
@@ -267,8 +284,43 @@ def _calib(cfg):
         return 2.2, (1.0, 1.0, 1.0)
 
 
+def _seg_cfg(cfg):
+    n = int(clamp(int(cfg.get("segments", 15) or 0), 0, 64))
+    on = bool(cfg.get("segment_stream", True)) and n > 1
+    fps = int(clamp(cfg.get("segment_fps", 30), 2, 30))
+    speed = float(clamp(float(cfg.get("anim_speed", 1.0) or 1.0), 0.5, 2.0))
+    return max(n, 1), on, fps, speed
+
+
+def _xor(b):
+    c = 0
+    for x in b:
+        c ^= x
+    return c
+
+
+def razer_packet(body):
+    return base64.b64encode(bytes(body + [_xor(body)])).decode()
+
+
+RAZER_ON = razer_packet([0xBB, 0x00, 0x01, 0xB1, 0x01])
+TRACE = bool(os.environ.get("STARK_GOVEE_TRACE"))
+RAZER_SETTLE = 0.3  # probe: frames sent sooner than this after enabling are dropped
+
+
+def average(cols):
+    return tuple(sum(c[i] for c in cols) / len(cols) for i in range(3))
+
+
+def make_strip(cfg, ip):
+    n, stream, _, _ = _seg_cfg(cfg)
+    return Strip(ip, int(clamp(cfg.get("max_fps", 12), 2, 30)), *_calib(cfg),
+                 overrides=overrides_rgb(cfg), segments=n, stream=stream)
+
+
 class Strip:
-    def __init__(self, ip, max_fps, gamma=2.2, wb=(1.0, 1.0, 1.0)):
+    def __init__(self, ip, max_fps, gamma=2.2, wb=(1.0, 1.0, 1.0), overrides=None,
+                 segments=15, stream=True):
         self.gamma, self.wb = gamma, tuple(wb)
         self.ip = ip
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -276,24 +328,39 @@ class Strip:
         self.last_t = 0.0
         self.last_rgb = None
         self.quiet = False
+        self.ov = overrides or {}
+        self.n = segments
+        self.stream = stream      # segment frames allowed (config + no runtime failure)
+        self.razer = False        # strip currently in razer mode (any normal command drops it)
+        self.razer_t = 0.0
+        self.last_frame, self.last_ft = None, 0.0
+        self.fails = 0
 
     def send(self, cmd, data):
         if self.quiet or not self.ip:
-            return
+            return True
         try:
             self.sock.sendto(json.dumps({"msg": {"cmd": cmd, "data": data}}).encode(), (self.ip, CMD_PORT))
+            return True
         except OSError:
-            pass  # off-network / no route: stay silent
+            return False  # off-network / no route: stay silent
+
+    def _px(self, c):
+        """Per-colour override, then gamma: applied to every pixel we send."""
+        c = tuple(int(round(clamp(x, 0, 255))) for x in c)
+        c = self.ov.get(c, c)
+        return tuple(int(round(clamp(x, 0, 255))) for x in correct(c, self.gamma, self.wb))
 
     def power(self, on):
         self.send("turn", {"value": 1 if on else 0})
-        self.last_rgb = None
+        self.last_rgb = self.last_frame = None
+        self.razer = False
 
     def brightness(self, v):
         self.send("brightness", {"value": int(clamp(v, 1, 100))})
 
     def rgb(self, c, force=False):
-        c = tuple(int(round(clamp(x, 0, 255))) for x in correct(c, self.gamma, self.wb))
+        c = self._px(c)
         now = time.monotonic()
         if not force:
             if now - self.last_t < self.min_dt:
@@ -302,10 +369,48 @@ class Strip:
                 return
         self.send("colorwc", {"color": {"r": c[0], "g": c[1], "b": c[2]}, "colorTemInKelvin": 0})
         self.last_rgb, self.last_t = c, now
+        self.razer, self.last_frame = False, None
+
+    def frame(self, cols, force=False):
+        """One colour per segment (index 0 = visible end). Falls back to the average colour."""
+        if not self.stream:
+            return self.rgb(average(cols), force=force and time.monotonic() - self.last_t >= self.min_dt)
+        px = [self._px(c) for c in cols]
+        now = time.monotonic()
+        if px == self.last_frame and now - self.last_ft < 2.0:
+            return
+        if not self.razer:
+            if not self.send("razer", {"pt": RAZER_ON}):
+                return self._failed(cols)
+            if not self.quiet and self.ip:
+                time.sleep(RAZER_SETTLE)
+            self.razer, self.razer_t = True, time.monotonic()
+        elif now - self.razer_t > 10.0:  # keepalive, in case the strip times the stream out
+            self.send("razer", {"pt": RAZER_ON})
+            self.razer_t = now
+        body = [0xBB, 0x00, 3 * len(px) + 2, 0xB0, 0x00, len(px)]
+        for c in px:
+            body += c
+        if not self.send("razer", {"pt": razer_packet(body)}):
+            return self._failed(cols)
+        self.fails = 0
+        if TRACE:
+            log(f"frame dt={1000 * (now - self.last_ft):.0f}ms")
+        self.last_frame, self.last_ft = px, now
+        self.last_rgb = None
+
+    def _failed(self, cols):
+        self.fails += 1
+        self.razer = False
+        if self.fails >= 3:
+            log("segment stream failing; falling back to whole-strip colour")
+            self.stream = False
+        self.rgb(average(cols), force=True)
 
 
 # ---------- animations ----------
-# Each yields an RGB tuple per frame, or "on" / "off".
+# Each yields a frame (list of n RGB tuples, index 0 = visible end), or "on" / "off".
+# fps is already divided by the speed setting, so a faster speed means fewer frames.
 def _n(sec, fps):
     return max(1, int(round(sec * fps)))
 
@@ -314,75 +419,141 @@ def ease(t):
     return 1 - (1 - t) ** 3
 
 
-def fade(a, b, sec, fps, curve=ease):
-    n = _n(sec, fps)
-    for i in range(1, n + 1):
-        yield mix(a, b, curve(i / n))
+def ease_in_out(t):
+    return 3 * t * t - 2 * t * t * t
 
 
-def hold(c, sec, fps):
+def solid(c, n):
+    return [tuple(c)] * n
+
+
+def _seg(c, n):
+    return list(c) if isinstance(c, list) else solid(c, n)
+
+
+def fade(a, b, sec, fps, n, curve=ease):
+    a, b = _seg(a, n), _seg(b, n)
+    m = _n(sec, fps)
+    for i in range(1, m + 1):
+        t = curve(i / m)
+        yield [mix(x, y, t) for x, y in zip(a, b)]
+
+
+def hold(c, sec, fps, n):
+    c = _seg(c, n)
     for _ in range(_n(sec, fps)):
         yield c
 
 
-def flicker(p, levels, fps):
+def flicker(p, levels, fps, n):
     for k in levels:
-        yield from hold(scale(p, k), 0.09, fps)
+        yield from hold(scale(p, k), 0.09, fps, n)
 
 
-def anim_boot(p, a, cur, fps):  # arc reactor ignition
+# Front orders: the front reaches segment i at "distance" order[i].
+def from_start(n):    # sweep from the visible end
+    return list(range(n))
+
+
+def ends_in(n):       # two fronts from both ends, meeting in the middle
+    return [min(i, n - 1 - i) for i in range(n)]
+
+
+def centre_out(n):    # one front splitting outward from the middle
+    h = (n - 1) // 2
+    return [h - min(i, n - 1 - i) for i in range(n)]
+
+
+def toward_start(n):  # retreats from the far end toward the visible end
+    return [n - 1 - i for i in range(n)]
+
+
+def front(frm, to, order, sec, fps, head=WHITE, glow=0.8, curve=ease_in_out, soft=2.0):
+    """A soft edge travelling along `order`: segments it has passed show `to`.
+    The edge spans `soft` segments so motion reads smoothly on big physical segments."""
+    n = len(order)
+    frm, to = _seg(frm, n), _seg(to, n)
+    span = max(order) + soft + 1.0
+    m = _n(sec, fps)
+    for k in range(1, m + 1):
+        pos = curve(k / m) * span - 0.5
+        out = []
+        for i, d in enumerate(order):
+            c = mix(frm[i], to[i], clamp((pos - d) / soft, 0.0, 1.0))
+            if head is not None and k < m:
+                g = glow * max(0.0, 1 - abs(pos - d - soft / 2) / (soft + 0.5))
+                c = mix(c, head, g)
+            out.append(c)
+        yield out
+
+
+def anim_boot(p, a, cur, fps, n):  # arc reactor charging: three accelerating sweeps, then ignite
     yield "on"
-    yield from hold(BLACK, 0.3, fps)
-    yield from flicker(p, (0.5, 0, 0.8, 0, 0.3, 0), fps)
-    yield from fade(BLACK, scale(p, 0.25), 0.5, fps)
-    yield from fade(scale(p, 0.25), WHITE, 0.5, fps)
-    yield from fade(WHITE, p, 1.2, fps)
+    yield from hold(BLACK, 0.3, fps, n)
+    lvl = BLACK
+    for k, sec in ((0.15, 0.9), (0.4, 0.6), (0.75, 0.4)):
+        nxt = scale(p, k)
+        yield from front(lvl, nxt, from_start(n), sec, fps, curve=lambda t: t)
+        lvl = nxt
+    yield from fade(lvl, WHITE, 0.15, fps, n)
+    yield from fade(WHITE, p, 1.0, fps, n)
 
 
-def anim_login(p, a, cur, fps):
+def anim_login(p, a, cur, fps, n):
     yield "on"
-    yield from fade(cur, scale(p, 0.2), 0.3, fps)
-    yield from flicker(p, (0.6, 0.15, 0.9), fps)
-    yield from fade(p, WHITE, 0.25, fps)
-    yield from fade(WHITE, p, 1.0, fps)
+    yield from front(cur, scale(p, 0.3), from_start(n), 0.6, fps, curve=lambda t: t)
+    yield from front(scale(p, 0.3), p, from_start(n), 0.4, fps, curve=lambda t: t)
+    yield from fade(p, WHITE, 0.15, fps, n)
+    yield from fade(WHITE, p, 0.8, fps, n)
 
 
-def anim_unlock(p, a, cur, fps):  # security doors open
+LOCK_GLOW = 0.12  # standby level the lock settles at (target() breathes around it)
+
+
+def anim_lock(p, a, cur, fps, n):  # security doors close from both ends, flash where they meet
+    shut = scale(p, LOCK_GLOW)
+    yield from front(cur, shut, ends_in(n), 1.2, fps, glow=1.0)
+    mid, m = (n - 1) / 2, _n(0.6, fps)
+    for k in range(m):
+        g = 1 - k / m
+        yield [mix(shut, WHITE, g * max(0.0, 1 - abs(i - mid) / 2.5)) for i in range(n)]
+    yield solid(shut, n)
+
+
+def anim_unlock(p, a, cur, fps, n):  # doors part from the middle
     yield "on"
-    yield from fade(cur, WHITE, 0.3, fps)
-    yield from fade(WHITE, p, 0.9, fps)
+    yield from front(cur, p, centre_out(n), 1.3, fps)
 
 
-def anim_lock(p, a, cur, fps):  # doors close, settle into standby glow
-    yield from fade(cur, p, 0.2, fps)
-    yield from fade(p, scale(p, 0.1), 1.2, fps)
+def anim_theme(p, a, cur, fps, n):  # wipe from the old colour (whatever is showing) to the new
+    yield from front(cur, p, from_start(n), 1.4, fps, glow=0.6)
 
 
-def anim_logout(p, a, cur, fps):
-    yield from fade(cur, WHITE, 0.25, fps)
-    yield from fade(WHITE, p, 0.4, fps)
-    yield from fade(p, BLACK, 1.3, fps)
+def anim_logout(p, a, cur, fps, n):  # drain toward the visible end
+    yield from fade(cur, p, 0.3, fps, n)
+    yield from front(p, BLACK, toward_start(n), 1.6, fps, head=None)
     yield "off"
 
 
-def anim_shutdown(p, a, cur, fps):  # reactor power-down
-    yield from fade(cur, p, 0.2, fps)
-    yield from flicker(p, (0.4, 1.0, 0.25, 0.7, 0.1), fps)
-    yield from fade(scale(p, 0.5), BLACK, 1.4, fps)
+def anim_shutdown(p, a, cur, fps, n):  # reactor power-down, then drain
+    yield from fade(cur, p, 0.2, fps, n)
+    yield from flicker(p, (0.4, 1.0, 0.25, 0.7), fps, n)
+    yield from front(scale(p, 0.7), BLACK, toward_start(n), 1.4, fps, head=None)
     yield "off"
 
 
-def anim_sleep(p, a, cur, fps):
-    yield from fade(cur, BLACK, 0.6, fps)
+def anim_sleep(p, a, cur, fps, n):
+    yield from fade(cur, BLACK, 0.6, fps, n)
     yield "off"
 
 
-def anim_wake(p, a, cur, fps):
+def anim_wake(p, a, cur, fps, n):
     yield "on"
 
 
 ANIMS = {"boot": anim_boot, "login": anim_login, "unlock": anim_unlock, "lock": anim_lock,
          "logout": anim_logout, "shutdown": anim_shutdown, "sleep": anim_sleep, "wake": anim_wake}
+EXTRA_ANIMS = {"theme": anim_theme}  # not system events; played by the daemon / `anim`
 GOES_DARK = {"logout", "shutdown", "sleep"}
 
 
@@ -391,14 +562,16 @@ class Daemon:
     def __init__(self):
         self.cfg = load_json(CONFIG, DEFAULTS)
         self.theme = load_json(THEME, DEFAULT_THEME)
-        self.fps = int(clamp(self.cfg.get("max_fps", 12), 2, 30))
-        self.strip = Strip(resolve_ip(self.cfg), self.fps, *_calib(self.cfg))
+        self.strip = make_strip(self.cfg, resolve_ip(self.cfg))
+        self.nseg, _, self.seg_fps, self.speed = _seg_cfg(self.cfg)
+        self.fps = self.loop_fps()
         self.q = queue.Queue()
         self.running = True
         self.locked = self.asleep = False
         self.powered = None
         self.cur = BLACK
-        self.anim = self.anim_done = self.anim_after = None
+        self.curf = solid(BLACK, self.nseg)  # last frame shown, per segment
+        self.anim = self.anim_done = self.anim_after = self.anim_name = None
         self.wake_until = 0.0
         self.parked = False       # not docked at home: strip left alone
         self.gate_vote, self.last_gate = 0, 0.0
@@ -408,6 +581,12 @@ class Daemon:
         self.cava = None
         self.level = self.flash = self.bass_avg = 0.0
         self.last_sound = self.last_frame = self.last_beat = 0.0
+        self.bars = []
+        self.seg_lvl = [0.0] * self.nseg
+
+    def loop_fps(self):
+        # segment frames need the faster loop; whole-strip output is throttled to max_fps anyway
+        return self.seg_fps if self.strip.stream else int(clamp(self.cfg.get("max_fps", 12), 2, 30))
 
     # --- control socket ---
     def serve(self):
@@ -446,7 +625,9 @@ class Daemon:
                 "asleep": self.asleep, "music_active": self.music_active(),
                 "level": round(self.level, 2), "theme": self.theme,
                 "rgb": [int(x) for x in self.cur], "cava": self.cava is not None,
-                "parked": self.parked, "docked": docked(), "home": at_home(self.cfg)}
+                "parked": self.parked, "docked": docked(), "home": at_home(self.cfg),
+                "segments": self.nseg, "stream": self.strip.stream, "fps": self.fps,
+                "anim_speed": self.speed, "anim": self.anim_name}
 
     # --- audio via cava ---
     def want_audio(self):
@@ -486,6 +667,7 @@ class Daemon:
                 continue
             if not v:
                 continue
+            self.bars = v
             now = time.monotonic()
             bass = sum(v[:3]) / min(3, len(v))
             overall = sum(v) / len(v)
@@ -526,12 +708,26 @@ class Daemon:
             self.strip.ip = resolve_ip(self.cfg)
 
     def reload(self):
+        old = theme_colors(self.theme, self.cfg)[0]
         self.cfg = load_json(CONFIG, DEFAULTS)
         self.theme = load_json(THEME, DEFAULT_THEME)
         if self.cfg.get("ip"):
             self.strip.ip = os.environ.get("GOVEE_IP") or self.cfg["ip"]
         self.strip.gamma, self.strip.wb = _calib(self.cfg)
-        self.strip.last_rgb = None  # resend with new calibration
+        self.strip.ov = overrides_rgb(self.cfg)
+        n, stream, self.seg_fps, self.speed = _seg_cfg(self.cfg)
+        if n != self.nseg:
+            self.nseg, self.strip.n = n, n
+            self.curf, self.seg_lvl = solid(self.cur, n), [0.0] * n
+        self.strip.stream, self.strip.fails = stream, 0  # a reload retries a failed stream
+        self.fps = self.loop_fps()
+        self.strip.last_rgb = self.strip.last_frame = None  # resend with new calibration
+        if theme_colors(self.theme, self.cfg)[0] != old and self.can_wipe():
+            self.start_anim("theme", manual=True)
+
+    def can_wipe(self):
+        return (self.anim is None and self.powered is True and not self.locked and not self.asleep
+                and not self.parked and self.cfg.get("mode") not in ("off", "manual"))
 
     # --- commands / events ---
     def drain(self):
@@ -543,6 +739,13 @@ class Daemon:
             cmd = parts[0]
             if cmd == "event" and len(parts) > 1 and parts[1] in ANIMS:
                 self.event(parts[1], done)
+                continue
+            if cmd == "anim" and len(parts) > 1 and (parts[1] in ANIMS or parts[1] in EXTRA_ANIMS):
+                if self.parked:  # the dock+home gate still applies to test runs
+                    done.set()
+                else:
+                    self.asleep = False
+                    self.start_anim(parts[1], done, manual=True)
                 continue
             if cmd == "reload":
                 self.reload()
@@ -572,20 +775,23 @@ class Daemon:
             return
         self.start_anim(name, done)
 
-    def start_anim(self, name, done=None):
+    def start_anim(self, name, done=None, manual=False):
+        """manual: play the light show only; don't go dark/asleep afterwards."""
         if self.anim_done:
             self.anim_done.set()  # interrupted: release any waiter, skip its after-action
         p, a = theme_colors(self.theme, self.cfg)
-        self.anim = ANIMS[name](p, a, self.cur, self.fps)
+        fn = ANIMS.get(name) or EXTRA_ANIMS[name]
+        self.anim = fn(p, a, list(self.curf), self.fps / self.speed, self.nseg)
         self.anim_done = done
-        self.anim_after = name
+        self.anim_after = None if manual else name
+        self.anim_name = name
 
     def finish_anim(self):
         if self.anim_after in GOES_DARK:
             self.asleep = True
         if self.anim_done:
             self.anim_done.set()
-        self.anim = self.anim_done = self.anim_after = None
+        self.anim = self.anim_done = self.anim_after = self.anim_name = None
 
     # --- docked-at-home gate ---
     def gate(self):
@@ -646,10 +852,11 @@ class Daemon:
                 self.finish_anim()
                 return
             if f in ("on", "off"):
-                self.set_power(f == "on")
+                if self.powered is not (f == "on"):  # a redundant "turn" drops razer mode
+                    self.set_power(f == "on")
             else:
-                self.cur = f
-                self.strip.rgb(f, force=True)
+                self.curf, self.cur = f, average(f)
+                self.strip.frame(f, force=True)
             return
         if self.asleep or self.parked:
             return
@@ -663,8 +870,51 @@ class Daemon:
             return
         if self.powered is not True:
             self.set_power(True)
-        self.cur = mix(self.cur, t, 0.55 if self.music_active() else 0.2)
-        self.strip.rgb(self.cur)
+        music = self.music_active() and not self.locked and self.cfg.get("mode") != "manual"
+        if music and self.strip.stream:
+            f = self.spectrum()
+            self.curf, self.cur = f, average(f)
+            self.strip.frame(f)
+            return
+        k = 0.55 if music else 0.2  # per-step smoothing tuned for 12 steps/s
+        self.cur = mix(self.cur, t, 1 - (1 - k) ** (12 / self.fps))
+        self.curf = solid(self.cur, self.nseg)
+        if self.strip.stream:  # stay in razer mode: no re-enable stall before the next animation
+            self.strip.frame(self.curf)
+        else:
+            self.strip.rgb(self.cur)
+
+    def spectrum(self):
+        """cava bars across the strip: bass at the visible end, treble at the far end."""
+        n = self.nseg
+        p, a = theme_colors(self.theme, self.cfg)
+        bars = self.bars
+        if not bars or time.monotonic() - self.last_frame > 0.5:
+            vals = [0.0] * n
+        elif len(bars) == n:
+            vals = bars
+        else:  # resample to the segment count
+            vals = []
+            for i in range(n):
+                x = i * (len(bars) - 1) / max(1, n - 1)
+                j = min(int(x), len(bars) - 2) if len(bars) > 1 else 0
+                fr = x - j
+                vals.append(bars[j] * (1 - fr) + bars[min(j + 1, len(bars) - 1)] * fr)
+        gain = self.cfg.get("music_gain", 1.0)
+        floor = max(self.cfg.get("music_floor", 0.12), 0.3)  # segments never blink to black
+        out = []
+        for i in range(n):
+            # each band spills into its neighbours: one lit segment alone reads as a glitch
+            v = max(vals[j] * w for j, w in ((i, 1.0), (i - 1, 0.6), (i + 1, 0.6), (i - 2, 0.3), (i + 2, 0.3))
+                    if 0 <= j < n)
+            v = clamp(v * gain, 0.0, 1.0)
+            lv = self.seg_lvl[i]
+            self.seg_lvl[i] = lv + (v - lv) * (0.45 if v > lv else 0.08)  # soft attack, slow decay
+            pos = i / max(1, n - 1)
+            c = mix(p, a, 0.75 * pos)                        # primary at the bass end, accent up top
+            c = mix(c, WHITE, self.flash * 0.12 * (1 - pos))  # kick drums lift the bass end
+            out.append(scale(c, floor + (1 - floor) * self.seg_lvl[i]))
+        return out
 
     def run(self):
         try:
@@ -696,8 +946,8 @@ class Daemon:
             log("not docked at home: idling")
         elif self.cfg.get("mode") != "off":
             self.start_anim("login")
-        tick = 1.0 / self.fps
         while self.running:
+            tick = 1.0 / self.fps
             t0 = time.monotonic()
             self.poll_files()
             self.drain()
@@ -744,18 +994,21 @@ def play_direct(name, route_timeout=3.0):
     if not should_run(cfg):
         log("not docked at home; skipping", name)
         return
-    fps = int(clamp(cfg.get("max_fps", 12), 2, 30))
-    strip = Strip(ip, fps, *_calib(cfg))
+    strip = make_strip(cfg, ip)
+    n, stream, seg_fps, speed = _seg_cfg(cfg)
+    fps = seg_fps if stream else int(clamp(cfg.get("max_fps", 12), 2, 30))
     p, a = theme_colors(load_json(THEME, DEFAULT_THEME), cfg)
-    start = BLACK if name in ("boot", "login", "wake") else p
+    start = solid(BLACK if name in ("boot", "login", "wake") else p, n)
     if name == "boot":
         strip.brightness(cfg.get("device_brightness", 100))
-    for f in ANIMS[name](p, a, start, fps):
+    fn = ANIMS.get(name) or EXTRA_ANIMS[name]
+    for f in fn(p, a, start, fps / speed, n):
+        t0 = time.monotonic()
         if f in ("on", "off"):
             strip.power(f == "on")
         else:
-            strip.rgb(f, force=True)
-        time.sleep(1.0 / fps)
+            strip.frame(f, force=True)
+        time.sleep(max(0.0, 1.0 / fps - (time.monotonic() - t0)))
     if name == "wake":
         strip.rgb(p, force=True)
 
@@ -778,6 +1031,21 @@ def main(argv):
             ask(" ".join(["event"] + args))
         except OSError:
             play_direct(args[0])  # no daemon (e.g. suspend before login): animate directly
+    elif cmd == "anim":
+        names = list(ANIMS) + list(EXTRA_ANIMS)
+        if not args or args[0] not in names:
+            sys.exit("animations: " + ", ".join(names))
+        try:
+            ask(f"anim {args[0]} --wait")
+        except OSError:
+            play_direct(args[0])
+    elif cmd == "speed":
+        try:
+            v = float(args[0])
+        except (IndexError, ValueError):
+            sys.exit("usage: stark-govee speed <0.5-2.0>")
+        update_config(anim_speed=round(clamp(v, 0.5, 2.0), 2))
+        _poke()
     elif cmd == "oneshot":
         if not args or args[0] not in ANIMS:
             sys.exit("animations: " + ", ".join(ANIMS))

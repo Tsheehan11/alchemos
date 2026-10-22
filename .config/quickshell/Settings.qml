@@ -427,6 +427,19 @@ PanelWindow {
                                 }
                             }
                         }
+                        Text { text: "ANIMATION SPEED"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Row {
+                            spacing: 10
+                            Repeater {
+                                model: [[0.6, "SLOW"], [1.0, "NORMAL"], [1.5, "FAST"]]
+                                delegate: SmallButton {
+                                    required property var modelData
+                                    text: modelData[1]
+                                    active: Math.abs(Govee.animSpeed - modelData[0]) < 0.01
+                                    onClicked: Govee.setSpeed(modelData[0])
+                                }
+                            }
+                        }
                     }
 
                     Toggle { width: parent.width; label: "TERMINAL GLASS"; hint: "Kitty turns 85% see-through — off keeps it solid"; checked: Theme.cfg.terminalGlass; onToggled: Theme.cfg.terminalGlass = !Theme.cfg.terminalGlass }
