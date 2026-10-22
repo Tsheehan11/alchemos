@@ -467,7 +467,7 @@ PanelWindow {
                             value: (Theme.cursorFill() - 20) / 70
                             onMoved: v => Theme.cfg.cursorOpacity = Math.round((20 + v * 70) / 5) * 5
                         }
-                        Toggle { width: parent.width; label: "ANIMATED BUSY CURSOR"; hint: PowerMode.saver && Theme.cfg.cursorAnimated ? "Still frame while battery saver is on" : "Arc reactor spins while apps load · off shows a still frame"; checked: Theme.cfg.cursorAnimated; onToggled: Theme.cfg.cursorAnimated = !Theme.cfg.cursorAnimated }
+                        Toggle { width: parent.width; label: "ANIMATED BUSY CURSOR"; hint: "Arc reactor spins while apps load · off shows a still frame"; checked: Theme.cfg.cursorAnimated; onToggled: Theme.cfg.cursorAnimated = !Theme.cfg.cursorAnimated }
                     }
                     Toggle { width: parent.width; label: "Background grid"; checked: Theme.cfg.showGrid; onToggled: Theme.cfg.showGrid = !Theme.cfg.showGrid }
                     Toggle { width: parent.width; label: "24-hour clock"; checked: Theme.cfg.clock24; onToggled: Theme.cfg.clock24 = !Theme.cfg.clock24 }

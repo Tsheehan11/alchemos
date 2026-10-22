@@ -353,8 +353,7 @@ Singleton {
     // ~/.config/stark-cursor/build.sh renders the STARK-OS cursor theme in the accent
     // (cached per colour) and applies it with `hyprctl setcursor`. One build at a time;
     // a change mid-build runs once more afterwards with whatever is current then.
-    property bool cursorSaver: false     // battery saver (PowerMode) forces the still busy cursor
-    readonly property bool cursorAnimated: adapter.cursorAnimated && !cursorSaver
+    readonly property bool cursorAnimated: adapter.cursorAnimated
     readonly property var cursorSizes: [24, 32, 48]
     function cursorFill() { return Math.max(20, Math.min(90, Math.round(adapter.cursorOpacity / 5) * 5)); }   // 5% steps keep the cache useful
     function cursorStep(dir) {
