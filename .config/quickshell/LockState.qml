@@ -59,42 +59,32 @@ Singleton {
         ScriptAction { script: root.captureAndLock() }
     }
 
-    // Snapshot the shut doors for the lock screen background, then start the lock screen
-    readonly property string lockBg: Quickshell.env("HOME") + "/.config/hypr/stark-lock-bg.png"
+    // Each screen's shut doors are hyprlock's background on that screen (stark-lock-bg-<NAME>.png,
+    // one background block per monitor in hyprlock.conf, written by Theme). Lid / idle locks don't
+    // capture, so SecurityDoors redraws each picture offscreen whenever it goes stale (colours,
+    // size or role; recorded in a .key stamp next to it). Super+L also captures the live doors.
+    function bgPath(screenName) {
+        return Quickshell.env("HOME") + "/.config/hypr/stark-lock-bg-" + screenName + ".png";
+    }
+    function bgKey(size, main) {
+        return ["v2", Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size, main ? "main" : "other"].join(" ");
+    }
 
-    // stark-lock-bg.png must always show the current theme's shut doors, because lid / idle
-    // locks don't capture. A stamp next to it records the colours + size it was drawn with;
-    // SecurityDoors redraws it offscreen whenever that differs from the current key.
-    readonly property string lockBgStamp: lockBg + ".key"
-    function bgKey(size) {
-        return ["v1", Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size].join(" ");
-    }
-    readonly property string savedBgKey: savedKeyOverride !== "" ? savedKeyOverride : stampFile.text().trim()
-    property string savedKeyOverride: ""
-    FileView { id: stampFile; path: root.lockBgStamp; blockLoading: true; printErrors: false }
-    // Live capture writes straight to the file (hyprlock starts right after);
-    // offscreen renders go through a temp file so a lock never reads half a PNG.
-    function saveBg(result, key, atomic) {
-        const target = atomic ? root.lockBg + ".tmp.png" : root.lockBg;
-        if (!result.saveToFile(target)) { console.warn("lock bg: could not save " + target); return; }
-        root.savedKeyOverride = key;
-        Quickshell.execDetached(["sh", "-c", (atomic ? 'mv -f "$1" "$2" && ' : "") + 'printf "%s\\n" "$3" > "$4"',
-            "sh", target, root.lockBg, key, root.lockBgStamp]);
-    }
-    signal captureRequested(string path)
-    property bool waitingCapture: false
+    // Snapshot every screen's shut doors, then start the lock screen
+    signal captureRequested()
+    property int pendingCaptures: 0
     function captureAndLock() {
-        root.waitingCapture = true;
+        root.pendingCaptures = Quickshell.screens.length;
         captureFallback.restart();
-        root.captureRequested(root.lockBg);
+        root.captureRequested();
     }
     function captureDone() {
-        if (!root.waitingCapture) return;
-        root.waitingCapture = false;
+        if (root.pendingCaptures <= 0) return;
+        if (--root.pendingCaptures > 0) return;
         captureFallback.stop();
         Quickshell.execDetached(["sh", "-c", "~/.config/hypr/stark-lock.sh"]);
     }
-    Timer { id: captureFallback; interval: 700; onTriggered: root.captureDone() }
+    Timer { id: captureFallback; interval: 700; onTriggered: { root.pendingCaptures = 1; root.captureDone(); } }
 
     // ── Lid / idle lock (no animation — must be instant) ──
     function locked() {

@@ -13,8 +13,9 @@ pidof hyprlock >/dev/null && exit 0
 # black or the bare desktop when hyprlock faded out at unlock. Bounded (~0.6 s at most),
 # so a stuck Quickshell can't hold up the lock.
 timeout 0.3 qs ipc call stark locked >/dev/null 2>&1
+mons=$(hyprctl monitors | grep -c '^Monitor ')
 for _ in 1 2 3 4 5; do
-    hyprctl layers | grep -q stark-doors && break
+    [ "$(hyprctl layers | grep -c 'namespace: stark-doors')" -ge "$mons" ] && break   # on every screen
     sleep 0.05
 done
 sleep 0.05   # one more frame for the doors to be drawn

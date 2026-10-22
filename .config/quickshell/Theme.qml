@@ -152,10 +152,39 @@ Singleton {
             "rgba(" + hex(primary) + "40)"]);
         Quickshell.execDetached(["hyprctl", "keyword", "misc:background_color",
             "rgb(" + hex(bg) + ")"]);
-        // Re-color the lock screen from its template
+        pushLockConf();
+    }
+
+    // ── Lock screen ─────────────────────────────
+    // hyprlock.conf = hyprlock.template.conf with the theme colours, one background block per
+    // monitor (that screen's picture of its shut doors, LockState.bgPath) and the clock /
+    // password on the main screen. Rewritten when the colours or the monitors change.
+    FileView { id: lockTemplate; path: Quickshell.env("HOME") + "/.config/hypr/hyprlock.template.conf"; watchChanges: true; onFileChanged: { reload(); hyprSync.restart(); } }
+    readonly property string lockMonitors: Quickshell.screens.map(s => s.name + ":" + Roles.role(s)).join(" ")
+    onLockMonitorsChanged: hyprSync.restart()
+    function lockConf() {
+        const t = lockTemplate.text();
+        if (!t) return "";
+        const back = "rgb(" + hex(bg) + ")";
+        const blocks = ["background {\n    monitor =\n    color = " + back + "\n}"];
+        let main = "";
+        for (const s of Quickshell.screens) {
+            if (Roles.role(s) === "main") main = s.name;
+            blocks.push("background {\n    monitor = " + s.name + "\n    path = " + LockState.bgPath(s.name) +
+                        "\n    color = " + back + "\n}");
+        }
+        // One pass, so a colour that's swapped in (SOLAR's primary is STARK's secondary)
+        // isn't swapped again
+        const swap = { "4fd8ff": hex(primary), "ffb347": hex(secondary), "05090f": hex(bg),
+                       "__HOME__": Quickshell.env("HOME"), "__BACKGROUNDS__": blocks.join("\n"), "__MAIN__": main };
+        return t.replace(/4fd8ff|ffb347|05090f|__HOME__|__BACKGROUNDS__|__MAIN__/g, m => swap[m]);
+    }
+    function pushLockConf() {
+        const conf = lockConf();
+        if (conf === "") return;
         Quickshell.execDetached(["sh", "-c",
-            "t=~/.config/hypr/hyprlock.template.conf; [ -f $t ] && sed -e 's/4fd8ff/" + hex(primary) +
-            "/g' -e 's/ffb347/" + hex(secondary) + "/g' -e 's/05090f/" + hex(bg) + "/g' -e \"s#__HOME__#$HOME#g\" $t > ~/.config/hypr/hyprlock.conf"]);
+            "d=~/.config/hypr; printf '%s' \"$1\" > $d/.hyprlock.tmp && mv $d/.hyprlock.tmp $d/hyprlock.conf",
+            "sh", conf]);
     }
     // ── Kitty ───────────────────────────────────
     // Writes ~/.config/kitty/stark-theme.conf (included from kitty.conf) and

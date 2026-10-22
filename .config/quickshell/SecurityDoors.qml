@@ -4,6 +4,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Io
 
 PanelWindow {
     id: dw
@@ -34,38 +35,58 @@ PanelWindow {
         spin: LockState.spin
     }
 
-    // On the main screen, save a picture of the shut doors → becomes the lock screen's background,
-    // so the lock screen lines up exactly with the doors.
+    // ── This screen's lock screen background ──
+    // A picture of these doors, shut (LockState.bgPath). The stamp next to it records the key it
+    // was drawn with; when the theme, size or role changes (or it's stale at startup) the doors
+    // are redrawn offscreen, without showing them. (The window is unmapped while the doors are
+    // open, so the size comes from the screen.)
+    readonly property int screenW: dw.modelData.width
+    readonly property int screenH: dw.modelData.height
+    readonly property string bgPath: LockState.bgPath(dw.modelData.name)
+    readonly property string bgKey: LockState.bgKey(screenW + "x" + screenH, dw.isMain)
+    readonly property string savedKey: savedKeyOverride !== "" ? savedKeyOverride : stamp.text().trim()
+    property string savedKeyOverride: ""
+    FileView { id: stamp; path: dw.bgPath + ".key"; blockLoading: true; printErrors: false }
+    onBgPathChanged: savedKeyOverride = ""
+
+    // Live captures write straight to the file (hyprlock starts right after);
+    // offscreen renders go through a temp file so a lock never reads half a PNG.
+    function saveBg(result, key, atomic) {
+        const target = atomic ? dw.bgPath + ".tmp.png" : dw.bgPath;
+        if (!result.saveToFile(target)) { console.warn("lock bg: could not save " + target); return; }
+        dw.savedKeyOverride = key;
+        Quickshell.execDetached(["sh", "-c", (atomic ? 'mv -f "$1" "$2" && ' : "") + 'printf "%s\\n" "$3" > "$2.key"',
+            "sh", target, dw.bgPath, key]);
+    }
+
+    // Super+L: the doors are shut on every screen right now. A picture that's still stale
+    // (e.g. the theme changed a moment ago) is captured from them as they are; current ones
+    // are left alone, since rewriting a picture just before hyprlock starts made it show
+    // the lock screen's widgets on a blank background for a few frames.
     Connections {
         target: LockState
-        enabled: dw.isMain
-        function onCaptureRequested(path) {
-            scene.grabToImage(function(result) {
-                LockState.saveBg(result, dw.bgKey, false);
+        function onCaptureRequested() {
+            const key = dw.bgKey;
+            if (key === dw.savedKey) { LockState.captureDone(); return; }
+            if (!scene.grabToImage(function(result) { dw.saveBg(result, key, false); LockState.captureDone(); }))
                 LockState.captureDone();
-            });
         }
     }
 
-    // Theme or screen size changed (or the picture is stale at startup): redraw the shut doors
-    // offscreen, without showing them. The window is 1×1 and the scene sits just outside it, so
-    // nothing reaches the screen; grabToImage renders the whole scene regardless.
-    // (the window itself is unmapped while the doors are open, so size comes from the screen)
-    readonly property int screenW: dw.modelData.width
-    readonly property int screenH: dw.modelData.height
-    readonly property string bgKey: LockState.bgKey(screenW + "x" + screenH)
     function checkBg() {
-        if (dw.isMain && dw.screenW > 0 && Theme.loaded && dw.bgKey !== LockState.savedBgKey) bgCheck.restart();
+        if (dw.screenW > 0 && Theme.loaded && dw.bgKey !== dw.savedKey) bgCheck.restart();
     }
     onBgKeyChanged: checkBg()
-    onIsMainChanged: checkBg()
+    onSavedKeyChanged: checkBg()
     Connections { target: Theme; function onLoadedChanged() { dw.checkBg(); } }
     Component.onCompleted: checkBg()
     Timer {
         id: bgCheck
-        interval: 800     // let a burst of colour changes settle
-        onTriggered: if (dw.isMain && dw.bgKey !== LockState.savedBgKey) bgRender.active = true
+        interval: 800     // let a burst of colour / monitor changes settle
+        onTriggered: if (dw.bgKey !== dw.savedKey) bgRender.active = true
     }
+    // The window is 1×1 and the scene sits just outside it, so nothing reaches the screen;
+    // grabToImage renders the whole scene regardless.
     LazyLoader {
         id: bgRender
         active: false
@@ -83,16 +104,16 @@ PanelWindow {
                 id: still
                 x: 1     // outside the 1×1 window
                 width: dw.screenW; height: dw.screenH
-                isMain: true
+                isMain: dw.isMain
             }
             Timer {
                 interval: 150; running: still.painted   // a few frames after the canvases paint
                 onTriggered: {
                     const key = dw.bgKey;
                     still.grabToImage(function(result) {
-                        LockState.saveBg(result, key, true);
+                        dw.saveBg(result, key, true);
                         bgRender.active = false;
-                        dw.checkBg();     // colours changed mid-render? go again
+                        dw.checkBg();     // changed mid-render? go again
                     });
                 }
             }
