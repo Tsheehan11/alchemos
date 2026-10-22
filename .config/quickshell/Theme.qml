@@ -240,6 +240,10 @@ Singleton {
         const a = (x, alpha) => c(x) + alpha;
         const on = x => contrast(x, back) >= contrast(x, Qt.rgba(1, 1, 1, 1)) ? c(back) : "#ffffff";
         const P = c(primary), S = c(secondary);
+        // Syntax colours — shared by TextMate tokens, semantic tokens and bracket pairs
+        const kw = ink(primary, back), fn = ink(mix(primary, "#ffffff", 0.45), back),
+              str = ink(secondary, back), num = ink(mix(secondary, "#ffffff", 0.35), back),
+              typ = ink(mix(primary, secondary, 0.5), back);
         const wb = {
             "focusBorder": P, "foreground": c(fg), "descriptionForeground": c(dim), "icon.foreground": c(textSoft),
             "selection.background": a(primary, "66"), "widget.shadow": "#00000080",
@@ -287,22 +291,46 @@ Singleton {
             "panel.background": c(back), "panel.border": c(line),
             "panelTitle.activeBorder": P, "panelTitle.activeForeground": c(fg), "panelTitle.inactiveForeground": c(dim),
             "terminal.background": c(back), "terminal.foreground": c(fg), "terminalCursor.foreground": P,
-            "terminal.selectionBackground": a(primary, "4d")
+            "terminal.selectionBackground": a(primary, "4d"), "terminal.border": c(line), "sash.hoverBorder": P,
+            // Errors / git / diffs keep their meaning but use the terminal's theme-nudged hues
+            "editorError.foreground": c(pal[9]), "editorWarning.foreground": c(pal[11]), "editorInfo.foreground": c(pal[12]),
+            "gitDecoration.addedResourceForeground": c(pal[10]), "gitDecoration.untrackedResourceForeground": c(pal[14]),
+            "gitDecoration.modifiedResourceForeground": c(str), "gitDecoration.deletedResourceForeground": c(pal[9]),
+            "gitDecoration.conflictingResourceForeground": c(pal[13]), "gitDecoration.ignoredResourceForeground": c(faint),
+            "editorGutter.addedBackground": c(pal[2]), "editorGutter.modifiedBackground": S, "editorGutter.deletedBackground": c(pal[1]),
+            "diffEditor.insertedTextBackground": a(pal[2], "33"), "diffEditor.removedTextBackground": a(pal[1], "33"),
+            "diffEditor.insertedLineBackground": a(pal[2], "14"), "diffEditor.removedLineBackground": a(pal[1], "14"),
+            "editorOverviewRuler.border": c(line), "editorOverviewRuler.selectionHighlightForeground": a(primary, "99"),
+            "editorOverviewRuler.findMatchForeground": a(secondary, "99"), "editorOverviewRuler.modifiedForeground": S,
+            "editorOverviewRuler.addedForeground": c(pal[2]), "editorOverviewRuler.deletedForeground": c(pal[1]),
+            "editorOverviewRuler.errorForeground": c(pal[9]), "editorOverviewRuler.warningForeground": c(pal[11]),
+            "editorBracketHighlight.unexpectedBracket.foreground": c(pal[9])
         };
         ["Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White"].forEach((n, i) => {
             wb["terminal.ansi" + n] = c(pal[i]);
             wb["terminal.ansiBright" + n] = c(pal[i + 8]);
         });
+        // Nested brackets cycle through the accent variations; their guides are dimmer copies
+        [kw, str, fn, num, typ, dim].forEach((x, i) => {
+            wb["editorBracketHighlight.foreground" + (i + 1)] = c(x);
+            wb["editorBracketPairGuide.activeBackground" + (i + 1)] = a(x, "99");
+            wb["editorBracketPairGuide.background" + (i + 1)] = a(x, "33");
+        });
         const tok = {
-            "comments": c(pal[8]),
-            "keywords": c(ink(primary, back)),
-            "functions": c(ink(mix(primary, "#ffffff", 0.45), back)),
-            "strings": c(ink(secondary, back)),
-            "numbers": c(ink(mix(secondary, "#ffffff", 0.35), back)),
-            "types": c(ink(mix(primary, secondary, 0.5), back)),
-            "variables": c(textSoft)
+            "comments": c(pal[8]), "keywords": c(kw), "functions": c(fn), "strings": c(str),
+            "numbers": c(num), "types": c(typ), "variables": c(textSoft)
         };
-        return JSON.stringify({ "workbench.colorCustomizations": wb, "editor.tokenColorCustomizations": tok });
+        // Python / C++ extensions colour code semantically, which would bypass the rules above
+        const sem = { "enabled": true, "rules": {
+            "keyword": c(kw), "function": c(fn), "method": c(fn), "macro": c(fn),
+            "class": c(typ), "struct": c(typ), "type": c(typ), "interface": c(typ), "enum": c(typ),
+            "typeParameter": c(typ), "namespace": c(mix(typ, "#ffffff", 0.3)),
+            "string": c(str), "number": c(num), "enumMember": c(num), "comment": c(pal[8]),
+            "variable": c(textSoft), "parameter": c(mix(textSoft, secondary, 0.25)),
+            "property": c(mix(textSoft, primary, 0.25)), "variable.readonly": c(num), "*.decorator": c(str)
+        } };
+        return JSON.stringify({ "workbench.colorCustomizations": wb, "editor.tokenColorCustomizations": tok,
+                                "editor.semanticTokenColorCustomizations": sem });
     }
     function pushToCode() {
         Quickshell.execDetached(["stark-code-theme", codeTheme()]);
