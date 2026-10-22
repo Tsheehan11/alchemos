@@ -87,6 +87,7 @@ does.
 | `/etc/security/faillock.conf` (`deny = 5`) | edited in place by the installer |
 | `/usr/lib/systemd/system-sleep/stark-fprintd` | `~/.config/hypr/system/stark-fprintd-sleep` |
 | `/usr/lib/systemd/system-sleep/stark-thaw` | `~/.config/hypr/system/stark-thaw-sleep` |
+| `/etc/systemd/logind.conf.d/stark.conf` | `~/.config/hypr/system/logind-stark.conf` |
 
 Install (keeps the old PAM file as `/etc/pam.d/hyprlock.orig`, unwedges a stuck reader and
 asks for a test scan; run it while unlocked):
@@ -101,6 +102,7 @@ Manual equivalent:
 sudo install -m 644 ~/.config/hypr/system/hyprlock.pam /etc/pam.d/hyprlock
 sudo install -m 755 ~/.config/hypr/system/stark-fprintd-sleep /usr/lib/systemd/system-sleep/stark-fprintd
 sudo install -m 755 ~/.config/hypr/system/stark-thaw-sleep /usr/lib/systemd/system-sleep/stark-thaw
+sudo install -D -m 644 ~/.config/hypr/system/logind-stark.conf /etc/systemd/logind.conf.d/stark.conf
 sudo cp -n /etc/security/faillock.conf /etc/security/faillock.conf.orig
 sudo sed -i -E '/^[[:space:]]*deny[[:space:]]*=/d; s/^# deny = 3$/&\ndeny = 5/' /etc/security/faillock.conf
 sudo systemctl unmask --runtime fprintd; faillock --user $USER --reset
