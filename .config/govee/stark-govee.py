@@ -595,25 +595,33 @@ def anim_shutdown(p, a, cur, fps, n):  # reactor power-down, then drain
     yield "off"
 
 
-def anim_sleep(p, a, cur, fps, n):
+def spiral_down(p, cur, fps, n, end):
     """Reactor spinning down: a comet laps the strip twice, slower and fainter each time,
-    while the glow drains away. Played before suspend (`stark-govee suspend`)."""
-    e, base = edge_color(p), _seg(cur, n)
+    while the glow drains to `end`."""
+    e, base, rest = edge_color(p), _seg(cur, n), _seg(end, n)
     laps = ((1.1, 1.0), (1.6, 0.55))  # (seconds, comet strength)
     total, done = sum(sec for sec, _ in laps), 0.0
     for sec, k in laps:
         m = _n(sec, fps)
         for i in range(1, m + 1):
             pos = i / m * (n + 3) - 1.0             # head runs off the far end
-            dim = (1 - (done + sec * i / m) / total) ** 1.6
+            left = (1 - (done + sec * i / m) / total) ** 1.6
             out = []
             for j in range(n):
                 d = pos - j                          # > 0: segment is behind the head (tail)
                 g = max(0.0, 1 - d / 3.5) if d >= 0 else max(0.0, 1 + d / 0.8)
-                out.append(mix(scale(base[j], dim), e, g * k))
+                out.append(mix(mix(rest[j], base[j], left), e, g * k))
             yield out
         done += sec
-    yield from hold(BLACK, 0.15, fps, n)
+    yield from hold(rest, 0.15, fps, n)
+
+
+def anim_sleep(p, a, cur, fps, n):  # before suspend: settle on the lock-screen glow, stay on
+    yield from spiral_down(p, cur, fps, n, scale(p, LOCK_GLOW))
+
+
+def anim_park(p, a, cur, fps, n):   # undocked / left home: the only animation that ends fully off
+    yield from spiral_down(p, cur, fps, n, BLACK)
     yield "off"
 
 
@@ -623,7 +631,7 @@ def anim_wake(p, a, cur, fps, n):
 
 ANIMS = {"boot": anim_boot, "login": anim_login, "unlock": anim_unlock, "lock": anim_lock,
          "logout": anim_logout, "shutdown": anim_shutdown, "sleep": anim_sleep, "wake": anim_wake}
-EXTRA_ANIMS = {"theme": anim_theme}  # not system events; played by the daemon / `anim`
+EXTRA_ANIMS = {"theme": anim_theme, "park": anim_park}  # not system events; played by the daemon / `anim`
 GOES_DARK = {"logout", "shutdown", "sleep"}
 
 
@@ -867,10 +875,11 @@ class Daemon:
                 continue
             if cmd == "_slept":
                 self.anim = self.anim_done = self.anim_after = self.anim_name = None
-                self.asleep, self.powered = True, False
-                self.curf, self.cur = solid(BLACK, self.nseg), BLACK
+                self.asleep = True
+                self.cur = scale(theme_colors(self.theme, self.cfg)[0], LOCK_GLOW)
+                self.curf = solid(self.cur, self.nseg)
             elif cmd == "_resumed":
-                self.resumed(parts[1] == "ok")
+                self.resumed(parts[1])
             elif cmd == "reload":
                 self.reload()
             elif cmd == "quiet":  # system shutdown takes over the strip
@@ -880,7 +889,9 @@ class Daemon:
 
     def event(self, name, done):
         now = time.monotonic()
-        if self.suspending and name not in ("lock", "unlock"):
+        if self.suspending:  # asleep / strip unreachable: track the lock state, resume animates it
+            if name in ("lock", "unlock"):
+                self.locked = name == "lock"
             done.set()
             return
         if name == "lock":
@@ -912,44 +923,62 @@ class Daemon:
     def before_sleep(self):
         """Wi-Fi has ~0.1 s left: a fade can't finish, so go dark in one shot."""
         self.suspending = True
-        if self.parked or self.cfg.get("mode") == "off" or not self.strip.ip:
-            log("suspend: strip left alone (parked/off)")
+        if self.parked or self.cfg.get("mode") == "off" or not self.strip.ip or self.powered is False:
+            log("suspend: strip left alone (parked, off or already dark)")
             return
-        if self.asleep and self.powered is False:
-            log("suspend: strip already dark")
-            return
+        # Leave razer for plain colour + brightness commands: the strip holds those on its own
+        # while the laptop sleeps. Sent first thing; the spiral (if any) already played.
         t0 = time.monotonic()
-        if self.strip.stream and self.strip.razer:
-            self.strip.frame(solid(BLACK, self.nseg))
-        self.strip.power(False)
-        log(f"suspend: strip off ({1000 * (time.monotonic() - t0):.1f} ms)")
+        dim = scale(theme_colors(self.theme, self.cfg)[0], LOCK_GLOW)
+        self.strip.rgb(dim, force=True)
+        self.strip.brightness(self.cfg.get("device_brightness", 100))
+        how = "after the spiral" if self.asleep else "no spiral: suspend didn't come from the HUD"
+        log(f"suspend: dim glow held ({1000 * (time.monotonic() - t0):.1f} ms, {how})")
         self.q.put((["_slept"], threading.Event()))
 
     def after_resume(self):
         threading.Thread(target=self._await_strip, daemon=True).start()
 
     def _await_strip(self, timeout=20.0):
+        """Wait for Wi-Fi + the strip. If the gate closed while we slept (undocked), the strip
+        is still on its dim glow: switch it off once reachable; if it isn't (away), leave it."""
         end, t0 = time.monotonic() + timeout, time.monotonic()
-        why = "no strip IP"
+        result, gate = "fail", None
         while self.strip.ip and time.monotonic() < end:
-            why = gate_reason(self.cfg) or (None if strip_answers(self.strip.ip) else "strip not answering")
-            if why is None:
-                log(f"resume: strip back after {time.monotonic() - t0:.1f} s")
+            gate = gate_reason(self.cfg)
+            if strip_answers(self.strip.ip):
+                dt = time.monotonic() - t0
+                if gate is None:
+                    log(f"resume: strip back after {dt:.1f} s")
+                    result = "ok"
+                else:
+                    self.strip.power(False)
+                    log(f"resume: {gate} while asleep; strip off after {dt:.1f} s")
+                    result = "parked"
                 break
             time.sleep(1.0)
         else:
-            log(f"resume: giving up after {timeout:.0f} s ({why}); lights stay off until the next event")
-        self.q.put((["_resumed", "ok" if why is None else "fail"], threading.Event()))
+            what = f"{gate}, " if gate else ""
+            log(f"resume: strip not reachable after {timeout:.0f} s ({what}Wi-Fi or away); leaving it")
+        self.q.put((["_resumed", result], threading.Event()))
 
-    def resumed(self, ok):
-        """ok: the gate passed and the strip answered (otherwise the gate takes it from here)."""
+    def resumed(self, result):
+        """ok: gate open + strip answered; parked: the strip was switched off (undocked);
+        fail: unreachable, the gate takes it from here."""
         self.suspending = False
         self.strip.razer, self.strip.last_frame, self.strip.last_rgb = False, None, None
         self.gate_vote, self.last_gate = 0, time.monotonic()
-        if not ok or self.cfg.get("mode") == "off":
+        if result == "parked":
+            self.parked, self.powered = True, False
+            self.curf, self.cur = solid(BLACK, self.nseg), BLACK
+            return
+        if result != "ok" or self.cfg.get("mode") == "off":
             return
         self.parked = self.asleep = False
-        self.start_anim("login")  # powers on; frames re-enter razer mode, then the active mode resumes
+        # The strip is still on the dim lock glow. Unlocked already (fingerprint often beats
+        # Wi-Fi back): open the doors from it. Still locked: keep the glow; unlock opens it.
+        if not self.locked:
+            self.start_anim("unlock")  # frames re-enter razer mode, then the active mode resumes
 
     def start_anim(self, name, done=None, manual=False):
         """manual: play the light show only; don't go dark/asleep afterwards."""
@@ -995,7 +1024,7 @@ class Daemon:
             log("not docked at home: lights off")
             self.parked = True
             if self.cfg.get("mode") != "off":
-                self.start_anim("sleep")
+                self.start_anim("park", manual=True)
 
     # --- rendering ---
     def target(self):
