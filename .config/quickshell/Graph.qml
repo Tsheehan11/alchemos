@@ -16,7 +16,9 @@ Canvas {
 
     onPaint: {
         const ctx = getContext("2d");
-        ctx.clearRect(0, 0, width, height);
+        // reset(), not clearRect(): after the window is hidden and shown again the context
+        // keeps drawing in black until its state is reset (Qt 6 Canvas)
+        ctx.reset();
         const v = values || [];
         if (v.length < 2) return;
 

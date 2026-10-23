@@ -38,7 +38,7 @@ Item {
             onPainted: door.painted = true
             onPaint: {
                 const ctx = getContext("2d");
-                ctx.clearRect(0, 0, width, height);
+                ctx.reset();       // not clearRect(): see Graph.qml
                 ctx.strokeStyle = Theme.pc(0.05); ctx.lineWidth = 1;
                 ctx.beginPath();
                 for (let x = 0.5; x < width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }

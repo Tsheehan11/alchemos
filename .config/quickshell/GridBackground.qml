@@ -36,7 +36,7 @@ PanelWindow {
         onHeightChanged: requestPaint()
         onPaint: {
             const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
+            ctx.reset();       // not clearRect(): see Graph.qml
             const s = bg.step;
             ctx.lineWidth = 1;
             ctx.strokeStyle = Theme.pc(0.045);

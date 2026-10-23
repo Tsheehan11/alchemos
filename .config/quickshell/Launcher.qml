@@ -159,7 +159,7 @@ PanelWindow {
 
             onPaint: {
                 const ctx = getContext("2d");
-                ctx.clearRect(0, 0, width, height);
+                ctx.reset();       // not clearRect(): see Graph.qml
                 if (win.spread <= 0.02) return;
                 const sp = Math.min(1, win.spread);
                 const T = win.t;

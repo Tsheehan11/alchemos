@@ -86,18 +86,26 @@ Singleton {
         { name: "ARCTIC",    primary: "#d6f1ff", secondary: "#6fa8ff", background: "#05080f" },
         { name: "SOLAR",     primary: "#ffb347", secondary: "#ff6b8a", background: "#0c0705" }
     ]
-    // Sets every colour field, so nothing from the previous preset survives. A custom preset
-    // saved before a field existed gets STARK's value for it.
+    // Sets every colour field, so nothing from the previous preset survives.
     function applyPreset(p) {
         adapter.preset = p.name;
-        for (const k of presetFields) adapter[k] = p[k] !== undefined ? p[k] : presets[0][k];
+        p = filled(p);
+        for (const k of presetFields) adapter[k] = p[k];
     }
 
     // ── Custom presets ──────────────────────────
     // Built-ins first, then the user's (tagged custom: true). Colour fields are
     // whatever a built-in defines, so new fields get saved automatically.
     readonly property var presetFields: Object.keys(presets[0]).filter(k => k !== "name")
-    readonly property var allPresets: presets.concat((adapter.customPresets || []).map(c => Object.assign({ custom: true }, c)))
+    readonly property var allPresets: presets.concat((adapter.customPresets || []).map(c => filled(Object.assign({ custom: true }, c))))
+    // A custom preset saved before a field existed (or hand-edited) gets its own accent for the
+    // secondary and STARK's value for anything else, so nothing reads undefined → black
+    function filled(p) {
+        const out = Object.assign({}, p);
+        for (const k of presetFields)
+            if (typeof out[k] !== "string" || out[k] === "") out[k] = k === "secondary" && p.primary ? p.primary : presets[0][k];
+        return out;
+    }
     function presetName(raw) { return (raw || "").trim().toUpperCase().slice(0, 14); }
     function isBuiltin(name) { return presets.some(b => b.name === name); }
 
@@ -120,9 +128,14 @@ Singleton {
     }
 
     // ── Colors ──────────────────────────────────
-    readonly property color primary: adapter.primary
-    readonly property color secondary: adapter.secondary
-    readonly property color bg: adapter.background
+    // Anything that isn't a colour (hand-edited settings.json, an old custom preset) falls back
+    // to the accent / STARK instead of turning into black
+    readonly property color rawPrimary: adapter.primary || ""
+    readonly property color rawSecondary: adapter.secondary || ""
+    readonly property color rawBg: adapter.background || ""
+    readonly property color primary: rawPrimary.valid ? rawPrimary : presets[0].primary
+    readonly property color secondary: rawSecondary.valid ? rawSecondary : primary
+    readonly property color bg: rawBg.valid ? rawBg : presets[0].background
 
     function mix(a, b, t) {
         a = Qt.darker(a, 1.0); b = Qt.darker(b, 1.0);   // turns "#rrggbb" strings into colors
