@@ -69,6 +69,8 @@ Singleton {
             property bool gameKeepPanels: true          // …but panels stay (lightweight) on screens without the game
             property bool gameKeepMedia: true           //   audio deck: controls work, visualizer frozen, cava off
             property bool gameKeepDiag: true            //   diagnostics: stats every 2.5 s, no animations
+            property bool gameTelemetry: true           //   …as the expanded COMBAT TELEMETRY layout
+            property bool gameTelemetryBeside: true     //   …which stays up with windows open, tiling them beside it
             property bool gameJarvis: true              // pause Jarvis (frees the mic)
             property bool gameNotify: true              // do-not-disturb on the notification daemon
             property var launcherApps: []               // radial launcher (LauncherApps.qml); seeded on first run

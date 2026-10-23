@@ -49,15 +49,31 @@ Singleton {
     function keeps(panel) {
         if (!Theme.cfg.gameKeepPanels) return false;
         if (panel === "media") return Theme.cfg.gameKeepMedia;
-        if (panel === "diag") return Theme.cfg.gameKeepDiag;
+        if (panel === "diag" || panel === "telemetry") return Theme.cfg.gameKeepDiag;
         return true;
     }
+
+    // Combat telemetry (DiagPanel's combat layout) goes on the diagnostics screen, or on the
+    // main screen when the game is on the diagnostics one; nowhere if both have the game
+    readonly property string telemetryScreen: {
+        if (!GameMode.quiet || !Theme.cfg.gameTelemetry || !root.keeps("diag") || !Roles.docked) return "";
+        for (const role of ["diag", "main"]) {
+            const s = Quickshell.screens.find(x => Roles.role(x) === role);
+            if (s && root.gameScreens[s.name] !== true) return s.name;
+        }
+        return "";
+    }
+
+    // Combat telemetry stays up with windows (Discord…) open on its screen; it reserves its strip
+    // so they tile beside it instead of covering it (DiagPanel)
+    readonly property bool telemetryBeside: Theme.cfg.gameTelemetryBeside
 
     // Should the clock / diagnostics / audio deck hide on this screen right now?
     // (They peek through the gaps between tiled windows otherwise.)
     function hidden(screen, panel) {
         if (!screen) return false;
         if (GameMode.quiet && (!root.keeps(panel) || root.gameScreens[screen.name] === true)) return true;
+        if (panel === "telemetry" && root.telemetryBeside) return false;
         return Theme.cfg.hideHudBehindWindows && root.busy[screen.name] === true;
     }
 

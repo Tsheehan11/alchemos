@@ -1,5 +1,7 @@
 // Diagnostics wall for the middle monitor (DP-5): live graphs + system readouts.
-// Sits behind your windows, like the reactor.
+// Sits behind your windows, like the reactor. In combat mode it switches to the
+// COMBAT TELEMETRY layout (CombatTelemetry.qml), on the main screen instead if the
+// game is on this one (Perf.telemetryScreen).
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -8,7 +10,9 @@ PanelWindow {
     id: diag
     required property var modelData
     screen: modelData
-    visible: Roles.role(modelData) === "diag" && Theme.cfg.showDiag && !Perf.hidden(modelData, "diag")
+    readonly property bool telemetry: Perf.telemetryScreen === modelData.name
+    visible: (telemetry || Roles.role(modelData) === "diag") && Theme.cfg.showDiag
+             && !Perf.hidden(modelData, telemetry ? "telemetry" : "diag")
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-diag"
@@ -16,8 +20,23 @@ PanelWindow {
     anchors { top: true; right: true }
     margins { top: 70; right: 60 }
     implicitWidth: 600
-    implicitHeight: col.implicitHeight
+    implicitHeight: telemetry ? combat.implicitHeight : col.implicitHeight
     color: "transparent"
+
+    // Telemetry beside windows: reserve its strip so windows (Discord…) tile to the left of it.
+    // A separate 1 px surface on the bar's layer: made after the bar, so the bar keeps its width
+    // (a reserved zone on this Bottom-layer window squeezed the bar too). Clicks pass through.
+    PanelWindow {
+        screen: diag.modelData
+        visible: diag.visible && diag.telemetry && Perf.telemetryBeside
+        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.namespace: "stark-telemetry-zone"
+        anchors { top: true; right: true; bottom: true }
+        exclusiveZone: diag.implicitWidth + 60 + 30     // panel + its right margin + a gap
+        implicitWidth: 1
+        color: "transparent"
+        mask: Region {}
+    }
 
     // Combat mode: SysStats speeds back up to 2.5 s while this wall is on screen
     Binding {
@@ -30,8 +49,16 @@ PanelWindow {
     readonly property color dim: Theme.dim
     readonly property string mono: "JetBrainsMono Nerd Font"
 
+    Loader {
+        id: combat
+        width: parent.width
+        active: diag.telemetry
+        sourceComponent: CombatTelemetry { width: diag.width; screenName: diag.modelData.name }
+    }
+
     Column {
         id: col
+        visible: !diag.telemetry
         width: parent.width
         spacing: 18
 

@@ -20,6 +20,7 @@ Singleton {
     property var owns: []                 // what the daemon took over: hypr | power | notify
     property var games: []                // window classes that triggered it
     property bool manual: false
+    property real since: 0                // unix seconds it engaged
     readonly property bool quiet: active && Theme.cfg.gameHud
     readonly property bool batteryWarn: active && owns.indexOf("power") >= 0 && PowerMode.onBattery
 
@@ -48,6 +49,7 @@ Singleton {
         root.owns = s.owns || [];
         root.games = s.games || [];
         root.manual = s.manual === true;
+        root.since = Number(s.since) || 0;
         const a = !!s.active;
         if (a !== root.active) {
             root.active = a;

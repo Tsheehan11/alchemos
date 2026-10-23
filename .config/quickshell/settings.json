@@ -21,6 +21,8 @@
     "gameNoVfr": false,
     "gameNotify": true,
     "gamePower": true,
+    "gameTelemetry": true,
+    "gameTelemetryBeside": true,
     "greetName": "TREVOR",
     "hideHudBehindWindows": true,
     "idleDim": 10,
