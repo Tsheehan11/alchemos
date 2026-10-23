@@ -674,7 +674,7 @@ PanelWindow {
                     Row {
                         spacing: 10
                         SmallButton { text: "LOCK"; onClicked: LockState.requestLock() }
-                        SmallButton { text: "SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["systemctl", "suspend"]); } }
+                        SmallButton { text: "SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["stark-govee", "suspend"]); } }
                         ConfirmButton { label: "LOG OUT"; onConfirmed: LockState.power("logout") }
                         ConfirmButton { label: "RESTART"; onConfirmed: LockState.power("reboot") }
                         ConfirmButton { label: "SHUT DOWN"; onConfirmed: LockState.power("shutdown") }

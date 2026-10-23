@@ -41,7 +41,7 @@ PanelWindow {
         if (it.confirm && confirming !== it.key) { sel = i; confirming = it.key; autoCancel.restart(); return; }
         LauncherState.closeAll();
         if (it.key === "lock") LockState.requestLock();
-        else if (it.key === "sleep") Quickshell.execDetached(["systemctl", "suspend"]);
+        else if (it.key === "sleep") Quickshell.execDetached(["stark-govee", "suspend"]);
         else LockState.power(it.key);
     }
     Timer { id: autoCancel; interval: 8000; onTriggered: pm.confirming = "" }

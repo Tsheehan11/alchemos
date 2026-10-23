@@ -33,7 +33,7 @@ Singleton {
         if (c.idleScreenOff > 0)
             s += "listener {\n    timeout = " + c.idleScreenOff * 60 + "\n    on-timeout = hyprctl dispatch dpms off\n    on-resume = hyprctl dispatch dpms on\n}\n\n";
         if (c.idleSleep > 0)
-            s += "listener {\n    timeout = " + c.idleSleep * 60 + "\n    on-timeout = systemctl suspend\n}\n";
+            s += "listener {\n    timeout = " + c.idleSleep * 60 + "\n    on-timeout = ~/.local/bin/stark-govee suspend\n}\n";
         return s;
     }
 

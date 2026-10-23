@@ -13,6 +13,7 @@ Usage:
   stark-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
   stark-govee anim <name>               play an animation only (no lock/sleep state), for testing
   stark-govee speed <0.5-2.0>           animation speed multiplier
+  stark-govee suspend                   spiral the strip out, then systemctl suspend
   stark-govee mode <auto|music|theme|off>
   stark-govee theme <primary> [accent]  hex colours, e.g. 00dcff ff8a00
   stark-govee color <hex>               manual colour (mode becomes "manual")
@@ -595,7 +596,24 @@ def anim_shutdown(p, a, cur, fps, n):  # reactor power-down, then drain
 
 
 def anim_sleep(p, a, cur, fps, n):
-    yield from fade(cur, BLACK, 0.6, fps, n)
+    """Reactor spinning down: a comet laps the strip twice, slower and fainter each time,
+    while the glow drains away. Played before suspend (`stark-govee suspend`)."""
+    e, base = edge_color(p), _seg(cur, n)
+    laps = ((1.1, 1.0), (1.6, 0.55))  # (seconds, comet strength)
+    total, done = sum(sec for sec, _ in laps), 0.0
+    for sec, k in laps:
+        m = _n(sec, fps)
+        for i in range(1, m + 1):
+            pos = i / m * (n + 3) - 1.0             # head runs off the far end
+            dim = (1 - (done + sec * i / m) / total) ** 1.6
+            out = []
+            for j in range(n):
+                d = pos - j                          # > 0: segment is behind the head (tail)
+                g = max(0.0, 1 - d / 3.5) if d >= 0 else max(0.0, 1 + d / 0.8)
+                out.append(mix(scale(base[j], dim), e, g * k))
+            yield out
+        done += sec
+    yield from hold(BLACK, 0.15, fps, n)
     yield "off"
 
 
@@ -867,6 +885,9 @@ class Daemon:
             return
         if name == "lock":
             self.locked = True
+            if self.asleep:  # e.g. hypridle locking after the pre-suspend spiral: stay dark
+                done.set()
+                return
         elif name in ("unlock", "login", "boot"):
             if name == "unlock":
                 self.locked = False
@@ -893,6 +914,9 @@ class Daemon:
         self.suspending = True
         if self.parked or self.cfg.get("mode") == "off" or not self.strip.ip:
             log("suspend: strip left alone (parked/off)")
+            return
+        if self.asleep and self.powered is False:
+            log("suspend: strip already dark")
             return
         t0 = time.monotonic()
         if self.strip.stream and self.strip.razer:
@@ -1200,6 +1224,18 @@ def main(argv):
             ask(f"anim {args[0]} --wait")
         except OSError:
             play_direct(args[0])
+    elif cmd == "suspend":
+        # Wi-Fi is gone ~0.1 s into a suspend, so the spiral has to play before asking for one
+        try:
+            ask("event sleep --wait", timeout=6)
+        except OSError:
+            pass
+        if subprocess.run(["systemctl", "suspend"]).returncode != 0:
+            try:
+                ask("event login", timeout=2)  # suspend refused: don't leave the strip dark
+            except OSError:
+                pass
+            sys.exit(1)
     elif cmd == "speed":
         try:
             v = float(args[0])
