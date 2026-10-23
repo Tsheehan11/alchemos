@@ -10,7 +10,7 @@ PanelWindow {
     screen: modelData
 
     // Main screen = leftmost external monitor when docked, the laptop when not
-    visible: Roles.role(modelData) === "main" && Theme.cfg.showReactor && !Perf.hidden(modelData)
+    visible: Roles.role(modelData) === "main" && Theme.cfg.showReactor && !Perf.hidden(modelData, "reactor")
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-hud"
@@ -25,5 +25,5 @@ PanelWindow {
     property real t: 0
     Binding on t { when: Perf.live(hud.modelData); value: Perf.time; restoreMode: Binding.RestoreNone }
 
-    Reactor { id: reactor; t: hud.t }
+    Reactor { id: reactor; t: hud.t; animated: !Perf.lite }
 }

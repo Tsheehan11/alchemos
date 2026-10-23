@@ -6,6 +6,8 @@
 //    (you can't see the background then anyway), and resume when it's empty.
 // 3. Everything stops while the session is locked (hyprlock covers it all), so the
 //    lock screen and fingerprint prompt get the CPU/GPU right after a wake.
+// 4. Combat mode hides the panels only on the screen(s) the game is on; the others
+//    keep them in a lightweight form (lite: no animations, cava off, slow stats).
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -37,33 +39,62 @@ Singleton {
         return true;
     }
 
+    // Monitor name → true if a game window (GameMode.games) is on it
+    property var gameScreens: ({})
+
+    // Combat mode, panels kept on the other screens: they run without animations
+    readonly property bool lite: GameMode.quiet && Theme.cfg.gameKeepPanels
+
+    // Is this panel ("media" | "diag" | anything else) kept on non-game screens in combat mode?
+    function keeps(panel) {
+        if (!Theme.cfg.gameKeepPanels) return false;
+        if (panel === "media") return Theme.cfg.gameKeepMedia;
+        if (panel === "diag") return Theme.cfg.gameKeepDiag;
+        return true;
+    }
+
     // Should the clock / diagnostics / audio deck hide on this screen right now?
     // (They peek through the gaps between tiled windows otherwise.)
-    function hidden(screen) {
-        if (screen && GameMode.quiet) return true;     // combat mode: everything but the bar
-        return !!screen && Theme.cfg.hideHudBehindWindows && root.busy[screen.name] === true;
+    function hidden(screen, panel) {
+        if (!screen) return false;
+        if (GameMode.quiet && (!root.keeps(panel) || root.gameScreens[screen.name] === true)) return true;
+        return Theme.cfg.hideHudBehindWindows && root.busy[screen.name] === true;
     }
 
     Process {
         id: poll
-        command: ["sh", "-c", "hyprctl monitors -j; echo '@@@'; hyprctl workspaces -j"]
+        command: ["sh", "-c", "hyprctl monitors -j; echo '@@@'; hyprctl workspaces -j; echo '@@@'; hyprctl clients -j"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     const parts = text.split("@@@");
                     const mons = JSON.parse(parts[0]);
                     const wss = JSON.parse(parts[1]);
+                    const clients = JSON.parse(parts[2]);
                     const count = {};
                     for (const w of wss) count[w.id] = w.windows;
-                    const b = {};
-                    for (const m of mons) b[m.name] = (count[m.activeWorkspace.id] || 0) > 0;
+                    const b = {}, names = {}, g = {};
+                    for (const m of mons) {
+                        b[m.name] = (count[m.activeWorkspace.id] || 0) > 0;
+                        names[m.id] = m.name;
+                    }
+                    for (const c of clients)
+                        if (GameMode.games.indexOf(c.class) >= 0 && names[c.monitor]) g[names[c.monitor]] = true;
                     root.busy = b;
+                    root.gameScreens = g;
                 } catch (e) {}
             }
         }
     }
     Timer { id: debounce; interval: 150; onTriggered: poll.running = true }
     Timer { interval: 5000; running: !GameMode.quiet && !root.locked; repeat: true; triggeredOnStart: true; onTriggered: poll.running = true }
+
+    // The daemon's game list changes before / after the window events
+    Connections {
+        target: GameMode
+        function onGamesChanged() { debounce.restart(); }
+        function onActiveChanged() { debounce.restart(); }
+    }
 
     Connections {
         target: Hyprland

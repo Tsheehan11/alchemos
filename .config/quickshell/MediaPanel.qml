@@ -11,7 +11,7 @@ PanelWindow {
     id: media
     required property var modelData
     screen: modelData
-    visible: Roles.role(modelData) === "media" && Theme.cfg.showMedia && !Perf.hidden(modelData)
+    visible: Roles.role(modelData) === "media" && Theme.cfg.showMedia && !Perf.hidden(modelData, "media")
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-media"
@@ -62,10 +62,10 @@ PanelWindow {
         onTriggered: media.player.positionChanged()
     }
 
-    // ── Visualizer feed from cava ──
+    // ── Visualizer feed from cava ── (off in combat mode: the bars freeze where they were)
     property var bars: []
     Process {
-        running: media.visible && !media.covered
+        running: media.visible && !media.covered && !Perf.lite
         command: ["cava", "-p", Quickshell.env("HOME") + "/.config/quickshell/cava.conf"]
         stdout: SplitParser {
             onRead: data => {
@@ -107,6 +107,7 @@ PanelWindow {
             anchors.centerIn: parent
             radius: 204; thickness: 6
             value: media.progress
+            animated: !Perf.lite
             color: media.cyan
         }
         // Volume
@@ -114,6 +115,7 @@ PanelWindow {
             anchors.centerIn: parent
             radius: 188; thickness: 3
             value: media.volume
+            animated: !Perf.lite
             color: media.amber
             trackColor: Theme.s(0.1)
         }

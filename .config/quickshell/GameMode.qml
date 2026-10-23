@@ -2,7 +2,8 @@
 // hyprland.conf) does the switching: it spots game windows, turns Hyprland
 // effects / the power profile / notifications over and puts them back after.
 // The HUD just follows its state file:
-//   • quiet: ambient effects, reactor, panels and the visualizer stop (Perf),
+//   • quiet: ambient effects + the visualizer stop, panels hide on the game screen
+//     and go lightweight on the others (Perf),
 //     bar stats + clock refresh slowly (SysStats, Bar)
 //   • Jarvis pauses (JarvisState)
 //   • "COMBAT MODE ENGAGED / DISENGAGED" toast + sound (GameToast)

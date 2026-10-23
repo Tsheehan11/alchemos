@@ -13,11 +13,13 @@ Item {
     property real startAngle: -90
     property bool dashed: false
     property var dash: [2, 6]
+    property bool animated: true
 
     width: radius * 2 + thickness + 4
     height: width
 
     Behavior on value {
+        enabled: root.animated
         NumberAnimation { duration: 700; easing.type: Easing.OutCubic }
     }
 

@@ -8,7 +8,7 @@ PanelWindow {
     id: diag
     required property var modelData
     screen: modelData
-    visible: Roles.role(modelData) === "diag" && Theme.cfg.showDiag && !Perf.hidden(modelData)
+    visible: Roles.role(modelData) === "diag" && Theme.cfg.showDiag && !Perf.hidden(modelData, "diag")
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-diag"
@@ -18,6 +18,12 @@ PanelWindow {
     implicitWidth: 600
     implicitHeight: col.implicitHeight
     color: "transparent"
+
+    // Combat mode: SysStats speeds back up to 2.5 s while this wall is on screen
+    Binding {
+        when: Roles.role(diag.modelData) === "diag"
+        target: SysStats; property: "diagShown"; value: diag.visible
+    }
 
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
@@ -96,7 +102,7 @@ PanelWindow {
                             Rectangle {
                                 width: parent.width * Math.max(0, Math.min(1, modelData.frac)); height: parent.height
                                 color: diag.cyan
-                                Behavior on width { NumberAnimation { duration: 600 } }
+                                Behavior on width { enabled: !Perf.lite; NumberAnimation { duration: 600 } }
                             }
                         }
                     }

@@ -7,6 +7,7 @@ Item {
     id: r
     property real k: Theme.cfg.reactorScale
     property real t: 0          // effects clock (seconds), from HudWindow
+    property bool animated: true  // false in combat mode: gauges jump, no seconds sweep
 
     width: 480 * k
     height: 560 * k
@@ -46,7 +47,7 @@ Item {
         Item {
             anchors.fill: parent
             rotation: clock.date.getSeconds() * 6
-            Behavior on rotation { RotationAnimation { duration: 300; direction: RotationAnimation.Clockwise } }
+            Behavior on rotation { enabled: r.animated; RotationAnimation { duration: 300; direction: RotationAnimation.Clockwise } }
             Rectangle {
                 width: 8 * r.k; height: width; radius: width / 2
                 color: r.cyan
@@ -56,10 +57,10 @@ Item {
         }
 
         // CPU / RAM / GPU / battery rings
-        Ring { anchors.centerIn: parent; radius: 196 * r.k; thickness: 6 * r.k; value: SysStats.cpu; color: r.cyan }
-        Ring { anchors.centerIn: parent; radius: 180 * r.k; thickness: 6 * r.k; value: SysStats.ram; color: r.cyan; opacity: 0.8 }
-        Ring { anchors.centerIn: parent; radius: 164 * r.k; thickness: 6 * r.k; value: SysStats.gpu; color: r.amber; opacity: 0.85 }
-        Ring { anchors.centerIn: parent; radius: 148 * r.k; thickness: 6 * r.k; value: SysStats.battery; color: SysStats.charging ? "#7cf5c1" : r.cyan; opacity: 0.5 }
+        Ring { animated: r.animated; anchors.centerIn: parent; radius: 196 * r.k; thickness: 6 * r.k; value: SysStats.cpu; color: r.cyan }
+        Ring { animated: r.animated; anchors.centerIn: parent; radius: 180 * r.k; thickness: 6 * r.k; value: SysStats.ram; color: r.cyan; opacity: 0.8 }
+        Ring { animated: r.animated; anchors.centerIn: parent; radius: 164 * r.k; thickness: 6 * r.k; value: SysStats.gpu; color: r.amber; opacity: 0.85 }
+        Ring { animated: r.animated; anchors.centerIn: parent; radius: 148 * r.k; thickness: 6 * r.k; value: SysStats.battery; color: SysStats.charging ? "#7cf5c1" : r.cyan; opacity: 0.5 }
 
         // Thin divider
         Ring { anchors.centerIn: parent; radius: 130 * r.k; thickness: 1; value: 1; color: Theme.p(0.4); trackColor: "transparent" }
