@@ -24,7 +24,7 @@ Usage:
   stark-govee oneshot <name>            play an animation without the daemon
   stark-govee scan
 """
-import base64, json, math, os, queue, shutil, signal, socket, struct, subprocess, sys, threading, time
+import base64, json, math, os, queue, shutil, signal, socket, struct, subprocess, sys, syslog, threading, time
 from pathlib import Path
 
 CFG_DIR = Path(os.environ.get("STARK_GOVEE_DIR", Path.home() / ".config/govee"))
@@ -61,6 +61,9 @@ BLACK, WHITE = (0, 0, 0), (255, 255, 255)
 
 def log(*a):
     print("[stark-govee]", *a, file=sys.stderr, flush=True)
+    if not os.environ.get("JOURNAL_STREAM"):  # not a systemd service: stderr isn't journaled
+        syslog.openlog("stark-govee")
+        syslog.syslog(" ".join(str(x) for x in a))
 
 
 # ---------- config ----------
@@ -606,6 +609,51 @@ EXTRA_ANIMS = {"theme": anim_theme}  # not system events; played by the daemon /
 GOES_DARK = {"logout", "shutdown", "sleep"}
 
 
+# ---------- suspend: logind delay inhibitor ----------
+class Logind:
+    """Holds a logind sleep "delay" lock and reports PrepareForSleep(true/false).
+    NetworkManager drops Wi-Fi ~0.1 s after PrepareForSleep, so on_sleep must be quick."""
+
+    def __init__(self, on_sleep, on_resume):
+        from gi.repository import Gio, GLib  # noqa: lazy so the CLI never needs gi
+        self.Gio, self.GLib = Gio, GLib
+        self.on_sleep, self.on_resume = on_sleep, on_resume
+        self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        self.fd = None
+        self.bus.signal_subscribe("org.freedesktop.login1", "org.freedesktop.login1.Manager",
+                                  "PrepareForSleep", "/org/freedesktop/login1", None,
+                                  Gio.DBusSignalFlags.NONE, self._signal)
+        self.take()
+        threading.Thread(target=GLib.MainLoop().run, daemon=True).start()
+
+    def take(self):
+        if self.fd is not None:
+            return
+        try:
+            res, fds = self.bus.call_with_unix_fd_list_sync(
+                "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager",
+                "Inhibit", self.GLib.Variant("(ssss)", ("sleep", "stark-govee", "Ambient lights off", "delay")),
+                self.GLib.VariantType("(h)"), self.Gio.DBusCallFlags.NONE, -1, None, None)
+            self.fd = fds.get(res.unpack()[0])
+        except Exception as e:  # GLib.Error
+            log("couldn't take the sleep inhibitor:", e)
+
+    def release(self):
+        if self.fd is not None:
+            os.close(self.fd)
+            self.fd = None
+
+    def _signal(self, conn, sender, path, iface, name, params):
+        if params.unpack()[0]:
+            try:
+                self.on_sleep()
+            finally:
+                self.release()
+        else:
+            self.take()
+            self.on_resume()
+
+
 # ---------- daemon ----------
 class Daemon:
     def __init__(self):
@@ -632,6 +680,8 @@ class Daemon:
         self.last_sound = self.last_frame = self.last_beat = 0.0
         self.bars = []
         self.seg_lvl = [0.0] * self.nseg
+        self.suspending = False   # between PrepareForSleep(true) and the resume handling
+        self.logind = None
 
     def loop_fps(self):
         # segment frames need the faster loop; whole-strip output is throttled to max_fps anyway
@@ -676,7 +726,8 @@ class Daemon:
                 "rgb": [int(x) for x in self.cur], "cava": self.cava is not None,
                 "parked": self.parked, "docked": docked(), "home": at_home(self.cfg),
                 "segments": self.nseg, "stream": self.strip.stream, "fps": self.fps,
-                "anim_speed": self.speed, "anim": self.anim_name}
+                "anim_speed": self.speed, "anim": self.anim_name,
+                "inhibitor": bool(self.logind and self.logind.fd is not None)}
 
     # --- audio via cava ---
     def want_audio(self):
@@ -796,7 +847,13 @@ class Daemon:
                     self.asleep = False
                     self.start_anim(parts[1], done, manual=True)
                 continue
-            if cmd == "reload":
+            if cmd == "_slept":
+                self.anim = self.anim_done = self.anim_after = self.anim_name = None
+                self.asleep, self.powered = True, False
+                self.curf, self.cur = solid(BLACK, self.nseg), BLACK
+            elif cmd == "_resumed":
+                self.resumed(parts[1] == "ok")
+            elif cmd == "reload":
                 self.reload()
             elif cmd == "quiet":  # system shutdown takes over the strip
                 self.strip.quiet = True
@@ -805,6 +862,9 @@ class Daemon:
 
     def event(self, name, done):
         now = time.monotonic()
+        if self.suspending and name not in ("lock", "unlock"):
+            done.set()
+            return
         if name == "lock":
             self.locked = True
         elif name in ("unlock", "login", "boot"):
@@ -812,6 +872,9 @@ class Daemon:
                 self.locked = False
             self.asleep = False
         elif name == "wake":
+            if self.logind:  # the old system-sleep hook; resume is handled via logind now
+                done.set()
+                return
             self.asleep = False
             self.wake_until = now + 15  # network may still be coming up after resume
         if self.parked:
@@ -823,6 +886,46 @@ class Daemon:
             done.set()
             return
         self.start_anim(name, done)
+
+    # --- suspend / resume (logind thread) ---
+    def before_sleep(self):
+        """Wi-Fi has ~0.1 s left: a fade can't finish, so go dark in one shot."""
+        self.suspending = True
+        if self.parked or self.cfg.get("mode") == "off" or not self.strip.ip:
+            log("suspend: strip left alone (parked/off)")
+            return
+        t0 = time.monotonic()
+        if self.strip.stream and self.strip.razer:
+            self.strip.frame(solid(BLACK, self.nseg))
+        self.strip.power(False)
+        log(f"suspend: strip off ({1000 * (time.monotonic() - t0):.1f} ms)")
+        self.q.put((["_slept"], threading.Event()))
+
+    def after_resume(self):
+        threading.Thread(target=self._await_strip, daemon=True).start()
+
+    def _await_strip(self, timeout=20.0):
+        end, t0 = time.monotonic() + timeout, time.monotonic()
+        why = "no strip IP"
+        while self.strip.ip and time.monotonic() < end:
+            why = gate_reason(self.cfg) or (None if strip_answers(self.strip.ip) else "strip not answering")
+            if why is None:
+                log(f"resume: strip back after {time.monotonic() - t0:.1f} s")
+                break
+            time.sleep(1.0)
+        else:
+            log(f"resume: giving up after {timeout:.0f} s ({why}); lights stay off until the next event")
+        self.q.put((["_resumed", "ok" if why is None else "fail"], threading.Event()))
+
+    def resumed(self, ok):
+        """ok: the gate passed and the strip answered (otherwise the gate takes it from here)."""
+        self.suspending = False
+        self.strip.razer, self.strip.last_frame, self.strip.last_rgb = False, None, None
+        self.gate_vote, self.last_gate = 0, time.monotonic()
+        if not ok or self.cfg.get("mode") == "off":
+            return
+        self.parked = self.asleep = False
+        self.start_anim("login")  # powers on; frames re-enter razer mode, then the active mode resumes
 
     def start_anim(self, name, done=None, manual=False):
         """manual: play the light show only; don't go dark/asleep afterwards."""
@@ -845,6 +948,9 @@ class Daemon:
     # --- docked-at-home gate ---
     def gate(self):
         now = time.monotonic()
+        if self.suspending:  # Wi-Fi is down mid-resume: the resume check decides instead
+            self.gate_vote, self.last_gate = 0, now
+            return
         if now - self.last_gate < 3.0:
             return
         self.last_gate = now
@@ -892,7 +998,7 @@ class Daemon:
         self.powered = on
 
     def step(self):
-        if self.strip.quiet:
+        if self.strip.quiet or self.suspending:
             return
         if self.anim:
             try:
@@ -984,6 +1090,10 @@ class Daemon:
         signal.signal(signal.SIGHUP, stop)
 
         threading.Thread(target=self.serve, daemon=True).start()
+        try:
+            self.logind = Logind(self.before_sleep, self.after_resume)
+        except Exception as e:  # no gi / no system bus: the system-sleep hook still works
+            log("logind unavailable, suspend handled by the system-sleep hook:", e)
         if self.strip.ip:
             self.strip.brightness(self.cfg.get("device_brightness", 100))
         else:

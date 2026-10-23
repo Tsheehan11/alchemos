@@ -17,7 +17,9 @@ Singleton {
         path: Quickshell.env("HOME") + "/.config/quickshell/settings.json"
         watchChanges: true
         onFileChanged: reload()
-        onAdapterUpdated: writeAdapter()
+        // One write per batch of changes: applying a preset sets several fields, and writing
+        // after each one let the change watcher reload a half-written file over the rest.
+        onAdapterUpdated: saveTimer.restart()
         onLoaded: root.loaded = true
         onLoadFailed: error => { writeAdapter(); root.loaded = true; }   // first run: create the file with defaults
 
@@ -70,6 +72,7 @@ Singleton {
         }
     }
     property bool loaded: false   // settings.json has been read at least once
+    Timer { id: saveTimer; interval: 50; onTriggered: file.writeAdapter() }
 
     // ── Presets ─────────────────────────────────
     readonly property var presets: [
@@ -80,11 +83,11 @@ Singleton {
         { name: "ARCTIC",    primary: "#d6f1ff", secondary: "#6fa8ff", background: "#05080f" },
         { name: "SOLAR",     primary: "#ffb347", secondary: "#ff6b8a", background: "#0c0705" }
     ]
+    // Sets every colour field, so nothing from the previous preset survives. A custom preset
+    // saved before a field existed gets STARK's value for it.
     function applyPreset(p) {
         adapter.preset = p.name;
-        adapter.primary = p.primary;
-        adapter.secondary = p.secondary;
-        adapter.background = p.background;
+        for (const k of presetFields) adapter[k] = p[k] !== undefined ? p[k] : presets[0][k];
     }
 
     // ── Custom presets ──────────────────────────

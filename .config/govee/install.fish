@@ -16,13 +16,12 @@ if not command -q cava
     sudo pacman -S --needed --noconfirm cava
 end
 
-echo ":: installing boot/shutdown service + suspend hook (needs sudo)"
+echo ":: installing boot/shutdown service (needs sudo)"
 set -l u (id -un)
 sed -e "s|@USER@|$u|g" -e "s|@HOME@|$HOME|g" $dir/system/stark-govee-power.service \
     | sudo tee /etc/systemd/system/stark-govee-power.service >/dev/null
-sed -e "s|@USER@|$u|g" -e "s|@HOME@|$HOME|g" $dir/system/stark-govee-sleep \
-    | sudo tee /usr/lib/systemd/system-sleep/stark-govee >/dev/null
-sudo chmod 755 /usr/lib/systemd/system-sleep/stark-govee
+# suspend/resume is handled by the daemon through a logind sleep inhibitor now
+sudo rm -f /usr/lib/systemd/system-sleep/stark-govee
 sudo systemctl daemon-reload
 sudo systemctl enable --now stark-govee-power.service   # plays the boot animation now as a test
 
