@@ -18,19 +18,21 @@
     {
       "id": "school",
       "name": "SCHOOL",
-      "label": "School (Cisco)",
+      "label": "UWaterloo (Cisco)",
       "type": "nm",
-      "enabled": false,
-      "connection": "",
+      "enabled": true,
+      "connection": "UWaterloo VPN",
+      "server": "vpn.uwaterloo.ca",
+      "auth": "terminal",
+      "auth_hint": "WatIAM username, then password. The SECOND 'Password:' is Duo: push, phone, sms, or a passcode.",
       "timeout": 90,
       "_setup": [
-        "Cisco Secure Client / AnyConnect VPNs work with openconnect through NetworkManager, no Cisco client needed:",
-        "1. sudo pacman -S networkmanager-openconnect   (then: sudo systemctl restart NetworkManager)",
-        "2. nmcli con add type vpn vpn-type openconnect con-name School vpn.data 'gateway=vpn.<university>.edu,protocol=anyconnect'",
-        "   (add usergroup=<group> to vpn.data if the school uses one; KDE System Settings → Connections → + → Cisco AnyConnect works too)",
-        "3. Connect once by hand (nmcli --ask con up id School) so NM saves what it can; SSO / MFA logins open the openconnect auth dialog,",
-        "   which needs a running NM secret agent (KDE's plasma-nm, or nm-applet) — otherwise the HUD connect fails with 'no secrets'.",
-        "4. Here: set \"connection\": \"School\" and \"enabled\": true. The HUD picks it up on its own."
+        "vpn.uwaterloo.ca = Cisco AnyConnect, group UW-General, plain form (username / password / Duo as secondary password).",
+        "Runs through openconnect + NetworkManager (openconnect, networkmanager-openconnect), no Cisco client.",
+        "NM connection, recreate with:",
+        "  nmcli con add type vpn vpn-type openconnect con-name 'UWaterloo VPN' autoconnect no vpn.data 'gateway=vpn.uwaterloo.ca,protocol=anyconnect,cookie-flags=2,gateway-flags=2,gwcert-flags=2,enable_csd_trojan=no'",
+        "auth \"terminal\": every connect opens a small login window (or prompts in the terminal you ran stark-vpn from);",
+        "nmcli --ask runs `openconnect --authenticate` and NM gets only the one-time session cookie. Nothing is saved."
       ]
     }
   ]

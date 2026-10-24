@@ -19,7 +19,7 @@ after a drop; disconnect (or toggle) clears it. State goes to $XDG_RUNTIME_DIR/s
 which the HUD (quickshell/VPN.qml) watches. Nothing here touches credentials:
 Proton keeps its session in the system keyring, NM keeps its own secrets.
 """
-import fcntl, json, os, re, select, subprocess, sys, time
+import fcntl, json, os, re, select, shlex, subprocess, sys, time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -166,16 +166,61 @@ def nm_status(p, active):
     return s
 
 
+AUTH_RC = STATE_DIR / "auth.rc"
+AUTH_CLASS = "stark-vpn-auth"
+# Runs in the login terminal: $1 connection, $2 rc file, $3 hint, $4 timeout
+AUTH_SCRIPT = r'''printf '\033[1m%s\033[0m\n%s\n\n' "STARK // $1" "$3"
+nmcli --ask --wait "$4" con up id "$1"; rc=$?
+echo $rc > "$2"
+[ $rc -ne 0 ] && { printf '\nConnect failed (exit %s). Enter to close.' $rc; read _; }
+exit 0'''
+
+
 def nm_connect(p):
     if not p.get("connection"):
         return "no NetworkManager connection set in providers.json"
-    code, out = run(["nmcli", "--wait", str(p.get("timeout", 90)), "con", "up", "id", p["connection"]], p.get("timeout", 90) + 5)
-    return None if code == 0 else (out.splitlines()[-1] if out else "connect failed")
+    t = int(p.get("timeout", 90))
+    if p.get("auth") != "terminal":
+        code, out = run(["nmcli", "--wait", str(t), "con", "up", "id", p["connection"]], t + 5)
+        return None if code == 0 else (out.splitlines()[-1] if out else "connect failed")
+    # Interactive login (password + Duo typed each time, nothing saved): nmcli --ask
+    # runs `openconnect --authenticate` and hands NM only the one-time session cookie.
+    # In a terminal it prompts right there; from the HUD it opens a floating kitty.
+    args = [p["connection"], str(AUTH_RC), p.get("auth_hint", ""), str(t)]
+    if sys.stdin.isatty():
+        AUTH_RC.unlink(missing_ok=True)
+        subprocess.run(["sh", "-c", AUTH_SCRIPT, "sh"] + args)
+    else:
+        AUTH_RC.unlink(missing_ok=True)
+        cmd = " ".join(shlex.quote(x) for x in
+                       ["kitty", "--class", AUTH_CLASS, "--title", "STARK // " + p.get("label", p["id"]),
+                        "sh", "-c", AUTH_SCRIPT, "sh"] + args)
+        run(["hyprctl", "dispatch", "exec", "[float; size 760 420; center] " + cmd], 10)
+        # Wait for the login to finish, or for the window to be closed without one
+        seen, end = False, time.time() + 600
+        while time.time() < end and not AUTH_RC.exists():
+            up = subprocess.run(["pgrep", "-f", "class " + AUTH_CLASS], capture_output=True).returncode == 0
+            seen = seen or up
+            if seen and not up:
+                break
+            if not seen and time.time() > end - 590:
+                return "login window didn't open (is kitty installed?)"
+            time.sleep(0.5)
+    rc = AUTH_RC.read_text().strip() if AUTH_RC.exists() else ""
+    AUTH_RC.unlink(missing_ok=True)
+    if rc == "0":
+        return None
+    return "login cancelled" if rc == "" else f"connect failed (nmcli exit {rc})"
 
 
 def nm_disconnect(p):
     if p.get("connection"):
         run(["nmcli", "con", "down", "id", p["connection"]], 20)
+        # NM keeps the one-time session cookie in memory after the tunnel goes down
+        # (not on disk: cookie-flags=2); drop it so nothing outlives the session
+        if p.get("auth") == "terminal":
+            run(["nmcli", "con", "modify", "id", p["connection"], "vpn.secrets", ""], 10)
+    nm_conncheck_restore()
     return None
 
 
@@ -223,7 +268,7 @@ def _status():
                 s["state"] = "connecting" if busy.get("action") == "connect" else "disconnecting"
         s.update(id=p["id"], name=p.get("name", p["id"]), label=p.get("label", p["id"]),
                  type=p.get("type", ""), enabled=bool(p.get("enabled") and b),
-                 hasKillSwitch=bool(b and "killswitch" in b))
+                 hasKillSwitch=bool(b and "killswitch" in b), auth=p.get("auth", ""))
         if err and err.get("provider") == p["id"]:
             s["error"] = err.get("message", "")
         out.append(s)

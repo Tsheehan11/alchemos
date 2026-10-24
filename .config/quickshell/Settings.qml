@@ -177,7 +177,8 @@ PanelWindow {
                                     : VPN.blocked ? "The VPN dropped and the kill switch is holding the internet off"
                                     : VPN.state === "disabled" ? "Fill in ~/.config/stark-vpn/providers.json to enable it"
                                     : VPN.connected ? "Server " + VPN.current.server + " · " + [VPN.current.city, VPN.current.country].filter(x => x).join(", ")
-                                    : VPN.current.type === "protonvpn" ? "Fastest free server · LAN (Govee, printers) stays reachable" : ""
+                                    : VPN.current.type === "protonvpn" ? "Fastest free server · LAN (Govee, printers) stays reachable"
+                                    : VPN.current.auth === "terminal" ? "Connect opens a login window · password + Duo each time, nothing saved" : ""
                                 color: VPN.current.error ? "#ff5f5f" : Theme.dim
                                 font.family: st.mono; font.pixelSize: 11
                             }
