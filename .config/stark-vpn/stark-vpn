@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""stark-vpn: STARK OS VPN switch, one front end for several VPN providers.
+
+Usage:
+  stark-vpn status                 current state as JSON (also refreshes the state file)
+  stark-vpn connect <provider>     connect (any other active VPN is disconnected first)
+  stark-vpn disconnect [provider]  disconnect that provider, or whatever is active
+  stark-vpn toggle <provider>
+  stark-vpn killswitch on|off      provider kill switch (only providers that have one)
+  stark-vpn watch                  follow NetworkManager and keep the state file fresh
+                                   (the HUD runs this; it only wakes on NM events)
+
+Providers are listed in ~/.config/stark-vpn/providers.json. Types:
+  protonvpn   the official Proton VPN CLI (`protonvpn`), fastest free server
+  nm          any NetworkManager connection (`nmcli con up/down`), e.g. openconnect
+
+Only one VPN is up at a time. "blocked" = Proton's kill switch holding the internet
+after a drop; disconnect (or toggle) clears it. State goes to $XDG_RUNTIME_DIR/stark-vpn/state.json,
+which the HUD (quickshell/VPN.qml) watches. Nothing here touches credentials:
+Proton keeps its session in the system keyring, NM keeps its own secrets.
+"""
+import fcntl, json, os, re, select, subprocess, sys, time
+from contextlib import contextmanager
+from pathlib import Path
+
+CFG_DIR = Path(os.environ.get("STARK_VPN_DIR", Path.home() / ".config/stark-vpn"))
+PROVIDERS = CFG_DIR / "providers.json"
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+STATE_DIR = RUNTIME / "stark-vpn"
+STATE, BUSY, ERROR, LOCK, STATE_LOCK = (STATE_DIR / n for n in ("state.json", "busy.json", "error.json", "lock", "state.lock"))
+
+PROTON_SERVERS = Path.home() / ".cache/Proton/VPN/serverlist.json"
+PROTON_SETTINGS = Path.home() / ".config/Proton/VPN/settings.json"
+COUNTRIES = {
+    "CA": "Canada", "CH": "Switzerland", "JP": "Japan", "MX": "Mexico", "NL": "Netherlands",
+    "NO": "Norway", "PL": "Poland", "RO": "Romania", "SG": "Singapore", "US": "United States",
+    "GB": "United Kingdom", "UK": "United Kingdom", "DE": "Germany", "FR": "France", "SE": "Sweden",
+    "IS": "Iceland", "AU": "Australia", "IT": "Italy", "ES": "Spain",
+}
+ERROR_TTL = 30          # seconds a failed connect stays visible in the HUD
+
+
+def load_providers():
+    try:
+        return json.loads(PROVIDERS.read_text()).get("providers", [])
+    except (OSError, ValueError):
+        return []
+
+
+def provider(pid):
+    p = next((p for p in load_providers() if p.get("id") == pid), None)
+    if not p:
+        sys.exit(f"stark-vpn: no provider '{pid}'")
+    return p
+
+
+def run(cmd, timeout=60):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout + r.stderr).strip()
+    except FileNotFoundError:
+        return 127, f"{cmd[0]} not installed"
+    except subprocess.TimeoutExpired:
+        return 124, f"{cmd[0]} timed out"
+
+
+def read_json(path, default=None):
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return default
+
+
+def write_json(path, data):
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data))
+    tmp.replace(path)                     # atomic, so the HUD never reads half a file
+
+
+# ── NetworkManager ───────────────────────────────
+def nm_active():
+    """Active NM connections as dicts (nmcli -t escapes ':' inside fields as '\\:')."""
+    code, out = run(["nmcli", "-t", "-f", "NAME,UUID,TYPE,DEVICE,STATE", "con", "show", "--active"], 10)
+    rows = []
+    for line in out.splitlines() if code == 0 else []:
+        f = [x.replace("\\:", ":") for x in re.split(r"(?<!\\):", line)]
+        if len(f) == 5:
+            rows.append(dict(zip(("name", "uuid", "type", "device", "state"), f)))
+    return rows
+
+
+PHASE = {"activating": "connecting", "activated": "connected", "deactivating": "disconnecting"}
+
+
+# ── Provider backends: each gives status / connect / disconnect ──
+def proton_status(p, active):
+    c = next((c for c in active if c["name"].startswith("ProtonVPN ")), None)
+    s = {"state": PHASE.get(c["state"], "disconnected") if c else "disconnected"}
+    # Tunnel gone but Proton's kill switch still up = no internet until a deliberate disconnect
+    if s["state"] == "disconnected" and any(x["name"].startswith("pvpn-killswitch") for x in active):
+        s["state"] = "blocked"
+    if c:
+        s["server"] = c["name"][len("ProtonVPN "):]
+        s["device"] = c["device"]
+        code = s["server"].split("-")[0].split("#")[0][:2].upper()
+        info = next((x for x in (read_json(PROTON_SERVERS, {}) or {}).get("LogicalServers", [])
+                     if x.get("Name") == s["server"]), {})
+        code = info.get("ExitCountry", code)
+        s.update(countryCode=code, country=COUNTRIES.get(code, code), city=info.get("City", ""))
+    s["killSwitch"] = bool((read_json(PROTON_SETTINGS, {}) or {}).get("killswitch", 0))
+    return s
+
+
+def proton_connect(p):
+    args = ["protonvpn", "connect"]
+    if p.get("country"):
+        args += ["--country", p["country"]]   # empty = fastest server anywhere
+    code, out = run(args, 90)
+    # The CLI can exit 0 after printing an error, so trust NM instead
+    if proton_status(p, nm_active())["state"] != "connected":
+        return out.splitlines()[-1] if out else "connect failed"
+    return None
+
+
+def proton_disconnect(p):
+    code, out = run(["protonvpn", "disconnect"], 30)
+    # Fall back to NM if the CLI couldn't (e.g. signed out with a tunnel still up)
+    for c in nm_active():
+        if c["name"].startswith("ProtonVPN "):
+            run(["nmcli", "con", "down", "uuid", c["uuid"]], 20)
+    # After a drop the CLI thinks it's already disconnected and leaves the kill switch
+    # blocking everything; a deliberate disconnect always gives the internet back
+    for c in nm_active():
+        if c["name"].startswith("pvpn-killswitch"):
+            run(["nmcli", "con", "delete", "uuid", c["uuid"]], 20)
+    nm_conncheck_restore()
+    return None
+
+
+def nm_conncheck_restore():
+    """Proton turns NM's connectivity check off on connect and never back on, which
+    hides captive portals (hotel / campus Wi-Fi logins). Turn it back on if NM has a
+    check URL configured (/usr/lib/NetworkManager/conf.d/20-connectivity.conf)."""
+    nm = ["busctl", "get-property", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
+          "org.freedesktop.NetworkManager"]
+    if run(nm + ["ConnectivityCheckAvailable"], 5)[1] == "b true" and run(nm + ["ConnectivityCheckEnabled"], 5)[1] == "b false":
+        run(["busctl", "set-property"] + nm[2:] + ["ConnectivityCheckEnabled", "b", "true"], 5)
+
+
+def proton_killswitch(p, on):
+    code, out = run(["protonvpn", "config", "set", "kill-switch", "standard" if on else "off"], 30)
+    return None if code == 0 else (out.splitlines()[-1] if out else "failed")
+
+
+def nm_match(p, active):
+    want = p.get("connection", "")
+    return next((c for c in active if want and want in (c["name"], c["uuid"])), None)
+
+
+def nm_status(p, active):
+    c = nm_match(p, active)
+    s = {"state": PHASE.get(c["state"], "disconnected") if c else "disconnected"}
+    if c:
+        s.update(server=p.get("server", c["name"]), device=c["device"])
+    return s
+
+
+def nm_connect(p):
+    if not p.get("connection"):
+        return "no NetworkManager connection set in providers.json"
+    code, out = run(["nmcli", "--wait", str(p.get("timeout", 90)), "con", "up", "id", p["connection"]], p.get("timeout", 90) + 5)
+    return None if code == 0 else (out.splitlines()[-1] if out else "connect failed")
+
+
+def nm_disconnect(p):
+    if p.get("connection"):
+        run(["nmcli", "con", "down", "id", p["connection"]], 20)
+    return None
+
+
+BACKENDS = {
+    "protonvpn": {"status": proton_status, "connect": proton_connect,
+                  "disconnect": proton_disconnect, "killswitch": proton_killswitch},
+    "nm": {"status": nm_status, "connect": nm_connect, "disconnect": nm_disconnect},
+}
+
+
+# ── State ────────────────────────────────────────
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, TypeError):
+        return False
+
+
+def status():
+    # Read-compute-write under one lock: otherwise the watcher can read busy.json
+    # mid-disconnect and write that stale phase after the CLI's final state
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(STATE_LOCK, "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        return _status()
+
+
+def _status():
+    active = nm_active()
+    busy = read_json(BUSY)
+    if busy and not alive(busy.get("pid")):
+        busy = None
+    err = read_json(ERROR)
+    if err and time.time() - err.get("at", 0) > ERROR_TTL:
+        err = None
+    out = []
+    for p in load_providers():
+        b = BACKENDS.get(p.get("type"))
+        s = {"state": "disabled"}
+        if p.get("enabled") and b:
+            s = b["status"](p, active)
+            # Between `protonvpn connect` starting and NM seeing the tunnel, show our own phase
+            if busy and busy.get("provider") == p["id"] and s["state"] == "disconnected":
+                s["state"] = "connecting" if busy.get("action") == "connect" else "disconnecting"
+        s.update(id=p["id"], name=p.get("name", p["id"]), label=p.get("label", p["id"]),
+                 type=p.get("type", ""), enabled=bool(p.get("enabled") and b),
+                 hasKillSwitch=bool(b and "killswitch" in b))
+        if err and err.get("provider") == p["id"]:
+            s["error"] = err.get("message", "")
+        out.append(s)
+    up = next((s["id"] for s in out if s["state"] in ("connected", "connecting", "blocked")), "")
+    state = {"active": up, "busy": busy, "providers": out, "updated": time.time()}
+    write_json(STATE, state)
+    return state
+
+
+@contextmanager
+def locked():
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(LOCK, "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            sys.exit("stark-vpn: busy with another connect / disconnect")
+        yield
+
+
+def set_busy(pid, action):
+    write_json(BUSY, {"provider": pid, "action": action, "pid": os.getpid(), "since": time.time()})
+    status()
+
+
+def clear_busy():
+    BUSY.unlink(missing_ok=True)
+
+
+def fail(pid, msg):
+    write_json(ERROR, {"provider": pid, "message": msg, "at": time.time()})
+
+
+def connect(pid):
+    p = provider(pid)
+    b = BACKENDS.get(p.get("type"))
+    if not (p.get("enabled") and b):
+        sys.exit(f"stark-vpn: provider '{pid}' is disabled — see {PROVIDERS}")
+    with locked():
+        ERROR.unlink(missing_ok=True)
+        try:
+            # One VPN at a time
+            for o in status()["providers"]:
+                if o["id"] != pid and o["state"] in ("connected", "connecting", "blocked"):
+                    set_busy(o["id"], "disconnect")
+                    BACKENDS[o["type"]]["disconnect"](provider(o["id"]))
+            set_busy(pid, "connect")
+            err = b["connect"](p)
+            if err:
+                fail(pid, err)
+        finally:
+            clear_busy()
+    s = status()
+    print(json.dumps(s))
+    return 1 if any(x["id"] == pid and x.get("error") for x in s["providers"]) else 0
+
+
+def disconnect(pid=None):
+    with locked():
+        try:
+            for o in status()["providers"]:
+                if (pid in (None, o["id"])) and o["state"] in ("connected", "connecting", "disconnecting", "blocked"):
+                    set_busy(o["id"], "disconnect")
+                    BACKENDS[o["type"]]["disconnect"](provider(o["id"]))
+        finally:
+            clear_busy()
+    print(json.dumps(status()))
+    return 0
+
+
+def toggle(pid):
+    s = next((x for x in status()["providers"] if x["id"] == pid), None)
+    if s and s["state"] in ("connected", "connecting", "blocked"):
+        return disconnect(pid)
+    return connect(pid)
+
+
+def killswitch(on):
+    errs = []
+    for p in load_providers():
+        b = BACKENDS.get(p.get("type"))
+        if p.get("enabled") and b and "killswitch" in b:
+            e = b["killswitch"](p, on)
+            if e:
+                errs.append(f"{p['id']}: {e}")
+    print(json.dumps(status()))
+    if errs:
+        sys.exit("stark-vpn: " + "; ".join(errs))
+    return 0
+
+
+def watch():
+    """Rewrite the state file whenever NM reports a change. `nmcli monitor` blocks
+    until something happens, so this costs nothing while the network is quiet.
+    Each state is also printed as one JSON line for the HUD."""
+    emit = lambda: print(json.dumps(status()), flush=True)
+    emit()
+    mon = subprocess.Popen(["nmcli", "monitor"], stdout=subprocess.PIPE, text=True, bufsize=1)
+    pending = False
+    while True:
+        r, _, _ = select.select([mon.stdout], [], [], 0.4 if pending else None)
+        if r:
+            if not mon.stdout.readline():
+                return 1                  # nmcli exited; the HUD restarts us
+            pending = True                # coalesce bursts of events into one refresh
+        elif pending:
+            pending = False
+            emit()
+
+
+def main(argv):
+    cmd, args = (argv[0] if argv else "status"), argv[1:]
+    if cmd == "status":
+        print(json.dumps(status()))
+        return 0
+    if cmd in ("connect", "toggle") and args:
+        return (connect if cmd == "connect" else toggle)(args[0])
+    if cmd == "disconnect":
+        return disconnect(args[0] if args else None)
+    if cmd == "killswitch" and args and args[0] in ("on", "off"):
+        return killswitch(args[0] == "on")
+    if cmd == "watch":
+        return watch()
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

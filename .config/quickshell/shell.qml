@@ -148,6 +148,19 @@ ShellRoot {
         function status(msg: string): void { JarvisState.status(msg) }
     }
 
+    //   qs ipc call vpn toggle proton | connect school | disconnect | status   (VPN.qml)
+    IpcHandler {
+        target: "vpn"
+        function toggle(provider: string): void { VPN.toggle(provider) }
+        function connect(provider: string): void { VPN.connect(provider) }
+        function disconnect(): void { VPN.disconnect() }
+        function killswitch(on: string): void { VPN.setKillSwitch(on === "on" || on === "true") }
+        function status(): string {
+            return JSON.stringify({ active: VPN.active, selected: VPN.selected, state: VPN.state,
+                                    providers: VPN.providers.map(p => ({ id: p.id, state: p.state, server: p.server || "", country: p.country || "" })) })
+        }
+    }
+
     //   qs ipc call profiles status | recheck   (display profiles, see Profiles.qml)
     IpcHandler {
         target: "profiles"

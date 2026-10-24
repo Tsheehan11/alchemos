@@ -1,0 +1,37 @@
+{
+  "_help": [
+    "VPN providers for stark-vpn and the HUD (Control Center tile, bar, Settings → NETWORK).",
+    "Fields: id (used by `stark-vpn toggle <id>` and `qs ipc call vpn toggle <id>`), name (short, shown on the tile),",
+    "label (longer, shown in Settings), type (protonvpn | nm), enabled.",
+    "Only one provider is connected at a time; connecting one disconnects the others."
+  ],
+  "providers": [
+    {
+      "id": "proton",
+      "name": "PROTON",
+      "label": "Proton VPN (free)",
+      "type": "protonvpn",
+      "enabled": true,
+      "country": "",
+      "_country": "empty = fastest free server anywhere; or a code like CA / NL / US"
+    },
+    {
+      "id": "school",
+      "name": "SCHOOL",
+      "label": "School (Cisco)",
+      "type": "nm",
+      "enabled": false,
+      "connection": "",
+      "timeout": 90,
+      "_setup": [
+        "Cisco Secure Client / AnyConnect VPNs work with openconnect through NetworkManager, no Cisco client needed:",
+        "1. sudo pacman -S networkmanager-openconnect   (then: sudo systemctl restart NetworkManager)",
+        "2. nmcli con add type vpn vpn-type openconnect con-name School vpn.data 'gateway=vpn.<university>.edu,protocol=anyconnect'",
+        "   (add usergroup=<group> to vpn.data if the school uses one; KDE System Settings → Connections → + → Cisco AnyConnect works too)",
+        "3. Connect once by hand (nmcli --ask con up id School) so NM saves what it can; SSO / MFA logins open the openconnect auth dialog,",
+        "   which needs a running NM secret agent (KDE's plasma-nm, or nm-applet) — otherwise the HUD connect fails with 'no secrets'.",
+        "4. Here: set \"connection\": \"School\" and \"enabled\": true. The HUD picks it up on its own."
+      ]
+    }
+  ]
+}

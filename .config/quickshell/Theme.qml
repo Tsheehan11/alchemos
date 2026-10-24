@@ -74,6 +74,7 @@ Singleton {
             property bool gameJarvis: true              // pause Jarvis (frees the mic)
             property bool gameNotify: true              // do-not-disturb on the notification daemon
             property var launcherApps: []               // radial launcher (LauncherApps.qml); seeded on first run
+            property string vpnProvider: "proton"       // VPN the tile / Settings act on (VPN.qml, stark-vpn providers.json)
         }
     }
     property bool loaded: false   // settings.json has been read at least once

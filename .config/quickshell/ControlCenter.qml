@@ -158,6 +158,82 @@ PanelWindow {
                 }
             }
 
+            // VPN (VPN.qml): tap toggles the picked provider, chips pick one
+            Rectangle {
+                id: vpnTile
+                readonly property bool on: VPN.connected
+                readonly property bool busy: VPN.busy
+                width: body.width; height: 62
+                color: VPN.blocked ? Qt.rgba(1, 0.37, 0.37, 0.14) : on ? Theme.p(0.2) : busy ? Theme.s(0.1) : Theme.d(0.9)
+                border.color: VPN.blocked ? "#ff5f5f" : on ? cc.cyan : busy ? cc.amber : Theme.p(0.3)
+                border.width: 1
+                // Scanning edge while the tunnel comes up / goes down
+                Rectangle {
+                    visible: vpnTile.busy
+                    width: parent.width * 0.3; height: 2
+                    anchors.bottom: parent.bottom
+                    color: cc.amber
+                    NumberAnimation on x {
+                        running: vpnTile.busy && cc.visible
+                        from: 0; to: vpnTile.width * 0.7
+                        duration: 900; loops: Animation.Infinite; easing.type: Easing.InOutSine
+                    }
+                }
+                Column {
+                    anchors.left: parent.left; anchors.leftMargin: 14
+                    anchors.right: chips.left; anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 3
+                    Text {
+                        text: "VPN · " + VPN.current.name
+                        color: vpnTile.on ? Theme.text : cc.dim; font.family: cc.mono; font.pixelSize: 13; font.letterSpacing: 2
+                    }
+                    Text {
+                        width: parent.width; elide: Text.ElideRight
+                        text: VPN.current.error ? "failed · " + VPN.current.error
+                            : VPN.blocked ? "BLOCKED · tap to restore internet"
+                            : VPN.state === "disabled" ? "not set up"
+                            : VPN.state.toUpperCase() + (VPN.connected && VPN.where() ? " · " + VPN.where() : "")
+                        color: VPN.current.error || VPN.blocked ? "#ff5f5f" : vpnTile.on ? cc.cyan : vpnTile.busy ? cc.amber : Theme.faint
+                        font.family: cc.mono; font.pixelSize: 11
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    onClicked: if (VPN.state !== "disabled") VPN.toggle(VPN.selected)
+                }
+                Row {
+                    id: chips
+                    anchors.right: parent.right; anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+                    visible: VPN.providers.length > 1
+                    Repeater {
+                        model: VPN.providers
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool sel: VPN.selected === modelData.id
+                            width: chipText.implicitWidth + 16; height: 24
+                            color: sel ? Theme.p(0.22) : "transparent"
+                            border.color: sel ? cc.cyan : Theme.p(0.3)
+                            opacity: modelData.enabled ? 1 : 0.45
+                            Text {
+                                id: chipText
+                                anchors.centerIn: parent
+                                text: modelData.name
+                                color: parent.sel ? Theme.text : cc.dim
+                                font.family: cc.mono; font.pixelSize: 10; font.letterSpacing: 1
+                            }
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                // Can't switch the pick away from a live tunnel; disconnect first
+                                onClicked: if (VPN.active === "") VPN.pick(modelData.id)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Sliders
             Slider {
                 width: parent.width

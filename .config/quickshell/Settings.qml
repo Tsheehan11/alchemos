@@ -145,6 +145,61 @@ PanelWindow {
                         SmallButton { text: "ADVANCED (NMTUI)"; onClicked: { Hyprland.dispatch("exec kitty -e nmtui"); LauncherState.closeAll(); } }
                     }
 
+                    // VPN (VPN.qml / stark-vpn)
+                    Text { text: "VPN"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Row {
+                        spacing: 8
+                        visible: VPN.providers.length > 1
+                        Repeater {
+                            model: VPN.providers
+                            delegate: SmallButton {
+                                required property var modelData
+                                text: modelData.label.toUpperCase() + (modelData.enabled ? "" : " · NOT SET UP")
+                                active: VPN.selected === modelData.id
+                                opacity: modelData.enabled ? 1 : 0.5
+                                onClicked: if (VPN.active === "") VPN.pick(modelData.id)
+                            }
+                        }
+                    }
+                    Item {
+                        width: parent.width; height: 44
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 3
+                            Text {
+                                text: VPN.state === "disabled" ? "Not set up"
+                                    : VPN.state.charAt(0).toUpperCase() + VPN.state.slice(1)
+                                color: VPN.blocked ? "#ff5f5f" : VPN.connected ? Theme.primary : VPN.busy ? Theme.secondary : Theme.textSoft
+                                font.family: st.mono; font.pixelSize: 13
+                            }
+                            Text {
+                                text: VPN.current.error ? "✕ " + VPN.current.error
+                                    : VPN.blocked ? "The VPN dropped and the kill switch is holding the internet off"
+                                    : VPN.state === "disabled" ? "Fill in ~/.config/stark-vpn/providers.json to enable it"
+                                    : VPN.connected ? "Server " + VPN.current.server + " · " + [VPN.current.city, VPN.current.country].filter(x => x).join(", ")
+                                    : VPN.current.type === "protonvpn" ? "Fastest free server · LAN (Govee, printers) stays reachable" : ""
+                                color: VPN.current.error ? "#ff5f5f" : Theme.dim
+                                font.family: st.mono; font.pixelSize: 11
+                            }
+                        }
+                        SmallButton {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            visible: VPN.state !== "disabled"
+                            text: VPN.blocked ? "RESTORE INTERNET" : VPN.connected || VPN.state === "connecting" ? "DISCONNECT" : VPN.busy ? "…" : "CONNECT"
+                            active: VPN.connected
+                            onClicked: VPN.connected || VPN.blocked || VPN.state === "connecting" ? VPN.disconnect() : VPN.connect(VPN.selected)
+                        }
+                    }
+                    Toggle {
+                        width: parent.width
+                        visible: !!VPN.current.hasKillSwitch
+                        label: "Kill switch"
+                        hint: "Blocks the internet if the VPN drops while connected · off by default, disconnecting always restores it"
+                        checked: VPN.killSwitch
+                        onToggled: VPN.setKillSwitch(!VPN.killSwitch)
+                    }
+
+                    Text { visible: wifi.on; text: "WI-FI NETWORKS"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Repeater {
                         model: wifi.on ? wifi.networks : []
                         delegate: Rectangle {
@@ -228,6 +283,7 @@ PanelWindow {
                             }
                         }
                     }
+
                 }
 
                 // ════════ BLUETOOTH ════════

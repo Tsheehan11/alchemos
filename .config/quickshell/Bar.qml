@@ -125,6 +125,12 @@ PanelWindow {
             Text { text: "GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"); color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
             Text { text: "RAM " + Math.round(SysStats.ram * 100) + "%"; color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
             Text { text: "BAT " + Math.round(SysStats.battery * 100) + "%"; color: SysStats.charging ? "#7cf5c1" : bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
+            Text {
+                visible: VPN.connected || VPN.busy || VPN.blocked
+                text: String.fromCodePoint(0xF0582) + " " + (VPN.blocked ? "VPN DOWN · BLOCKED" : VPN.busy ? "VPN…" : (VPN.current.countryCode || "VPN"))
+                color: VPN.blocked ? "#ff5f5f" : VPN.busy ? Theme.secondary : bar.cyan
+                font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2
+            }
             Text { visible: PowerMode.saver; text: "SAVER"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
             Text {
                 visible: GameMode.active
