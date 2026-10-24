@@ -84,12 +84,6 @@
             "name": "VS CODE"
         },
         {
-            "exec": "code ~/.config/quickshell",
-            "icon": "",
-            "id": "seed-hud",
-            "name": "HUD"
-        },
-        {
             "exec": "fish -c uwcs",
             "icon": "",
             "id": "uwcs",
