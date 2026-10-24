@@ -35,5 +35,15 @@
     "*.copilotmd": "vscode.markdown.preview.editor",
     "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:/**/*.qrc": "default",
     "*.qrc": "qt-core.qrcEditor"
-  }
+  },
+  "remote.SSH.remotePlatform": {
+    "uwcs": "linux",
+    "uwcs-002": "linux",
+    "uwcs-004": "linux",
+    "uwcs-006": "linux",
+    "uwcs-008": "linux",
+    "uwcs-010": "linux",
+    "uwcs-012": "linux"
+  },
+  "remote.SSH.connectTimeout": 30
 }

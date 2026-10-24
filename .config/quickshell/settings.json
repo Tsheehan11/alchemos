@@ -90,6 +90,12 @@
             "name": "HUD"
         },
         {
+            "exec": "fish -c uwcs",
+            "icon": "",
+            "id": "uwcs",
+            "name": "UW CS"
+        },
+        {
             "desktopId": "kitty",
             "exec": "kitty",
             "group": "SYS",
