@@ -1,0 +1,14 @@
+{
+    "_doc": "MCP servers Jarvis loads (core/config.py load_servers). Add phase-2 integrations (calendar, Gmail, Nest, KDE Connect, Tailscale, ESP) as new entries; the core loop doesn't change. Without policy 'stark', every tool asks for a spoken yes unless named in auto_allow. Secrets: gnome-keyring via core/secrets.py, never in this file.",
+    "stark": {
+        "command": "{venv}/python",
+        "args": ["-I", "{jarvis}/mcp/stark_tools.py"],
+        "policy": "stark"
+    },
+    "_example_calendar": {
+        "enabled": false,
+        "command": "{venv}/python",
+        "args": ["-I", "{jarvis}/mcp/calendar_tools.py"],
+        "auto_allow": ["list_events"]
+    }
+}

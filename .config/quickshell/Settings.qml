@@ -22,7 +22,7 @@ PanelWindow {
     color: "transparent"
 
     readonly property string mono: "JetBrainsMono Nerd Font"
-    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "LAUNCHER", "SYSTEM"]
+    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "JARVIS", "LAUNCHER", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
     onVisibleChanged: if (visible) { focusCatcher.forceActiveFocus(); refreshAll(); }
@@ -599,6 +599,48 @@ PanelWindow {
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
                         SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch("exec kate ~/.config/quickshell"); LauncherState.closeAll(); } }
                     }
+                }
+
+                // ════════ JARVIS ════════
+                Column {
+                    id: jarvisPage
+                    visible: LauncherState.settingsTab === "JARVIS"
+                    width: parent.width
+                    spacing: 12
+
+                    readonly property var models: ["auto", "haiku", "sonnet", "opus"]
+                    readonly property var modelHints: ({ auto: "Haiku · Sonnet for harder questions", haiku: "Fastest", sonnet: "Smarter, a little slower", opus: "Strongest, slowest · uses the plan fastest" })
+                    readonly property var follows: [0, 4, 6, 8, 10, 15]
+                    property var voices: ["en_GB-alan-medium"]
+                    function cycle(list, cur, dir) { const i = list.indexOf(cur); return list[((i < 0 ? 0 : i) + dir + list.length) % list.length]; }
+                    onVisibleChanged: if (visible) voiceList.running = true
+                    Process {
+                        id: voiceList
+                        command: ["sh", "-c", "ls \"$HOME\"/.local/share/jarvis/voices/*.onnx 2>/dev/null"]
+                        stdout: StdioCollector {
+                            onStreamFinished: {
+                                const v = text.split("\n").filter(l => l).map(l => l.split("/").pop().replace(/\.onnx$/, ""));
+                                if (v.length) jarvisPage.voices = v;
+                            }
+                        }
+                    }
+
+                    Toggle { width: parent.width; label: "Jarvis"; hint: !JarvisState.userWantsJarvis ? "Off" : !JarvisState.docked ? "On · waits for the dock" : JarvisState.paused ? "On · paused for combat mode" : JarvisState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"; checked: JarvisState.userWantsJarvis; onToggled: JarvisState.setWanted(!JarvisState.userWantsJarvis) }
+                    Stepper { width: parent.width; label: "Claude model"; hint: jarvisPage.modelHints[Theme.cfg.jarvisModel] || ""; valueText: Theme.cfg.jarvisModel.toUpperCase(); onDec: Theme.cfg.jarvisModel = jarvisPage.cycle(jarvisPage.models, Theme.cfg.jarvisModel, -1); onInc: Theme.cfg.jarvisModel = jarvisPage.cycle(jarvisPage.models, Theme.cfg.jarvisModel, 1) }
+                    Stepper { width: parent.width; label: "Voice"; hint: "Local piper voices · ~/.local/share/jarvis/voices"; valueText: Theme.cfg.jarvisVoice.replace(/^en_GB-/, "").replace(/-(medium|low|high)$/, "").replace(/_/g, " ").toUpperCase(); onDec: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, -1); onInc: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, 1) }
+                    Stepper { width: parent.width; label: "Speech rate"; valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
+                    Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.jarvisFollowup > 0 ? Theme.cfg.jarvisFollowup + " S" : "OFF"; onDec: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, -1); onInc: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, 1) }
+                    Toggle { width: parent.width; label: "Spoken replies"; hint: "Off = replies only show on the toast"; checked: Theme.cfg.jarvisSpeak; onToggled: Theme.cfg.jarvisSpeak = !Theme.cfg.jarvisSpeak }
+                    Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.jarvisDuck; onToggled: Theme.cfg.jarvisDuck = !Theme.cfg.jarvisDuck }
+                    Toggle { width: parent.width; label: "Pause in combat mode"; hint: "Wake word off, mic released · timers still go off"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
+                    Toggle { width: parent.width; label: "Confirm sensitive actions"; hint: "Always on · power, closing windows, deleting, kill switch, messages sent as you"; checked: true; enabled: false; opacity: 0.6 }
+                    Row {
+                        spacing: 10
+                        SmallButton { text: "TEST VOICE"; onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "At your service, sir."]) }
+                        SmallButton { text: "MISSED COMMANDS"; onClicked: { Hyprland.dispatch("exec kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis --misses"); LauncherState.closeAll(); } }
+                        SmallButton { text: "EDIT JARVIS"; onClicked: { Hyprland.dispatch("exec kate ~/.config/jarvis"); LauncherState.closeAll(); } }
+                    }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "Claude runs on your Pro login (no API key). Memory: ~/.local/share/jarvis/jarvis.db"; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
                 }
 
                 // ════════ LAUNCHER ════════

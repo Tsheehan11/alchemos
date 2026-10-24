@@ -139,11 +139,21 @@ ShellRoot {
         function toggle(): void { GameMode.toggle() }
     }
 
-    //   used by ~/.config/jarvis/jarvis.py
+    //   used by ~/.config/jarvis/jarvis.py (core/hud.py)
     IpcHandler {
         target: "jarvis"
         function online(): void { JarvisState.beat() }
         function offline(): void { JarvisState.online = false }
+        function listening(): void { JarvisState.startListening() }
+        function transcript(text: string): void { JarvisState.setTranscript(text) }
+        function thinking(): void { JarvisState.thinking() }
+        function tool(label: string): void { JarvisState.tool(label) }       // "THEME → MARK III"
+        function reply(text: string): void { JarvisState.setReply(text) }
+        function confirm(text: string): void { JarvisState.confirm(text) }
+        function followup(): void { JarvisState.followup() }
+        function idle(): void { JarvisState.idle() }
+        function toast(title: string, text: string): void { JarvisState.alert(title, text) }   // timers / reminders
+        function paused(on: string): void { JarvisState.paused = on === "true" }
         function heard(msg: string): void { JarvisState.heard(msg) }
         function status(msg: string): void { JarvisState.status(msg) }
     }
@@ -177,6 +187,8 @@ ShellRoot {
             Theme.cfg[key] = typeof cur === "number" ? Number(value) : typeof cur === "boolean" ? value === "true" : value;
             return key + " = " + JSON.stringify(Theme.cfg[key]);
         }
+        //   qs ipc call theme presets   → ["STARK","MARK III",…] (built-in + custom; Jarvis validates against it)
+        function presets(): string { return JSON.stringify(Theme.allPresets.map(p => p.name)) }
         function preset(name: string): string {
             const p = Theme.allPresets.find(x => x.name === name.toUpperCase());
             if (!p) return "no preset " + name;

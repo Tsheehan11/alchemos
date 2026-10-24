@@ -13,6 +13,7 @@ Usage:
   stark-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
   stark-govee anim <name>               play an animation only (no lock/sleep state), for testing
   stark-govee speed <0.5-2.0>           animation speed multiplier
+  stark-govee level <0.05-1.0>          steady-colour brightness (theme / manual modes)
   stark-govee suspend                   spiral the strip out, then systemctl suspend
   stark-govee mode <auto|music|theme|off>
   stark-govee theme <primary> [accent]  hex colours, e.g. 00dcff ff8a00
@@ -41,7 +42,7 @@ DEFAULTS = {
     "manual_color": "#00dcff",
     "max_fps": 12,             # packets/sec ceiling; the strip lags if flooded
     "device_brightness": 100,  # hardware brightness set at start; effects scale RGB
-    "idle_level": 1.0,         # theme-mode brightness (0-1)
+    "idle_level": 1.0,         # steady-colour brightness, theme + manual modes (0-1)
     "music_floor": 0.12,       # dimmest point while music is playing
     "music_gain": 1.0,
     "silence_seconds": 3.0,    # auto mode drops back to theme after this much silence
@@ -1036,7 +1037,7 @@ class Daemon:
             return scale(p, 0.09 + 0.06 * math.sin(time.monotonic() * 2 * math.pi / 4))
         if mode == "manual":
             try:
-                return hex_to_rgb(self.cfg.get("manual_color"))
+                return scale(hex_to_rgb(self.cfg.get("manual_color")), self.cfg.get("idle_level", 1.0))
             except ValueError:
                 return p
         if self.music_active():
@@ -1271,6 +1272,13 @@ def main(argv):
         except (IndexError, ValueError):
             sys.exit("usage: stark-govee speed <0.5-2.0>")
         update_config(anim_speed=round(clamp(v, 0.5, 2.0), 2))
+        _poke()
+    elif cmd == "level":
+        try:
+            v = float(args[0])
+        except (IndexError, ValueError):
+            sys.exit("usage: stark-govee level <0.05-1.0>")
+        update_config(idle_level=round(clamp(v, 0.05, 1.0), 2))
         _poke()
     elif cmd == "oneshot":
         if not args or args[0] not in ANIMS:

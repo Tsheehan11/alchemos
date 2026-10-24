@@ -5,7 +5,7 @@
 //   • quiet: ambient effects + the visualizer stop, panels hide on the game screen
 //     and go lightweight on the others (Perf),
 //     bar stats + clock refresh slowly (SysStats, Bar)
-//   • Jarvis pauses (JarvisState)
+//   • Jarvis pauses its wake word (jarvis.py reads the same state file)
 //   • "COMBAT MODE ENGAGED / DISENGAGED" toast + sound (GameToast)
 // Options are the game* settings in Theme (Settings → System → Combat mode).
 pragma Singleton

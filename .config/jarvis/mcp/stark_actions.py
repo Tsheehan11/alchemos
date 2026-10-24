@@ -1,0 +1,725 @@
+"""
+STARK OS actions for Jarvis: the explicit allowlist of things it may do.
+
+Each action validates its arguments, then wraps an existing command or HUD IPC
+call (hyprctl, qs ipc, stark-govee, stark-vpn, playerctl, wpctl, the uwcs fish
+function). Nothing here runs a shell string built from arguments. Used by the
+MCP server (stark_tools.py) and directly by Jarvis's no-AI fast path.
+
+Every action returns a dict: {"ok": True, ...} or {"ok": False, "error": "..."}.
+With STARK_DRY_RUN=1 (or set_dry_run(True)) actions validate, then report what
+they would do instead of doing it.
+"""
+import configparser
+import difflib
+import glob
+import json
+import os
+import re
+import shlex
+import subprocess
+import time
+import urllib.parse
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import jarvis_db as db
+
+HOME = Path.home()
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+DRY_RUN = os.environ.get("STARK_DRY_RUN") == "1"
+CLAUDE_URL = "https://claude.ai/new"
+
+
+def set_dry_run(on):
+    global DRY_RUN
+    DRY_RUN = bool(on)
+
+
+class Invalid(ValueError):
+    """A tool argument outside the allowlist."""
+
+
+# ── plumbing ───────────────────────────────────
+def _run(cmd, timeout=6):
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return p.returncode, p.stdout.strip(), p.stderr.strip()
+    except FileNotFoundError:
+        return 127, "", f"{cmd[0]} not installed"
+    except subprocess.TimeoutExpired:
+        return 124, "", f"{cmd[0]} timed out"
+
+
+def _do(would, cmd, ok_msg=None, timeout=6):
+    """Run cmd (a list, no shell) unless dry-running; result dict either way."""
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": would}
+    rc, out, err = _run(cmd, timeout)
+    if rc != 0:
+        return {"ok": False, "error": (err or out or f"exit {rc}")[-300:]}
+    return {"ok": True, "result": ok_msg or out or "done"}
+
+
+def _qs(target, fn, *args):
+    return ["qs", "ipc", "call", target, fn, *[str(a) for a in args]]
+
+
+def _hypr_exec(cmd):
+    """Start a program through Hyprland so it isn't a child of Jarvis."""
+    return ["hyprctl", "dispatch", "exec", cmd]
+
+
+def _norm(s):
+    s = s.lower().strip()
+    s = re.sub(r"[^\w\s']", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _int(v, lo, hi, what):
+    try:
+        n = int(float(v))
+    except (TypeError, ValueError):
+        raise Invalid(f"{what} must be a number from {lo} to {hi}")
+    if not lo <= n <= hi:
+        raise Invalid(f"{what} must be from {lo} to {hi}")
+    return n
+
+
+def _choice(v, options, what):
+    v = str(v or "").strip().lower().replace(" ", "_").replace("-", "_")
+    if v not in options:
+        raise Invalid(f"{what} must be one of: {', '.join(options)}")
+    return v
+
+
+def safe(fn):
+    """Turn validation errors / surprises into {"ok": False} results."""
+    def wrapper(*a, **kw):
+        try:
+            return fn(*a, **kw)
+        except Invalid as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:  # never crash the caller over one tool
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"[:300]}
+    wrapper.__name__, wrapper.__doc__ = fn.__name__, fn.__doc__
+    wrapper.__wrapped__ = fn
+    return wrapper
+
+
+# ── apps ───────────────────────────────────────
+ALIASES = {
+    "claude": f"zen-browser --new-window {CLAUDE_URL}",
+    "claude code": "kitty -e claude",
+    "code": "code", "vs code": "code", "vscode": "code", "v s code": "code",
+    "visual studio code": "code", "visual studio": "code",
+    "browser": "zen-browser", "zen": "zen-browser", "web": "zen-browser", "internet": "zen-browser",
+    "terminal": "kitty", "kitty": "kitty", "console": "kitty",
+    "files": "dolphin", "file manager": "dolphin", "dolphin": "dolphin",
+    "spotify": "spotify-launcher", "music": "spotify-launcher",
+    "steam": "steam", "games": "steam",
+    "discord": "discord",
+    "settings": "systemsettings", "system settings": "systemsettings",
+}
+_APPS = None
+
+
+def apps():
+    """name → command for every installed app (.desktop files), cached."""
+    global _APPS
+    if _APPS is not None:
+        return _APPS
+    found = {}
+    for d in ["/usr/share/applications", str(HOME / ".local/share/applications"),
+              "/var/lib/flatpak/exports/share/applications"]:
+        for path in glob.glob(os.path.join(d, "*.desktop")):
+            cp = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                cp.read(path, encoding="utf-8")
+                e = cp["Desktop Entry"]
+            except Exception:
+                continue
+            if e.get("Type", "") != "Application" or e.get("NoDisplay", "false").lower() == "true":
+                continue
+            name, exe = e.get("Name"), e.get("Exec")
+            if not name or not exe:
+                continue
+            exe = re.sub(r"\s*%[a-zA-Z]", "", exe).strip()
+            found.setdefault(_norm(name), exe)
+            if e.get("GenericName"):
+                found.setdefault(_norm(e.get("GenericName")), exe)
+    _APPS = found
+    return found
+
+
+def find_app(target):
+    """(command, display name) for a spoken app name, or (None, None)."""
+    t = _norm(target)
+    t = re.sub(r"^(the|my)\s+", "", t)
+    t = re.sub(r"\s+(app|application)$", "", t)
+    if not t:
+        return None, None
+    table = apps()
+    if t in ALIASES:
+        return ALIASES[t], t
+    if t in table:
+        return table[t], t
+    for n, cmd in table.items():
+        if n.startswith(t) or t in n.split():
+            return cmd, n
+    m = difflib.get_close_matches(t, list(ALIASES) + list(table), n=1, cutoff=0.75)
+    if m:
+        return ALIASES.get(m[0]) or table[m[0]], m[0]
+    return None, None
+
+
+@safe
+def open_app(name):
+    """Open an installed application by name (e.g. "spotify", "vs code", "discord")."""
+    cmd, found = find_app(str(name))
+    if not cmd:
+        raise Invalid(f'no installed app called "{name}"')
+    return _do(f"open {found} ({cmd})", _hypr_exec(cmd), f"opened {found}")
+
+
+@safe
+def close_focused_window():
+    """Close the focused window. Needs confirmation."""
+    rc, out, _ = _run(["hyprctl", "activewindow", "-j"])
+    try:
+        w = json.loads(out) if rc == 0 else {}
+    except ValueError:
+        w = {}
+    if not w.get("address"):
+        raise Invalid("no window is focused")
+    title = w.get("class") or w.get("title") or "window"
+    return _do(f"close {title}", ["hyprctl", "dispatch", "killactive"], f"closed {title}")
+
+
+def focused_window_name():
+    rc, out, _ = _run(["hyprctl", "activewindow", "-j"])
+    try:
+        w = json.loads(out) if rc == 0 else {}
+    except ValueError:
+        return "the window"
+    name = w.get("initialTitle") or w.get("class") or w.get("title") or "the window"
+    return name[:1].upper() + name[1:]
+
+
+# ── workspaces ─────────────────────────────────
+@safe
+def switch_workspace(n):
+    """Switch to workspace n (1-10)."""
+    n = _int(n, 1, 10, "workspace")
+    return _do(f"workspace {n}", ["hyprctl", "dispatch", "workspace", str(n)], f"workspace {n}")
+
+
+@safe
+def move_window_to_workspace(n):
+    """Move the focused window to workspace n (1-10), following it."""
+    n = _int(n, 1, 10, "workspace")
+    return _do(f"move window to workspace {n}", ["hyprctl", "dispatch", "movetoworkspace", str(n)],
+               f"window moved to workspace {n}")
+
+
+# ── theme ──────────────────────────────────────
+_NUM = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6",
+        "seven": "7", "eight": "8", "nine": "9", "ten": "10"}
+_ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7",
+          "viii": "8", "ix": "9", "x": "10"}
+
+
+def _preset_key(s):
+    """'MARK III' / 'mark three' / 'Mark 3' → 'mark3'."""
+    words = _norm(s).split()
+    out = []
+    for i, w in enumerate(words):
+        if w in _NUM:
+            w = _NUM[w]
+        elif w in _ROMAN and i > 0:  # only after a word: "mark iii", not a lone "i"
+            w = _ROMAN[w]
+        out.append(w)
+    return "".join(out)
+
+
+_PRESETS = (0.0, [])
+
+
+def theme_presets():
+    """Preset names from the HUD (built-ins + custom), [] if the HUD isn't running.
+    Cached for a few seconds: one spoken request asks several times."""
+    global _PRESETS
+    if time.monotonic() - _PRESETS[0] < 5 and _PRESETS[1]:
+        return _PRESETS[1]
+    rc, out, _ = _run(_qs("theme", "presets"), timeout=3)
+    try:
+        names = json.loads(out) if rc == 0 else []
+    except ValueError:
+        names = []
+    names = [n for n in names if isinstance(n, str)]
+    _PRESETS = (time.monotonic(), names)
+    return names
+
+
+def match_preset(spoken, presets=None):
+    presets = presets if presets is not None else theme_presets()
+    key = _preset_key(spoken)
+    for p in presets:
+        if _preset_key(p) == key:
+            return p
+    keys = {_preset_key(p): p for p in presets}
+    m = difflib.get_close_matches(key, list(keys), n=1, cutoff=0.8)
+    return keys[m[0]] if m else None
+
+
+@safe
+def set_theme(preset):
+    """Apply a HUD theme preset: built-in (STARK, MARK III, VIBRANIUM, MATRIX, ARCTIC, SOLAR) or a custom one."""
+    presets = theme_presets()
+    if not presets:
+        return {"ok": False, "error": "the HUD isn't running, so themes can't change"}
+    name = match_preset(str(preset), presets)
+    if not name:
+        raise Invalid(f"no theme preset \"{preset}\"; presets: {', '.join(presets)}")
+    r = _do(f"theme {name}", _qs("theme", "preset", name), f"theme {name}")
+    if r.get("ok") and not DRY_RUN and r.get("result", "").startswith("no preset"):
+        return {"ok": False, "error": r["result"]}
+    return r
+
+
+# ── lights (Govee strip via stark-govee) ───────
+LIGHT_MODES = ["auto", "music", "theme", "off"]
+_ANIMS = None
+
+
+def light_anims():
+    global _ANIMS
+    if _ANIMS is None:
+        _, out, err = _run(["stark-govee", "anim"])
+        m = re.search(r"animations:\s*(.+)", err or out)
+        _ANIMS = [a.strip() for a in m.group(1).split(",")] if m else []
+    return _ANIMS
+
+
+@safe
+def lights(action, value=""):
+    """Govee light strip. action: mode (value auto|music|theme|off), on, off, brightness (value 5-100 %), anim (value = animation name)."""
+    action = _choice(action, ["mode", "on", "off", "brightness", "anim"], "action")
+    if action == "off":
+        return _do("lights off", ["stark-govee", "mode", "off"], "lights off")
+    if action == "on":
+        return _do("lights on (auto)", ["stark-govee", "mode", "auto"], "lights on")
+    if action == "mode":
+        m = _choice(value, LIGHT_MODES, "mode")
+        return _do(f"lights mode {m}", ["stark-govee", "mode", m], f"lights {m}")
+    if action == "brightness":
+        pct = _int(str(value).rstrip("%"), 5, 100, "brightness")
+        return _do(f"lights {pct}%", ["stark-govee", "level", f"{pct / 100:.2f}"], f"lights at {pct}%")
+    names = light_anims()
+    a = _choice(value, names or ["boot"], "animation")
+    return _do(f"lights animation {a}", ["stark-govee", "anim", a], f"played {a}", timeout=20)
+
+
+# ── media ──────────────────────────────────────
+MEDIA_ACTIONS = ["play", "pause", "play_pause", "next", "previous", "volume_up", "volume_down",
+                 "set_volume", "mute", "unmute"]
+SINK = "@DEFAULT_AUDIO_SINK@"
+
+
+@safe
+def media(action, value=""):
+    """Music / volume. action: play, pause, play_pause, next, previous, volume_up, volume_down, set_volume (value 0-100), mute, unmute."""
+    action = _choice(action, MEDIA_ACTIONS, "action")
+    simple = {
+        "play": ["playerctl", "play"], "pause": ["playerctl", "pause"],
+        "play_pause": ["playerctl", "play-pause"], "next": ["playerctl", "next"],
+        "previous": ["playerctl", "previous"],
+        # same commands as the volume keys in hyprland.conf
+        "volume_up": ["wpctl", "set-volume", "-l", "1", SINK, "10%+"],
+        "volume_down": ["wpctl", "set-volume", SINK, "10%-"],
+        "mute": ["wpctl", "set-mute", SINK, "1"], "unmute": ["wpctl", "set-mute", SINK, "0"],
+    }
+    if action in simple:
+        r = _do(action.replace("_", " "), simple[action], action.replace("_", " "))
+        if not r["ok"] and "No players found" in r.get("error", ""):
+            r["error"] = "nothing is playing"
+        return r
+    pct = _int(str(value).rstrip("%"), 0, 100, "volume")
+    return _do(f"volume {pct}%", ["wpctl", "set-volume", "-l", "1", SINK, f"{pct / 100:.2f}"], f"volume {pct}%")
+
+
+@safe
+def what_is_playing():
+    """Current track (title, artist, player, playing/paused) and output volume."""
+    rc, out, _ = _run(["playerctl", "-a", "metadata", "--format",
+                       "{{status}}\t{{playerName}}\t{{artist}}\t{{title}}"])
+    players = [l.split("\t") for l in out.splitlines() if l.count("\t") == 3] if rc == 0 else []
+    players.sort(key=lambda p: p[0] != "Playing")
+    vol = None
+    rc2, vout, _ = _run(["wpctl", "get-volume", SINK])
+    m = re.search(r"([\d.]+)", vout or "")
+    if rc2 == 0 and m:
+        vol = round(float(m.group(1)) * 100)
+    if not players:
+        return {"ok": True, "playing": False, "volume": vol}
+    status, player, artist, title = players[0]
+    return {"ok": True, "playing": status == "Playing", "status": status.lower(), "player": player,
+            "artist": artist, "title": title, "volume": vol, "muted": "MUTED" in (vout or "")}
+
+
+# ── system status ──────────────────────────────
+def _read(path, default=""):
+    try:
+        return Path(path).read_text().strip()
+    except OSError:
+        return default
+
+
+def _hwmon(name):
+    for d in glob.glob("/sys/class/hwmon/hwmon*"):
+        if _read(f"{d}/name") == name:
+            return d
+    return None
+
+
+def _cpu_percent(sample=0.15):
+    def snap():
+        f = [int(x) for x in _read("/proc/stat").splitlines()[0].split()[1:]]
+        return sum(f), f[3] + f[4]
+    t1, i1 = snap()
+    time.sleep(sample)
+    t2, i2 = snap()
+    return round(100 * (1 - (i2 - i1) / max(1, t2 - t1)))
+
+
+def docked():
+    rc, out, _ = _run(["hyprctl", "monitors", "-j"])
+    try:
+        return any(not m["name"].startswith("eDP") for m in json.loads(out)) if rc == 0 else False
+    except (ValueError, KeyError):
+        return False
+
+
+def combat_mode():
+    try:
+        return bool(json.loads(_read(RUNTIME / "stark-game/state.json", "{}")).get("active"))
+    except ValueError:
+        return False
+
+
+@safe
+def system_status():
+    """Battery, temperatures, CPU/RAM use, network, VPN, docked or not, combat mode."""
+    s = {"ok": True}
+    cap = _read("/sys/class/power_supply/BAT0/capacity")
+    if cap:
+        s["battery"] = {"percent": int(cap), "status": _read("/sys/class/power_supply/BAT0/status").lower(),
+                        "ac": _read("/sys/class/power_supply/AC/online") == "1"}
+    temps = {}
+    ct = _hwmon("coretemp")  # cheap reads; nvme / dell_smm are slow (BIOS SMM)
+    if ct:
+        for lab in glob.glob(f"{ct}/temp*_label"):
+            if _read(lab).startswith("Package"):
+                temps["cpu_c"] = int(_read(lab.replace("_label", "_input"), "0")) // 1000
+    ddv = _hwmon("dell_ddv")
+    if ddv:
+        vals = [int(_read(p, "0")) // 1000 for p in glob.glob(f"{ddv}/temp*_input")]
+        if vals:
+            temps["max_board_c"] = max(vals)
+    s["temps"] = temps
+    s["cpu_percent"] = _cpu_percent()
+    mem = dict(l.split(":", 1) for l in _read("/proc/meminfo").splitlines() if ":" in l)
+    total = int(mem["MemTotal"].split()[0])
+    avail = int(mem["MemAvailable"].split()[0])
+    s["ram"] = {"used_percent": round(100 * (1 - avail / total)), "total_gb": round(total / 1048576, 1)}
+    rc, out, _ = _run(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show", "--active"])
+    s["network"] = [l.split(":")[0] for l in out.splitlines()
+                    if l and ":loopback" not in l and ":dummy" not in l] if rc == 0 else []
+    rc, out, _ = _run(["nmcli", "networking", "connectivity"])
+    s["connectivity"] = out or "unknown"
+    s["vpn"] = _vpn_summary(_vpn_state())
+    s["docked"] = docked()
+    s["combat_mode"] = combat_mode()
+    return s
+
+
+# ── VPN (stark-vpn) ────────────────────────────
+def _vpn_state():
+    rc, out, _ = _run(["stark-vpn", "status"], timeout=8)
+    try:
+        return json.loads(out) if rc == 0 else {}
+    except ValueError:
+        return {}
+
+
+def _vpn_summary(st):
+    active = st.get("active") or ""
+    p = next((p for p in st.get("providers", []) if p.get("id") == active), {})
+    return {"active": active or None, "state": p.get("state", "disconnected"),
+            "server": p.get("server"), "country": p.get("country"),
+            "kill_switch": next((q.get("killSwitch") for q in st.get("providers", []) if q.get("id") == "proton"), None)}
+
+
+@safe
+def vpn(action):
+    """VPN. action: status, connect_proton, disconnect, open_school_login (opens the UWaterloo login window; Jarvis never handles its credentials), killswitch_on, killswitch_off."""
+    action = _choice(action, ["status", "connect_proton", "disconnect", "open_school_login",
+                              "killswitch_on", "killswitch_off"], "action")
+    if action == "status":
+        return {"ok": True, **_vpn_summary(_vpn_state())}
+    if action in ("connect_proton", "disconnect"):
+        # Through the HUD (VPN.qml runs stark-vpn detached and shows progress), so this
+        # returns at once instead of blocking ~10 s; stark-vpn directly if the HUD is down.
+        on = action == "connect_proton"
+        r = _do("connect Proton VPN" if on else "disconnect VPN",
+                _qs("vpn", "connect", "proton") if on else _qs("vpn", "disconnect"),
+                "Proton connecting; the HUD shows when it's up" if on else "VPN disconnecting")
+        if r["ok"]:
+            return r
+        return _do("", ["stark-vpn", "connect", "proton"] if on else ["stark-vpn", "disconnect"],
+                   "Proton connected" if on else "VPN disconnected", timeout=45)
+    if action == "open_school_login":
+        st = _vpn_summary(_vpn_state())
+        if st["active"] == "school" and st["state"] in ("connected", "connecting"):
+            return {"ok": True, "result": f"school VPN already {st['state']}"}
+        # toggle = the HUD's own path: opens the floating auth window
+        return _do("open school VPN login", _qs("vpn", "toggle", "school"), "school VPN login window opened")
+    on = action == "killswitch_on"
+    return _do(f"Proton kill switch {'on' if on else 'off'}", ["stark-vpn", "killswitch", "on" if on else "off"],
+               f"kill switch {'on' if on else 'off'}", timeout=15)
+
+
+# ── UW CS servers ──────────────────────────────
+def uwcs_hosts():
+    """Host suffixes from ~/.ssh/config: '' (load-balanced) plus 002, 004, …"""
+    hosts = set()
+    for line in _read(HOME / ".ssh/config").splitlines():
+        m = re.match(r"\s*Host\s+(.+)", line)
+        if m:
+            hosts |= {h[5:] for h in m.group(1).split() if re.fullmatch(r"uwcs-\d{3}", h)}
+    return sorted(hosts)
+
+
+@safe
+def open_uwcs(host="", folder=""):
+    """Open VS Code on the UWaterloo CS servers. host: "" (load-balanced) or a server number like 004; folder: optional path on the server, e.g. ~/cs136."""
+    h = re.sub(r"^(uwcs-?|ubuntu2404-?)", "", str(host or "").strip().lower())
+    if h:
+        h = h.zfill(3) if h.isdigit() else h
+        allowed = uwcs_hosts()
+        if h not in allowed:
+            raise Invalid(f"host must be one of: uwcs, {', '.join(allowed)}")
+    folder = str(folder or "").strip()
+    if folder and not re.fullmatch(r"~?[\w./-]{1,120}", folder) or ".." in folder:
+        raise Invalid("folder must be a plain path like ~/cs136")
+    # fish single quotes keep ~ for the server to expand (the regex rules out quotes)
+    inner = "uwcs" + (f" '{h}'" if h or folder else "") + (f" '{folder}'" if folder else "")
+    cmd = "fish -c " + shlex.quote(inner)
+    where = f"uwcs-{h}" if h else "uwcs"
+    return _do(f"VS Code on {where} {folder}".strip(), _hypr_exec(cmd), f"opening VS Code on {where}")
+
+
+# ── lock / power ───────────────────────────────
+@safe
+def lock_screen():
+    """Lock the screen."""
+    return _do("lock screen", _qs("stark", "lock"), "locked")
+
+
+POWER = {"suspend": "suspend the system", "shutdown": "shut down", "reboot": "restart", "logout": "log you out"}
+
+
+@safe
+def power(action):
+    """Power. action: suspend, shutdown, reboot, logout. Always needs confirmation."""
+    action = _choice(action, list(POWER), "action")
+    if action == "suspend":
+        return _do("suspend", ["stark-govee", "suspend"], "suspending", timeout=15)  # same as the power menu
+    return _do(action, _qs("stark", "power", action), f"{action} started")
+
+
+# ── timers / reminders ─────────────────────────
+@safe
+def set_timer(minutes, label=""):
+    """Start a timer; spoken and shown on the HUD when it ends. minutes: 0.1-1440; label optional."""
+    try:
+        m = float(minutes)
+    except (TypeError, ValueError):
+        raise Invalid("minutes must be a number")
+    if not 0.1 <= m <= 1440:
+        raise Invalid("minutes must be from 0.1 to 1440")
+    label = " ".join(str(label or "").split())[:80]
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"timer {m:g} min {label}".strip()}
+    rid = db.add_reminder(time.time() + m * 60, label or "timer", "timer")
+    return {"ok": True, "id": rid, "ends": datetime.fromtimestamp(time.time() + m * 60).strftime("%H:%M:%S")}
+
+
+def parse_when(when, now=None):
+    """'HH:MM' (24 h, or with am/pm) → next such time; ISO 'YYYY-MM-DDTHH:MM' → that time."""
+    now = now or datetime.now()
+    w = str(when or "").strip().lower().replace(".", "")
+    try:
+        t = datetime.fromisoformat(w.upper().replace(" ", "T")) if re.match(r"\d{4}-\d\d-\d\d", w) else None
+    except ValueError:
+        t = None
+    if t is None:
+        m = re.fullmatch(r"(\d{1,2})(?::(\d\d))?\s*(am|pm)?", w)
+        if not m:
+            raise Invalid("when must be HH:MM, h:mm am/pm, or YYYY-MM-DDTHH:MM (local time)")
+        h, mi, ap = int(m.group(1)), int(m.group(2) or 0), m.group(3)
+        if ap:
+            if not 1 <= h <= 12:
+                raise Invalid("hour must be 1-12 with am/pm")
+            h = h % 12 + (12 if ap == "pm" else 0)
+        if h > 23 or mi > 59:
+            raise Invalid("not a valid time")
+        t = now.replace(hour=h, minute=mi, second=0, microsecond=0)
+        if t <= now:
+            t += timedelta(days=1)
+    if t <= now:
+        raise Invalid("that time has already passed")
+    if t - now > timedelta(days=60):
+        raise Invalid("reminders can be at most 60 days ahead")
+    return t
+
+
+@safe
+def set_reminder(when, text):
+    """Reminder at a local time. when: HH:MM, h:mm am/pm, or YYYY-MM-DDTHH:MM; text: what to remind about."""
+    t = parse_when(when)
+    text = " ".join(str(text or "").split())[:160]
+    if not text:
+        raise Invalid("text is required")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"reminder {t:%a %H:%M}: {text}"}
+    rid = db.add_reminder(t.timestamp(), text, "reminder")
+    return {"ok": True, "id": rid, "at": t.strftime("%a %d %b %H:%M")}
+
+
+@safe
+def list_reminders():
+    """Pending timers and reminders (id, kind, text, due time)."""
+    now = time.time()
+    return {"ok": True, "items": [
+        {"id": r["id"], "kind": r["kind"], "text": r["text"],
+         "due": datetime.fromtimestamp(r["due"]).strftime("%a %H:%M:%S"),
+         "minutes_left": round((r["due"] - now) / 60, 1)} for r in db.pending_reminders()]}
+
+
+@safe
+def cancel_reminder(id):
+    """Cancel a pending timer/reminder by id (from list_reminders). Needs confirmation."""
+    rid = _int(id, 1, 10**9, "id")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"cancel reminder {rid}"}
+    r = db.cancel_reminder(rid)
+    return {"ok": True, "cancelled": r["text"]}
+
+
+# ── memory ─────────────────────────────────────
+@safe
+def remember(fact):
+    """Store a fact Trevor explicitly asked you to remember."""
+    fact = str(fact or "").strip()
+    if len(fact) < 3:
+        raise Invalid("fact is too short")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"remember: {fact}"}
+    return {"ok": True, "stored": db.remember(fact)}
+
+
+@safe
+def recall(query=""):
+    """Search remembered facts (empty query = list all). Returns ids for forget."""
+    q = str(query or "").strip()
+    facts = db.recall(q, limit=8) if q else db.all_facts()[-30:]
+    return {"ok": True, "facts": facts}
+
+
+@safe
+def forget(fact_id):
+    """Delete one remembered fact by id (from recall). Needs confirmation."""
+    fid = _int(fact_id, 1, 10**9, "fact_id")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"forget fact {fid}"}
+    return {"ok": True, "forgot": db.forget(fid)}
+
+
+def fact_text(fact_id):
+    try:
+        return next((f["fact"] for f in db.all_facts() if f["id"] == int(fact_id)), None)
+    except (TypeError, ValueError):
+        return None
+
+
+# ── browser ────────────────────────────────────
+@safe
+def open_in_browser(query):
+    """Open claude.ai in the browser with a question. ONLY when Trevor explicitly says to open it in the browser."""
+    q = " ".join(str(query or "").split())[:2000]
+    url = f"{CLAUDE_URL}?q={urllib.parse.quote(q)}" if q else CLAUDE_URL
+    return _do(f"browser: {url[:80]}", _hypr_exec(f"zen-browser --new-window {shlex.quote(url)}"), "opened in the browser")
+
+
+# ── registry, confirmation policy, HUD labels ──
+TOOLS = {f.__name__: f for f in [
+    open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
+    media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
+    set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser,
+]}
+
+
+def confirmation_prompt(tool, args):
+    """Spoken question if this call needs Trevor's "yes" first, else None.
+
+    Enforced by Jarvis itself (not the model): power, closing windows, deleting
+    anything, the Proton kill switch.
+    """
+    a = args or {}
+    if tool == "power":
+        what = POWER.get(str(a.get("action", "")).lower())
+        return f"Shall I {what}, sir?" if what else None   # invalid action fails validation anyway
+    if tool == "close_focused_window":
+        return f"Close {focused_window_name()}, sir?"
+    if tool == "forget":
+        f = fact_text(a.get("fact_id"))
+        return f"Forget that {f.rstrip('.!')}, sir?" if f else "Forget that, sir?"
+    if tool == "cancel_reminder":
+        return "Cancel that reminder, sir?"
+    if tool == "vpn" and str(a.get("action", "")).lower() == "killswitch_on":
+        return "Turn on the Proton kill switch, sir? It cuts the internet if the tunnel drops."
+    return None
+
+
+def tool_label(tool, args):
+    """HUD line for a running tool, e.g. 'THEME → MARK III'."""
+    a = args or {}
+    v = lambda k: str(a.get(k, "")).replace("_", " ").upper()
+    labels = {
+        "open_app": lambda: f"OPEN → {v('name')}",
+        "close_focused_window": lambda: "WINDOW → CLOSE",
+        "switch_workspace": lambda: f"WORKSPACE → {v('n')}",
+        "move_window_to_workspace": lambda: f"MOVE → WS {v('n')}",
+        "set_theme": lambda: f"THEME → {match_preset(str(a.get('preset', ''))) or v('preset')}",
+        "lights": lambda: f"LIGHTS → {v('action')} {v('value')}".strip(),
+        "media": lambda: f"MEDIA → {v('action')} {v('value')}".strip(),
+        "what_is_playing": lambda: "MEDIA → NOW PLAYING",
+        "system_status": lambda: "SYSTEM → STATUS",
+        "vpn": lambda: {"CONNECT PROTON": "VPN → PROTON", "OPEN SCHOOL LOGIN": "VPN → SCHOOL"}.get(v("action"), f"VPN → {v('action')}"),
+        "open_uwcs": lambda: f"UW CS → {v('host') or 'UWCS'}",
+        "lock_screen": lambda: "SYSTEM → LOCK",
+        "power": lambda: f"POWER → {v('action')}",
+        "set_timer": lambda: f"TIMER → {v('minutes')} MIN",
+        "set_reminder": lambda: f"REMINDER → {v('when')}",
+        "list_reminders": lambda: "REMINDERS → LIST",
+        "cancel_reminder": lambda: "REMINDER → CANCEL",
+        "remember": lambda: "MEMORY → STORE",
+        "recall": lambda: "MEMORY → RECALL",
+        "forget": lambda: "MEMORY → FORGET",
+        "open_in_browser": lambda: "BROWSER → CLAUDE",
+    }
+    try:
+        return labels[tool]()
+    except Exception:
+        return tool.replace("_", " ").upper()

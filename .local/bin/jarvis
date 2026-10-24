@@ -1,0 +1,3 @@
+#!/bin/sh
+# JARVIS from the shell: jarvis --text "set the theme to matrix"  (see ~/.config/jarvis/jarvis.py)
+exec setpriv --no-new-privs "$HOME/.config/jarvis/.venv/bin/python" "$HOME/.config/jarvis/jarvis.py" "$@"
