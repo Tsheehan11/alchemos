@@ -52,13 +52,15 @@ then put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx GitHub relea
 ## Jarvis
 
 "Hey Jarvis" (openWakeWord) → faster-whisper `base.en` → a regex fast path for everyday commands
-(media, lights, workspaces, VPN, themes, timers: 5–40 ms, no AI) → otherwise Claude through the
-Agent SDK on the `claude` login: Haiku by default, Sonnet for longer or "explain / plan" requests.
+(media, lights, workspaces, VPN, themes, timers, weather, CPU temp: 5–40 ms, no AI) → otherwise Claude
+through the Agent SDK on the `claude` login: Haiku by default, Sonnet for longer or "explain / plan"
+requests, its reply spoken sentence by sentence as it streams. About 0.6–1 s from the end of your
+sentence to Jarvis's voice on the fast path, about 2–3 s on Claude.
 Runs only while docked (Settings → JARVIS), started by the HUD under `setpriv --no-new-privs`.
 
 - **Tools, not a shell.** Claude gets no built-in tools, only the STARK MCP server
-  (`mcp/stark_tools.py`, 21 validated tools: apps, windows, workspaces, themes, lights, media, VPN,
-  UW CS servers, timers / reminders, memory, power). Jarvis enforces the rules itself in the SDK's
+  (`mcp/stark_tools.py`, 22 validated tools: apps, windows, workspaces, themes, lights, media, VPN,
+  UW CS servers, timers / reminders, memory, power, weather via Open-Meteo for `jarvisPlace`). Jarvis enforces the rules itself in the SDK's
   permission callback: at most 8 tool calls per request, a 30 s timeout, the browser only when asked,
   and a spoken "yes" before power actions, closing windows, deleting, the kill switch, or anything
   that sends a message. Tool output is treated as data. No network listeners; works with Proton VPN on.
@@ -66,14 +68,22 @@ Runs only while docked (Settings → JARVIS), started by the HUD under `setpriv 
   tool of a new server needs a spoken yes unless listed in `auto_allow`.
 - **Voice.** Kokoro (`bm_lewis` by default) with piper as fallback, then an effect chain (pedalboard):
   presets CLEAN / HOLOGRAM / SUIT in `effects.json`; AUTO uses SUIT on headphones and HOLOGRAM on
-  speakers. The first sentence plays while the rest render; short stock lines are cached.
+  speakers. Text is normalized first (`core/speech.py`: "16:07" → "four oh seven PM", dates, units,
+  symbols; `python tests/test_speech.py`). The first sentence plays while the rest render; short
+  stock lines are cached.
   `jarvis-voices` auditions every British male voice. Without headphones, Jarvis can talk through a
-  paired Bluetooth speaker (Settings → JARVIS → Speaker), connecting when it hears the wake word.
-- **Mic.** `jarvisMic` picks the PipeWire source (the laptop mic at the desk); Silero VAD decides when
-  you've finished. Barge in with "Hey Jarvis" while it talks or thinks; follow-ups need no wake word
-  for 8 s.
+  paired Bluetooth speaker (Settings → JARVIS → Speaker), connecting when it hears the wake word; if
+  it isn't up within 1.5 s, that reply plays on the laptop.
+- **Hearing** (`core/hearing.py`, tuned on recordings). `jarvisMic` picks the PipeWire source (the
+  laptop mic at the desk). The command starts from just before the wake word, so "hey Jarvis dim the
+  lights" in one breath keeps every word; Silero VAD ends it after 0.56 s of silence; whisper gets a
+  vocabulary prompt. Music is turned down while it listens. Barge in with "Hey Jarvis" while it talks or
+  thinks; follow-ups need no wake word for 8 s. It never goes quiet after the chime: anything that
+  fails gets a short spoken line and the reason on the toast.
 - **CLI.** `jarvis --text "…"` (add `--dry-run` to only show what it would do), `--misses` (requests
   the fast path missed), `--log`, `--facts`, `--reminders`, `--say "…"`. Log: `~/.local/share/jarvis/jarvis.log`.
+  `jarvis --trace` follows every exchange stage by stage (wake score, VAD, transcript, route, latency);
+  `jarvis --record [MIN]` keeps WAVs of each exchange in `~/.local/state/jarvis/rec` for tuning.
 - Secrets, if a phase-2 service ever needs one, go in gnome-keyring (`core/secrets.py`), never in tracked files.
 
 ## Lock screen, fingerprint and faillock
