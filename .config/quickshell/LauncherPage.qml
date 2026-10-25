@@ -50,6 +50,148 @@ Column {
         color: Theme.faint; font.family: lp.mono; font.pixelSize: 11
     }
 
+    // ── Add / reset (above the list, so the panels open where you can see them) ──
+    Row {
+        spacing: 10
+        SmallButton { text: "+ ADD APP"; active: lp.adding === "app"; opacity: LauncherApps.full ? 0.35 : 1; onClicked: if (!LauncherApps.full) lp.startAdding("app") }
+        SmallButton { text: "+ ADD CUSTOM"; active: lp.adding === "custom"; opacity: LauncherApps.full ? 0.35 : 1; onClicked: if (!LauncherApps.full) lp.startAdding("custom") }
+        ConfirmButton {
+            label: "RESET TO DEFAULTS"
+            width: 180
+            onConfirmed: { lp.editing = ""; lp.adding = ""; LauncherApps.reset(); lp.note = "✓ Launcher reset to the default apps"; }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: LauncherApps.full
+            text: "Ring is full (" + LauncherApps.maxApps + " max) — remove one to add another"
+            color: Theme.secondary; font.family: lp.mono; font.pixelSize: 11
+        }
+    }
+    Text {
+        visible: lp.note !== ""
+        text: lp.note
+        color: lp.note.startsWith("✕") ? Theme.secondary : Theme.primary
+        font.family: lp.mono; font.pixelSize: 12
+    }
+
+    // ── Add app: search installed apps ──
+    Column {
+        id: picker
+        visible: lp.adding === "app"
+        width: parent.width
+        spacing: 6
+        readonly property var added: LauncherApps.list.map(a => a.desktopId).filter(d => d)
+        readonly property var results: {
+            const q = search.text.toLowerCase().trim();
+            const all = DesktopEntries.applications.values.filter(e => !e.noDisplay);
+            const score = e => {
+                const n = (e.name || "").toLowerCase(), g = (e.genericName || "").toLowerCase();
+                if (!q) return 1;
+                if (n.startsWith(q)) return 100;
+                if (n.split(/[\s\-_.]+/).some(w => w.startsWith(q))) return 80;
+                if (n.includes(q)) return 60;
+                if (g.includes(q)) return 45;
+                if ((e.keywords || []).some(k => k.toLowerCase().startsWith(q))) return 30;
+                return 0;
+            };
+            return all.map(e => ({ e: e, s: score(e) })).filter(x => x.s > 0)
+                      .sort((a, b) => (b.s - a.s) || a.e.name.localeCompare(b.e.name))
+                      .slice(0, 8).map(x => x.e);
+        }
+        function pick(e) {
+            if (LauncherApps.full) return;
+            LauncherApps.addDesktop(e);
+            lp.note = "✓ Added " + e.name + " as #" + LauncherApps.list.length;
+            lp.finishAdding();
+        }
+
+        Row {
+            spacing: 10
+            HudInput {
+                id: search
+                width: 360
+                placeholder: "Search installed apps…"
+                onAccepted: if (picker.results.length) picker.pick(picker.results[0])
+                onCancelled: lp.finishAdding()
+            }
+            SmallButton { text: "CANCEL"; onClicked: lp.finishAdding() }
+        }
+        Repeater {
+            model: picker.results
+            delegate: Rectangle {
+                id: hit
+                required property var modelData
+                readonly property bool already: picker.added.indexOf(modelData.id) >= 0
+                readonly property string iconSrc: Quickshell.iconPath(modelData.icon, true)
+                width: picker.width; height: 42
+                color: hitMa.containsMouse ? Theme.p(0.12) : "transparent"
+                border.color: hitMa.containsMouse ? Theme.p(0.5) : Theme.p(0.12)
+                Row {
+                    x: 12; anchors.verticalCenter: parent.verticalCenter
+                    spacing: 12
+                    Item {
+                        width: 26; height: 26
+                        Image { anchors.fill: parent; source: hit.iconSrc; sourceSize: Qt.size(64, 64); visible: hit.iconSrc !== "" && status === Image.Ready }
+                        Text { anchors.centerIn: parent; visible: hit.iconSrc === ""; text: (hit.modelData.name || "?").charAt(0); color: Theme.primary; font.family: lp.mono; font.pixelSize: 13 }
+                    }
+                    Text { text: hit.modelData.name; color: Theme.text; font.family: lp.mono; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: hit.modelData.genericName || ""; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                }
+                Text {
+                    anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
+                    text: hit.already ? "ON THE RING" : "ADD"
+                    color: hit.already ? Theme.faint : Theme.secondary
+                    font.family: lp.mono; font.pixelSize: 10; font.letterSpacing: 2
+                }
+                MouseArea { id: hitMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: picker.pick(hit.modelData) }
+            }
+        }
+        Text {
+            visible: picker.results.length === 0
+            text: "No installed app matches “" + search.text + "”"
+            color: Theme.faint; font.family: lp.mono; font.pixelSize: 12
+        }
+    }
+
+    // ── Add custom command ──
+    Column {
+        id: custom
+        visible: lp.adding === "custom"
+        width: parent.width
+        spacing: 8
+        function commit() {
+            if (cExec.text.trim() === "") { lp.note = "✕ Enter a command to run"; cExec.focusInput(); return; }
+            LauncherApps.addCommand(cName.text, cExec.text, cIcon.text);
+            lp.note = "✓ Added " + (LauncherApps.raw[LauncherApps.raw.length - 1] || {}).name + " as #" + LauncherApps.list.length;
+            lp.finishAdding();
+        }
+        Row {
+            spacing: 10
+            Text { width: 80; text: "COMMAND"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+            HudInput { id: cExec; width: 480; placeholder: "kitty -e btop   ·   code ~/cs137   ·   ~/bin/script.sh"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
+        }
+        Row {
+            spacing: 10
+            Text { width: 80; text: "NAME"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+            HudInput { id: cName; width: 220; maximumLength: 16; placeholder: "blank = command name"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
+        }
+        Row {
+            spacing: 10
+            Text { width: 80; text: "ICON"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+            HudInput { id: cIcon; width: 360; placeholder: "theme icon name or file path (optional)"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
+            Image { width: 28; height: 28; anchors.verticalCenter: parent.verticalCenter; sourceSize: Qt.size(64, 64); source: LauncherApps.iconSource(cIcon.text.trim()) }
+        }
+        Text {
+            text: "Runs through Hyprland, so it keeps running if the HUD restarts. ~ works in paths."
+            color: Theme.faint; font.family: lp.mono; font.pixelSize: 10
+        }
+        Row {
+            spacing: 10
+            SmallButton { text: "ADD"; onClicked: custom.commit() }
+            SmallButton { text: "CANCEL"; onClicked: lp.finishAdding() }
+        }
+    }
+
     // ── The ring, in launch order ──
     Column {
         width: parent.width
@@ -263,145 +405,4 @@ Column {
         }
     }
 
-    // ── Add / reset ──
-    Row {
-        spacing: 10
-        SmallButton { text: "+ ADD APP"; active: lp.adding === "app"; opacity: LauncherApps.full ? 0.35 : 1; onClicked: if (!LauncherApps.full) lp.startAdding("app") }
-        SmallButton { text: "+ ADD CUSTOM"; active: lp.adding === "custom"; opacity: LauncherApps.full ? 0.35 : 1; onClicked: if (!LauncherApps.full) lp.startAdding("custom") }
-        ConfirmButton {
-            label: "RESET TO DEFAULTS"
-            width: 180
-            onConfirmed: { lp.editing = ""; lp.adding = ""; LauncherApps.reset(); lp.note = "✓ Launcher reset to the default apps"; }
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: LauncherApps.full
-            text: "Ring is full (" + LauncherApps.maxApps + " max) — remove one to add another"
-            color: Theme.secondary; font.family: lp.mono; font.pixelSize: 11
-        }
-    }
-    Text {
-        visible: lp.note !== ""
-        text: lp.note
-        color: lp.note.startsWith("✕") ? Theme.secondary : Theme.primary
-        font.family: lp.mono; font.pixelSize: 12
-    }
-
-    // ── Add app: search installed apps ──
-    Column {
-        id: picker
-        visible: lp.adding === "app"
-        width: parent.width
-        spacing: 6
-        readonly property var added: LauncherApps.list.map(a => a.desktopId).filter(d => d)
-        readonly property var results: {
-            const q = search.text.toLowerCase().trim();
-            const all = DesktopEntries.applications.values.filter(e => !e.noDisplay);
-            const score = e => {
-                const n = (e.name || "").toLowerCase(), g = (e.genericName || "").toLowerCase();
-                if (!q) return 1;
-                if (n.startsWith(q)) return 100;
-                if (n.split(/[\s\-_.]+/).some(w => w.startsWith(q))) return 80;
-                if (n.includes(q)) return 60;
-                if (g.includes(q)) return 45;
-                if ((e.keywords || []).some(k => k.toLowerCase().startsWith(q))) return 30;
-                return 0;
-            };
-            return all.map(e => ({ e: e, s: score(e) })).filter(x => x.s > 0)
-                      .sort((a, b) => (b.s - a.s) || a.e.name.localeCompare(b.e.name))
-                      .slice(0, 8).map(x => x.e);
-        }
-        function pick(e) {
-            if (LauncherApps.full) return;
-            LauncherApps.addDesktop(e);
-            lp.note = "✓ Added " + e.name + " as #" + LauncherApps.list.length;
-            lp.finishAdding();
-        }
-
-        Row {
-            spacing: 10
-            HudInput {
-                id: search
-                width: 360
-                placeholder: "Search installed apps…"
-                onAccepted: if (picker.results.length) picker.pick(picker.results[0])
-                onCancelled: lp.finishAdding()
-            }
-            SmallButton { text: "CANCEL"; onClicked: lp.finishAdding() }
-        }
-        Repeater {
-            model: picker.results
-            delegate: Rectangle {
-                id: hit
-                required property var modelData
-                readonly property bool already: picker.added.indexOf(modelData.id) >= 0
-                readonly property string iconSrc: Quickshell.iconPath(modelData.icon, true)
-                width: picker.width; height: 42
-                color: hitMa.containsMouse ? Theme.p(0.12) : "transparent"
-                border.color: hitMa.containsMouse ? Theme.p(0.5) : Theme.p(0.12)
-                Row {
-                    x: 12; anchors.verticalCenter: parent.verticalCenter
-                    spacing: 12
-                    Item {
-                        width: 26; height: 26
-                        Image { anchors.fill: parent; source: hit.iconSrc; sourceSize: Qt.size(64, 64); visible: hit.iconSrc !== "" && status === Image.Ready }
-                        Text { anchors.centerIn: parent; visible: hit.iconSrc === ""; text: (hit.modelData.name || "?").charAt(0); color: Theme.primary; font.family: lp.mono; font.pixelSize: 13 }
-                    }
-                    Text { text: hit.modelData.name; color: Theme.text; font.family: lp.mono; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: hit.modelData.genericName || ""; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
-                }
-                Text {
-                    anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
-                    text: hit.already ? "ON THE RING" : "ADD"
-                    color: hit.already ? Theme.faint : Theme.secondary
-                    font.family: lp.mono; font.pixelSize: 10; font.letterSpacing: 2
-                }
-                MouseArea { id: hitMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: picker.pick(hit.modelData) }
-            }
-        }
-        Text {
-            visible: picker.results.length === 0
-            text: "No installed app matches “" + search.text + "”"
-            color: Theme.faint; font.family: lp.mono; font.pixelSize: 12
-        }
-    }
-
-    // ── Add custom command ──
-    Column {
-        id: custom
-        visible: lp.adding === "custom"
-        width: parent.width
-        spacing: 8
-        function commit() {
-            if (cExec.text.trim() === "") { lp.note = "✕ Enter a command to run"; cExec.focusInput(); return; }
-            LauncherApps.addCommand(cName.text, cExec.text, cIcon.text);
-            lp.note = "✓ Added " + (LauncherApps.raw[LauncherApps.raw.length - 1] || {}).name + " as #" + LauncherApps.list.length;
-            lp.finishAdding();
-        }
-        Row {
-            spacing: 10
-            Text { width: 80; text: "COMMAND"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
-            HudInput { id: cExec; width: 480; placeholder: "kitty -e btop   ·   code ~/cs137   ·   ~/bin/script.sh"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
-        }
-        Row {
-            spacing: 10
-            Text { width: 80; text: "NAME"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
-            HudInput { id: cName; width: 220; maximumLength: 16; placeholder: "blank = command name"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
-        }
-        Row {
-            spacing: 10
-            Text { width: 80; text: "ICON"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
-            HudInput { id: cIcon; width: 360; placeholder: "theme icon name or file path (optional)"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
-            Image { width: 28; height: 28; anchors.verticalCenter: parent.verticalCenter; sourceSize: Qt.size(64, 64); source: LauncherApps.iconSource(cIcon.text.trim()) }
-        }
-        Text {
-            text: "Runs through Hyprland, so it keeps running if the HUD restarts. ~ works in paths."
-            color: Theme.faint; font.family: lp.mono; font.pixelSize: 10
-        }
-        Row {
-            spacing: 10
-            SmallButton { text: "ADD"; onClicked: custom.commit() }
-            SmallButton { text: "CANCEL"; onClicked: lp.finishAdding() }
-        }
-    }
 }

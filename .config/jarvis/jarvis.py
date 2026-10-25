@@ -86,6 +86,23 @@ def open_log():
     LOG_FILE = open(path, "a", encoding="utf-8")
 
 
+def govee_pulse():
+    """A small light swell on the strip with the chime (stark-govee skips it if the strip is off or busy).
+    Straight to the daemon's Unix socket, fire and forget: no process, never delays listening."""
+    import socket
+    path = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}", "stark-govee.sock")
+
+    def send():
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.settimeout(1)
+                s.connect(path)
+                s.sendall(b"anim listen\n")
+        except OSError:
+            pass                                   # no strip / daemon: nothing to do
+    threading.Thread(target=send, daemon=True).start()
+
+
 def is_yes(text):
     t = text.lower()
     return bool(YES.search(t)) and not NO.search(t)
@@ -675,6 +692,7 @@ class VoiceLoop:
             log("JARVIS: wake word")
             self.wake.reset()     # else its buffer still holds "hey Jarvis" and fires again mid-reply
             self.voice.chime()
+            govee_pulse()
             hud.listening()
             self.voice.speaker.prepare()   # connect the Bluetooth speaker while Trevor talks
             if self.cfg["jarvisDuck"]:     # turn the music down so it isn't heard as the command

@@ -12,7 +12,8 @@ Usage:
   stark-govee daemon                    run the light daemon (Hyprland exec-once)
   stark-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
   stark-govee anim <name>               play an animation only (no lock/sleep state), for testing;
-                                        "alert" = desktop timer done (skipped when the strip is off)
+                                        "alert" = desktop timer done, "listen" = Jarvis heard you
+                                        (both skipped when the strip is off or busy)
   stark-govee speed <0.5-2.0>           animation speed multiplier
   stark-govee level <0.05-1.0>          steady-colour brightness (theme / manual modes)
   stark-govee suspend                   spiral the strip out, then systemctl suspend
@@ -641,9 +642,17 @@ def anim_alert(p, a, cur, fps, n):  # a desktop timer finished: three accent fla
     yield from fade(dim, p, 0.4, fps, n)
 
 
+def anim_listen(p, a, cur, fps, n):  # Jarvis heard "hey Jarvis": a quick swell toward the theme colour and back
+    cur = _seg(cur, n)
+    peak = [mix(c, scale(p, 1.0), 0.55) for c in cur]
+    yield from fade(cur, peak, 0.14, fps, n)
+    yield from fade(peak, cur, 0.38, fps, n)
+
+
 ANIMS = {"boot": anim_boot, "login": anim_login, "unlock": anim_unlock, "lock": anim_lock,
          "logout": anim_logout, "shutdown": anim_shutdown, "sleep": anim_sleep, "wake": anim_wake}
-EXTRA_ANIMS = {"theme": anim_theme, "park": anim_park, "alert": anim_alert}  # not system events; played by the daemon / `anim`
+EXTRA_ANIMS = {"theme": anim_theme, "park": anim_park, "alert": anim_alert, "listen": anim_listen}
+QUIET_ANIMS = {"alert", "listen"}   # only on a lit strip: never turn it on, wake it or override "off"  # not system events; played by the daemon / `anim`
 GOES_DARK = {"logout", "shutdown", "sleep"}
 
 
@@ -879,9 +888,9 @@ class Daemon:
                 self.event(parts[1], done)
                 continue
             if cmd == "anim" and len(parts) > 1 and (parts[1] in ANIMS or parts[1] in EXTRA_ANIMS):
-                if parts[1] == "alert" and (self.cfg.get("mode") == "off" or self.locked or self.asleep
-                                            or self.powered is not True):
-                    done.set()  # a timer flash never turns the strip on or wakes it
+                if parts[1] in QUIET_ANIMS and (self.cfg.get("mode") in ("off", "manual") or self.locked or self.asleep
+                                                or self.powered is not True or self.anim is not None):
+                    done.set()  # a timer flash / Jarvis pulse never turns the strip on, wakes it or cuts in
                 elif self.parked:  # the dock+home gate still applies to test runs
                     done.set()
                 else:
