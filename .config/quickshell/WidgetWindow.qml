@@ -1,14 +1,11 @@
 // A desktop widget: hologram card (HudFrame look) around a widgets/<Type>.qml body.
 //   • Unpinned it sits under your windows and hides when they cover the screen, like the
-//     clock and panels (Perf.hidden). Pinned (📌) it floats above them.
-//   • Drag it anywhere; on release it snaps to the nearest of the nine slots.
-//   • × closes it. Hover shows the buttons.
-// While dragging, the pointer position comes from Hyprland (hyprctl cursorpos, ~30×/s, only
-// during a drag): pointer coordinates inside a surface that is itself moving lag behind,
-// and growing the window to full screen dropped the pointer grab.
+//     clock and panels (Perf.hidden). Pinned (◆) it floats above them.
+//   • Drag it anywhere, onto any monitor: WidgetMoveOverlay takes over while it moves, and on
+//     release it snaps to the nearest of the nine slots there.
+//   • × closes it. Hover shows the buttons. Size (small → huge) scales the whole card.
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 
 PanelWindow {
@@ -17,6 +14,7 @@ PanelWindow {
     readonly property string wid: modelData
     readonly property var it: Widgets.get(wid)
     readonly property bool pinned: it ? it.pinned === true : false
+    readonly property real k: Widgets.sizes[it && it.size ? it.size : "normal"] || 1
 
     readonly property bool shown: it !== null && Theme.cfg.showWidgets
         && (pinned ? !Perf.locked && !(GameMode.quiet && Perf.gameScreens[screen?.name] === true)
@@ -37,44 +35,22 @@ PanelWindow {
     readonly property string pos: it ? it.position : "top-right"
     readonly property int col: pos.endsWith("left") ? 0 : pos.endsWith("right") ? 2 : 1
     readonly property int row: pos.startsWith("top") ? 0 : pos.startsWith("bottom") ? 2 : 1
+    readonly property real w: Math.ceil(card.width * k)
+    readonly property real h: Math.ceil(card.height * k)
     readonly property real stack: Widgets.stackOffset(wid)
-    readonly property real baseX: col === 0 ? edge : col === 2 ? sw - card.width - edge : Math.round((sw - card.width) / 2)
+    readonly property real baseX: col === 0 ? edge : col === 2 ? sw - w - edge : Math.round((sw - w) / 2)
     readonly property real baseY: row === 0 ? topInset + stack
-                                : row === 2 ? sh - edge - stack - card.height
+                                : row === 2 ? sh - edge - stack - h
                                 : Math.round((sh - Widgets.slotHeight(wid)) / 2) + stack
-
-    property bool dragging: false
-    property real dragX: 0
-    property real dragY: 0
+    onWChanged: Widgets.setSize(wid, w, h)
+    onHChanged: Widgets.setSize(wid, w, h)
+    Component.onCompleted: Widgets.setSize(wid, w, h)
+    Component.onDestruction: Widgets.setSize(wid, 0, 0)
 
     anchors { top: true; left: true }
-    margins { top: dragging ? dragY : baseY; left: dragging ? dragX : baseX }
-    implicitWidth: card.width
-    implicitHeight: card.height
-
-    // ── drag: follow the global cursor ──
-    property real grabX: 0                // where in the card it was grabbed
-    property real grabY: 0
-    property real startGX: -1             // cursor at press (global), to tell a click from a drag
-    property real startGY: -1
-    Process {
-        id: cursor
-        command: ["hyprctl", "cursorpos", "-j"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let c;
-                try { c = JSON.parse(text); } catch (e) { return; }
-                if (!dragTick.running) return;
-                const sx = c.x - (win.screen ? win.screen.x : 0), sy = c.y - (win.screen ? win.screen.y : 0);
-                if (win.startGX < 0) { win.startGX = c.x; win.startGY = c.y; return; }
-                if (!win.dragging && Math.hypot(c.x - win.startGX, c.y - win.startGY) < 6) return;
-                win.dragX = Math.max(0, Math.min(win.sw - card.width, sx - win.grabX));
-                win.dragY = Math.max(0, Math.min(win.sh - card.height, sy - win.grabY));
-                win.dragging = true;
-            }
-        }
-    }
-    Timer { id: dragTick; interval: 33; repeat: true; triggeredOnStart: true; onTriggered: if (!cursor.running) cursor.running = true }
+    margins { top: Math.max(0, baseY); left: Math.max(0, baseX) }
+    implicitWidth: w
+    implicitHeight: h
 
     // Effects clock, frozen while hidden or covered (Perf), like the reactor
     readonly property bool live: shown && Perf.live(screen) && !Perf.lite
@@ -82,20 +58,18 @@ PanelWindow {
     Binding on t { when: win.live; value: Perf.time; restoreMode: Binding.RestoreNone }
 
     readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property bool lifted: Widgets.moving === wid
 
     Item {
         id: card
+        transform: Scale { xScale: win.k; yScale: win.k }
         width: Math.max(160, (body.item ? body.item.implicitWidth : 200) + 28)
         height: (body.item ? body.item.implicitHeight : 80) + 34 + 14
-        onHeightChanged: Widgets.setHeight(win.wid, height)
-        Component.onCompleted: Widgets.setHeight(win.wid, height)
 
-        // entrance: fade + settle
+        // entrance: fade + settle; faded while it's being moved (the ghost shows where it goes)
         opacity: 0
-        scale: 0.94
-        Component.onDestruction: Widgets.setHeight(win.wid, 0)
-        states: State { name: "in"; when: win.shown; PropertyChanges { target: card; opacity: 1; scale: 1 } }
-        transitions: Transition { NumberAnimation { properties: "opacity,scale"; duration: 260; easing.type: Easing.OutCubic } }
+        states: State { name: "in"; when: win.shown; PropertyChanges { target: card; opacity: win.lifted ? 0.25 : 1 } }
+        transitions: Transition { NumberAnimation { properties: "opacity"; duration: 220; easing.type: Easing.OutCubic } }
 
         readonly property bool done: body.item ? body.item.alert === true : false
         readonly property color accent: done ? Theme.secondary : Theme.primary
@@ -104,8 +78,8 @@ PanelWindow {
         Rectangle {
             id: glass
             anchors.fill: parent
-            color: Theme.d(Math.max(0.72, Theme.panelAlpha - 0.1))
-            border.color: Qt.rgba(card.accent.r, card.accent.g, card.accent.b, win.dragging ? 0.8 : 0.4)
+            color: Theme.d(Math.max(0.9, Theme.panelAlpha))      // solid enough that a HUD panel behind can't show through
+            border.color: Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.4)
             border.width: 1
             clip: true
             // sweeping scan band, only while effects run on this screen
@@ -134,31 +108,16 @@ PanelWindow {
             }
         }
 
-        // ── drag / snap (under the body, so its own buttons still work) ──
+        // ── press to move (under the body, so its own buttons still work) ──
         MouseArea {
             id: dragArea
             anchors.fill: parent
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton
-            cursorShape: win.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-            preventStealing: true
-            onPressed: m => {
-                win.grabX = m.x; win.grabY = m.y;
-                win.dragX = win.baseX; win.dragY = win.baseY;
-                win.startGX = -1; win.startGY = -1;
-                dragTick.start();
-            }
-            onReleased: {
-                dragTick.stop();
-                if (!win.dragging) return;
-                const cx = win.dragX + card.width / 2, cy = win.dragY + card.height / 2;
-                const c = cx < win.sw / 3 ? "left" : cx > win.sw * 2 / 3 ? "right" : "";
-                const r = cy < win.sh / 3 ? "top" : cy > win.sh * 2 / 3 ? "bottom" : "";
-                const p = (r && c) ? r + "-" + c : (r || c || "center");
-                win.dragging = false;
-                if (p !== win.pos) Widgets.move(win.wid, "-", p);
-            }
-            onCanceled: { dragTick.stop(); win.dragging = false; }
+            cursorShape: win.lifted ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+            onPressed: m => Widgets.arm(win.wid, m.x * win.k, m.y * win.k)
+            onReleased: Widgets.release()
+            onCanceled: if (!Widgets.moving) Widgets.cancelMove()    // moving: the overlay finishes it
             onDoubleClicked: if (body.item && body.item.doubleClicked) body.item.doubleClicked()
         }
 
@@ -180,9 +139,20 @@ PanelWindow {
         }
         Row {
             id: buttons
-            visible: dragArea.containsMouse || pinMa.containsMouse || closeMa.containsMouse
+            visible: dragArea.containsMouse || pinMa.containsMouse || closeMa.containsMouse || sizeMa.containsMouse
             anchors.right: parent.right; anchors.rightMargin: 8; y: 5
             spacing: 2
+            Rectangle {     // size: click to cycle small → normal → large → huge
+                width: 22; height: 20; color: sizeMa.containsMouse ? Theme.p(0.18) : "transparent"
+                Text { anchors.centerIn: parent; text: "⤢"; color: Theme.dim; font.family: win.mono; font.pixelSize: 12 }
+                MouseArea {
+                    id: sizeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        const order = ["small", "normal", "large", "huge"];
+                        Widgets.resize(win.wid, order[(order.indexOf(win.it.size || "normal") + 1) % 4]);
+                    }
+                }
+            }
             Rectangle {
                 width: 22; height: 20; color: pinMa.containsMouse ? Theme.p(0.18) : "transparent"
                 Text { anchors.centerIn: parent; text: win.pinned ? "◆" : "◇"; color: win.pinned ? Theme.secondary : Theme.dim; font.family: win.mono; font.pixelSize: 12 }
@@ -205,5 +175,6 @@ PanelWindow {
         Binding { target: body.item; property: "active"; value: win.shown; when: body.item !== null }
         Binding { target: body.item; property: "live"; value: win.live; when: body.item !== null }
         Binding { target: body.item; property: "t"; value: win.t; when: body.item !== null }
+        Binding { target: body.item; property: "size"; value: win.it && win.it.size ? win.it.size : "normal"; when: body.item !== null }
     }
 }

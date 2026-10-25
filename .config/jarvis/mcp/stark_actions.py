@@ -715,6 +715,15 @@ def open_in_browser(query):
 # ── desktop widgets (quickshell/Widgets.qml, through `qs ipc call widgets …`) ──
 WIDGET_POSITIONS = ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
 WIDGET_ROLES = {"main": "main monitor", "diag": "second monitor", "media": "laptop screen"}
+WIDGET_SIZES = {"small": "small", "smaller": "smaller", "tiny": "small", "little": "small", "normal": "normal",
+                "medium": "normal", "regular": "normal", "default": "normal", "large": "large", "big": "large",
+                "bigger": "bigger", "larger": "bigger", "huge": "huge", "giant": "huge", "massive": "huge",
+                "full": "huge", "full screen": "huge", "fullscreen": "huge", "dashboard": "huge", "max": "huge"}
+
+
+def norm_size(spoken):
+    t = _norm(spoken or "")
+    return WIDGET_SIZES.get(t) if t else ""
 # Spoken screen names → Roles roles. Undocked, the HUD shows everything on the laptop.
 SCREEN_WORDS = [
     (r"(?:main|primary|first|left) (?:monitor|screen|display)|monitor (?:1|one)|screen (?:1|one)|main", "main"),
@@ -817,11 +826,12 @@ def _check_position(position):
 
 
 @safe
-def widget_add(type, screen="", position="", label="", minutes=0, seconds=0, tz="", analog=False, text="", pinned=False):
+def widget_add(type, screen="", position="", label="", minutes=0, seconds=0, tz="", analog=False, text="", pinned=False,
+               size=""):
     """Show a desktop widget. type: clock | timer | stopwatch | media | stats | note (see widget_types()).
     screen: main monitor / second monitor / laptop screen, empty = the one in use. position: top-left …
     bottom-right, empty = the type's default. clock: tz (city or IANA zone), analog. timer: minutes/seconds.
-    note: text. pinned: stays above windows."""
+    note: text. pinned: stays above windows. size: small | normal | large | huge (stats becomes a dashboard)."""
     t = str(type or "").lower().strip()
     types = widget_types()
     if t not in (types or ["clock", "timer", "stopwatch", "media", "stats", "note"]):
@@ -851,6 +861,11 @@ def widget_add(type, screen="", position="", label="", minutes=0, seconds=0, tz=
         params["text"] = str(text or "")[:600]
     if pinned:
         params["pinned"] = True
+    if size:
+        sz = norm_size(size)
+        if sz is None or sz in ("bigger", "smaller"):
+            raise Invalid(f'unknown size "{size}" (small, normal, large, huge)')
+        params["size"] = sz
     if DRY_RUN:
         return {"ok": True, "dry_run": True, "would": f"widget {t} on {role} at {pos} {params}"}
     return _ipc_widgets("add", t, role, pos, json.dumps(params))
@@ -888,21 +903,29 @@ def widget_remove(target, screen=""):
 
 
 @safe
-def widget_move(target, screen="", position="", pinned=None):
+def widget_move(target, screen="", position="", pinned=None, size=""):
     """Move a desktop widget (the newest match) to another screen and/or position; pinned true/false
-    puts it above windows or back behind them."""
+    puts it above windows or back behind them; size small | normal | large | huge | bigger | smaller."""
     hits = _widget_targets(target)
     if not hits:
         raise Invalid(f"no {target} widget is showing")
     w = hits[-1]
     role = _check_screen(screen) if screen else "-"
     pos = _check_position(position)
+    sz = norm_size(size) if size else ""
+    if sz is None:
+        raise Invalid(f'unknown size "{size}" (small, normal, large, huge, bigger, smaller)')
     if DRY_RUN:
-        return {"ok": True, "dry_run": True, "would": f"move {w['id']} to {role} {pos} pinned={pinned}"}
+        return {"ok": True, "dry_run": True, "would": f"move {w['id']} to {role} {pos} pinned={pinned} size={sz}"}
     r = _ipc_widgets("move", w["id"], role, pos) if (role != "-" or pos != "-") else {"ok": True, "id": w["id"]}
     if r.get("ok") and pinned is not None:
         _ipc_widgets("pin", w["id"], "true" if pinned else "false")
         r["pinned"] = bool(pinned)
+    if r.get("ok") and sz:
+        rs = _ipc_widgets("resize", w["id"], sz)
+        if not rs.get("ok"):
+            return rs
+        r["size"] = rs.get("size")
     return r
 
 
@@ -1048,7 +1071,7 @@ def tool_label(tool, args):
         "widget_add": lambda: f"WIDGET → {v('type')}" + (f" · {v('tz') or v('label')}" if a.get("tz") or a.get("label") else "")
                               + (f" @ {(WIDGET_ROLES.get(norm_screen(a.get('screen')) or '', '') or 'HERE').upper()}"),
         "widget_remove": lambda: f"WIDGET ✕ {v('target') or 'ALL'}" + (f" @ {v('screen')}" if a.get("screen") else ""),
-        "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen')}".rstrip(" ⇢"),
+        "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen') or v('size') or ('PIN' if a.get('pinned') else 'UNPIN' if a.get('pinned') is False else '')}".rstrip(" ⇢"),
         "widget_list": lambda: "WIDGETS → LIST",
     }
     try:

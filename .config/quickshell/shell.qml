@@ -39,6 +39,10 @@ ShellRoot {
         model: Quickshell.screens
         WidgetLayer {}
     }
+    Variants {
+        model: Quickshell.screens
+        WidgetMoveOverlay {}
+    }
 
     // Overlays: radial launcher, app search, Jarvis pop-up
     Variants {
@@ -90,7 +94,7 @@ ShellRoot {
     //   qs ipc call widgets add clock diag top-right '{"tz":"America/New_York","label":"New York"}'
     //   qs ipc call widgets add timer current - '{"minutes":10,"label":"tea"}'
     //   qs ipc call widgets remove clock3 | clock | clock:diag      move timer - top-right
-    //   qs ipc call widgets list | clear diag | clear all | pin clock true | types
+    //   qs ipc call widgets list | clear diag | clear all | pin clock true | resize stats huge | types
     // Screens: main | diag | media (= laptop) | current; "-" keeps / picks the default.
     IpcHandler {
         target: "widgets"
@@ -102,6 +106,7 @@ ShellRoot {
         function remove(query: string): string { return JSON.stringify(Widgets.remove(query)) }
         function move(query: string, screen: string, position: string): string { return JSON.stringify(Widgets.move(query, screen, position)) }
         function pin(query: string, on: string): string { return JSON.stringify(Widgets.pin(query, on === "true" || on === "on" || on === "1")) }
+        function resize(query: string, size: string): string { return JSON.stringify(Widgets.resize(query, size)) }   // small | normal | large | huge | bigger | smaller
         function clear(screen: string): string { return JSON.stringify(Widgets.clear(screen)) }
         function list(): string { return JSON.stringify({ ok: true, docked: Roles.docked, current: Widgets.currentRole(), widgets: Widgets.list() }) }
         function types(): string { return JSON.stringify({ types: Widgets.types, positions: Widgets.positions, screens: Widgets.roles }) }

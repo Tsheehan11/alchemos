@@ -100,6 +100,9 @@ WPOS = (r"(?:the )?(?:(?:top|bottom|upper|lower)(?: (?:left|right|center|centre|
         r"(?: (?:top|bottom))?)(?: corner| side| of the screen)?")
 WTYPE = (r"(clock|timer|countdown|stopwatch|sticky note|note|now playing|music|media|player|system stats|stats|"
          r"widget|everything)s?(?: widgets?| card| player)?")
+WSIZE = r"(?:(big|large|huge|giant|massive|full|small|tiny|little|full size|full screen) )?"
+WSIZES = {"big": "large", "large": "large", "huge": "huge", "giant": "huge", "massive": "huge", "full": "huge",
+          "full size": "huge", "full screen": "huge", "small": "small", "tiny": "small", "little": "small"}
 WTARGET = {"countdown": "timer", "sticky note": "note", "now playing": "media", "music": "media", "player": "media",
            "system stats": "stats", "widget": "all", "everything": "all"}
 LIGHTS = r"(?:the |my )?(?:lights?|strip|led strip|leds)"
@@ -291,27 +294,37 @@ def _widget(t):
         kind = m.group(1) or m.group(2)
         target = WTARGET.get(kind, kind)
         return [step("widget_move", "Moved.", target=target, **where)]
+    if W(rf"(?:make|set) (?:the |my |that |this )?{WTYPE} (bigger|larger|smaller|big|large|huge|giant|small|tiny|normal|normal size|full size|full screen)|"
+         rf"(enlarge|grow|expand|maximi[sz]e|shrink|minimi[sz]e) (?:the |my |that |this )?{WTYPE}"):
+        kind = m.group(1) or m.group(4)
+        word = m.group(2) or {"enlarge": "bigger", "grow": "bigger", "expand": "bigger", "shrink": "smaller"}.get(m.group(3), "")
+        if not word:
+            word = "huge" if m.group(3).startswith("maxim") else "small"
+        size = {"larger": "bigger", "big": "large", "giant": "huge", "tiny": "small", "normal size": "normal",
+                "full size": "huge", "full screen": "huge"}.get(word, word)
+        return [step("widget_move", "Done.", target=WTARGET.get(kind, kind), size=size)]
     if W(rf"(pin|unpin) (?:the |my |that |this )?{WTYPE}(?: (?:on top|to the top|above (?:the )?windows))?"):
         target = WTARGET.get(m.group(2), m.group(2))
         on = m.group(1) == "pin"
         return [step("widget_move", "Pinned above your windows." if on else "Unpinned.", target=target, pinned=on)]
     # clocks: "show a clock", "show an analog clock", "show New York time", "show a Tokyo clock", "a clock for London"
-    if W(rf"{show} (?:a |an |the )?(?:(analog|analogue|digital) )?clock(?: for (.+))?|"
-         rf"{show} (?:the )?time (?:in|for) (.+)|{show} (?:a |an |the )?(?!a |an |the )(.+?) (?:time|clock)"):
-        style, city = m.group(1), m.group(2) or m.group(3) or m.group(4)
+    if W(rf"{show} (?:a |an |the )?{WSIZE}(?:(analog|analogue|digital) )?clock(?: for (.+))?|"
+         rf"{show} (?:the )?time (?:in|for) (.+)|{show} (?:a |an |the )?(?!a |an |the |big |large |huge |small )(.+?) (?:time|clock)"):
+        size, style, city = WSIZES.get(m.group(1) or "", ""), m.group(2), m.group(3) or m.group(4) or m.group(5)
         if city and city in ("local", "current"):
             city = None
         if city and not A.city_tz(city):
             return []                          # Claude can work out an odd place name
         name = city.title() if city else ""
         return [step("widget_add", f"{name + ' time' if name else 'Clock'}{_on(scr)}.", type="clock",
-                     tz=city or "", analog=bool(style and style.startswith("analog")), **where)]
-    if W(rf"{show} (?:a |an |the )?stopwatch"):
-        return [step("widget_add", f"Stopwatch running{_on(scr)}.", type="stopwatch", **where)]
-    if W(rf"{show} (?:the |a )?(?:now playing|music|media|song|spotify)(?: widget| player| card| info)?"):
-        return [step("widget_add", f"Now playing{_on(scr)}.", type="media", **where)]
-    if W(rf"{show} (?:the |my |a )?(?:system )?(?:stats|statistics|system monitor|system info|system status|cpu and ram)(?: widget| card)?"):
-        return [step("widget_add", f"System stats{_on(scr)}.", type="stats", **where)]
+                     tz=city or "", analog=bool(style and style.startswith("analog")), size=size, **where)]
+    if W(rf"{show} (?:a |an |the )?{WSIZE}stopwatch"):
+        return [step("widget_add", f"Stopwatch running{_on(scr)}.", type="stopwatch", size=WSIZES.get(m.group(1) or "", ""), **where)]
+    if W(rf"{show} (?:the |a |my )?{WSIZE}(?:now playing|music|media|song|spotify)(?: widget| player| card| info)?"):
+        return [step("widget_add", f"Now playing{_on(scr)}.", type="media", size=WSIZES.get(m.group(1) or "", ""), **where)]
+    if W(rf"{show} (?:the |my |a )?{WSIZE}(?:system |computer |pc )?(?:stats|statistics|system monitor|system info|system status|cpu and ram|dashboard|diagnostics)(?: widget| card| dashboard)?"):
+        size = WSIZES.get(m.group(1) or "", "") or ("huge" if re.search(r"dashboard|diagnostics", rest) else "")
+        return [step("widget_add", f"{'Diagnostics dashboard' if size == 'huge' else 'System stats'}{_on(scr)}.", type="stats", size=size, **where)]
     if W(r"(?:add|make|put up|create|leave|show|pin up|write)(?: me)? (?:a )?(?:sticky )?note(?: saying| that says| reading| with| to)? (.+)"):
         text = m.group(1).strip()
         return [step("widget_add", f"Noted{_on(scr)}.", type="note", text=text[:1].upper() + text[1:], **where)]

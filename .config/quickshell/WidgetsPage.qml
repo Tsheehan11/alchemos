@@ -22,11 +22,13 @@ Column {
     property bool analog: false
     property int minutes: 10
     property bool pinned: false
+    property string size: "normal"
+    readonly property var sizeList: ["small", "normal", "large", "huge"]
     property string result: ""
 
     function cycle(list, cur, dir) { const i = list.indexOf(cur); return list[((i < 0 ? 0 : i) + dir + list.length) % list.length]; }
     function add() {
-        const p = { pinned: page.pinned };
+        const p = { pinned: page.pinned, size: page.size };
         if (type === "clock") { p.analog = page.analog; if (zones[zone][0]) { p.tz = zones[zone][0]; p.label = zones[zone][1].toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); } }
         if (type === "timer") p.minutes = page.minutes;
         if (type === "note") p.text = noteText.text;
@@ -45,6 +47,7 @@ Column {
     Stepper { visible: page.type === "clock"; width: parent.width; label: "Time zone"; valueText: page.zones[page.zone][1]; onDec: page.zone = (page.zone + page.zones.length - 1) % page.zones.length; onInc: page.zone = (page.zone + 1) % page.zones.length }
     Toggle { visible: page.type === "clock"; width: parent.width; label: "Analog"; checked: page.analog; onToggled: page.analog = !page.analog }
     Stepper { visible: page.type === "timer"; width: parent.width; label: "Minutes"; valueText: page.minutes + " MIN"; onDec: page.minutes = page.cycle(page.minuteSteps, page.minutes, -1); onInc: page.minutes = page.cycle(page.minuteSteps, page.minutes, 1) }
+    Stepper { width: parent.width; label: "Size"; hint: page.type === "stats" ? "Large / huge: the full diagnostics dashboard" : "Or ⤢ on the widget"; valueText: page.size.toUpperCase(); onDec: page.size = page.cycle(page.sizeList, page.size, -1); onInc: page.size = page.cycle(page.sizeList, page.size, 1) }
     Toggle { width: parent.width; label: "Pinned"; hint: "Stays above windows instead of hiding behind them"; checked: page.pinned; onToggled: page.pinned = !page.pinned }
     Row {
         spacing: 10
@@ -66,7 +69,7 @@ Column {
             MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true }
             Text {
                 anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 230; elide: Text.ElideRight
+                width: parent.width - 360; elide: Text.ElideRight
                 text: modelData.type.toUpperCase() + (modelData.params.label ? " · " + modelData.params.label.toUpperCase() : "")
                       + (modelData.type === "note" && modelData.params.text ? " · " + modelData.params.text : "")
                 color: Theme.text; font.family: page.mono; font.pixelSize: 13
@@ -80,6 +83,7 @@ Column {
                 id: btns
                 anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
+                SmallButton { text: "⤢ " + (modelData.size || "normal").toUpperCase(); onClicked: Widgets.resize(modelData.id, page.cycle(page.sizeList, modelData.size || "normal", 1)) }
                 SmallButton { text: modelData.pinned ? "◆ PINNED" : "◇ PIN"; active: modelData.pinned; onClicked: Widgets.pin(modelData.id, !modelData.pinned) }
                 SmallButton { text: "×"; onClicked: Widgets.remove(modelData.id) }
             }

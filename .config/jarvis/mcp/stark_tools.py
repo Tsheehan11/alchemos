@@ -132,11 +132,12 @@ Position = Literal["", "top-left", "top", "top-right", "left", "center", "right"
 @mcp.tool(structured_output=False)
 def widget_add(type: Literal["clock", "timer", "stopwatch", "media", "stats", "note"], screen: str = "",
                position: Position = "", label: str = "", minutes: float = 0, seconds: float = 0, tz: str = "",
-               analog: bool = False, text: str = "", pinned: bool = False) -> str:
+               analog: bool = False, text: str = "", pinned: bool = False,
+               size: Literal["", "small", "normal", "large", "huge"] = "") -> str:
     """Show a desktop widget. screen: "main monitor" | "second monitor" | "laptop screen" | "" (the one in use).
     clock: tz = city or IANA zone ("New York"), analog. timer: minutes / seconds (prefer set_timer). media = now
-    playing. stats = CPU/RAM/temp/battery. note: text. pinned = stays above windows."""
-    return out(A.widget_add(type, screen, position, label, minutes, seconds, tz, analog, text, pinned))
+    playing. stats = CPU/RAM/temp/battery (large / huge = full dashboard). note: text. pinned = stays above windows."""
+    return out(A.widget_add(type, screen, position, label, minutes, seconds, tz, analog, text, pinned, size))
 
 
 @mcp.tool(structured_output=False)
@@ -146,9 +147,10 @@ def widget_remove(target: str, screen: str = "") -> str:
 
 
 @mcp.tool(structured_output=False)
-def widget_move(target: str, screen: str = "", position: Position = "", pinned: bool | None = None) -> str:
-    """Move a widget (id or type; the newest match) to another screen and/or position; pinned true/false."""
-    return out(A.widget_move(target, screen, position, pinned))
+def widget_move(target: str, screen: str = "", position: Position = "", pinned: bool | None = None,
+                size: Literal["", "small", "normal", "large", "huge", "bigger", "smaller"] = "") -> str:
+    """Move or resize a widget (id or type; the newest match): screen and/or position, pinned true/false, size."""
+    return out(A.widget_move(target, screen, position, pinned, size))
 
 
 @mcp.tool(structured_output=False)

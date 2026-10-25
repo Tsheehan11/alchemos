@@ -7,6 +7,7 @@ pragma Singleton
 //              the laptop; docking again puts them back.
 //   position — one of POSITIONS; widgets sharing a slot stack.
 //   pinned   — above windows (layer Top) instead of hiding behind them like the panels.
+//   size     — small | normal | large | huge (stats turns into a full dashboard when large).
 // Saved to widgets.json next to this file (not committed, like settings.json).
 //
 // Types are the files in widgets/ (Clock.qml → "clock"): a new type is one QML file there.
@@ -29,10 +30,12 @@ Singleton {
     readonly property var defaultPosition: ({ clock: "top-right", timer: "top-right", stopwatch: "top-right", media: "bottom-right", stats: "right", note: "left" })
     readonly property string home: Quickshell.env("HOME")
     readonly property int gap: 14
+    readonly property var sizes: ({ small: 0.8, normal: 1.0, large: 1.5, huge: 2.0 })
 
     property var items: []
     property int seq: 0
-    property var heights: ({})          // id → height of its card (reported by WidgetWindow), for stacking
+    property var heights: ({})          // id → height of its window (reported by WidgetWindow), for stacking
+    property var widths: ({})           // id → width, for the move ghost
     property bool loaded: false
 
     // ── types: widgets/*.qml ──
@@ -126,12 +129,79 @@ Singleton {
             if (o.position === it.position && screenFor(o.screen)?.name === name) h += (root.heights[o.id] || 0) + root.gap;
         return Math.max(0, h);
     }
-    function setHeight(id, h) {
-        if (root.heights[id] === h) return;
-        const m = Object.assign({}, root.heights);
-        m[id] = h;
-        root.heights = m;
+    function setSize(id, w, h) {
+        if (root.heights[id] !== h) { const m = Object.assign({}, root.heights); m[id] = h; root.heights = m; }
+        if (root.widths[id] !== w) { const m = Object.assign({}, root.widths); m[id] = w; root.widths = m; }
     }
+    function normSize(s) {
+        s = String(s || "").toLowerCase().trim();
+        if (/^(small|smaller|tiny|little|mini|compact)$/.test(s)) return "small";
+        if (/^(normal|medium|default|regular|standard|mid)$/.test(s)) return "normal";
+        if (/^(large|big|bigger|larger|xl)$/.test(s)) return "large";
+        if (/^(huge|giant|gigantic|enormous|massive|full|biggest|max|maximum|xxl|dashboard)$/.test(s)) return "huge";
+        return "";
+    }
+
+    // ── moving by mouse, across screens ──
+    // Press on a widget arms it; once the cursor travels a few pixels a move layer covers every
+    // screen (WidgetMoveOverlay) with the drop slots and a ghost. The cursor comes from Hyprland
+    // (works whichever surface has the pointer, so a fast flick or another monitor can't lose it)
+    // and from the overlays' own hover. Release (or click, if the release was missed) drops it on
+    // whatever screen the cursor is over, in the nearest slot. Esc cancels.
+    property string armed: ""
+    property string moving: ""
+    property real grabX: 0              // where in the widget it was grabbed (window pixels)
+    property real grabY: 0
+    property real curX: -1              // cursor, global layout coordinates
+    property real curY: -1
+    property real startX: -1
+    property real startY: -1
+    function arm(id, gx, gy) {
+        root.armed = id; root.moving = ""; root.grabX = gx; root.grabY = gy;
+        root.startX = -1; root.startY = -1;
+        cursorTick.start();
+    }
+    function setCursor(x, y) {
+        root.curX = x; root.curY = y;
+        if (!root.armed) return;
+        if (root.startX < 0) { root.startX = x; root.startY = y; return; }
+        if (!root.moving && Math.hypot(x - root.startX, y - root.startY) >= 6) root.moving = root.armed;
+    }
+    function release() {               // the widget saw the button go up
+        if (root.moving) drop(); else cancelMove();
+    }
+    function screenAt(x, y) {
+        return Quickshell.screens.find(s => x >= s.x && x < s.x + s.width && y >= s.y && y < s.y + s.height) || null;
+    }
+    function slotAt(s, cx, cy) {       // card centre (screen pixels) → slot
+        const c = cx < s.width / 3 ? "left" : cx > s.width * 2 / 3 ? "right" : "";
+        const r = cy < s.height / 3 ? "top" : cy > s.height * 2 / 3 ? "bottom" : "";
+        return (r && c) ? r + "-" + c : (r || c || "center");
+    }
+    function dropSlot() {              // { screen, position } the ghost would land in, or null
+        const s = screenAt(root.curX, root.curY);
+        if (!s || !root.moving) return null;
+        const w = root.widths[root.moving] || 200, h = root.heights[root.moving] || 100;
+        return { screen: s, position: slotAt(s, root.curX - s.x - root.grabX + w / 2, root.curY - s.y - root.grabY + h / 2) };
+    }
+    function drop() {
+        const d = dropSlot(), id = root.moving;
+        cancelMove();
+        if (!d || !id) return;
+        let role = Roles.role(d.screen);
+        if (root.roles.indexOf(role) < 0) role = "main";
+        const it = get(id);
+        if (it && (it.screen !== role || it.position !== d.position)) update(id, { screen: role, position: d.position });
+    }
+    function cancelMove() { root.armed = ""; root.moving = ""; cursorTick.stop(); }
+    Process {
+        id: cursorProc
+        command: ["hyprctl", "cursorpos", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { const c = JSON.parse(text); if (root.armed) root.setCursor(c.x, c.y); } catch (e) {} }
+        }
+    }
+    Timer { id: cursorTick; interval: 16; repeat: true; triggeredOnStart: true; onTriggered: if (!cursorProc.running) cursorProc.running = true }
 
     // ── params: every key is checked; anything else is dropped ──
     function parseDuration(p) {
@@ -167,15 +237,18 @@ Singleton {
         if (root.types.indexOf(type) < 0) return { ok: false, error: "unknown widget type " + type + " (have: " + root.types.join(", ") + ")" };
         const role = normScreen(screen);
         if (!role) return { ok: false, error: "unknown screen " + screen + " (main, diag, media / laptop, current)" };
-        const pos = (position === "" || position === "-" || position === undefined) ? (root.defaultPosition[type] || "top-right") : normPosition(position);
+        const huge = params && normSize(params.size) === "huge";       // a dashboard-sized card goes in the middle
+        const pos = (position === "" || position === "-" || position === undefined) ? (huge ? "center" : root.defaultPosition[type] || "top-right") : normPosition(position);
         if (!pos) return { ok: false, error: "unknown position " + position + " (" + root.positions.join(", ") + ")" };
         const pr = cleanParams(type, params);
         if (pr.error) return { ok: false, error: pr.error };
         root.seq += 1;
-        const it = { id: type + root.seq, type: type, screen: role, position: pos, pinned: params && params.pinned === true, params: pr };
+        const size = params && params.size ? normSize(params.size) : "normal";
+        if (!size) return { ok: false, error: "unknown size " + params.size + " (small, normal, large, huge)" };
+        const it = { id: type + root.seq, type: type, screen: role, position: pos, pinned: params && params.pinned === true, size: size, params: pr };
         root.items = root.items.concat([it]);
         save();
-        return { ok: true, id: it.id, type: type, screen: role, position: pos, shown_on: screenFor(role)?.name || "" };
+        return { ok: true, id: it.id, type: type, screen: role, position: pos, size: size, shown_on: screenFor(role)?.name || "" };
     }
     function remove(query) {
         const hit = match(query).map(i => i.id);
@@ -197,6 +270,19 @@ Singleton {
         update(it.id, { screen: role, position: pos });
         return { ok: true, id: it.id, screen: role, position: pos };
     }
+    function resize(query, size) {
+        const hits = match(query);
+        if (!hits.length) return { ok: false, error: "no widget matches " + query };
+        const it = hits[hits.length - 1];
+        let sz = normSize(size);
+        if (String(size).toLowerCase() === "bigger" || String(size).toLowerCase() === "smaller") {   // one step
+            const order = ["small", "normal", "large", "huge"], i = order.indexOf(it.size || "normal");
+            sz = order[Math.max(0, Math.min(3, i + (String(size).toLowerCase() === "bigger" ? 1 : -1)))];
+        }
+        if (!sz) return { ok: false, error: "unknown size " + size + " (small, normal, large, huge, bigger, smaller)" };
+        update(it.id, { size: sz });
+        return { ok: true, id: it.id, size: sz };
+    }
     function pin(query, on) {
         const hits = match(query);
         if (!hits.length) return { ok: false, error: "no widget matches " + query };
@@ -215,7 +301,7 @@ Singleton {
     function list() {
         const now = Date.now();
         return root.items.map(i => {
-            const o = { id: i.id, type: i.type, screen: i.screen, position: i.position, pinned: i.pinned, shown_on: screenFor(i.screen)?.name || "" };
+            const o = { id: i.id, type: i.type, screen: i.screen, position: i.position, pinned: i.pinned, size: i.size || "normal", shown_on: screenFor(i.screen)?.name || "" };
             if (i.params.label) o.label = i.params.label;
             if (i.type === "timer") { o.seconds_left = Math.max(0, Math.round((i.params.end - now) / 1000)); o.done = i.params.done; }
             if (i.type === "clock" && i.params.tz) o.tz = i.params.tz;

@@ -13,6 +13,8 @@ Item {
     property string detail: ""
     property bool alert: false
     property bool wantsKeyboard: false   // true while editing text (note)
+    property string size: "normal"       // small | normal | large | huge (the card is scaled; a type may also re-lay out)
+    readonly property bool big: size === "large" || size === "huge"
     readonly property var params: widget ? widget.params : ({})
     readonly property bool saver: PowerMode.saver
     readonly property string mono: "JetBrainsMono Nerd Font"
