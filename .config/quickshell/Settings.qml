@@ -25,7 +25,9 @@ PanelWindow {
     readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "JARVIS", "LAUNCHER", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
-    onVisibleChanged: if (visible) { focusCatcher.forceActiveFocus(); refreshAll(); }
+    // A finished action's result (✓ / ✕ line at the bottom) is cleared on close, so an old
+    // error doesn't greet you next time; one still running keeps its "…" until it ends.
+    onVisibleChanged: if (visible) { focusCatcher.forceActiveFocus(); refreshAll(); } else if (!actProc.running) status = ""
 
     function refreshAll() {
         wifiPoll.running = true;
