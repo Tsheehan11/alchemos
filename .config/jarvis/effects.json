@@ -18,9 +18,9 @@
     "chorus_mix": 0, "chorus_depth": 0, "reverb_room": 0, "reverb_wet": 0, "gain_db": 0
   },
   "HOLOGRAM": {
-    "speed": 0.97, "pitch": -0.5, "highpass_hz": 70, "lowpass_hz": 0,
-    "warmth_db": 2.5, "presence_db": 1.0, "air_db": -2.0, "drive_db": 0, "compress": true,
-    "chorus_mix": 0.1, "chorus_depth": 0.06, "reverb_room": 0.2, "reverb_wet": 0.1, "gain_db": 0
+    "speed": 1.0, "pitch": 0, "highpass_hz": 70, "lowpass_hz": 0,
+    "warmth_db": 2.0, "presence_db": 1.0, "air_db": -1.5, "drive_db": 0, "compress": true,
+    "chorus_mix": 0.05, "chorus_depth": 0.04, "reverb_room": 0.15, "reverb_wet": 0.06, "gain_db": 0
   },
   "SUIT": {
     "speed": 0.97, "pitch": -0.5, "highpass_hz": 260, "lowpass_hz": 5200,
