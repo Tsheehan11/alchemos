@@ -611,24 +611,35 @@ PanelWindow {
                     readonly property var models: ["auto", "haiku", "sonnet", "opus"]
                     readonly property var modelHints: ({ auto: "Haiku · Sonnet for harder questions", haiku: "Fastest", sonnet: "Smarter, a little slower", opus: "Strongest, slowest · uses the plan fastest" })
                     readonly property var follows: [0, 4, 6, 8, 10, 15]
-                    property var voices: ["en_GB-alan-medium"]
+                    property var voices: ["bm_george"]
+                    property var effects: ["CLEAN", "HOLOGRAM", "SUIT"]
+                    function voiceName(v) {
+                        if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
+                        return v.replace(/^en_GB-/, "").replace(/-(medium|low|high)/, "").replace(/_/g, " ").replace(":", " · ").toUpperCase() + " · PIPER";
+                    }
+                    function preview() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "Good evening, sir. All systems are online."]); }
                     function cycle(list, cur, dir) { const i = list.indexOf(cur); return list[((i < 0 ? 0 : i) + dir + list.length) % list.length]; }
                     onVisibleChanged: if (visible) voiceList.running = true
                     Process {
                         id: voiceList
-                        command: ["sh", "-c", "ls \"$HOME\"/.local/share/jarvis/voices/*.onnx 2>/dev/null"]
+                        command: [Quickshell.env("HOME") + "/.local/bin/jarvis-voices", "--list"]
                         stdout: StdioCollector {
                             onStreamFinished: {
-                                const v = text.split("\n").filter(l => l).map(l => l.split("/").pop().replace(/\.onnx$/, ""));
-                                if (v.length) jarvisPage.voices = v;
+                                try {
+                                    const d = JSON.parse(text);
+                                    if (d.voices.length) jarvisPage.voices = d.voices;
+                                    if (d.effects.length) jarvisPage.effects = d.effects;
+                                } catch (e) {}
                             }
                         }
                     }
 
                     Toggle { width: parent.width; label: "Jarvis"; hint: !JarvisState.userWantsJarvis ? "Off" : !JarvisState.docked ? "On · waits for the dock" : JarvisState.paused ? "On · paused for combat mode" : JarvisState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"; checked: JarvisState.userWantsJarvis; onToggled: JarvisState.setWanted(!JarvisState.userWantsJarvis) }
                     Stepper { width: parent.width; label: "Claude model"; hint: jarvisPage.modelHints[Theme.cfg.jarvisModel] || ""; valueText: Theme.cfg.jarvisModel.toUpperCase(); onDec: Theme.cfg.jarvisModel = jarvisPage.cycle(jarvisPage.models, Theme.cfg.jarvisModel, -1); onInc: Theme.cfg.jarvisModel = jarvisPage.cycle(jarvisPage.models, Theme.cfg.jarvisModel, 1) }
-                    Stepper { width: parent.width; label: "Voice"; hint: "Local piper voices · ~/.local/share/jarvis/voices"; valueText: Theme.cfg.jarvisVoice.replace(/^en_GB-/, "").replace(/-(medium|low|high)$/, "").replace(/_/g, " ").toUpperCase(); onDec: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, -1); onInc: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, 1) }
-                    Stepper { width: parent.width; label: "Speech rate"; valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
+                    Stepper { width: parent.width; label: "Voice"; hint: "British voices · audition them all: jarvis-voices"; preview: true; onPlay: jarvisPage.preview(); valueText: jarvisPage.voiceName(Theme.cfg.jarvisVoice); onDec: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, -1); onInc: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, 1) }
+                    Stepper { width: parent.width; label: "Speech rate"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
+                    Stepper { width: parent.width; label: "Pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: jarvisPage.preview(); valueText: (Theme.cfg.jarvisPitch > 0 ? "+" : "") + Theme.cfg.jarvisPitch.toFixed(1); onDec: Theme.cfg.jarvisPitch = Math.max(-3, Theme.cfg.jarvisPitch - 0.5); onInc: Theme.cfg.jarvisPitch = Math.min(2, Theme.cfg.jarvisPitch + 0.5) }
+                    Stepper { width: parent.width; label: "Voice effect"; hint: ({ CLEAN: "No processing", HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet" })[Theme.cfg.jarvisEffect] || "Custom preset · ~/.config/jarvis/effects.json"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisEffect; onDec: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, -1); onInc: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, 1) }
                     Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.jarvisFollowup > 0 ? Theme.cfg.jarvisFollowup + " S" : "OFF"; onDec: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, -1); onInc: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, 1) }
                     Toggle { width: parent.width; label: "Spoken replies"; hint: "Off = replies only show on the toast"; checked: Theme.cfg.jarvisSpeak; onToggled: Theme.cfg.jarvisSpeak = !Theme.cfg.jarvisSpeak }
                     Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.jarvisDuck; onToggled: Theme.cfg.jarvisDuck = !Theme.cfg.jarvisDuck }

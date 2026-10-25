@@ -49,8 +49,10 @@ Singleton {
             property bool jarvisLaptop: false         // …and when it's just the laptop
             // Read by ~/.config/jarvis (core/config.py); edited in Settings → JARVIS
             property string jarvisModel: "auto"       // auto (haiku, sonnet when needed) | haiku | sonnet | opus
-            property string jarvisVoice: "en_GB-alan-medium"   // piper voice in ~/.local/share/jarvis/voices
+            property string jarvisVoice: "bm_george"  // Kokoro voice (bm_*), or piper model[:speaker] in ~/.local/share/jarvis/voices
             property real jarvisSpeed: 1.0            // speech rate
+            property real jarvisPitch: 0.0            // semitones, on top of the effect preset
+            property string jarvisEffect: "HOLOGRAM"  // voice effect preset in ~/.config/jarvis/effects.json
             property bool jarvisSpeak: true           // spoken replies (the toast shows them either way)
             property bool jarvisDuck: true            // lower the music while Jarvis talks
             property int jarvisFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)

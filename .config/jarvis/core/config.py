@@ -24,8 +24,10 @@ MODELS = ["auto", "haiku", "sonnet", "opus"]
 
 DEFAULTS = {
     "jarvisModel": "auto",              # auto = haiku, sonnet for harder requests
-    "jarvisVoice": "en_GB-alan-medium",  # piper voice in ~/.local/share/jarvis/voices
+    "jarvisVoice": "bm_george",         # Kokoro voice, or a piper model[:speaker] in ~/.local/share/jarvis/voices
     "jarvisSpeed": 1.0,                 # speech rate multiplier
+    "jarvisPitch": 0.0,                 # semitones, on top of the effect preset's
+    "jarvisEffect": "HOLOGRAM",         # effects.json preset: CLEAN | HOLOGRAM | SUIT
     "jarvisSpeak": True,                # spoken replies (HUD text either way)
     "jarvisDuck": True,                 # lower music while speaking
     "jarvisFollowup": 8,                # seconds to listen for a follow-up (0 = off)

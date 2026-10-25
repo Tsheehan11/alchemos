@@ -1,0 +1,30 @@
+{
+  "_help": {
+    "speed": "multiplies Settings → Speech rate",
+    "pitch": "semitones, added to Settings → Pitch (0 skips the pitch shifter)",
+    "highpass_hz / lowpass_hz": "band limits; 0 = off",
+    "warmth_db": "low shelf at 220 Hz",
+    "presence_db": "peak at 2.5 kHz (SUIT centres it at 1.8 kHz via presence_hz)",
+    "air_db": "high shelf at 7 kHz (negative = softer, warmer)",
+    "drive_db": "light saturation; 0 = off",
+    "compress": "even out loudness",
+    "chorus_mix / chorus_depth": "very small values; 0 mix = off",
+    "reverb_room / reverb_wet": "small-room reverb; 0 wet = off",
+    "gain_db": "output trim before the limiter"
+  },
+  "CLEAN": {
+    "speed": 1.0, "pitch": 0, "highpass_hz": 0, "lowpass_hz": 0,
+    "warmth_db": 0, "presence_db": 0, "air_db": 0, "drive_db": 0, "compress": false,
+    "chorus_mix": 0, "chorus_depth": 0, "reverb_room": 0, "reverb_wet": 0, "gain_db": 0
+  },
+  "HOLOGRAM": {
+    "speed": 0.97, "pitch": -0.5, "highpass_hz": 70, "lowpass_hz": 0,
+    "warmth_db": 2.5, "presence_db": 1.0, "air_db": -2.0, "drive_db": 0, "compress": true,
+    "chorus_mix": 0.1, "chorus_depth": 0.06, "reverb_room": 0.2, "reverb_wet": 0.1, "gain_db": 0
+  },
+  "SUIT": {
+    "speed": 0.97, "pitch": -0.5, "highpass_hz": 260, "lowpass_hz": 5200,
+    "warmth_db": 1.0, "presence_db": 3.0, "presence_hz": 1800, "air_db": -3.0, "drive_db": 4, "compress": true,
+    "chorus_mix": 0.08, "chorus_depth": 0.05, "reverb_room": 0.1, "reverb_wet": 0.06, "gain_db": -2
+  }
+}

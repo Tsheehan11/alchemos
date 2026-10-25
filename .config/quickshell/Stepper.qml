@@ -1,4 +1,4 @@
-// Label + [−] value [+] control.
+// Label + [−] value [+] control, with an optional [▶] (preview: true → play()).
 import QtQuick
 
 Item {
@@ -6,8 +6,10 @@ Item {
     property string label: ""
     property string hint: ""
     property string valueText: ""
+    property bool preview: false
     signal dec()
     signal inc()
+    signal play()
 
     implicitHeight: hint === "" ? 40 : 52
 
@@ -34,5 +36,6 @@ Item {
             font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; font.letterSpacing: 2
         }
         SmallButton { text: "+"; onClicked: sp.inc() }
+        SmallButton { visible: sp.preview; text: "▶"; onClicked: sp.play() }
     }
 }

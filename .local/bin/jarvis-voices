@@ -1,0 +1,3 @@
+#!/bin/sh
+# Audition Jarvis voices by ear: jarvis-voices [--effect CLEAN|HOLOGRAM|SUIT] [--only kokoro|piper]
+exec setpriv --no-new-privs "$HOME/.config/jarvis/.venv/bin/python" "$HOME/.config/jarvis/voices.py" "$@"

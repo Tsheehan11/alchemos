@@ -337,7 +337,7 @@ class VoiceLoop:
         openwakeword.utils.download_models([WAKEWORD])
         self.wake = Model(wakeword_models=[WAKEWORD], inference_framework="onnx")
         self.stt = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
-        self.voice = Voice(self.cfg)
+        self.voice = Voice(self.cfg, log=log)
         self.voice.warm()
         A.apps()
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)
@@ -547,11 +547,15 @@ def main():
     ap.add_argument("--facts", action="store_true", help="remembered facts")
     ap.add_argument("--reminders", action="store_true", help="pending timers / reminders")
     ap.add_argument("--say", metavar="TEXT", help="speak TEXT with the configured voice (Settings → TEST VOICE)")
+    ap.add_argument("--voice", help="with --say: voice to use instead of the setting (bm_george, en_GB-alan-medium…)")
+    ap.add_argument("--effect", help="with --say: effect preset instead of the setting (CLEAN, HOLOGRAM, SUIT)")
     args = ap.parse_args()
 
     if args.say:
         from core.voice import Voice
-        Voice(C.Config()).speak(args.say)
+        v = Voice(C.Config(), log=log)
+        v.overrides = {k: val for k, val in (("voice", args.voice), ("preset", args.effect)) if val}
+        v.speak(args.say)
     elif args.misses:
         show_log([r for r in db.recent_log(200) if not r["tier"].startswith("fast")][:40])
     elif args.log:
