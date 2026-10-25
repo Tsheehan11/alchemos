@@ -50,6 +50,7 @@ WHISPER_MODEL = "base.en"  # "small.en" = more accurate but slower; "tiny.en" = 
 MAX_COMMAND_S = 10.0       # longest command it will listen for
 SILENCE_END_S = 1.0        # stop listening after this much silence
 NO_SPEECH_TIMEOUT_S = 4.0  # nothing said after the wake word → give up quietly
+VAD_THRESHOLD = 0.5        # Silero speech probability per 80 ms chunk
 CONFIRM_TIMEOUT_S = 6.0
 RATE = 16000
 CHUNK = 1280               # 80 ms
@@ -104,7 +105,8 @@ class Jarvis:
         self.confirm_q = queue.Queue()
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
-        from core.brain import Brain
+        from core.brain import Brain, is_usage_question
+        self.is_usage_question = is_usage_question
         self.brain = Brain(cfg, self._confirm_async, self._on_tool, dry_run=dry_run, log=log)
 
     # Brain (asyncio thread) asks; the main thread answers (it owns the mic / terminal)
@@ -168,6 +170,11 @@ class Jarvis:
         if steps is not None:
             reply, tools = self.run_steps(steps)
             tier = "fast"
+        elif self.is_usage_question(text):
+            hud.thinking()
+            self._on_tool("CLAUDE USAGE")
+            reply, tools = asyncio.run_coroutine_threadsafe(self.brain.usage_report(), self.loop).result(), ["usage"]
+            tier = "usage"
         else:
             hud.thinking()
             self.last_query = text
@@ -237,7 +244,7 @@ class Mic:
         self.cfg = cfg
         self.proc = None
         self.q = queue.Queue(maxsize=400)
-        self.noise = 300.0
+        self.vad = None
 
     def start(self):
         if self.proc:
@@ -282,13 +289,13 @@ class Mic:
         except queue.Empty:
             return None
 
-    @staticmethod
-    def rms(a):
-        import numpy as np
-        return float(np.sqrt(np.mean(a.astype(np.float32) ** 2)))
-
-    def track_noise(self, a):
-        self.noise = 0.97 * self.noise + 0.03 * self.rms(a)
+    def is_speech(self, a):
+        """Silero VAD (bundled with openWakeWord). A loudness threshold missed speech
+        on the laptop mic, whose fan hum is ~700 RMS against speech peaks of ~3000."""
+        if self.vad is None:
+            from openwakeword.vad import VAD
+            self.vad = VAD()
+        return self.vad.predict(a) > VAD_THRESHOLD
 
     def record(self, no_speech_s=NO_SPEECH_TIMEOUT_S):
         import numpy as np
@@ -300,7 +307,7 @@ class Mic:
                 return None
             frames.append(a)
             elapsed += step
-            if self.rms(a) > max(450.0, self.noise * 2.5):
+            if self.is_speech(a):
                 speech, silent = True, 0.0
             else:
                 silent += step
@@ -508,7 +515,6 @@ class VoiceLoop:
             if a is None:
                 continue
             if not self.woke(a) or time.time() - last < COOLDOWN_S:
-                self.mic.track_noise(a)
                 continue
             log("JARVIS: wake word")
             self.wake.reset()     # else its buffer still holds "hey Jarvis" and fires again mid-reply

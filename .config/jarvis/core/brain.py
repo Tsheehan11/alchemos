@@ -58,6 +58,17 @@ class Reply:
     interrupted: bool = False
 
 
+# "how much Claude do I have left": answered from the CLI's own rate-limit report, never by the model
+USAGE_Q = re.compile(r"\b(claude|plan|usage|tokens?|rate limit|limits?)\b.*\b(left|remaining|used|usage|limit)\b"
+                     r"|\bhow much (?:claude|usage)\b|\b(?:weekly|five[- ]hour|claude|plan) (?:limit|usage)\b")
+USAGE_STALE_S = 600
+
+
+def is_usage_question(text):
+    t = text.lower()
+    return bool(USAGE_Q.search(t)) and not re.search(r"\b(timer|reminder|battery|disk|ram|memory)\b", t)
+
+
 def strong_needed(text):
     return len(text.split()) > 30 or bool(STRONG_HINTS.search(text.lower()))
 
@@ -95,6 +106,7 @@ class Brain:
         self.last_used = 0.0
         self._reset_task = None
         self._req = None          # per-request state for the gate
+        self.usage, self.usage_at = {}, 0.0   # CLI's rate-limit windows (five_hour, seven_day)
         self.servers, self.policies = C.load_servers(dry_run)
 
     # ── connection ──
@@ -238,6 +250,7 @@ class Brain:
                     if t:
                         texts.append(t)
                 elif isinstance(msg, RateLimitEvent):
+                    self._note_usage(msg)
                     if msg.rate_limit_info.status == "rejected":
                         reply.error = "limit"
                 elif isinstance(msg, ResultMessage):
@@ -270,6 +283,44 @@ class Brain:
         elif reply.error == "tools":
             reply.text = reply.text or ERRORS["tools"]
         return reply
+
+    # ── plan usage ──
+    def _note_usage(self, msg):
+        windows = msg.rate_limit_info.raw.get("unifiedWindows")
+        if windows:
+            self.usage, self.usage_at = windows, time.time()
+
+    async def usage_report(self):
+        """Spoken summary of the Pro plan's 5-hour and weekly usage. The CLI reports it
+        on the first request of a session, so if it's missing or stale, send a one-word ping."""
+        if time.time() - self.usage_at > USAGE_STALE_S:
+            if offline():
+                return ERRORS["offline"]
+            try:
+                await self.disconnect()       # a new CLI session reports usage on its first request
+                await self.connect(C.FAST_MODEL)
+                await asyncio.wait_for(self._ping(), C.TIMEOUT_S)
+            except Exception as e:
+                self.log(f"JARVIS: usage check failed: {type(e).__name__}: {e}")
+            self._schedule_reset()
+        if not self.usage:
+            return "Claude didn't report my usage just now, sir."
+        names = {"five_hour": "five-hour", "seven_day": "weekly"}
+        parts = []
+        for key, w in self.usage.items():
+            if key not in names or w.get("utilization") is None:
+                continue
+            reset = datetime.fromtimestamp(w["resetsAt"]) if w.get("resetsAt") else None
+            when = "" if not reset else (f", resetting at {reset:%-I:%M %p}" if reset.date() == datetime.now().date()
+                                         else f", resetting {reset:%A at %-I %p}")
+            parts.append(f"{round(w['utilization'] * 100)}% of your {names[key]} limit{when}")
+        return ("You've used " + ", and ".join(parts) + ".") if parts else "Claude didn't report my usage just now, sir."
+
+    async def _ping(self):
+        await self.client.query("Reply with only: ok")
+        async for msg in self.client.receive_response():
+            if isinstance(msg, RateLimitEvent):
+                self._note_usage(msg)
 
     async def _next(self, stream, req):
         """Next message, honouring the deadline (checked in short slices, since
