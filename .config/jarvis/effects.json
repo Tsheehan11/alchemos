@@ -1,6 +1,6 @@
 {
   "_help": {
-    "speed": "multiplies Settings → Speech rate",
+    "speed": "multiplies Settings → Speech rate (keep HOLOGRAM and SUIT equal so AUTO only changes the tone)",
     "pitch": "semitones, added to Settings → Pitch (0 skips the pitch shifter)",
     "highpass_hz / lowpass_hz": "band limits; 0 = off",
     "warmth_db": "low shelf at 220 Hz",
@@ -18,7 +18,7 @@
     "chorus_mix": 0, "chorus_depth": 0, "reverb_room": 0, "reverb_wet": 0, "gain_db": 0
   },
   "HOLOGRAM": {
-    "speed": 1.0, "pitch": 0, "highpass_hz": 70, "lowpass_hz": 0,
+    "speed": 0.97, "pitch": -0.5, "highpass_hz": 70, "lowpass_hz": 0,
     "warmth_db": 2.0, "presence_db": 1.0, "air_db": -1.5, "drive_db": 0, "compress": true,
     "chorus_mix": 0.05, "chorus_depth": 0.04, "reverb_room": 0.15, "reverb_wet": 0.06, "gain_db": 0
   },
