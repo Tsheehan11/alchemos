@@ -20,6 +20,7 @@ audio deck with visualizer · full themeable settings — all reacting to how ma
 | **Settings** | `Super + ,` — Wi-Fi, Bluetooth, themes, HUD, sleep timings, battery saver |
 | **Lock** | `Super + L` — security doors slam shut, lock screen lines up with them, doors open on unlock |
 | **Power menu** | Power button or `Super + Escape` — shutdown plays a CRT power-off animation |
+| **Widgets** | Holographic desktop cards on any screen: clocks (any time zone, analog or digital), timers that ring and flash the lights, stopwatch, now playing, system stats, sticky notes. Drag to snap, pin above windows, or just ask Jarvis (see [Widgets](#widgets)) |
 | **Jarvis** | Claude-powered voice assistant: "Hey Jarvis, set the theme to Mark III and dim the lights". Local wake word, speech-to-text and voice; Claude only for the thinking (see [Jarvis](#jarvis)) |
 | **Docking aware** | Laptop alone: everything on one screen. Docked: clock / diagnostics / audio deck across 3 screens. Display profiles per setup (desk / laptop / TV), switched on plug-in |
 | **Battery saver** | Unplugged → static effects, no blur, 48 Hz, power-saver profile |
@@ -48,6 +49,21 @@ ttf-jetbrains-mono-nerd networkmanager bluez-utils uv librsvg hyprcursor python-
 Jarvis: `cd ~/.config/jarvis && uv venv --python 3.11 && uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp piper-tts kokoro-onnx pedalboard`,
 then put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx GitHub releases, `model-files-v1.0`) in
 `~/.local/share/jarvis/kokoro/`. Claude uses your `claude` login (Pro/Max); no API key.
+
+## Widgets
+
+`quickshell/Widgets.qml` keeps the list (saved in `widgets.json`, not committed); each widget is its own
+layer window on its screen, in one of nine slots (widgets in the same slot stack). Unpinned widgets hide
+behind windows like the panels; pinned ones float above. Screens are roles (main / second / laptop), so
+undocked everything shows on the laptop and returns when you dock. A new type is one QML file in
+`quickshell/widgets/`.
+
+- **Voice:** "set a timer for 10 minutes on monitor 2", "show a clock on the second monitor", "show New York
+  time on the laptop screen", "start a stopwatch", "show now playing", "add a note saying …", "move the timer
+  to the top right", "pin the clock", "remove the clock", "clear monitor 2". Removing a note asks first.
+- **Mouse:** drag to move (snaps), ◇ to pin, × to close; Settings → WIDGETS to add / reset.
+- **Script:** `qs ipc call widgets add clock diag top-right '{"tz":"America/New_York"}'`, `remove clock`,
+  `move timer - top-right`, `pin clock true`, `clear diag`, `list`, `types`.
 
 ## Jarvis
 
