@@ -28,7 +28,7 @@ SPECULATE_S = 0.24          # start transcribing after this much silence; used i
 LIVE_TAIL_S = 0.32          # speech this close to the wake word = the command is already under way
 MAX_COMMAND_S = 10.0
 
-VOCAB = ("Hey Jarvis. STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, workspace, monitor, Spotify, "
+VOCAB = ("Hey Jarvis. STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, workspace, monitor, Spotify, Claude, brighten, "
          "timer, lights, theme.")
 
 # "Hey Jarvis" as whisper hears it from across the desk: "Hey Joris", "Hey Joe, visit",
@@ -71,7 +71,29 @@ def _echoes_prompt(text):
     if len(words) >= 3 and all(w in _VOCAB_WORDS for w in words):
         return True
     return any(t in pairs for t in zip(words, words[1:], words[2:])) or (
-        len(words) == 1 and words[0] in _VOCAB_WORDS and words[0] not in ("timer", "lights", "theme", "spotify", "monitor"))
+        len(words) == 1 and words[0] in _VOCAB_WORDS and words[0] not in ("timer", "lights", "theme", "spotify", "monitor", "claude", "brighten"))
+
+
+# What base.en keeps getting wrong at the desk (jarvis.log, 2026-10-25), fixed after the
+# fact: only in contexts where the misheard word can't be meant ("cloudy" weather is safe).
+CORRECTIONS = [
+    (r"\b(?:cloud|clouds|cloud's|clogged|clawed|claw|clod|clot|clawd|claud|clyde)\b(?=\s+(?:usage|use|limits?|plan|code|model|sonnet|haiku|opus)\b)", "Claude"),
+    (r"\b(?:ask|tell|open|use)\s+(?:cloud|clogged|clawed|claw|clod)\b", lambda m: m.group(0).split()[0] + " Claude"),
+    (r"\bhow much (?:more )?(?:cloud|clod|claw)\b", lambda m: m.group(0).rsplit(" ", 1)[0] + " Claude"),
+    (r"\b(?:break|brake|bright|brite)(?:en|in|ing)?(?: in| up)? (?=(?:the |my )?(?:lights?|strip|leds?)\b)", "brighten "),
+    (r"\bmake (it|them|the lights?|the strip) (?:break|brake|bright|brite)(?:er)?\b", r"make \1 brighter"),
+    (r"^(?:bright|brighter|brite|break|brake)[.!]?$", "brighten the lights"),
+    (r"\b(?:cmeo|cmo|cpo|cpu's|see pee you|c p u)\b(?=\s+(?:temp|temperature|usage|load))", "CPU"),
+    (r"\bmy attempts\b", "my temps"),
+]
+
+
+def correct(text):
+    """'how much cloud usage' → 'how much Claude usage'; 'break in the lights' → 'brighten the lights'."""
+    t = text
+    for pat, rep in CORRECTIONS:
+        t = re.sub(pat, rep, t, flags=re.I)
+    return t
 
 
 class Endpointer:

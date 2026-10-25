@@ -63,7 +63,7 @@ class Reply:
 
 # "how much Claude do I have left": answered from the CLI's own rate-limit report, never by the model
 USAGE_Q = re.compile(r"\b(claude|plan|usage|tokens?|rate limit|limits?)\b.*\b(left|remaining|used|usage|limit)\b"
-                     r"|\bhow much (?:claude|usage)\b|\b(?:weekly|five[- ]hour|claude|plan) (?:limit|usage)\b")
+                     r"|\bhow much (?:more )?(?:claude|usage)\b|\b(?:weekly|five[- ]hour|claude|plan) (?:limit|usage)\b")
 USAGE_STALE_S = 600
 FIRST_REPLY_S = 12        # nothing at all back from Claude by then (no text, no tool) → give up, reconnect
 SENTENCE_END = re.compile(r"(?<=[.!?])[\"')\]]?\s+(?=[\"'(\[]?[A-Z0-9])")

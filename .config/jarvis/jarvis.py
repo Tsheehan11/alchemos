@@ -427,7 +427,7 @@ class VoiceLoop:
             info["early"] = True
         else:
             raw, info = self.stt.transcribe(audio)
-        text = hearing.strip_wake(raw, anywhere=barged)
+        text = hearing.correct(hearing.strip_wake(raw, anywhere=barged))
         trace.t("stt", model=WHISPER_MODEL, audio_s=round(len(audio) / RATE, 2), text=raw,
                 **({"command": text} if text != raw else {}), **info)
         return text, raw
