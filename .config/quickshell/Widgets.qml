@@ -253,7 +253,7 @@ Singleton {
     }
     function alarm(it, late) {
         const label = it.params.label || "";
-        Quickshell.execDetached(["pw-play", root.home + "/.config/quickshell/sounds/widget-alarm.wav"]);
+        Quickshell.execDetached(["pw-play", "-P", "{ media.name = \"Jarvis timer\" state.restore-props = false }", root.home + "/.config/quickshell/sounds/widget-alarm.wav"]);
         Quickshell.execDetached(["stark-govee", "anim", "alert"]);
         JarvisState.alert("TIMER", (label ? label.toUpperCase() + " · " : "") + "TIME'S UP");
         if (Theme.cfg.jarvisSpeak) {

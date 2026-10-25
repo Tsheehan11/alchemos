@@ -53,6 +53,10 @@ DUCK_LISTEN = 0.2          # ...and while it listens, so a song isn't taken for 
 SPEAKER_WAIT_S = 1.5       # Bluetooth speaker not ready by then → laptop speakers for this reply
 COMMA_GAP_S = 0.06         # pause where a long first sentence was split at its comma
 JARVIS_STREAMS = ("Jarvis", "Jarvis chime")
+# WirePlumber remembers a stream's volume per app and applies it to the next one. Ducking once caught a
+# pw-play stream (the timer alarm) and saved ~0 % for "pw-play", which silenced every Jarvis line after.
+# So Jarvis's streams opt out of that memory, and the ducker leaves pw-play streams alone.
+NO_RESTORE = "state.restore-props = false"
 
 
 def clean(text):
@@ -131,7 +135,8 @@ class Ducker:
             except (OSError, ValueError, subprocess.TimeoutExpired):
                 return False
             for si in inputs:
-                if si.get("corked") or si.get("properties", {}).get("media.name") in JARVIS_STREAMS:
+                props = si.get("properties", {})
+                if si.get("corked") or props.get("media.name") in JARVIS_STREAMS or props.get("application.name") == "pw-play":
                     continue
                 vols = [v["value"] for v in si.get("volume", {}).values()]
                 if not vols:
@@ -493,7 +498,8 @@ class Voice:
     def open_stream(self, target=None):
         return subprocess.Popen(
             ["pw-play", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "f32",
-             "--media-role", "Assistant", "-P", "media.name=Jarvis"] + (["--target", target] if target else []) + ["-"],
+             "--media-role", "Assistant", "-P", f'{{ media.name = "Jarvis" {NO_RESTORE} }}']
+            + (["--target", target] if target else []) + ["-"],
             stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def utterance(self):
@@ -517,7 +523,7 @@ class Voice:
         def play():
             try:
                 p = subprocess.Popen(["pw-play", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "f32",
-                                      "--media-role", "Notification", "-P", "media.name=Jarvis chime"]
+                                      "--media-role", "Notification", "-P", f'{{ media.name = "Jarvis chime" {NO_RESTORE} }}']
                                      + (["--target", target] if target else []) + ["-"],
                                      stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 p.communicate(self._chimes.setdefault(kind, chime_audio(kind)).tobytes(), timeout=5)
