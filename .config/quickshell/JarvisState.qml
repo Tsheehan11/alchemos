@@ -87,8 +87,10 @@ Singleton {
         // no-new-privs: nothing Jarvis starts can gain privileges (no sudo / setuid helpers).
         command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs",
                   root.home + "/.config/jarvis/.venv/bin/python", root.home + "/.config/jarvis/jarvis.py"]
-        onExited: { root.online = false; root.paused = false; }
+        // If it dies on its own (e.g. the mic stream ends) while it should be on, start it again.
+        onExited: { root.online = false; root.paused = false; if (root.enabled) restartTimer.restart(); }
     }
+    Timer { id: restartTimer; interval: 5000; onTriggered: root.sync() }
 
     function sync() { proc.running = root.enabled; }
     onEnabledChanged: syncTimer.restart()

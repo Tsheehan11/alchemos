@@ -54,6 +54,7 @@ Singleton {
             property bool jarvisSpeak: true           // spoken replies (the toast shows them either way)
             property bool jarvisDuck: true            // lower the music while Jarvis talks
             property int jarvisFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)
+            property string jarvisMic: ""             // PipeWire source node.name for the wake word ("" = default input)
             property string displayLayout: "extend"  // extend | mirror | external | laptop
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open
             property bool osd: true                   // volume / brightness pop-up

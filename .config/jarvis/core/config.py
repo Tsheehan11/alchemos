@@ -30,6 +30,7 @@ DEFAULTS = {
     "jarvisDuck": True,                 # lower music while speaking
     "jarvisFollowup": 8,                # seconds to listen for a follow-up (0 = off)
     "gameJarvis": True,                 # pause the wake word in combat mode
+    "jarvisMic": "",                    # PipeWire source node.name; "" = system default input
 }
 
 TIMEOUT_S = 30

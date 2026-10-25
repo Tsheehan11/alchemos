@@ -233,7 +233,8 @@ def text_mode(args):
 class Mic:
     """pw-record → 80 ms chunks on a queue (a reader thread keeps the pipe drained)."""
 
-    def __init__(self):
+    def __init__(self, cfg):
+        self.cfg = cfg
         self.proc = None
         self.q = queue.Queue(maxsize=400)
         self.noise = 300.0
@@ -241,9 +242,12 @@ class Mic:
     def start(self):
         if self.proc:
             return
-        self.proc = subprocess.Popen(
-            ["pw-record", "--rate", str(RATE), "--channels", "1", "--format", "s16",
-             "-P", "media.name=Jarvis wake word", "-"], stdout=subprocess.PIPE)
+        # --raw: without it pw-record ≥ 1.6.10 writes an AU stream to stdout (header + big-endian)
+        cmd = ["pw-record", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "s16",
+               "-P", "media.name=Jarvis wake word"]
+        if self.cfg["jarvisMic"]:
+            cmd += ["--target", self.cfg["jarvisMic"]]
+        self.proc = subprocess.Popen(cmd + ["-"], stdout=subprocess.PIPE)
         threading.Thread(target=self._reader, args=(self.proc,), daemon=True).start()
 
     def stop(self):
@@ -312,7 +316,7 @@ class Mic:
 class VoiceLoop:
     def __init__(self):
         self.cfg = C.Config()
-        self.mic = Mic()
+        self.mic = Mic(self.cfg)
         self.paused = False
         self.barge = False
         self.last_reminder_check = 0.0
