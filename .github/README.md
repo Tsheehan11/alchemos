@@ -20,7 +20,7 @@ audio deck with visualizer · full themeable settings — all reacting to how ma
 | **Settings** | `Super + ,` — Wi-Fi, Bluetooth, themes, HUD, sleep timings, battery saver |
 | **Lock** | `Super + L` — security doors slam shut, lock screen lines up with them, doors open on unlock |
 | **Power menu** | Power button or `Super + Escape` — shutdown plays a CRT power-off animation |
-| **Jarvis** | "Hey Jarvis, open Spotify" / "Hey Jarvis, what's…" (offline wake word + Whisper) |
+| **Jarvis** | Claude-powered voice assistant: "Hey Jarvis, set the theme to Mark III and dim the lights". Local wake word, speech-to-text and voice; Claude only for the thinking (see [Jarvis](#jarvis)) |
 | **Docking aware** | Laptop alone: everything on one screen. Docked: clock / diagnostics / audio deck across 3 screens. Display profiles per setup (desk / laptop / TV), switched on plug-in |
 | **Battery saver** | Unplugged → static effects, no blur, 48 Hz, power-saver profile |
 | **Themes** | Stark, Mark III, Vibranium, Matrix, Arctic, Solar, or custom colors |
@@ -32,7 +32,7 @@ audio deck with visualizer · full themeable settings — all reacting to how ma
 ~/.config/hypr/         Hyprland, hyprlock (template), hypridle, lock + lid scripts
 ~/.config/hypr/system/  Files installed outside $HOME (hyprlock PAM stack, suspend hooks)
 ~/.config/quickshell/   The whole HUD (shell.qml is the entry point)
-~/.config/jarvis/       Voice assistant (jarvis.py; its .venv is not tracked)
+~/.config/jarvis/       Voice assistant (jarvis.py; its .venv is not tracked); data in ~/.local/share/jarvis
 ~/.config/stark-cursor/ Cursor theme: SVG templates (src/) and build.sh
 ```
 
@@ -45,7 +45,36 @@ ttf-jetbrains-mono-nerd networkmanager bluez-utils uv librsvg hyprcursor python-
 
 `xorg-xcursorgen` is optional: without it the cursor build uses its own `xcursorgen.py`.
 
-Jarvis: `cd ~/.config/jarvis && uv venv --python 3.11 && uv pip install --python .venv openwakeword faster-whisper`
+Jarvis: `cd ~/.config/jarvis && uv venv --python 3.11 && uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp piper-tts kokoro-onnx pedalboard`,
+then put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx GitHub releases, `model-files-v1.0`) in
+`~/.local/share/jarvis/kokoro/`. Claude uses your `claude` login (Pro/Max); no API key.
+
+## Jarvis
+
+"Hey Jarvis" (openWakeWord) → faster-whisper `base.en` → a regex fast path for everyday commands
+(media, lights, workspaces, VPN, themes, timers: 5–40 ms, no AI) → otherwise Claude through the
+Agent SDK on the `claude` login: Haiku by default, Sonnet for longer or "explain / plan" requests.
+Runs only while docked (Settings → JARVIS), started by the HUD under `setpriv --no-new-privs`.
+
+- **Tools, not a shell.** Claude gets no built-in tools, only the STARK MCP server
+  (`mcp/stark_tools.py`, 21 validated tools: apps, windows, workspaces, themes, lights, media, VPN,
+  UW CS servers, timers / reminders, memory, power). Jarvis enforces the rules itself in the SDK's
+  permission callback: at most 8 tool calls per request, a 30 s timeout, the browser only when asked,
+  and a spoken "yes" before power actions, closing windows, deleting, the kill switch, or anything
+  that sends a message. Tool output is treated as data. No network listeners; works with Proton VPN on.
+- **Phase 2** integrations (calendar, mail, smart home…) are extra MCP servers in `servers.json`; every
+  tool of a new server needs a spoken yes unless listed in `auto_allow`.
+- **Voice.** Kokoro (`bm_lewis` by default) with piper as fallback, then an effect chain (pedalboard):
+  presets CLEAN / HOLOGRAM / SUIT in `effects.json`; AUTO uses SUIT on headphones and HOLOGRAM on
+  speakers. The first sentence plays while the rest render; short stock lines are cached.
+  `jarvis-voices` auditions every British male voice. Without headphones, Jarvis can talk through a
+  paired Bluetooth speaker (Settings → JARVIS → Speaker), connecting when it hears the wake word.
+- **Mic.** `jarvisMic` picks the PipeWire source (the laptop mic at the desk); Silero VAD decides when
+  you've finished. Barge in with "Hey Jarvis" while it talks or thinks; follow-ups need no wake word
+  for 8 s.
+- **CLI.** `jarvis --text "…"` (add `--dry-run` to only show what it would do), `--misses` (requests
+  the fast path missed), `--log`, `--facts`, `--reminders`, `--say "…"`. Log: `~/.local/share/jarvis/jarvis.log`.
+- Secrets, if a phase-2 service ever needs one, go in gnome-keyring (`core/secrets.py`), never in tracked files.
 
 ## Lock screen, fingerprint and faillock
 
