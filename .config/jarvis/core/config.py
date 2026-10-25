@@ -34,6 +34,7 @@ DEFAULTS = {
     "gameJarvis": True,                 # pause the wake word in combat mode
     "jarvisSpeaker": "",                # Bluetooth MAC of a speaker to use when not on headphones; "" = off
     "jarvisMic": "",                    # PipeWire source node.name; "" = system default input
+    "jarvisPlace": "Waterloo, Ontario", # home town for the weather (read by stark_actions.weather)
 }
 
 TIMEOUT_S = 30

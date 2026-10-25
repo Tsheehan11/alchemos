@@ -2,19 +2,22 @@
 Jarvis's voice. Kokoro (local, ONNX on CPU) by default, piper as the fallback,
 then the effect chain (effects.py), streamed into pw-play.
 
-Low latency: the reply is split into sentences; the first one starts playing
-while the rest are still being generated (~0.35 s to first sound with Kokoro).
-Short stock lines ("Done, sir.", "Very well, sir.") are rendered once and cached
-on disk, so they play instantly.
+Every line goes through speech.normalize first (times, dates, numbers, units,
+symbols → words), then plays as an Utterance: sentences can be added while it's
+already talking (Claude's reply streams in sentence by sentence), each is
+rendered in the background and written to one pw-play stream. The stream is
+opened as soon as Jarvis knows what you said, so Bluetooth is awake and the
+first syllable isn't clipped. A long first sentence is split at its first comma
+so the first sound comes sooner. Short stock lines are cached on disk.
 
 Voice names: Kokoro voices as-is (bm_george, bm_fable…); piper voices by model
 file, with a speaker for multi-speaker models (en_GB-semaine-medium:obadiah).
-Music playing through MPRIS (Spotify etc.) is ducked while it talks.
 
 Output: the default sink, except when it isn't headphones and a Bluetooth speaker
 is set (Settings → JARVIS → Speaker): then Jarvis connects to it when it hears
-"Hey Jarvis" (ready by the time you finish talking) and plays only its own voice
-there. The system default output is left alone.
+"Hey Jarvis" and plays only its own voice there. If it isn't connected within
+1.5 s of a reply being ready, that reply plays on the laptop speakers instead.
+Other audio (Spotify, browsers) is turned down while Jarvis listens and talks.
 
 Setup (venv): uv pip install --python ~/.config/jarvis/.venv/bin/python kokoro-onnx pedalboard
 Models: kokoro-v1.0.int8.onnx + voices-v1.0.bin from github.com/thewh1teagle/kokoro-onnx
@@ -30,7 +33,7 @@ import time
 
 import numpy as np
 
-from . import effects, trace
+from . import effects, speech, trace
 from .config import DATA_DIR, VOICES_DIR
 
 KOKORO_DIR = DATA_DIR / "kokoro"
@@ -41,32 +44,29 @@ CACHE_DIR = DATA_DIR / "tts-cache"
 CACHE_MAX_WORDS = 6        # sentences this short get cached on disk
 CACHE_MAX_FILES = 400
 COMMON = ["Right away, sir.", "Done, sir.", "Very well, sir.", "Very good, sir.", "Online.",
-          "You're welcome, sir.", "Goodnight, sir.", "Your timer is done, sir.", "Nothing's playing, sir."]
+          "You're welcome, sir.", "Goodnight, sir.", "Your timer is done, sir.", "Nothing's playing, sir.",
+          "Sorry sir, I didn't catch that.", "I'm having trouble reaching the network, sir."]
 
-DUCK_TO = 0.3   # fraction of the player's volume while Jarvis speaks
-ROMAN = {"II": "two", "III": "three", "IV": "four", "VI": "six", "VII": "seven", "VIII": "eight", "IX": "nine"}
+RATE = 24000               # the output stream's rate (Kokoro's); piper audio is resampled to it
+DUCK_SPEAK = 0.3           # other audio while Jarvis talks (fraction of its volume)
+DUCK_LISTEN = 0.2          # ...and while it listens, so a song isn't taken for a command
+SPEAKER_WAIT_S = 1.5       # Bluetooth speaker not ready by then → laptop speakers for this reply
+COMMA_GAP_S = 0.06         # pause where a long first sentence was split at its comma
+JARVIS_STREAMS = ("Jarvis", "Jarvis chime")
 
 
 def clean(text):
-    """Make a reply speakable: no markdown, URLs or symbols read aloud."""
-    t = re.sub(r"https?://\S+", "a link", text)
-    t = re.sub(r"[`*_#>|]+", "", t)
-    t = re.sub(r"^\s*[-•]\s+", "", t, flags=re.M)
-    t = t.replace("°C", " degrees").replace("%", " percent").replace("→", "to")
-    # "MARK III" → "Mark three" (lone "I" stays a pronoun)
-    t = re.sub(r"\b(II|III|IV|VI|VII|VIII|IX)\b", lambda m: ROMAN[m.group(1)], t)
-    return re.sub(r"\s+", " ", t).strip()
+    return speech.normalize(text)
 
 
-def sentences(text):
-    parts = [p.strip() for p in re.split(r"(?<=[.!?;])\s+", text) if p.strip()]
-    out = []
-    for p in parts:   # glue fragments of one or two words onto the previous sentence
-        if out and len(p.split()) <= 2 and not p.endswith((".", "!", "?")):
-            out[-1] += " " + p
-        else:
-            out.append(p)
-    return out
+def first_split(parts):
+    """Split a long first sentence at its first comma: ['A, b c d.'] → ['A,', 'b c d.']."""
+    if not parts or len(parts[0].split()) < 9:
+        return parts, False
+    m = re.search(r",\s", parts[0])
+    if not m or len(parts[0][:m.start()].split()) < 3 or len(parts[0][m.end():].split()) < 3:
+        return parts, False
+    return [parts[0][:m.start() + 1], parts[0][m.end():]] + parts[1:], True
 
 
 def is_kokoro(name):
@@ -93,32 +93,60 @@ def piper_voices():
     return out
 
 
+def chime_audio(kind):
+    """Soft chimes from the HUD's own notes (unlock.wav is E5 / B5 / E6). listen: rising, error: falling."""
+    notes = {"listen": [(659.3, 0.0), (987.8, 0.07)], "error": [(493.9, 0.0), (329.6, 0.11)]}[kind]
+    dur = 0.34 if kind == "listen" else 0.42
+    t = np.arange(int(RATE * dur)) / RATE
+    out = np.zeros_like(t)
+    for f, start in notes:
+        tt = np.clip(t - start, 0, None)
+        env = (t >= start) * (1 - np.exp(-tt / 0.006)) * np.exp(-tt / (0.09 if kind == "listen" else 0.12))
+        out += env * (np.sin(2 * np.pi * f * tt) + 0.25 * np.sin(4 * np.pi * f * tt))
+    if kind == "listen":    # faint E6 shimmer
+        out += 0.12 * np.exp(-np.clip(t - 0.07, 0, None) / 0.15) * (t >= 0.07) * np.sin(2 * np.pi * 1318.5 * t)
+    out = 0.22 * out / np.abs(out).max()
+    return np.concatenate([np.zeros(int(RATE * 0.12)), out]).astype(np.float32)   # lead-in: a waking BT sink drops the start
+
+
 class Ducker:
+    """Turns other apps' audio streams down (pactl, so any app: Spotify, browsers) and back up."""
+
     def __init__(self):
         self.saved = {}
+        self._lock = threading.Lock()
 
-    def _players(self):
-        p = subprocess.run(["playerctl", "-l"], capture_output=True, text=True)
-        return p.stdout.split() if p.returncode == 0 else []
+    @property
+    def held(self):
+        return bool(self.saved)
 
-    def duck(self):
-        self.saved = {}
-        for pl in self._players():
-            st = subprocess.run(["playerctl", "-p", pl, "status"], capture_output=True, text=True).stdout.strip()
-            if st != "Playing":
-                continue
-            vol = subprocess.run(["playerctl", "-p", pl, "volume"], capture_output=True, text=True).stdout.strip()
+    def duck(self, level):
+        """False if already ducked (someone else will restore)."""
+        with self._lock:
+            if self.saved:
+                return False
             try:
-                v = float(vol)
-            except ValueError:
-                continue
-            self.saved[pl] = v
-            subprocess.run(["playerctl", "-p", pl, "volume", f"{v * DUCK_TO:.3f}"], capture_output=True)
+                inputs = json.loads(subprocess.run(["pactl", "-f", "json", "list", "sink-inputs"], capture_output=True,
+                                                   text=True, timeout=2).stdout or "[]")
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                return False
+            for si in inputs:
+                if si.get("corked") or si.get("properties", {}).get("media.name") in JARVIS_STREAMS:
+                    continue
+                vols = [v["value"] for v in si.get("volume", {}).values()]
+                if not vols:
+                    continue
+                self.saved[si["index"]] = vols
+                subprocess.run(["pactl", "set-sink-input-volume", str(si["index"])] + [str(int(v * level)) for v in vols],
+                               capture_output=True, timeout=2)
+            return True
 
     def restore(self):
-        for pl, v in self.saved.items():
-            subprocess.run(["playerctl", "-p", pl, "volume", f"{v:.3f}"], capture_output=True)
-        self.saved = {}
+        with self._lock:
+            for idx, vols in self.saved.items():
+                subprocess.run(["pactl", "set-sink-input-volume", str(idx)] + [str(v) for v in vols],
+                               capture_output=True, timeout=2)
+            self.saved = {}
 
 
 class Engines:
@@ -200,6 +228,7 @@ class Speaker:
         self.log = log
         self._thread = None
         self._lock = threading.Lock()
+        self._wanted = (0.0, False)
 
     @property
     def mac(self):
@@ -209,7 +238,12 @@ class Speaker:
             return ""
 
     def wanted(self):
-        return bool(self.mac) and not effects.on_headphones()
+        """Speaker set and not on headphones (checked at most every 3 s)."""
+        at, val = self._wanted
+        if time.monotonic() - at > 3:
+            val = bool(self.mac) and not effects.on_headphones()
+            self._wanted = (time.monotonic(), val)
+        return val
 
     def sink(self):
         name = "bluez_output." + self.mac.replace(":", "_")
@@ -244,17 +278,126 @@ class Speaker:
             self._thread = threading.Thread(target=self._connect, daemon=True)
             self._thread.start()
 
-    def target(self):
-        """Sink name for pw-play, or None for the default output. Waits up to 8 s for a
-        connect in progress; if the speaker still isn't there, this line uses the default output."""
+    def target(self, wait=SPEAKER_WAIT_S):
+        """(sink for pw-play or None for the default output, fell_back). Waits up to `wait`
+        for a connect in progress; if the speaker isn't there by then, this reply goes to the
+        laptop speakers (the connect carries on for the next one)."""
         if not self.wanted():
-            return None
+            return None, False
         self.prepare()
         if self._thread and self._thread.is_alive():
             t0 = time.monotonic()
-            self._thread.join(8)
+            self._thread.join(wait)
             trace.t("speaker.wait", ms=int((time.monotonic() - t0) * 1000), ready=bool(self.sink()))
-        return self.sink()
+        s = self.sink()
+        if s:
+            return s, False
+        return laptop_sink(), True
+
+    def now(self):
+        """Sink for a sound that can't wait (the chime): the speaker if it's already up."""
+        return (self.sink() if self.wanted() else None) or None
+
+
+def laptop_sink():
+    return next((s for s in sink_names() if "Speaker__sink" in s or ("alsa_output" in s and "speaker" in s.lower())), None)
+
+
+class Utterance:
+    """One spoken reply. add() sentences any time (even while it's talking), finish()
+    when there's no more, wait() until it's done. Opens the output stream right away."""
+
+    def __init__(self, voice):
+        self.v = voice
+        self.texts = queue.Queue()
+        self.audio = queue.Queue()
+        self.stopped = threading.Event()
+        self.done = threading.Event()
+        self.started = False          # any audio written yet
+        self.fell_back = False        # speaker unreachable → laptop speakers
+        self.n_added = 0
+        self.params = voice.params()
+        self.proc = None
+        threading.Thread(target=self._produce, daemon=True).start()
+        threading.Thread(target=self._play, daemon=True).start()
+
+    def add(self, text):
+        parts = speech.sentences(speech.normalize(text))
+        split = False
+        if self.n_added == 0:
+            parts, split = first_split(parts)
+        for i, p in enumerate(parts):
+            self.texts.put((p, COMMA_GAP_S if split and i == 0 else None))
+        self.n_added += len(parts)
+
+    def finish(self):
+        self.texts.put(None)
+
+    def stop(self):
+        self.stopped.set()
+        p = self.proc
+        if p and p.poll() is None:
+            p.kill()
+
+    def wait(self, timeout=None):
+        """True if it finished, False if stopped (or still going after timeout)."""
+        self.done.wait(timeout)
+        return self.done.is_set() and not self.stopped.is_set()
+
+    def _produce(self):
+        while not self.stopped.is_set():
+            item = self.texts.get()
+            if item is None:
+                break
+            text, gap = item
+            try:
+                audio, sr = self.v.render(text, self.params)
+                audio = resample(audio, sr, RATE)
+                if gap is not None:      # comma split: shorter pause than a full stop
+                    audio = audio[:max(0, len(audio) - int((effects.TAIL_S - gap) * RATE))]
+                self.audio.put(audio)
+            except Exception as e:
+                self.v.log(f"JARVIS: speech failed: {e}")
+                trace.t("error", where="tts", err=f"{type(e).__name__}: {e}")
+        self.audio.put(None)
+
+    def _play(self):
+        ducked = False
+        try:
+            target, self.fell_back = self.v.speaker.target()
+            if self.fell_back:
+                trace.t("speaker.fallback", sink=target or "default")
+            if self.stopped.is_set():
+                return
+            self.proc = self.v.open_stream(target)
+            first = True
+            while not self.stopped.is_set():
+                audio = self.audio.get()
+                if audio is None:
+                    break
+                if first:
+                    first = False
+                    self.started = True
+                    trace.t("tts.audio", sink=target or "default", since_speech_end=trace.since("speech_end"))
+                    if self.v.cfg["jarvisDuck"]:
+                        ducked = self.v.ducker.duck(DUCK_SPEAK)
+                self.proc.stdin.write(audio.tobytes())
+                self.proc.stdin.flush()
+            self.proc.stdin.close()
+            while self.proc.poll() is None and not self.stopped.wait(0.03):
+                pass
+        except (BrokenPipeError, OSError, ValueError):
+            pass
+        finally:
+            if self.proc and self.proc.poll() is None:
+                self.proc.kill()
+            if self.proc:
+                self.proc.wait()
+            if ducked:
+                self.v.ducker.restore()
+            self.done.set()
+            if self.v.prewarm:
+                self.v.warm()    # re-render the stock phrases if the voice settings changed
 
 
 def resample(audio, sr, to):
@@ -270,12 +413,11 @@ class Voice:
         self.prewarm = prewarm         # long-running Jarvis only: one-shot runs exit mid-render otherwise
         self.log = log
         self.engines = Engines()
-        self._proc = None
-        self._stop = threading.Event()
         self._lock = threading.Lock()
         self._warmed = None
+        self._current = None           # the Utterance playing now
+        self._chimes = {}
         self.ducker = Ducker()
-        self.speaking = False
         self.overrides = {}            # audition / preview: {"voice", "preset", "pitch", "speed"}
         self.speaker = Speaker(cfg, log)
 
@@ -348,71 +490,47 @@ class Voice:
         threading.Thread(target=run, daemon=True).start()
 
     # ── playback ──
+    def open_stream(self, target=None):
+        return subprocess.Popen(
+            ["pw-play", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "f32",
+             "--media-role", "Assistant", "-P", "media.name=Jarvis"] + (["--target", target] if target else []) + ["-"],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def utterance(self):
+        """Start a reply now (opens the output); add sentences to it as they come."""
+        u = Utterance(self)
+        with self._lock:
+            self._current = u
+        return u
+
     def speak(self, text):
         """Speak text, blocking. Returns False if stop() cut it short."""
-        parts = sentences(clean(text))
-        if not parts:
-            return True
-        with self._lock:
-            self._stop.clear()
-            params = self.params()
-            q = queue.Queue()
+        u = self.utterance()
+        u.add(text)
+        u.finish()
+        return u.wait()
 
-            def produce():
-                for s in parts:
-                    if self._stop.is_set():
-                        break
-                    try:
-                        q.put(self.render(s, params))
-                    except Exception as e:
-                        self.log(f"JARVIS: speech failed: {e}")
-                        break
-                q.put(None)
-            threading.Thread(target=produce, daemon=True).start()
+    def chime(self, kind="listen"):
+        """Non-blocking: the soft "I'm listening" (or error) tone."""
+        target = self.speaker.now()
 
-            trace.t("tts", sentences=len(parts), voice=params[0])
-            target = self.speaker.target()
-            first = q.get()
-            if first is None:
-                return True
-            audio, rate = first
-            self.speaking = True
-            duck = self.cfg["jarvisDuck"]
-            if duck:
-                self.ducker.duck()
-            self._proc = subprocess.Popen(
-                ["pw-play", "--raw", "--rate", str(rate), "--channels", "1", "--format", "f32",
-                 "--media-role", "Assistant", "-P", "media.name=Jarvis"]
-                + (["--target", target] if target else []) + ["-"],
-                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            trace.t("tts.audio", sink=target or "default", since_speech_end=trace.since("speech_end"))
+        def play():
             try:
-                while audio is not None and not self._stop.is_set():
-                    self._proc.stdin.write(audio.tobytes())
-                    self._proc.stdin.flush()
-                    nxt = q.get()
-                    if nxt is None:
-                        break
-                    audio, sr = nxt
-                    audio = resample(audio, sr, rate)
-                self._proc.stdin.close()
-                while self._proc.poll() is None and not self._stop.wait(0.05):
-                    pass
-            except (BrokenPipeError, OSError):
+                p = subprocess.Popen(["pw-play", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "f32",
+                                      "--media-role", "Notification", "-P", "media.name=Jarvis chime"]
+                                     + (["--target", target] if target else []) + ["-"],
+                                     stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                p.communicate(self._chimes.setdefault(kind, chime_audio(kind)).tobytes(), timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
                 pass
-            finally:
-                if self._proc.poll() is None:
-                    self._proc.kill()
-                self._proc.wait()
-                if duck:
-                    self.ducker.restore()
-                self.speaking = False
-                if self.prewarm:
-                    self.warm()    # re-render the stock phrases if the voice settings changed
-            return not self._stop.is_set()
+        threading.Thread(target=play, daemon=True).start()
+
+    @property
+    def speaking(self):
+        u = self._current
+        return bool(u and not u.done.is_set())
 
     def stop(self):
-        self._stop.set()
-        p = self._proc
-        if p and p.poll() is None:
-            p.kill()
+        u = self._current
+        if u:
+            u.stop()

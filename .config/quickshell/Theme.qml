@@ -58,6 +58,7 @@ Singleton {
             property int jarvisFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)
             property string jarvisSpeaker: ""         // Bluetooth MAC: speaker for Jarvis when not on headphones ("" = off)
             property string jarvisMic: ""             // PipeWire source node.name for the wake word ("" = default input)
+            property string jarvisPlace: "Waterloo, Ontario"   // home town for "what's the weather"
             property string displayLayout: "extend"  // extend | mirror | external | laptop
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open
             property bool osd: true                   // volume / brightness pop-up

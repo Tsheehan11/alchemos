@@ -126,6 +126,12 @@ def list_reminders() -> str:
 
 
 @mcp.tool(structured_output=False)
+def weather(place: str = "") -> str:
+    """Current weather and today's/tomorrow's forecast (°C). place: a town or city; empty = home."""
+    return out(A.weather(place))
+
+
+@mcp.tool(structured_output=False)
 def cancel_reminder(id: int) -> str:
     """Cancel a timer/reminder by id (asks Trevor first)."""
     return out(A.cancel_reminder(id))

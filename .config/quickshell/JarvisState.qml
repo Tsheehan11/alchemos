@@ -2,6 +2,7 @@
 // seconds; if it stops, the bar indicator goes dark on its own.
 // ~/.config/jarvis/jarvis.py drives the toast through `qs ipc call jarvis …`:
 //   listening → transcript → thinking → tool (one per call) → reply / confirm → followup → idle
+//   error: something failed after the chime; Jarvis says a line and the toast shows why
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -13,12 +14,13 @@ Singleton {
     property double lastBeat: 0
     property bool showing: false
     property bool paused: false          // combat mode: wake word off, mic released
-    // idle | listening | thinking | reply | confirm | followup | alert
+    // idle | listening | thinking | reply | confirm | followup | alert | error
     property string phase: "idle"
     property string transcript: ""
     property string reply: ""
     property var tools: []               // "THEME → MARK III", newest last
     property string alertTitle: ""       // timer / reminder going off
+    property string errorReason: ""      // "NO NETWORK", "DIDN'T CATCH THAT", …
     readonly property bool listening: phase === "listening" || phase === "followup"
     readonly property string message: reply !== "" ? reply : transcript   // old one-line API
 
@@ -47,7 +49,12 @@ Singleton {
     function setReply(t) { root.reply = t; show("reply", Math.max(4000, 2500 + t.length * 60)); }
     function confirm(t) { root.reply = t; show("confirm", 15000); }
     function followup() { show("followup", 12000); }
-    function idle() { if (root.phase !== "reply" && root.phase !== "alert") { hideTimer.interval = 400; hideTimer.restart(); } }
+    function idle() { if (root.phase !== "reply" && root.phase !== "alert" && root.phase !== "error") { hideTimer.interval = 400; hideTimer.restart(); } }
+    function fail(reason, text) {
+        root.errorReason = reason; root.reply = text;
+        show("error", Math.max(5000, 2500 + text.length * 60));
+    }
+    function note(label) { if (root.tools[root.tools.length - 1] !== label) root.tools = root.tools.concat([label]).slice(-5); }
     function alert(title, text) {
         root.alertTitle = title; root.transcript = ""; root.tools = []; root.reply = text;
         show("alert", 9000);

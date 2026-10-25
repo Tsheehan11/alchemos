@@ -13,22 +13,34 @@ from datetime import datetime
 
 import stark_actions as A
 
-FILLER = re.compile(r"^(?:(?:hey |ok |okay )?jarvis\s*|can you |could you |would you |will you |please |"
-                    r"i want you to |i'd like you to |go ahead and |just )+")
-TRAILER = re.compile(r"(?:\s+(?:please|for me|now|thanks|thank you|jarvis))+$")
+# Lead-ins people say (and whisper keeps): "uh, can you please dim the lights"
+FILLER = re.compile(r"^(?:(?:hey |ok |okay )?jarvis\s*|(?:uh+|um+|er+m?|hmm+|so|okay|ok|alright|right|well|"
+                    r"actually|now|hey|yeah|yes) |can you |could you |would you |will you |would you mind |"
+                    r"please |i want you to |i'd like you to |i need you to |go ahead and |just |let's )+")
+TRAILER = re.compile(r"(?:\s+(?:please|for me|now|thanks|thank you|jarvis|sir|right now|real quick))+$")
+# whisper's usual mishearings of words the rules depend on
+SOUNDALIKE = [(r"\b(?:v|b)(?:p|v|b)(?:n|m)\b", "vpn"), (r"\bproton ?(?:vpn)?\b", "proton vpn"),
+              (r"\bwork ?space\b", "workspace"), (r"\btemp\b", "temperature"),
+              (r"\bspot ?a? ?fy\b", "spotify"), (r"\bcl[ao]u?(?:de|d|ged|wed|w)\b(?= usage)", "claude")]
 
 UNITS = {"zero": 0, "a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
          "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
          "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19}
 TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
 NUM = r"(\d+(?:\.\d+)?|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?: \w+)?|\w+)"
+# a lone number word whisper writes as its homophone ("workspace too", "desktop for")
+HOMOPHONES = {"to": 2, "too": 2, "for": 4, "fore": 4, "won": 1, "tree": 3, "free": 3, "ate": 8}
 
 
 def norm(s):
     s = s.lower().replace("-", " ")
     s = re.sub(r"[^\w\s'%.]", " ", s)
     s = re.sub(r"(?<!\d)\.|\.(?!\d)", " ", s)   # keep decimals, drop sentence dots
-    return re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"\b(\d+)\.0\b", r"\1", s)        # "workspace 2.0"
+    s = re.sub(r"\s+", " ", s).strip()
+    for pat, rep in SOUNDALIKE:
+        s = re.sub(pat, rep, s)
+    return s.replace("proton vpn vpn", "proton vpn")
 
 
 def to_num(w):
@@ -39,7 +51,7 @@ def to_num(w):
         pass
     parts = w.split()
     if len(parts) == 1:
-        return UNITS.get(w, TENS.get(w))
+        return UNITS.get(w, TENS.get(w, HOMOPHONES.get(w)))
     if len(parts) == 2 and parts[0] in TENS and parts[1] in UNITS:
         return TENS[parts[0]] + UNITS[parts[1]]
     return None
@@ -141,12 +153,12 @@ def _clause(t, last_query):
     if M(r"close (?:this |the |that )?(?:window|app)"):
         return [step("close_focused_window", "Closed.")]
     # ── workspaces ──
-    if M(rf"(?:go to |switch to |show |open )?(?:workspace|desktop) (?:number )?{NUM}"):
+    if M(rf"(?:go to |switch to |show |open |change to )?(?:the |a )?(?:workspace|desktop) (?:number )?{NUM}"):
         n = to_num(m.group(1))
-        return [step("switch_workspace", f"Workspace {n:g}.", n=n)] if n is not None else None
-    if M(rf"(?:move|send|put) (?:this |the |that )?(?:window |app )?to (?:workspace|desktop) (?:number )?{NUM}"):
+        return [step("switch_workspace", f"Workspace {n:g}.", n=int(n))] if n is not None and n == int(n) else None
+    if M(rf"(?:move|send|put) (?:this |the |that )?(?:window |app )?to (?:the |a )?(?:workspace|desktop) (?:number )?{NUM}"):
         n = to_num(m.group(1))
-        return [step("move_window_to_workspace", f"Moved to {n:g}.", n=n)] if n is not None else None
+        return [step("move_window_to_workspace", f"Moved to {n:g}.", n=int(n))] if n is not None and n == int(n) else None
     # ── lights ──
     if M(rf"(?:turn |switch )?{LIGHTS} off|(?:turn|switch) off {LIGHTS}|kill {LIGHTS}"):
         return [step("lights", "Lights off.", action="off")]
@@ -162,6 +174,9 @@ def _clause(t, last_query):
     if M(rf"(?:set |switch |put )?{LIGHTS} (?:to |on )?(music|theme|auto)(?: mode)?|(music|theme|auto) mode (?:for |on )?{LIGHTS}"):
         mode = m.group(1) or m.group(2)
         return [step("lights", f"Lights on {mode}.", action="mode", value=mode)]
+    if M(rf"(?:set |switch |change |make )?{LIGHTS} (?:to |on )?(.+?)(?: theme| mode| colou?rs?)?"):
+        name = A.match_preset(m.group(1))     # "set the lights to MARK III": the lights follow the theme
+        return [step("set_theme", f"{_pretty(name)}, sir.", preset=name)] if name else None
     # ── VPN ──
     if M(r"(?:turn on|connect|enable|start|switch on)(?: to)?(?: the)?(?: proton)? ?vpn|vpn on|connect(?: to)? proton"):
         return [step("vpn", "Connecting Proton.", action="connect_proton")]
@@ -169,14 +184,18 @@ def _clause(t, last_query):
         return [step("vpn", "Disconnecting the VPN.", action="disconnect")]
     if M(r"(?:connect|open|turn on|start)(?: to)?(?: the)? (?:school|uni|university|waterloo|uw) vpn(?: login)?"):
         return [step("vpn", "The login window is up, sir.", action="open_school_login")]
-    if M(r"vpn status|is (?:the )?vpn (?:on|connected|up)|am i (?:on|connected to) (?:the )?vpn"):
+    if M(r"(?:what(?:'s| is) (?:the )?)?vpn(?: status)?|(?:is|it's|is it|it is|is my) (?:the )?vpn (?:on|connected|up|running|active|working)|"
+         r"am i (?:on|connected to|using) (?:the )?vpn|(?:what(?:'s| is) )?the vpn (?:status|doing)"):
         return [step("vpn", _vpn_status, action="status")]
     # ── theme ──
     if M(r"(?:set|change|switch|make)(?: the)? (?:theme|colou?rs?|hud) to (.+?)(?: theme)?|(?:switch to |use |activate )?(.+?) theme|theme (.+)"):
         name = A.match_preset(next(g for g in m.groups() if g))
-        pretty = " ".join(w if re.fullmatch(r"[IVX]+", w) else w.title() for w in name.split()) if name else ""
-        return [step("set_theme", f"{pretty}, sir.", preset=name)] if name else None
+        return [step("set_theme", f"{_pretty(name)}, sir.", preset=name)] if name else None
     # ── timers ──
+    if M(r"(?:timers?|reminders?) status|(?:what|which) (?:timers?|reminders?) (?:do i have|are (?:running|set|there))|"
+         r"(?:list|show|check)(?: me)? (?:my |the )?(?:timers?|reminders?)|how (?:long|much time) (?:is |'s )?left(?: on (?:my |the )?timer)?|"
+         r"how long (?:until|till|on) (?:my |the )?timer|(?:any|are there any) (?:timers?|reminders?)(?: running| set)?"):
+        return [step("list_reminders", _timers)]
     if M(r"(?:set |start )?(?:a |an )?(?:timer|countdown)(?: for)? (.+?)(?: timer)?|(?:set |start )?(?:a |an )?(.+?) timer"):
         mins = duration_minutes(m.group(1) or m.group(2))
         return [step("set_timer", f"Timer set for {_spoken_minutes(mins)}.", minutes=round(mins, 2))] if mins else None
@@ -184,6 +203,19 @@ def _clause(t, last_query):
         mins = duration_minutes(m.group(1))
         return [step("set_timer", f"I'll remind you in {_spoken_minutes(mins)}.", minutes=round(mins, 2),
                      label=m.group(2))] if mins else None
+    # ── system ──
+    if M(r"(?:what(?:'s| is) )?(?:my |the )?(?:cpu|processor|computer|laptop|pc) temperature|how hot is (?:my |the )?(?:cpu|computer|laptop|pc|processor)"):
+        return [step("system_status", _cpu_temp)]
+    if M(r"(?:what(?:'s| is) )?(?:my |the )?battery(?: level| status| percentage| life)?|how much battery(?: do i have| is left)?"):
+        return [step("system_status", _battery)]
+    # ── weather ──
+    if M(r"(?:what(?:'s| is) )?(?:the )?(?:weather|forecast)(?: like)?(?: (?:today|now|outside|right now))?|how(?:'s| is) the weather(?: today| outside)?|"
+         r"what(?:'s| is) it like outside|is it (?:cold|warm|hot|raining|snowing|nice)(?: outside| out)?(?: today)?"):
+        return [step("weather", _weather_now)]
+    if M(r"(?:what(?:'s| is) )?(?:the )?(?:weather|forecast)(?: like)? (?:for |like )?tomorrow|(?:will|is) it (?:going to )?(?:rain|snow|be cold|be warm)(?: tomorrow)?"):
+        return [step("weather", _weather_tomorrow)]
+    if M(r"(?:what(?:'s| is) )?(?:the )?(?:weather|forecast)(?: like)? (?:in|for|at) ([a-z][a-z .']{1,40})"):
+        return [step("weather", _weather_now, place=m.group(1))]
     # ── browser (only when explicitly asked) ──
     if M(r"(?:open|ask|put|show|send) (?:it|that|this)(?: question)? in (?:the )?browser"):
         return [step("open_in_browser", "Opened in the browser.", query=last_query or "")]
@@ -195,11 +227,56 @@ def _clause(t, last_query):
         if re.search(r"\b(?:uw ?cs|cs servers?|school servers?|student servers?)\b", target):
             return [step("open_uwcs", "Opening VS Code on the CS servers.")]
         cmd, name = A.find_app(target)
-        return [step("open_app", f"Opening {name.title()}.", name=target)] if cmd else None
+        return [step("open_app", _opened(name), name=target)] if cmd else None
     if len(t.split()) <= 2:   # a bare app name, exact matches only
         if t in A.ALIASES or t in A.apps():
             return [step("open_app", f"Opening {t.title()}.", name=t)]
     return None
+
+
+def _pretty(name):
+    return " ".join(w if re.fullmatch(r"[IVX]+", w) else w.title() for w in (name or "").split())
+
+
+def _opened(name):
+    return lambda r: f"{name.title()} is up, sir." if "is up" in str(r.get("result", "")) else f"Opening {name.title()}."
+
+
+def _timers(r):
+    items = r.get("items") or []
+    if not items:
+        return "No timers running, sir."
+    def one(i):
+        left = max(0.0, i["minutes_left"])
+        what = "" if i["text"] in ("timer", "") else f" for {i['text']}" if i["kind"] == "timer" else f": {i['text']}"
+        return f"{'a timer' if i['kind'] == 'timer' else 'a reminder'}{what}, {_spoken_minutes(round(left)) if left >= 1 else 'under a minute'} left"
+    head = "You have " if len(items) == 1 else f"You have {len(items)}: "
+    return head + "; ".join(one(i) for i in items[:3]) + "."
+
+
+def _cpu_temp(r):
+    c = (r.get("temps") or {}).get("cpu_c")
+    return f"The CPU is at {c} degrees, sir, at {r.get('cpu_percent', 0):g}% load." if c else "I can't read the CPU temperature, sir."
+
+
+def _battery(r):
+    b = r.get("battery")
+    if not b:
+        return "There's no battery reading, sir."
+    return f"Battery at {b['percent']}%, {'charging' if b['status'] == 'charging' else b['status'] if b['ac'] else 'on battery'}."
+
+
+def _weather_now(r):
+    n, d = r["now"], r["today"]
+    rain = f" {d['rain_chance_pct']}% chance of rain." if (d.get("rain_chance_pct") or 0) >= 30 else ""
+    feels = f", feels like {n['feels_like_c']}" if abs(n["feels_like_c"] - n["temp_c"]) >= 3 else ""
+    return f"{n['temp_c']}°C and {n['sky']} in {r['place']}{feels}. High of {d['high_c']}, low of {d['low_c']}.{rain}"
+
+
+def _weather_tomorrow(r):
+    d = r["tomorrow"]
+    rain = f", {d['rain_chance_pct']}% chance of rain" if (d.get("rain_chance_pct") or 0) >= 20 else ""
+    return f"Tomorrow in {r['place']}: {d['sky']}, high of {d['high_c']}, low of {d['low_c']}{rain}."
 
 
 def _spoken_minutes(m):

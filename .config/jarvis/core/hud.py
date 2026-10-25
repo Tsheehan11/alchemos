@@ -45,3 +45,5 @@ def confirm(t):    send("confirm", t)
 def idle():        send("idle")
 def paused(on):    send("paused", "true" if on else "false")
 def toast(title, text): send("toast", title, text)
+def error(reason, line): send("error", reason, line)     # spoken failure line + why, e.g. NO NETWORK
+def note(label):   send("note", label)                   # an extra line on the toast, phase unchanged

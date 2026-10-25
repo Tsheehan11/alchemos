@@ -2,10 +2,15 @@
 """
 JARVIS: Claude-powered voice assistant for STARK OS.
 
-  "Hey Jarvis" → chime, LISTENING on the HUD → faster-whisper transcribes →
-    fast path (local rules, no AI: media, lock, workspaces, lights, VPN, apps,
-    themes, timers) or Claude (Agent SDK on the Pro login, tools from MCP
-    servers in servers.json) → spoken reply (piper) + HUD toast.
+  "Hey Jarvis" → chime, LISTENING on the HUD, music turned down → the command
+    (from just before the wake word, so a one-breath "hey Jarvis dim the lights"
+    keeps its first word; see core/hearing.py) → faster-whisper → fast path
+    (local rules, no AI: media, lock, workspaces, lights, VPN, apps, themes,
+    timers, weather) or Claude (Agent SDK on the Pro login, tools from MCP
+    servers in servers.json, reply spoken sentence by sentence as it streams)
+    → spoken reply (Kokoro) + HUD toast.
+  Anything that goes wrong after the chime gets a short spoken line and the
+  reason on the toast; it never goes quiet on you.
   After a reply it listens ~8 s for a follow-up without the wake word.
   "Hey Jarvis" while it's talking or thinking interrupts it.
   Combat mode pauses the wake word (frees the mic); reminders still fire.
@@ -41,36 +46,26 @@ os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
 
 import jarvis_db as db  # noqa: E402
 import stark_actions as A  # noqa: E402
-from core import fastpath, hud, trace  # noqa: E402
+from core import fastpath, hearing, hud, trace  # noqa: E402
 from core import config as C  # noqa: E402
 
 # ── Wake word / speech-to-text ──────────────────
 WAKEWORD = "hey_jarvis"
-NEAR_MISS = 0.15         # wake scores above this (but under THRESHOLD) are traced as near misses
-THRESHOLD = 0.5            # raise to ~0.7 if it triggers by accident, lower if it misses you
-COOLDOWN_S = 1.5
-WHISPER_MODEL = "base.en"  # "small.en" = more accurate but slower; "tiny.en" = fastest
-MAX_COMMAND_S = 10.0       # longest command it will listen for
-SILENCE_END_S = 1.0        # stop listening after this much silence
-NO_SPEECH_TIMEOUT_S = 4.0  # nothing said after the wake word → give up quietly
-VAD_THRESHOLD = 0.5        # Silero speech probability per 80 ms chunk
+NEAR_MISS = 0.15           # wake scores above this (but under THRESHOLD) are traced as near misses
+THRESHOLD = 0.4            # real "hey Jarvis" at the desk peaks at 0.83-1.0; nothing else got past 0.25
+BARGE_THRESHOLD = 0.3      # over its own voice (which never scored above 0.21) "hey Jarvis" is harder to hear
+COOLDOWN_S = 0.5           # after a conversation ends (the model is reset, so it can't refire on itself)
+# base.en + vocabulary prompt: 0.3 s per command on this CPU. small.en was barely more accurate
+# on Trevor's recordings (1-2 words in 28 commands) for 0.95 s; distil-small.en was worse.
+WHISPER_MODEL = "base.en"
+NO_SPEECH_TIMEOUT_S = 4.0  # nothing said after the wake word → "Sorry sir, I didn't catch that."
 CONFIRM_TIMEOUT_S = 6.0
-RATE = 16000
-CHUNK = 1280               # 80 ms
+RATE = hearing.RATE
+CHUNK = hearing.CHUNK      # 80 ms
+NOT_HEARD = "Sorry sir, I didn't catch that."
 
 YES = re.compile(r"\b(yes|yeah|yep|yup|confirm(ed)?|do it|go ahead|affirmative|proceed|sure|please do|correct)\b")
 NO = re.compile(r"\b(no|nope|don't|do not|cancel|stop|negative|never ?mind|wait)\b")
-
-CHIMES = ["/usr/share/sounds/ocean/stereo/message-new-instant.oga",
-          "/usr/share/sounds/freedesktop/stereo/message.oga"]
-
-
-def chime():
-    for path in CHIMES:
-        if os.path.exists(path):
-            subprocess.Popen(["pw-play", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return
-
 
 LOG_FILE = None   # voice mode: ~/.local/share/jarvis/jarvis.log (the HUD discards stdout)
 
@@ -94,6 +89,12 @@ def open_log():
 def is_yes(text):
     t = text.lower()
     return bool(YES.search(t)) and not NO.search(t)
+
+
+# Why a request failed, as the toast shows it (Brain.ERRORS has the spoken lines)
+ERROR_LABELS = {"limit": "USAGE LIMIT", "offline": "NO NETWORK", "timeout": "TIMED OUT", "auth": "LOGIN EXPIRED",
+                "failed": "CLAUDE ERROR", "tools": "TOO MANY STEPS", "noreply": "CLAUDE NOT RESPONDING",
+                "tool": "ACTION FAILED", "heard": "DIDN'T CATCH THAT", "crash": "INTERNAL ERROR"}
 
 
 # ── The assistant, shared by voice and text mode ─
@@ -166,10 +167,13 @@ class Jarvis:
             return "Done, sir.", tools
         return " ".join(said), tools
 
-    def handle(self, text, wait=None):
+    def handle(self, text, wait=None, on_sentence=None):
         """One request → reply text. wait(future) blocks until the Claude future is done
-        (voice mode watches the mic for barge-in meanwhile); returns None if interrupted."""
+        (voice mode watches the mic for barge-in meanwhile); returns None if interrupted.
+        on_sentence(s): Claude's reply as it streams, one sentence at a time.
+        self.error: why it failed (a key of ERROR_LABELS), "" if it didn't."""
         t0 = time.monotonic()
+        self.error = ""
         steps = fastpath.match(text, self.last_query)
         if steps is not None:
             trace.t("route", to="fast", steps=",".join(s["tool"] or "say" for s in steps))
@@ -185,21 +189,30 @@ class Jarvis:
             trace.t("route", to="claude")
             hud.thinking()
             self.last_query = text
-            fut = asyncio.run_coroutine_threadsafe(self.brain.ask(text), self.loop)
+            fut = asyncio.run_coroutine_threadsafe(self.brain.ask(text, on_sentence), self.loop)
             r = (wait or self.wait_text)(fut)
             if r is None or r.interrupted:
-                db.log_action(text, "claude:interrupted", r.tools if r else [], "", int((time.monotonic() - t0) * 1000))
+                self._log_action(text, "claude:interrupted", r.tools if r else [], "", int((time.monotonic() - t0) * 1000))
                 return None
             reply, tools = r.text, r.tools
             tier = r.tier if not r.error else f"error:{r.error}"
+            self.error = r.error
+        if steps is not None and any(t.endswith("[failed]") for t in tools):
+            self.error = "tool"
         ms = int((time.monotonic() - t0) * 1000)
-        try:
-            db.log_action(text, tier, tools, reply, ms)
-        except Exception as e:
-            log(f"JARVIS: log failed: {e}")
+        self._log_action(text, tier, tools, reply, ms)
         log(f"  [{tier} · {ms} ms]")
         trace.t("reply", tier=tier, ms=ms, tools=len(tools), text=reply)
         return reply
+
+    def _log_action(self, *row):
+        """SQLite write off the critical path (it was ~50 ms before the reply could play)."""
+        def write():
+            try:
+                db.log_action(*row)
+            except Exception as e:
+                log(f"JARVIS: log failed: {e}")
+        threading.Thread(target=write, daemon=True).start()
 
     def wait_text(self, fut):
         while True:
@@ -252,7 +265,6 @@ class Mic:
         self.cfg = cfg
         self.proc = None
         self.q = queue.Queue(maxsize=400)
-        self.vad = None
 
     def start(self):
         if self.proc:
@@ -297,62 +309,12 @@ class Mic:
         except queue.Empty:
             return None
 
-    def speech_prob(self, a):
-        """Silero VAD (bundled with openWakeWord). A loudness threshold missed speech
-        on the laptop mic, whose fan hum is ~700 RMS against speech peaks of ~3000."""
-        if self.vad is None:
-            from openwakeword.vad import VAD
-            self.vad = VAD()
-        return float(self.vad.predict(a))
 
-    def record(self, no_speech_s=NO_SPEECH_TIMEOUT_S, kind="command", pre=()):
-        """Until the speaker stops → float32 audio, or None if nothing was said.
-        pre: chunks from just before (the wake word), only for the saved recording."""
-        import numpy as np
-        frames, probs, speech, silent, elapsed = [], [], False, 0.0, 0.0
-        step = CHUNK / RATE
-        first = last = None
-        trace.t("listen", kind=kind, wait=no_speech_s)
-        while True:
-            a = self.read(2.0)
-            if a is None:
-                reason = "mic-stalled"
-                break
-            frames.append(a)
-            elapsed += step
-            p = self.speech_prob(a)
-            probs.append(p)
-            if p > VAD_THRESHOLD:
-                if not speech:
-                    first = len(frames) - 1
-                    trace.t("vad.start", at=round(elapsed, 2), p=round(p, 2))
-                speech, silent, last = True, 0.0, len(frames)
-                trace.mark("speech_end")
-            else:
-                silent += step
-            if speech and silent >= SILENCE_END_S:
-                reason = "silence"
-                break
-            if not speech and elapsed >= no_speech_s:
-                reason = "no-speech"
-                break
-            if elapsed >= MAX_COMMAND_S + (no_speech_s if not speech else 0):
-                reason = "max-length"
-                break
-        audio = np.concatenate(frames) if frames else np.zeros(0, np.int16)
-        db = lambda x: round(20 * np.log10(max(1.0, float(np.sqrt(np.mean(np.square(x.astype(np.float64))))))) - 90.3, 1) if len(x) else -99
-        voiced = np.concatenate(frames[first:last]) if speech else audio
-        trace.t("vad.end", reason=reason, len=round(elapsed, 2),
-                speech=round(((last or 0) - (first or 0)) * step, 2) if speech else 0,
-                p_max=round(max(probs, default=0), 2), p_mean=round(float(np.mean(probs)) if probs else 0, 2),
-                level_db=db(audio), voice_db=db(voiced),
-                peak_db=round(20 * np.log10(max(1, int(np.abs(audio).max(initial=0)))) - 90.3, 1))
-        saved = trace.save(kind, np.concatenate(list(pre) + [audio]) if pre else audio)
-        if saved:
-            trace.t("saved", file=saved.name)
-        if not speech:
-            return None
-        return audio.astype(np.float32) / 32768.0
+def _db(x):
+    import numpy as np
+    if not len(x):
+        return -99.0
+    return round(20 * np.log10(max(1.0, float(np.sqrt(np.mean(np.square(x.astype(np.float64))))))) - 90.3, 1)
 
 
 class VoiceLoop:
@@ -363,28 +325,38 @@ class VoiceLoop:
         self.barge = False
         self.last_reminder_check = 0.0
         from collections import deque
-        self.pre = deque(maxlen=int(2.0 * RATE / CHUNK))   # the last 2 s before the wake word (recordings only)
+        self.pre = deque(maxlen=int(2.0 * RATE / CHUNK))   # the last 2 s before the wake word
         self.near = 0.0                                   # peak of a wake score that didn't reach THRESHOLD
+        self.spec = None                                  # listen()'s early transcription, if still valid
 
     def load(self):
         import openwakeword
         from openwakeword.model import Model
-        from faster_whisper import WhisperModel
+        from openwakeword.vad import VAD
         from core.voice import Voice
         log("JARVIS: loading models…")
         openwakeword.utils.download_models([WAKEWORD])
         self.wake = Model(wakeword_models=[WAKEWORD], inference_framework="onnx")
-        self.stt = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+        self.vad = VAD()
+        self.stt = hearing.STT(WHISPER_MODEL)
         self.voice = Voice(self.cfg, log=log, prewarm=True)
         self.voice.warm()
         A.apps()
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)
         self.j.warm()
 
-    # ── helpers ──
+    # ── hearing ──
+    def read(self, timeout):
+        """Next mic chunk; the last 2 s are kept so a command said in the same breath as
+        "hey Jarvis" (waking it or interrupting it) keeps its first words."""
+        a = self.mic.read(timeout)
+        if a is not None:
+            self.pre.append(a)
+        return a
+
     def woke(self, a, where="idle"):
         score = max(self.wake.predict(a).values())
-        if score >= THRESHOLD:
+        if score >= (THRESHOLD if where in ("idle", "listening") else BARGE_THRESHOLD):
             if where != "idle":
                 trace.t("barge", during=where, score=round(score, 2))
             self.near = 0.0
@@ -399,51 +371,127 @@ class VoiceLoop:
             self.near = 0.0
         return 0.0
 
-    def transcribe(self, audio):
-        t0 = time.monotonic()
-        segments, info = self.stt.transcribe(audio, language="en", beam_size=1)
-        segments = list(segments)
-        text = " ".join(s.text for s in segments).strip()
-        trace.t("stt", ms=int((time.monotonic() - t0) * 1000), model=WHISPER_MODEL, audio_s=round(len(audio) / RATE, 2),
-                logprob=round(min((s.avg_logprob for s in segments), default=0), 2),
-                no_speech=round(max((s.no_speech_prob for s in segments), default=0), 2), text=text)
-        return text
+    def listen(self, no_speech_s, kind="command", pre=()):
+        """Record one command → float32 audio, or None if nothing was said.
+        A fresh "hey Jarvis" in the middle starts the command over from there."""
+        import numpy as np
+        from collections import deque
+        trace.t("listen", kind=kind, wait=no_speech_s)
+        ep = hearing.Endpointer(self.vad, no_speech_s, pre)
+        recent = deque(list(pre)[-int(hearing.PRE_ROLL_S * RATE / CHUNK):], maxlen=int(hearing.PRE_ROLL_S * RATE / CHUNK))
+        if pre and ep.speech:
+            trace.t("vad.start", at=0, p=round(max(ep.probs or [1.0]), 2), via="pre-roll")
+        restarts = 0
+        spec = None                          # (frames it covers, future)
+        while True:
+            a = self.read(2.0)
+            if a is None:
+                why = "mic-stalled"
+                break
+            recent.append(a)
+            if ep.elapsed > 0.3 and restarts < 2 and self.woke(a, "listening"):
+                restarts += 1                # "hey Jarvis … (pause) … pause music": start again from here
+                self.wake.reset()
+                self.voice.chime()
+                hud.listening()
+                ep = hearing.Endpointer(self.vad, NO_SPEECH_TIMEOUT_S, list(recent))
+                continue
+            was = ep.speech
+            why = ep.feed(a)
+            if ep.speech and not was:
+                trace.t("vad.start", at=round(ep.elapsed, 2), p=round(ep.probs[-1], 2))
+            if ep.speech and ep.last == len(ep.frames):
+                trace.mark("speech_end")
+                spec = None                  # still talking: any early guess is stale
+            elif ep.speech and spec is None and ep.silent >= hearing.SPECULATE_S and kind != "confirm":
+                spec = (ep.last, self.stt.speculate(ep.audio().astype(np.float32) / 32768.0))
+            if why:
+                break
+        audio = ep.audio()
+        step = CHUNK / RATE
+        voiced = np.concatenate(ep.frames[ep.first:ep.last]) if ep.speech else audio
+        trace.t("vad.end", reason=why, len=round(ep.elapsed, 2),
+                speech=round((ep.last - ep.first) * step, 2) if ep.speech else 0,
+                p_max=round(max(ep.probs, default=0), 2), level_db=_db(audio[ep.n_pre * CHUNK:]), voice_db=_db(voiced))
+        saved = trace.save(kind, audio)
+        if saved:
+            trace.t("saved", file=saved.name)
+        self.spec = spec[1] if spec and spec[0] == ep.last and why == "silence" else None
+        return audio.astype(np.float32) / 32768.0 if ep.speech else None
+
+    def transcribe(self, audio, spec=None, barged=False):
+        """→ (command with any "hey Jarvis" removed, raw transcript). spec: listen()'s early
+        transcription of the same speech, if it's still valid."""
+        if spec is not None:
+            raw, info = spec.result()
+            info["early"] = True
+        else:
+            raw, info = self.stt.transcribe(audio)
+        text = hearing.strip_wake(raw, anywhere=barged)
+        trace.t("stt", model=WHISPER_MODEL, audio_s=round(len(audio) / RATE, 2), text=raw,
+                **({"command": text} if text != raw else {}), **info)
+        return text, raw
+
+    # ── speaking ──
+    def play(self, u, where="speaking"):
+        """Wait for an Utterance to finish while watching for "hey Jarvis". True if interrupted."""
+        self.wake.reset()
+        self.pre.clear()
+        interrupted = False
+        while not u.done.is_set():
+            a = self.read(0.2)
+            if a is not None and not interrupted and self.woke(a, where):
+                log("JARVIS: interrupted while speaking")
+                interrupted = True
+                u.stop()
+        self.wake.reset()
+        if u.fell_back:
+            hud.note("SPEAKER UNREACHABLE → LAPTOP")
+        return interrupted
 
     def say(self, text):
         """Speak while watching for "hey Jarvis". True if it interrupted."""
         hud.reply(text)
         if not self.cfg["jarvisSpeak"]:
             return False
-        self.wake.reset()
-        t = threading.Thread(target=self.voice.speak, args=(text,), daemon=True)
-        t.start()
-        interrupted = False
-        while t.is_alive():
-            a = self.mic.read(0.2)
-            if a is not None and not interrupted and self.woke(a, "speaking"):
-                log("JARVIS: interrupted while speaking")
-                interrupted = True
-                self.voice.stop()
-        t.join()
-        self.wake.reset()
-        return interrupted
+        u = self.voice.utterance()
+        u.add(text)
+        u.finish()
+        return self.play(u)
+
+    def fail(self, why, line):
+        """Something went wrong after the chime: say so, and show why."""
+        trace.t("fail", why=why, line=line)
+        log(f"JARVIS: {ERROR_LABELS.get(why, why)} — {line}")
+        hud.error(ERROR_LABELS.get(why, why.upper()), line)
+        if self.cfg["jarvisSpeak"]:
+            u = self.voice.utterance()
+            u.add(line)
+            u.finish()
+            self.play(u)
 
     def confirm(self, prompt):
         log(f"  ? {prompt}")
         hud.confirm(prompt)
-        self.say(prompt)
+        if self.cfg["jarvisSpeak"]:
+            u = self.voice.utterance()
+            u.add(prompt)
+            u.finish()
+            self.play(u)
         self.mic.flush()
-        audio = self.mic.record(no_speech_s=CONFIRM_TIMEOUT_S, kind="confirm")
-        answer = self.transcribe(audio) if audio is not None else ""
+        audio = self.listen(CONFIRM_TIMEOUT_S, kind="confirm")
+        answer = self.transcribe(audio)[0] if audio is not None else ""
         log(f'  > "{answer}"')
         ok = is_yes(answer)
         if ok:
             hud.thinking()
         return ok
 
-    def wait(self, fut):
-        """Wait for Claude, answering confirmations; "hey Jarvis" interrupts."""
+    def wait(self, fut, u=None):
+        """Wait for Claude, answering confirmations; "hey Jarvis" interrupts (and silences
+        any sentences it has already started saying)."""
         self.wake.reset()
+        self.pre.clear()
         while True:
             try:
                 prompt, answer = self.j.confirm_q.get_nowait()
@@ -453,9 +501,11 @@ class VoiceLoop:
                 pass
             if fut.done():
                 return fut.result()
-            a = self.mic.read(0.1)
+            a = self.read(0.1)
             if a is not None and self.woke(a, "thinking"):
                 log("JARVIS: interrupted while thinking")
+                if u:
+                    u.stop()
                 asyncio.run_coroutine_threadsafe(self.j.brain.interrupt(), self.j.loop)
                 try:
                     fut.result(5)
@@ -508,36 +558,75 @@ class VoiceLoop:
     def converse(self):
         """Listen → answer → follow-ups. Returns when the conversation goes idle."""
         no_speech, kind, pre = NO_SPEECH_TIMEOUT_S, "command", list(self.pre)
+        lone_wake = barged = False
         while True:
             self.barge = False
-            audio = self.mic.record(no_speech_s=no_speech, kind=kind, pre=pre)
+            audio = self.listen(no_speech, kind, pre)
             pre = ()
             if audio is None:
-                trace.t("idle", why="nothing heard" if kind != "followup" else "no follow-up")
-                hud.idle()
+                if kind == "command":                # woke, then nothing: say so
+                    self.fail("heard", NOT_HEARD)
+                else:
+                    trace.t("idle", why="no follow-up")
+                    hud.idle()
                 return
             hud.thinking()
-            text = self.transcribe(audio)
-            log(f'JARVIS: heard "{text}"')
-            if not text or not re.search(r"\w", text):
-                trace.t("idle", why="empty transcript")
-                hud.idle()
-                return
-            hud.transcript(text)
-            reply = self.j.handle(text, wait=self.wait)
-            if reply is None:            # interrupted by the wake word: listen afresh
-                if self.barge:
-                    chime()
+            text, raw = self.transcribe(audio, self.spec, barged)
+            barged = False
+            log(f'JARVIS: heard "{raw}"')
+            if not re.search(r"\w", text):
+                if raw and re.search(r"\w", raw) and not lone_wake:
+                    lone_wake = True                 # just "hey Jarvis": wait for the command
+                    trace.t("listen.again", why="only the wake word")
                     hud.listening()
                     no_speech, kind = NO_SPEECH_TIMEOUT_S, "command"
                     continue
+                if kind == "command":
+                    self.fail("heard", NOT_HEARD)
+                else:
+                    trace.t("idle", why="empty follow-up")
+                    hud.idle()
+                return
+            lone_wake = False
+            hud.transcript(text)
+            # The output opens now (Bluetooth wakes while Jarvis thinks); Claude's sentences go
+            # into it as they stream in, so the first one plays before the reply is finished.
+            speak = self.cfg["jarvisSpeak"]
+            u = self.voice.utterance() if speak else None
+            streamed = []
+
+            def on_sentence(sentence):
+                streamed.append(sentence)
+                if u:
+                    u.add(sentence)
+            reply = self.j.handle(text, wait=lambda fut: self.wait(fut, u), on_sentence=on_sentence)
+            if reply is None:            # interrupted by the wake word: listen afresh
+                if u:
+                    u.stop()
+                if self.barge:
+                    self.voice.chime()
+                    hud.listening()
+                    no_speech, kind, pre = NO_SPEECH_TIMEOUT_S, "command", list(self.pre)
+                    barged = True
+                    continue
                 hud.idle()
                 return
-            if reply:
-                if self.say(reply):
-                    chime()
+            if self.j.error:
+                hud.error(ERROR_LABELS.get(self.j.error, self.j.error.upper()), reply)
+                trace.t("fail", why=self.j.error, line=reply)
+            else:
+                hud.reply(reply)
+            if u:
+                if reply and not streamed:
+                    u.add(reply)
+                elif self.j.error and reply not in streamed:
+                    u.add(reply)             # e.g. it stopped mid-answer: say why
+                u.finish()
+                if self.play(u):
+                    self.voice.chime()
                     hud.listening()
-                    no_speech, kind = NO_SPEECH_TIMEOUT_S, "command"
+                    no_speech, kind, pre = NO_SPEECH_TIMEOUT_S, "command", list(self.pre)
+                    barged = True
                     continue
             follow = float(self.cfg["jarvisFollowup"] or 0)
             if follow <= 0 or reply in ("Very good, sir.", "You're welcome, sir."):
@@ -572,10 +661,9 @@ class VoiceLoop:
             if time.time() - last_prune > 86400:
                 db.prune_log()
                 last_prune = time.time()
-            a = self.mic.read(1.0)
+            a = self.read(1.0)
             if a is None:
                 continue
-            self.pre.append(a)
             score = self.woke(a)
             if not score:
                 continue
@@ -586,16 +674,24 @@ class VoiceLoop:
             trace.t("wake", score=round(score, 2), queued=self.mic.q.qsize())
             log("JARVIS: wake word")
             self.wake.reset()     # else its buffer still holds "hey Jarvis" and fires again mid-reply
-            self.voice.speaker.prepare()   # connect the Bluetooth speaker while Trevor talks
-            chime()
+            self.voice.chime()
             hud.listening()
+            self.voice.speaker.prepare()   # connect the Bluetooth speaker while Trevor talks
+            if self.cfg["jarvisDuck"]:     # turn the music down so it isn't heard as the command
+                from core.voice import DUCK_LISTEN
+                threading.Thread(target=self.voice.ducker.duck, args=(DUCK_LISTEN,), daemon=True).start()
             try:
                 self.converse()
             except Exception as e:
                 import traceback
                 trace.t("error", where="converse", err=f"{type(e).__name__}: {e}")
                 log(f"JARVIS: error: {traceback.format_exc()}")
-                hud.idle()
+                try:
+                    self.fail("crash", "Something went wrong on my end, sir.")
+                except Exception:
+                    hud.idle()
+            finally:
+                self.voice.ducker.restore()
             trace.end()
             self.pre.clear()
             self.wake.reset()

@@ -20,6 +20,7 @@ import shlex
 import subprocess
 import time
 import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -173,12 +174,48 @@ def find_app(target):
     return None, None
 
 
+# Single-window apps: "open X" shows the running window instead of starting another.
+# Spotify lives on the special:music workspace (Super+M), so that gets shown.
+SINGLE = {"spotify-launcher": "spotify", "spotify": "spotify", "discord": "discord", "steam": "steam",
+          "systemsettings": "systemsettings"}
+
+
+def _running_window(cmd):
+    cls = SINGLE.get(cmd.split()[0])
+    if not cls:
+        return None
+    rc, out, _ = _run(["hyprctl", "clients", "-j"])
+    try:
+        clients = json.loads(out) if rc == 0 else []
+    except ValueError:
+        return None
+    return next((c for c in clients if cls in (c.get("class") or "").lower()), None)
+
+
+def _show_window(win, found):
+    ws = (win.get("workspace") or {}).get("name", "")
+    if ws.startswith("special:"):
+        rc, out, _ = _run(["hyprctl", "monitors", "-j"])
+        try:
+            shown = {(m.get("specialWorkspace") or {}).get("name") for m in json.loads(out)} if rc == 0 else set()
+        except ValueError:
+            shown = set()
+        if ws not in shown:
+            r = _do(f"show {ws}", ["hyprctl", "dispatch", "togglespecialworkspace", ws.split(":", 1)[1]])
+            if not r["ok"]:
+                return r
+    return _do(f"focus {found}", ["hyprctl", "dispatch", "focuswindow", f"address:{win['address']}"], f"{found} is up")
+
+
 @safe
 def open_app(name):
-    """Open an installed application by name (e.g. "spotify", "vs code", "discord")."""
+    """Open an installed application by name (e.g. "spotify", "vs code", "discord"). Shows it if it's already running."""
     cmd, found = find_app(str(name))
     if not cmd:
         raise Invalid(f'no installed app called "{name}"')
+    win = _running_window(cmd)
+    if win:
+        return _show_window(win, found)
     return _do(f"open {found} ({cmd})", _hypr_exec(cmd), f"opened {found}")
 
 
@@ -662,11 +699,70 @@ def open_in_browser(query):
     return _do(f"browser: {url[:80]}", _hypr_exec(f"zen-browser --new-window {shlex.quote(url)}"), "opened in the browser")
 
 
+# ── weather (Open-Meteo: no key, no account; read-only) ──
+HUD_SETTINGS = HOME / ".config/quickshell/settings.json"
+DEFAULT_PLACE = "Waterloo, Ontario"
+WMO = {0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "overcast", 45: "foggy", 48: "foggy",
+       51: "light drizzle", 53: "drizzle", 55: "heavy drizzle", 56: "freezing drizzle", 57: "freezing drizzle",
+       61: "light rain", 63: "rain", 65: "heavy rain", 66: "freezing rain", 67: "freezing rain",
+       71: "light snow", 73: "snow", 75: "heavy snow", 77: "snow grains", 80: "light showers", 81: "showers",
+       82: "heavy showers", 85: "snow showers", 86: "heavy snow showers", 95: "thunderstorms",
+       96: "thunderstorms with hail", 99: "thunderstorms with hail"}
+_places = {}
+
+
+def _get_json(url, timeout=4):
+    req = urllib.request.Request(url, headers={"User-Agent": "stark-jarvis/2"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read(200_000))
+
+
+def home_place():
+    """Settings → jarvisPlace, else Waterloo."""
+    try:
+        return str(json.loads(HUD_SETTINGS.read_text()).get("jarvisPlace") or DEFAULT_PLACE)
+    except (OSError, ValueError):
+        return DEFAULT_PLACE
+
+
+@safe
+def weather(place=""):
+    """Current weather plus today's and tomorrow's forecast, for a place (default: home)."""
+    place = " ".join(str(place or "").split()) or home_place()
+    if len(place) > 60 or not re.fullmatch(r"[\w .,'-]+", place):
+        raise Invalid("place must be a town or city name")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"weather for {place}"}
+    key = place.lower()
+    if key not in _places:
+        name, _, region = place.partition(",")
+        g = _get_json("https://geocoding-api.open-meteo.com/v1/search?count=5&language=en&name="
+                      + urllib.parse.quote(name.strip()))
+        hits = g.get("results") or []
+        if region.strip():
+            r = region.strip().lower()
+            hits = [h for h in hits if r in " ".join(str(h.get(k, "")) for k in ("admin1", "country", "country_code")).lower()] or hits
+        if not hits:
+            raise Invalid(f'no place called "{place}"')
+        h = hits[0]
+        _places[key] = (h["latitude"], h["longitude"], h["name"])
+    lat, lon, name = _places[key]
+    w = _get_json(f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&timezone=auto&forecast_days=2"
+                  "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m"
+                  "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code")
+    c, d = w["current"], w["daily"]
+    day = lambda i: {"high_c": round(d["temperature_2m_max"][i]), "low_c": round(d["temperature_2m_min"][i]),
+                     "sky": WMO.get(d["weather_code"][i], "mixed"), "rain_chance_pct": d["precipitation_probability_max"][i]}
+    return {"ok": True, "place": name, "now": {"temp_c": round(c["temperature_2m"]),
+            "feels_like_c": round(c["apparent_temperature"]), "sky": WMO.get(c["weather_code"], "mixed"),
+            "wind_kmh": round(c["wind_speed_10m"])}, "today": day(0), "tomorrow": day(1)}
+
+
 # ── registry, confirmation policy, HUD labels ──
 TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
-    set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser,
+    set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
 ]}
 
 
@@ -718,6 +814,7 @@ def tool_label(tool, args):
         "recall": lambda: "MEMORY → RECALL",
         "forget": lambda: "MEMORY → FORGET",
         "open_in_browser": lambda: "BROWSER → CLAUDE",
+        "weather": lambda: f"WEATHER → {v('place') or 'HOME'}",
     }
     try:
         return labels[tool]()

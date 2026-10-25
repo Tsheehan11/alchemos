@@ -25,12 +25,13 @@ PanelWindow {
 
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property string phase: JarvisState.phase
-    readonly property bool hot: phase === "confirm" || phase === "alert"     // secondary colour
+    readonly property bool hot: phase === "confirm" || phase === "alert" || phase === "error"     // secondary colour
     readonly property color accent: hot ? Theme.secondary : Theme.primary
     readonly property bool busy: phase === "thinking"
     readonly property string phaseLabel: ({
         listening: "LISTENING", followup: "LISTENING · FOLLOW-UP", thinking: "PROCESSING",
-        reply: "RESPONSE", confirm: "AWAITING CONFIRMATION", alert: JarvisState.alertTitle, idle: ""
+        reply: "RESPONSE", confirm: "AWAITING CONFIRMATION", alert: JarvisState.alertTitle,
+        error: "⚠ " + JarvisState.errorReason, idle: ""
     })[phase] || ""
 
     Item {
@@ -237,7 +238,7 @@ PanelWindow {
 
             // reply / question / reminder
             Text {
-                visible: JarvisState.reply !== "" && (toast.phase === "reply" || toast.phase === "confirm" || toast.phase === "alert" || toast.phase === "followup")
+                visible: JarvisState.reply !== "" && ["reply", "confirm", "alert", "followup", "error"].includes(toast.phase)
                 width: parent.width
                 text: JarvisState.reply
                 color: toast.hot ? Qt.lighter(Theme.secondary, 1.15) : Theme.text
