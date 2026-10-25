@@ -43,7 +43,7 @@ def main():
         import json
         from core import effects
         british = [v for v in kokoro_voices() if v.startswith("bm_")] + [v for v in kokoro_voices() if v.startswith("bf_")]
-        print(json.dumps({"voices": british + piper_voices(), "effects": list(effects.presets())}))
+        print(json.dumps({"voices": british + piper_voices(), "effects": ["AUTO"] + list(effects.presets())}))
         return
 
     voices = []

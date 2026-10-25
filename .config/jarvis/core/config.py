@@ -27,7 +27,7 @@ DEFAULTS = {
     "jarvisVoice": "bm_george",         # Kokoro voice, or a piper model[:speaker] in ~/.local/share/jarvis/voices
     "jarvisSpeed": 1.0,                 # speech rate multiplier
     "jarvisPitch": 0.0,                 # semitones, on top of the effect preset's
-    "jarvisEffect": "HOLOGRAM",         # effects.json preset: CLEAN | HOLOGRAM | SUIT
+    "jarvisEffect": "AUTO",             # AUTO (SUIT on headphones, else HOLOGRAM) | CLEAN | HOLOGRAM | SUIT
     "jarvisSpeak": True,                # spoken replies (HUD text either way)
     "jarvisDuck": True,                 # lower music while speaking
     "jarvisFollowup": 8,                # seconds to listen for a follow-up (0 = off)

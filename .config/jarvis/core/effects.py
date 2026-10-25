@@ -1,11 +1,14 @@
 """
 The effect chain on every Jarvis line, in-process with pedalboard (no sox, no
 extra processes): pitch → band limits → warm EQ → drive → compressor → chorus →
-small-room reverb → limiter. Presets live in effects.json (CLEAN, HOLOGRAM, SUIT);
-every knob there can be edited, and Settings → JARVIS adds its pitch on top.
+small-room reverb → limiter. Presets live in effects.json (CLEAN, HOLOGRAM, SUIT;
+AUTO = SUIT on headphones, HOLOGRAM on speakers); every knob there can be edited, and Settings → JARVIS adds its pitch on top.
 Costs ~6 ms per sentence, ~75 ms with the pitch shifter on.
 """
 import json
+import re
+import subprocess
+import time
 
 import numpy as np
 
@@ -16,6 +19,7 @@ DEFAULT_PRESET = "HOLOGRAM"
 TAIL_S = 0.18          # silence after each sentence: the reverb tail plus a natural pause
 
 _boards = {}
+_auto = {"at": 0.0, "name": DEFAULT_PRESET}
 _presets = {"mtime": None, "data": {}}
 
 
@@ -30,7 +34,33 @@ def presets():
     return _presets["data"]
 
 
+def on_headphones():
+    """Is the default output headphones / a headset (Bluetooth, USB or the jack)?"""
+    try:
+        default = subprocess.run(["pactl", "get-default-sink"], capture_output=True, text=True, timeout=2).stdout.strip()
+        sinks = json.loads(subprocess.run(["pactl", "-f", "json", "list", "sinks"], capture_output=True,
+                                          text=True, timeout=2).stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return False
+    for s in sinks:
+        if s.get("name") == default:
+            p = s.get("properties", {})
+            hints = " ".join(str(x) for x in (p.get("device.form_factor"), p.get("device.icon_name"), s.get("active_port")))
+            return bool(re.search(r"head(phone|set)", hints, re.I))
+    return False
+
+
+def resolve(name):
+    """AUTO → SUIT on headphones, HOLOGRAM on speakers (checked at most every 3 s)."""
+    if name != "AUTO":
+        return name
+    if time.monotonic() - _auto["at"] > 3:
+        _auto.update(at=time.monotonic(), name="SUIT" if on_headphones() else "HOLOGRAM")
+    return _auto["name"]
+
+
 def preset(name):
+    name = resolve(name)
     p = presets()
     return p.get(name) or p.get(DEFAULT_PRESET) or {}
 

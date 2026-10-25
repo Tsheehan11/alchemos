@@ -156,7 +156,9 @@ class Engines:
         model, _, speaker = name.partition(":")
         v = self.piper(model)
         sid = (v.config.speaker_id_map or {}).get(speaker) if speaker else None
-        syn = SynthesisConfig(speaker_id=sid, length_scale=1.0 / max(0.5, min(2.0, speed)))
+        # volume 0.7: piper hits full scale and clips; lower noise scales cut its vocoder buzz
+        syn = SynthesisConfig(speaker_id=sid, length_scale=1.0 / max(0.5, min(2.0, speed)),
+                              volume=0.7, noise_scale=0.4, noise_w_scale=0.6)
         audio = np.concatenate([c.audio_float_array for c in v.synthesize(text, syn_config=syn)] or [np.zeros(1)])
         return audio.astype(np.float32), v.config.sample_rate
 
@@ -192,7 +194,7 @@ class Voice:
 
     def params(self):
         name = self._setting("voice", "jarvisVoice", "bm_george")
-        fx = effects.preset(self._setting("preset", "jarvisEffect", effects.DEFAULT_PRESET))
+        fx = effects.preset(self._setting("preset", "jarvisEffect", "AUTO"))
         speed = float(self._setting("speed", "jarvisSpeed", 1.0) or 1.0) * float(fx.get("speed", 1.0))
         pitch = float(self._setting("pitch", "jarvisPitch", 0.0) or 0.0) + float(fx.get("pitch", 0.0))
         return name, fx, speed, pitch
