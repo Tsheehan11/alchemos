@@ -613,6 +613,8 @@ PanelWindow {
                     readonly property var follows: [0, 4, 6, 8, 10, 15]
                     property var voices: ["bm_george"]
                     property var effects: ["AUTO", "CLEAN", "HOLOGRAM", "SUIT"]
+                    property var speakers: []          // [{mac, name}] paired Bluetooth speakers (not headphones)
+                    function speakerName(mac) { const s = speakers.find(x => x.mac === mac); return mac === "" ? "OFF" : (s ? s.name : mac).toUpperCase(); }
                     function voiceName(v) {
                         if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
                         return v.replace(/^en_GB-/, "").replace(/-(medium|low|high)/, "").replace(/_/g, " ").replace(":", " · ").toUpperCase() + " · PIPER";
@@ -629,6 +631,7 @@ PanelWindow {
                                     const d = JSON.parse(text);
                                     if (d.voices.length) jarvisPage.voices = d.voices;
                                     if (d.effects.length) jarvisPage.effects = d.effects;
+                                    jarvisPage.speakers = d.speakers || [];
                                 } catch (e) {}
                             }
                         }
@@ -640,6 +643,7 @@ PanelWindow {
                     Stepper { width: parent.width; label: "Speech rate"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
                     Stepper { width: parent.width; label: "Pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: jarvisPage.preview(); valueText: (Theme.cfg.jarvisPitch > 0 ? "+" : "") + Theme.cfg.jarvisPitch.toFixed(1); onDec: Theme.cfg.jarvisPitch = Math.max(-3, Theme.cfg.jarvisPitch - 0.5); onInc: Theme.cfg.jarvisPitch = Math.min(2, Theme.cfg.jarvisPitch + 0.5) }
                     Stepper { width: parent.width; label: "Voice effect"; hint: ({ AUTO: "SUIT on headphones, HOLOGRAM on speakers", CLEAN: "No processing", HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet" })[Theme.cfg.jarvisEffect] || "Custom preset · ~/.config/jarvis/effects.json"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisEffect; onDec: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, -1); onInc: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, 1) }
+                    Stepper { width: parent.width; label: "Speaker without headphones"; hint: "Bluetooth speaker Jarvis connects to and talks through when you're not on headphones"; preview: Theme.cfg.jarvisSpeaker !== ""; onPlay: jarvisPage.preview(); valueText: jarvisPage.speakerName(Theme.cfg.jarvisSpeaker); onDec: Theme.cfg.jarvisSpeaker = jarvisPage.cycle([""].concat(jarvisPage.speakers.map(s => s.mac)), Theme.cfg.jarvisSpeaker, -1); onInc: Theme.cfg.jarvisSpeaker = jarvisPage.cycle([""].concat(jarvisPage.speakers.map(s => s.mac)), Theme.cfg.jarvisSpeaker, 1) }
                     Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.jarvisFollowup > 0 ? Theme.cfg.jarvisFollowup + " S" : "OFF"; onDec: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, -1); onInc: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, 1) }
                     Toggle { width: parent.width; label: "Spoken replies"; hint: "Off = replies only show on the toast"; checked: Theme.cfg.jarvisSpeak; onToggled: Theme.cfg.jarvisSpeak = !Theme.cfg.jarvisSpeak }
                     Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.jarvisDuck; onToggled: Theme.cfg.jarvisDuck = !Theme.cfg.jarvisDuck }

@@ -31,6 +31,21 @@ def spoken_name(v):
     return "Piper, " + words + (", " + spk.capitalize() if spk else "")
 
 
+def bt_speakers():
+    """Paired Bluetooth audio sinks that aren't headphones: [{"mac", "name"}]."""
+    import subprocess
+    out = []
+    paired = subprocess.run(["bluetoothctl", "devices", "Paired"], capture_output=True, text=True).stdout
+    for line in paired.splitlines():
+        parts = line.split(" ", 2)
+        if len(parts) < 3:
+            continue
+        info = subprocess.run(["bluetoothctl", "info", parts[1]], capture_output=True, text=True).stdout
+        if "Audio Sink" in info and "Icon: audio-head" not in info:
+            out.append({"mac": parts[1], "name": parts[2]})
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--effect", help="effect preset (default: your setting)")
@@ -43,7 +58,8 @@ def main():
         import json
         from core import effects
         british = [v for v in kokoro_voices() if v.startswith("bm_")] + [v for v in kokoro_voices() if v.startswith("bf_")]
-        print(json.dumps({"voices": british + piper_voices(), "effects": ["AUTO"] + list(effects.presets())}))
+        print(json.dumps({"voices": british + piper_voices(), "effects": ["AUTO"] + list(effects.presets()),
+                          "speakers": bt_speakers()}))
         return
 
     voices = []

@@ -337,7 +337,7 @@ class VoiceLoop:
         openwakeword.utils.download_models([WAKEWORD])
         self.wake = Model(wakeword_models=[WAKEWORD], inference_framework="onnx")
         self.stt = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
-        self.voice = Voice(self.cfg, log=log)
+        self.voice = Voice(self.cfg, log=log, prewarm=True)
         self.voice.warm()
         A.apps()
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)
@@ -518,6 +518,7 @@ class VoiceLoop:
                 continue
             log("JARVIS: wake word")
             self.wake.reset()     # else its buffer still holds "hey Jarvis" and fires again mid-reply
+            self.voice.speaker.prepare()   # connect the Bluetooth speaker while Trevor talks
             chime()
             hud.listening()
             self.converse()

@@ -11,6 +11,11 @@ Voice names: Kokoro voices as-is (bm_george, bm_fable…); piper voices by model
 file, with a speaker for multi-speaker models (en_GB-semaine-medium:obadiah).
 Music playing through MPRIS (Spotify etc.) is ducked while it talks.
 
+Output: the default sink, except when it isn't headphones and a Bluetooth speaker
+is set (Settings → JARVIS → Speaker): then Jarvis connects to it when it hears
+"Hey Jarvis" (ready by the time you finish talking) and plays only its own voice
+there. The system default output is left alone.
+
 Setup (venv): uv pip install --python ~/.config/jarvis/.venv/bin/python kokoro-onnx pedalboard
 Models: kokoro-v1.0.int8.onnx + voices-v1.0.bin from github.com/thewh1teagle/kokoro-onnx
 releases (model-files-v1.0) → ~/.local/share/jarvis/kokoro/
@@ -163,6 +168,91 @@ class Engines:
         return audio.astype(np.float32), v.config.sample_rate
 
 
+def bt_connected(mac):
+    try:
+        out = subprocess.run(["bluetoothctl", "info", mac], capture_output=True, text=True, timeout=3).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return "Connected: yes" in out
+
+
+def sink_names():
+    try:
+        out = subprocess.run(["pactl", "list", "sinks", "short"], capture_output=True, text=True, timeout=2).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    return [line.split("\t")[1] for line in out.splitlines() if "\t" in line]
+
+
+def default_sink():
+    try:
+        return subprocess.run(["pactl", "get-default-sink"], capture_output=True, text=True, timeout=2).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+class Speaker:
+    """The Bluetooth speaker Jarvis uses when you're not on headphones."""
+
+    def __init__(self, cfg, log):
+        self.cfg = cfg
+        self.log = log
+        self._thread = None
+        self._lock = threading.Lock()
+
+    @property
+    def mac(self):
+        try:
+            return (self.cfg["jarvisSpeaker"] or "").strip()
+        except KeyError:
+            return ""
+
+    def wanted(self):
+        return bool(self.mac) and not effects.on_headphones()
+
+    def sink(self):
+        name = "bluez_output." + self.mac.replace(":", "_")
+        return next((s for s in sink_names() if s.startswith(name)), None)
+
+    def _connect(self):
+        with self._lock:
+            mac = self.mac
+            if not mac or bt_connected(mac):
+                return
+            before = default_sink()
+            for _ in range(3):           # the first page after idle often times out; the next one works
+                try:
+                    subprocess.run(["bluetoothctl", "--timeout", "8", "connect", mac], capture_output=True, timeout=12)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+                if bt_connected(mac):
+                    break
+            for _ in range(20):          # the PipeWire sink shows up a moment after the link
+                if self.sink():
+                    break
+                threading.Event().wait(0.2)
+            now = default_sink()
+            if before and now != before and now == self.sink():
+                subprocess.run(["pactl", "set-default-sink", before], capture_output=True)   # only Jarvis goes there
+            self.log(f"JARVIS: speaker {'connected' if self.sink() else 'unreachable'}")
+
+    def prepare(self):
+        """Start connecting in the background (on the wake word)."""
+        if self.wanted() and not (self._thread and self._thread.is_alive()):
+            self._thread = threading.Thread(target=self._connect, daemon=True)
+            self._thread.start()
+
+    def target(self):
+        """Sink name for pw-play, or None for the default output. Waits up to 8 s for a
+        connect in progress; if the speaker still isn't there, this line uses the default output."""
+        if not self.wanted():
+            return None
+        self.prepare()
+        if self._thread:
+            self._thread.join(8)
+        return self.sink()
+
+
 def resample(audio, sr, to):
     if sr == to:
         return audio
@@ -171,8 +261,9 @@ def resample(audio, sr, to):
 
 
 class Voice:
-    def __init__(self, cfg, log=lambda *a: None):
+    def __init__(self, cfg, log=lambda *a: None, prewarm=False):
         self.cfg = cfg
+        self.prewarm = prewarm         # long-running Jarvis only: one-shot runs exit mid-render otherwise
         self.log = log
         self.engines = Engines()
         self._proc = None
@@ -182,6 +273,7 @@ class Voice:
         self.ducker = Ducker()
         self.speaking = False
         self.overrides = {}            # audition / preview: {"voice", "preset", "pitch", "speed"}
+        self.speaker = Speaker(cfg, log)
 
     # ── settings ──
     def _setting(self, key, cfg_key, default):
@@ -274,6 +366,7 @@ class Voice:
                 q.put(None)
             threading.Thread(target=produce, daemon=True).start()
 
+            target = self.speaker.target()
             first = q.get()
             if first is None:
                 return True
@@ -284,7 +377,8 @@ class Voice:
                 self.ducker.duck()
             self._proc = subprocess.Popen(
                 ["pw-play", "--raw", "--rate", str(rate), "--channels", "1", "--format", "f32",
-                 "--media-role", "Assistant", "-P", "media.name=Jarvis", "-"],
+                 "--media-role", "Assistant", "-P", "media.name=Jarvis"]
+                + (["--target", target] if target else []) + ["-"],
                 stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:
                 while audio is not None and not self._stop.is_set():
@@ -307,7 +401,8 @@ class Voice:
                 if duck:
                     self.ducker.restore()
                 self.speaking = False
-                self.warm()        # re-render the stock phrases if the voice settings changed
+                if self.prewarm:
+                    self.warm()    # re-render the stock phrases if the voice settings changed
             return not self._stop.is_set()
 
     def stop(self):
