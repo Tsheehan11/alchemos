@@ -26,6 +26,8 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: Theme.bg
 
+    DesktopMenuArea { screen: bg.modelData }    // right-click → widget maker
+
     // Static grid (drawn once)
     Canvas {
         anchors.fill: parent

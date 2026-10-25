@@ -44,6 +44,7 @@ PanelWindow {
         target: SysStats; property: "diagShown"; value: diag.visible
     }
 
+    DesktopMenuArea { screen: diag.modelData }
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color dim: Theme.dim

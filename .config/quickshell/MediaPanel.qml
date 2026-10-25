@@ -20,6 +20,7 @@ PanelWindow {
     implicitHeight: 800
     color: "transparent"
 
+    DesktopMenuArea { screen: media.modelData }
     readonly property color cyan: Theme.primary
 
     // Pause the visualizer + spinning while windows cover the laptop screen

@@ -142,6 +142,38 @@ Singleton {
         return "";
     }
 
+    // ── widget maker: right-click the empty desktop (DesktopMenuArea → WidgetMaker) ──
+    property var maker: null            // { screen: name, x, y } (screen pixels) while open
+    function openMaker(screen) {
+        makerProc.screenName = screen ? screen.name : "";
+        makerProc.running = true;
+    }
+    function closeMaker() { root.maker = null; }
+    // Add from the maker: lands in the slot nearest where you right-clicked
+    function addAt(type, params) {
+        const m = root.maker, s = m ? screenOf(m.screen) : null;
+        if (!s) return { ok: false, error: "no screen" };
+        let role = Roles.role(s);
+        if (root.roles.indexOf(role) < 0) role = "main";
+        const huge = params && params.size === "huge";
+        const r = add(type, role, huge ? "center" : slotAt(s, m.x, m.y), params || {});
+        closeMaker();
+        return r;
+    }
+    Process {
+        id: makerProc
+        property string screenName: ""
+        command: ["hyprctl", "cursorpos", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let c;
+                try { c = JSON.parse(text); } catch (e) { return; }
+                const s = root.screenOf(makerProc.screenName) || root.screenAt(c.x, c.y);
+                if (s) root.maker = { screen: s.name, x: c.x - s.x, y: c.y - s.y };
+            }
+        }
+    }
+
     // ── moving by mouse, across screens ──
     // Press on a widget arms it; once the pointer travels a few pixels it's lifted and
     // WidgetMoveOverlay shows the slots and a ghost on every screen (click-through, so the

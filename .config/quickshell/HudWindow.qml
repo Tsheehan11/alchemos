@@ -26,4 +26,5 @@ PanelWindow {
     Binding on t { when: Perf.live(hud.modelData); value: Perf.time; restoreMode: Binding.RestoreNone }
 
     Reactor { id: reactor; t: hud.t; animated: !Perf.lite }
+    DesktopMenuArea { screen: hud.modelData }
 }
