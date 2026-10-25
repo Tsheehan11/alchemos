@@ -21,6 +21,7 @@ from claude_agent_sdk import (AssistantMessage, ClaudeAgentOptions, ClaudeSDKCli
                               ResultMessage, TextBlock)
 
 from . import config as C
+from . import trace
 
 import stark_actions  # noqa: E402  (mcp/ is on sys.path; see jarvis.py)
 import jarvis_db as db  # noqa: E402
@@ -228,9 +229,12 @@ class Brain:
         reply.tier = f"claude:{model}"
         self._req = req = {"text": text, "count": 0, "tools": reply.tools, "error": "",
                            "interrupted": False, "deadline": time.monotonic() + C.TIMEOUT_S}
+        t0 = time.monotonic()
+        trace.t("claude", model=model, warm=self.client is not None)
         try:
             if self.client is None:
                 await self.connect(model)
+                trace.t("claude.conn", ms=int((time.monotonic() - t0) * 1000))
             elif model != self.model:
                 await self.client.set_model(model)
                 self.model = model
@@ -248,6 +252,8 @@ class Brain:
                                        "authentication_failed": "auth"}.get(msg.error, "failed")
                     t = " ".join(b.text for b in msg.content if isinstance(b, TextBlock)).strip()
                     if t:
+                        if not texts:
+                            trace.t("claude.text", ms=int((time.monotonic() - t0) * 1000))
                         texts.append(t)
                 elif isinstance(msg, RateLimitEvent):
                     self._note_usage(msg)
@@ -272,6 +278,8 @@ class Brain:
             reply.error = "failed"
             await self.disconnect()
         finally:
+            trace.t("claude.done", ms=int((time.monotonic() - t0) * 1000), error=reply.error or req["error"] or "-",
+                    interrupted=req["interrupted"])
             reply.interrupted = req["interrupted"]
             self._req = None
             self.last_used = time.time()

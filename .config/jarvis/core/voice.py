@@ -26,10 +26,11 @@ import queue
 import re
 import subprocess
 import threading
+import time
 
 import numpy as np
 
-from . import effects
+from . import effects, trace
 from .config import DATA_DIR, VOICES_DIR
 
 KOKORO_DIR = DATA_DIR / "kokoro"
@@ -235,6 +236,7 @@ class Speaker:
             if before and now != before and now == self.sink():
                 subprocess.run(["pactl", "set-default-sink", before], capture_output=True)   # only Jarvis goes there
             self.log(f"JARVIS: speaker {'connected' if self.sink() else 'unreachable'}")
+            trace.t("speaker", state="connected" if self.sink() else "unreachable")
 
     def prepare(self):
         """Start connecting in the background (on the wake word)."""
@@ -248,8 +250,10 @@ class Speaker:
         if not self.wanted():
             return None
         self.prepare()
-        if self._thread:
+        if self._thread and self._thread.is_alive():
+            t0 = time.monotonic()
             self._thread.join(8)
+            trace.t("speaker.wait", ms=int((time.monotonic() - t0) * 1000), ready=bool(self.sink()))
         return self.sink()
 
 
@@ -366,6 +370,7 @@ class Voice:
                 q.put(None)
             threading.Thread(target=produce, daemon=True).start()
 
+            trace.t("tts", sentences=len(parts), voice=params[0])
             target = self.speaker.target()
             first = q.get()
             if first is None:
@@ -380,6 +385,7 @@ class Voice:
                  "--media-role", "Assistant", "-P", "media.name=Jarvis"]
                 + (["--target", target] if target else []) + ["-"],
                 stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            trace.t("tts.audio", sink=target or "default", since_speech_end=trace.since("speech_end"))
             try:
                 while audio is not None and not self._stop.is_set():
                     self._proc.stdin.write(audio.tobytes())
