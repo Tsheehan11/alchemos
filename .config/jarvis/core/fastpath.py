@@ -93,6 +93,15 @@ def _vpn_status(r):
 
 
 SCREEN = r"(?: (?:the|my))?(?: screen| computer| pc| laptop| system)?"
+# Widgets: "… on the second monitor", "… in the top right", "… to the laptop screen"
+WSCREEN = (r"(?:the |my )?(?:(?:main|primary|first|left|second|middle|diagnostics?) (?:monitor|screen|display)|"
+           r"monitor (?:1|one|2|two)|screen (?:1|one|2|two)|laptop(?: screen| display)?|diagnostics|(?:this|current) (?:monitor|screen))")
+WPOS = (r"(?:the )?(?:(?:top|bottom|upper|lower)(?: (?:left|right|center|centre|middle))?|(?:left|right|center|centre|middle)"
+        r"(?: (?:top|bottom))?)(?: corner| side| of the screen)?")
+WTYPE = (r"(clock|timer|countdown|stopwatch|sticky note|note|now playing|music|media|player|system stats|stats|"
+         r"widget|everything)s?(?: widgets?| card| player)?")
+WTARGET = {"countdown": "timer", "sticky note": "note", "now playing": "media", "music": "media", "player": "media",
+           "system stats": "stats", "widget": "all", "everything": "all"}
 LIGHTS = r"(?:the |my )?(?:lights?|strip|led strip|leds)"
 
 
@@ -166,7 +175,8 @@ def _clause(t, last_query):
         return [step("lights", "Lights on.", action="on")]
     if M(rf"dim {LIGHTS}|{LIGHTS} dim|dim {LIGHTS} down"):
         return [step("lights", "Dimmed.", action="brightness", value="30")]
-    if M(rf"(?:brighten|raise) {LIGHTS}|{LIGHTS} (?:to )?(?:full|max(?:imum)?)(?: brightness)?|full brightness"):
+    if M(rf"(?:brighten|raise) (?:{LIGHTS}|them|it)(?: up)?|{LIGHTS} (?:to )?(?:full|max(?:imum)?)(?: brightness)?|full brightness|"
+         rf"make (?:{LIGHTS}|them|it) brighter|{LIGHTS} brighter|brighter"):
         return [step("lights", "Full brightness.", action="brightness", value="100")]
     if M(rf"(?:set |turn )?{LIGHTS} (?:brightness )?(?:to )?{NUM}(?: ?%| percent)"):
         n = to_num(m.group(1))
@@ -191,6 +201,10 @@ def _clause(t, last_query):
     if M(r"(?:set|change|switch|make)(?: the)? (?:theme|colou?rs?|hud) to (.+?)(?: theme)?|(?:switch to |use |activate )?(.+?) theme|theme (.+)"):
         name = A.match_preset(next(g for g in m.groups() if g))
         return [step("set_theme", f"{_pretty(name)}, sir.", preset=name)] if name else None
+    # ── widgets (Widgets.qml) ──
+    w = _widget(t)
+    if w is not None:
+        return w or None
     # ── timers ──
     if M(r"(?:timers?|reminders?) status|(?:what|which) (?:timers?|reminders?) (?:do i have|are (?:running|set|there))|"
          r"(?:list|show|check)(?: me)? (?:my |the )?(?:timers?|reminders?)|how (?:long|much time) (?:is |'s )?left(?: on (?:my |the )?timer)?|"
@@ -204,7 +218,7 @@ def _clause(t, last_query):
         return [step("set_timer", f"I'll remind you in {_spoken_minutes(mins)}.", minutes=round(mins, 2),
                      label=m.group(2))] if mins else None
     # ── system ──
-    if M(r"(?:what(?:'s| is) )?(?:my |the )?(?:cpu|processor|computer|laptop|pc) temperature|how hot is (?:my |the )?(?:cpu|computer|laptop|pc|processor)"):
+    if M(r"(?:what(?:'s| is) |that's |thats )?(?:my |the )?(?:cpu|processor|computer|laptop|pc) temperature|how hot is (?:my |the )?(?:cpu|computer|laptop|pc|processor)"):
         return [step("system_status", _cpu_temp)]
     if M(r"(?:what(?:'s| is) )?(?:my |the )?battery(?: level| status| percentage| life)?|how much battery(?: do i have| is left)?"):
         return [step("system_status", _battery)]
@@ -231,6 +245,85 @@ def _clause(t, last_query):
     if len(t.split()) <= 2:   # a bare app name, exact matches only
         if t in A.ALIASES or t in A.apps():
             return [step("open_app", f"Opening {t.title()}.", name=t)]
+    return None
+
+
+def _where(t):
+    """Strip a trailing screen / position: 'show a clock on monitor 2 top right' → ('show a clock', 'monitor 2', 'top right')."""
+    screen = pos = ""
+    for _ in range(3):
+        m = re.search(rf"\s+(?:on|to|onto|in|at|of|over to)\s+({WSCREEN})$", t)
+        if m and not screen:
+            screen, t = m.group(1), t[:m.start()]
+            continue
+        m = re.search(rf"\s+(?:in|at|to|on|into)\s+({WPOS})$", t)
+        if m and not pos:
+            pos, t = m.group(1), t[:m.start()]
+            continue
+        break
+    return t, screen, pos
+
+
+def _on(screen):
+    role = A.norm_screen(screen) if screen else ""
+    return {"main": " on the main monitor", "diag": " on the second monitor", "media": " on the laptop screen"}.get(role or "", "")
+
+
+def _widget(t):
+    """Widget commands → steps; [] = it's a widget command but not one the fast path can do; None = not one."""
+    rest, scr, pos = _where(t)
+    where = dict(screen=scr, position=pos)
+    m = None
+
+    def W(p):
+        nonlocal m
+        m = re.fullmatch(p, rest)
+        return m
+    show = r"(?:show|put|add|display|open|give me|bring up|pull up|start|set up|pop up|throw up)(?: me)?(?: up)?"
+    # timer, when a screen / position is given ("set a timer for 10 minutes on monitor 2")
+    if (scr or pos) and W(rf"(?:set |start |{show} )?(?:a |an |the )?(?:timer|countdown)(?: for)? (.+?)(?: timer)?|"
+                         rf"(?:set |start |{show} )?(?:a |an )?(.+?) (?:timer|countdown)"):
+        mins = duration_minutes(m.group(1) or m.group(2) or "")
+        if mins:
+            return [step("set_timer", f"Timer set for {_spoken_minutes(mins)}{_on(scr)}.", minutes=round(mins, 2), **where)]
+    # move / pin
+    if (scr or pos) and W(rf"(?:move|send|drag|shift) (?:the |my |that |this )?{WTYPE}|(?:put|bring) (?:the |my |that |this ){WTYPE}"):
+        kind = m.group(1) or m.group(2)
+        target = WTARGET.get(kind, kind)
+        return [step("widget_move", "Moved.", target=target, **where)]
+    if W(rf"(pin|unpin) (?:the |my |that |this )?{WTYPE}(?: (?:on top|to the top|above (?:the )?windows))?"):
+        target = WTARGET.get(m.group(2), m.group(2))
+        on = m.group(1) == "pin"
+        return [step("widget_move", "Pinned above your windows." if on else "Unpinned.", target=target, pinned=on)]
+    # clocks: "show a clock", "show an analog clock", "show New York time", "show a Tokyo clock", "a clock for London"
+    if W(rf"{show} (?:a |an |the )?(?:(analog|analogue|digital) )?clock(?: for (.+))?|"
+         rf"{show} (?:the )?time (?:in|for) (.+)|{show} (?:a |an |the )?(?!a |an |the )(.+?) (?:time|clock)"):
+        style, city = m.group(1), m.group(2) or m.group(3) or m.group(4)
+        if city and city in ("local", "current"):
+            city = None
+        if city and not A.city_tz(city):
+            return []                          # Claude can work out an odd place name
+        name = city.title() if city else ""
+        return [step("widget_add", f"{name + ' time' if name else 'Clock'}{_on(scr)}.", type="clock",
+                     tz=city or "", analog=bool(style and style.startswith("analog")), **where)]
+    if W(rf"{show} (?:a |an |the )?stopwatch"):
+        return [step("widget_add", f"Stopwatch running{_on(scr)}.", type="stopwatch", **where)]
+    if W(rf"{show} (?:the |a )?(?:now playing|music|media|song|spotify)(?: widget| player| card| info)?"):
+        return [step("widget_add", f"Now playing{_on(scr)}.", type="media", **where)]
+    if W(rf"{show} (?:the |my |a )?(?:system )?(?:stats|statistics|system monitor|system info|system status|cpu and ram)(?: widget| card)?"):
+        return [step("widget_add", f"System stats{_on(scr)}.", type="stats", **where)]
+    if W(r"(?:add|make|put up|create|leave|show|pin up|write)(?: me)? (?:a )?(?:sticky )?note(?: saying| that says| reading| with| to)? (.+)"):
+        text = m.group(1).strip()
+        return [step("widget_add", f"Noted{_on(scr)}.", type="note", text=text[:1].upper() + text[1:], **where)]
+    # remove / clear
+    if W(rf"(?:remove|close|hide|get rid of|dismiss|delete|cancel|kill|clear|take down) (?:the |my |that |this |all (?:the |my )?)?{WTYPE}"):
+        target = WTARGET.get(m.group(1), m.group(1))
+        return [step("widget_remove", "Cleared." if target == "all" else "Removed.", target=target, screen=scr)]
+    if (scr and W(r"clear(?: off)?(?: (?:all|everything|the widgets|all widgets))?")) or W(r"clear (?:all )?(?:the |my )?widgets"):
+        return [step("widget_remove", "Cleared.", target="all", screen=scr)]
+    m = re.fullmatch(rf"clear(?: off| up)? ({WSCREEN})", t)       # "clear monitor 2"
+    if m:
+        return [step("widget_remove", "Cleared.", target="all", screen=m.group(1))]
     return None
 
 

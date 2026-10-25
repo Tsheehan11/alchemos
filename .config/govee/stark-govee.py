@@ -11,7 +11,8 @@ frame collapses to its average colour.
 Usage:
   stark-govee daemon                    run the light daemon (Hyprland exec-once)
   stark-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
-  stark-govee anim <name>               play an animation only (no lock/sleep state), for testing
+  stark-govee anim <name>               play an animation only (no lock/sleep state), for testing;
+                                        "alert" = desktop timer done (skipped when the strip is off)
   stark-govee speed <0.5-2.0>           animation speed multiplier
   stark-govee level <0.05-1.0>          steady-colour brightness (theme / manual modes)
   stark-govee suspend                   spiral the strip out, then systemctl suspend
@@ -630,9 +631,19 @@ def anim_wake(p, a, cur, fps, n):
     yield "on"
 
 
+def anim_alert(p, a, cur, fps, n):  # a desktop timer finished: three accent flashes, then back
+    dim = [scale(c, 0.25) for c in _seg(cur, n)]
+    for _ in range(3):
+        yield from fade(cur, a, 0.12, fps, n)
+        yield from hold(a, 0.18, fps, n)
+        yield from fade(a, dim, 0.2, fps, n)
+        cur = dim
+    yield from fade(dim, p, 0.4, fps, n)
+
+
 ANIMS = {"boot": anim_boot, "login": anim_login, "unlock": anim_unlock, "lock": anim_lock,
          "logout": anim_logout, "shutdown": anim_shutdown, "sleep": anim_sleep, "wake": anim_wake}
-EXTRA_ANIMS = {"theme": anim_theme, "park": anim_park}  # not system events; played by the daemon / `anim`
+EXTRA_ANIMS = {"theme": anim_theme, "park": anim_park, "alert": anim_alert}  # not system events; played by the daemon / `anim`
 GOES_DARK = {"logout", "shutdown", "sleep"}
 
 
@@ -868,7 +879,10 @@ class Daemon:
                 self.event(parts[1], done)
                 continue
             if cmd == "anim" and len(parts) > 1 and (parts[1] in ANIMS or parts[1] in EXTRA_ANIMS):
-                if self.parked:  # the dock+home gate still applies to test runs
+                if parts[1] == "alert" and (self.cfg.get("mode") == "off" or self.locked or self.asleep
+                                            or self.powered is not True):
+                    done.set()  # a timer flash never turns the strip on or wakes it
+                elif self.parked:  # the dock+home gate still applies to test runs
                     done.set()
                 else:
                     self.asleep = False

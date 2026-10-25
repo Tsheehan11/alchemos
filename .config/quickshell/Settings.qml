@@ -22,7 +22,7 @@ PanelWindow {
     color: "transparent"
 
     readonly property string mono: "JetBrainsMono Nerd Font"
-    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "JARVIS", "LAUNCHER", "SYSTEM"]
+    readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "WIDGETS", "JARVIS", "LAUNCHER", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
     // A finished action's result (✓ / ✕ line at the bottom) is cleared on close, so an old
@@ -601,6 +601,13 @@ PanelWindow {
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
                         SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch("exec kate ~/.config/quickshell"); LauncherState.closeAll(); } }
                     }
+                }
+
+                // ════════ WIDGETS ════════
+                WidgetsPage {
+                    visible: LauncherState.settingsTab === "WIDGETS"
+                    width: parent.width
+                    onReleaseFocus: focusCatcher.forceActiveFocus()
                 }
 
                 // ════════ JARVIS ════════

@@ -108,9 +108,10 @@ def power(action: Literal["suspend", "shutdown", "reboot", "logout"]) -> str:
 
 
 @mcp.tool(structured_output=False)
-def set_timer(minutes: float, label: str = "") -> str:
-    """Timer that is spoken and shown on the HUD when it ends."""
-    return out(A.set_timer(minutes, label))
+def set_timer(minutes: float, label: str = "", screen: str = "", position: str = "") -> str:
+    """Start a timer, shown as a countdown widget that rings, flashes the lights and speaks when done.
+    screen: "main monitor" | "second monitor" | "laptop screen" | "" (the one in use). position: see widget_add."""
+    return out(A.set_timer(minutes, label, screen, position))
 
 
 @mcp.tool(structured_output=False)
@@ -123,6 +124,37 @@ def set_reminder(when: str, text: str) -> str:
 def list_reminders() -> str:
     """Pending timers and reminders with ids."""
     return out(A.list_reminders())
+
+
+Position = Literal["", "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
+
+
+@mcp.tool(structured_output=False)
+def widget_add(type: Literal["clock", "timer", "stopwatch", "media", "stats", "note"], screen: str = "",
+               position: Position = "", label: str = "", minutes: float = 0, seconds: float = 0, tz: str = "",
+               analog: bool = False, text: str = "", pinned: bool = False) -> str:
+    """Show a desktop widget. screen: "main monitor" | "second monitor" | "laptop screen" | "" (the one in use).
+    clock: tz = city or IANA zone ("New York"), analog. timer: minutes / seconds (prefer set_timer). media = now
+    playing. stats = CPU/RAM/temp/battery. note: text. pinned = stays above windows."""
+    return out(A.widget_add(type, screen, position, label, minutes, seconds, tz, analog, text, pinned))
+
+
+@mcp.tool(structured_output=False)
+def widget_remove(target: str, screen: str = "") -> str:
+    """Close widgets: target = a widget id, a type (clock, timer, …) or "all"; screen narrows it. Asks Trevor before removing notes."""
+    return out(A.widget_remove(target, screen))
+
+
+@mcp.tool(structured_output=False)
+def widget_move(target: str, screen: str = "", position: Position = "", pinned: bool | None = None) -> str:
+    """Move a widget (id or type; the newest match) to another screen and/or position; pinned true/false."""
+    return out(A.widget_move(target, screen, position, pinned))
+
+
+@mcp.tool(structured_output=False)
+def widget_list() -> str:
+    """Widgets showing now (id, type, screen, position, label, timer time left) and which screen is in use."""
+    return out(A.widget_list())
 
 
 @mcp.tool(structured_output=False)

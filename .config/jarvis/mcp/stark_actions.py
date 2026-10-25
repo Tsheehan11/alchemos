@@ -577,15 +577,22 @@ def power(action):
 
 # ── timers / reminders ─────────────────────────
 @safe
-def set_timer(minutes, label=""):
-    """Start a timer; spoken and shown on the HUD when it ends. minutes: 0.1-1440; label optional."""
+def set_timer(minutes, label="", screen="", position=""):
+    """Start a timer. It shows as a countdown widget (on `screen`, default: where the cursor is)
+    and rings, flashes the lights and speaks when done. Without the HUD it's a spoken timer.
+    minutes: 0.1-1440; label optional."""
     try:
         m = float(minutes)
     except (TypeError, ValueError):
         raise Invalid("minutes must be a number")
     if not 0.1 <= m <= 1440:
         raise Invalid("minutes must be from 0.1 to 1440")
-    label = " ".join(str(label or "").split())[:80]
+    label = " ".join(str(label or "").split())[:32]
+    if screen or position or widget_types():
+        r = widget_add("timer", screen=screen, position=position, label=label, seconds=round(m * 60))
+        if r.get("ok"):
+            r["ends"] = datetime.fromtimestamp(time.time() + m * 60).strftime("%H:%M:%S")
+        return r
     if DRY_RUN:
         return {"ok": True, "dry_run": True, "would": f"timer {m:g} min {label}".strip()}
     rid = db.add_reminder(time.time() + m * 60, label or "timer", "timer")
@@ -636,12 +643,18 @@ def set_reminder(when, text):
 
 @safe
 def list_reminders():
-    """Pending timers and reminders (id, kind, text, due time)."""
+    """Pending timers (including countdown widgets) and reminders (id, kind, text, due time)."""
     now = time.time()
-    return {"ok": True, "items": [
-        {"id": r["id"], "kind": r["kind"], "text": r["text"],
-         "due": datetime.fromtimestamp(r["due"]).strftime("%a %H:%M:%S"),
-         "minutes_left": round((r["due"] - now) / 60, 1)} for r in db.pending_reminders()]}
+    items = [{"id": r["id"], "kind": r["kind"], "text": r["text"],
+              "due": datetime.fromtimestamp(r["due"]).strftime("%a %H:%M:%S"),
+              "minutes_left": round((r["due"] - now) / 60, 1)} for r in db.pending_reminders()]
+    for w in _widget_list():
+        if w["type"] == "timer" and not w.get("done"):
+            items.append({"id": w["id"], "kind": "timer", "text": w.get("label") or "timer", "screen": w["screen"],
+                          "due": datetime.fromtimestamp(now + w["seconds_left"]).strftime("%a %H:%M:%S"),
+                          "minutes_left": round(w["seconds_left"] / 60, 1)})
+    items.sort(key=lambda i: i["minutes_left"])
+    return {"ok": True, "items": items}
 
 
 @safe
@@ -697,6 +710,217 @@ def open_in_browser(query):
     q = " ".join(str(query or "").split())[:2000]
     url = f"{CLAUDE_URL}?q={urllib.parse.quote(q)}" if q else CLAUDE_URL
     return _do(f"browser: {url[:80]}", _hypr_exec(f"zen-browser --new-window {shlex.quote(url)}"), "opened in the browser")
+
+
+# ── desktop widgets (quickshell/Widgets.qml, through `qs ipc call widgets …`) ──
+WIDGET_POSITIONS = ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
+WIDGET_ROLES = {"main": "main monitor", "diag": "second monitor", "media": "laptop screen"}
+# Spoken screen names → Roles roles. Undocked, the HUD shows everything on the laptop.
+SCREEN_WORDS = [
+    (r"(?:main|primary|first|left) (?:monitor|screen|display)|monitor (?:1|one)|screen (?:1|one)|main", "main"),
+    (r"(?:second|middle|diagnostics?|diag) (?:monitor|screen|display)|monitor (?:2|two)|screen (?:2|two)|diagnostics|diag", "diag"),
+    (r"laptop(?: screen| display)?|(?:built in|internal) (?:screen|display)|media(?: screen)?", "media"),
+    (r"(?:this|current) (?:monitor|screen|display)|here|current", ""),
+]
+CITY_TZ = {"new york": "America/New_York", "nyc": "America/New_York", "toronto": "America/Toronto",
+           "waterloo": "America/Toronto", "vancouver": "America/Vancouver", "los angeles": "America/Los_Angeles",
+           "la": "America/Los_Angeles", "san francisco": "America/Los_Angeles", "seattle": "America/Los_Angeles",
+           "chicago": "America/Chicago", "denver": "America/Denver", "london": "Europe/London",
+           "paris": "Europe/Paris", "berlin": "Europe/Berlin", "tokyo": "Asia/Tokyo", "sydney": "Australia/Sydney",
+           "beijing": "Asia/Shanghai", "shanghai": "Asia/Shanghai", "hong kong": "Asia/Hong_Kong",
+           "singapore": "Asia/Singapore", "dubai": "Asia/Dubai", "mumbai": "Asia/Kolkata", "delhi": "Asia/Kolkata",
+           "india": "Asia/Kolkata", "utc": "UTC", "gmt": "UTC", "seoul": "Asia/Seoul", "moscow": "Europe/Moscow"}
+_WTYPES = (0.0, [])
+
+
+def norm_screen(spoken):
+    """'monitor 2' / 'the laptop screen' / 'diag' / '' → 'main' | 'diag' | 'media' | '' (current); None if unknown."""
+    t = _norm(spoken or "")
+    t = re.sub(r"^(?:the|my|on|to)\s+", "", t)
+    if t in ("", "-"):
+        return ""
+    for pat, role in SCREEN_WORDS:
+        if re.fullmatch(pat, t):
+            return role
+    return None
+
+
+def norm_position(spoken):
+    t = _norm(spoken or "").replace("centre", "center").replace("middle", "center").replace("upper", "top").replace("lower", "bottom")
+    t = re.sub(r"^(?:the|at|in|to)\s+", "", t)
+    t = re.sub(r"\s+(?:corner|side|of the screen|edge)$", "", t).replace(" ", "-")
+    t = re.sub(r"^(top|bottom)-center$", r"\1", t)
+    t = re.sub(r"^center-(left|right)$|^(left|right)-center$", lambda m: m.group(1) or m.group(2), t)
+    t = re.sub(r"^(left|right)-(top|bottom)$", r"\2-\1", t)
+    return t if t in WIDGET_POSITIONS else None
+
+
+def city_tz(place):
+    """'New York' → 'America/New_York'; also takes IANA names. None if unknown."""
+    p = " ".join(str(place or "").split())
+    if not p:
+        return None
+    if p.lower() in CITY_TZ:
+        return CITY_TZ[p.lower()]
+    if re.fullmatch(r"[A-Za-z_]+(/[A-Za-z0-9_+-]+){1,2}", p) and Path("/usr/share/zoneinfo", p).is_file():
+        return p
+    under = p.title().replace(" ", "_")
+    hits = sorted(glob.glob(f"/usr/share/zoneinfo/*/{under}")) + sorted(glob.glob(f"/usr/share/zoneinfo/*/*/{under}"))
+    hits = [h for h in hits if "/posix/" not in h and "/right/" not in h]
+    return hits[0].split("zoneinfo/", 1)[1] if hits else None
+
+
+def _ipc_widgets(*args):
+    rc, out, err = _run(_qs("widgets", *args), timeout=4)
+    if rc != 0:
+        raise Invalid("the HUD isn't answering (widgets need Quickshell running)")
+    try:
+        return json.loads(out)
+    except ValueError:
+        raise Invalid(f"unexpected reply from the HUD: {out[:120]}")
+
+
+def widget_types():
+    """Widget types the HUD has (widgets/*.qml), cached; [] if the HUD isn't running."""
+    global _WTYPES
+    if time.monotonic() - _WTYPES[0] < 30 and _WTYPES[1]:
+        return _WTYPES[1]
+    try:
+        types = _ipc_widgets("types").get("types") or []
+    except Invalid:
+        types = []
+    _WTYPES = (time.monotonic(), types)
+    return types
+
+
+def _widget_list():
+    try:
+        return _ipc_widgets("list").get("widgets") or []
+    except Invalid:
+        return []
+
+
+def _check_screen(screen):
+    role = norm_screen(screen)
+    if role is None:
+        raise Invalid(f'unknown screen "{screen}" (main monitor, second monitor, laptop screen, or empty for the current one)')
+    return role or "current"
+
+
+def _check_position(position):
+    if not position:
+        return "-"
+    pos = norm_position(position)
+    if pos is None:
+        raise Invalid(f'unknown position "{position}" ({", ".join(WIDGET_POSITIONS)})')
+    return pos
+
+
+@safe
+def widget_add(type, screen="", position="", label="", minutes=0, seconds=0, tz="", analog=False, text="", pinned=False):
+    """Show a desktop widget. type: clock | timer | stopwatch | media | stats | note (see widget_types()).
+    screen: main monitor / second monitor / laptop screen, empty = the one in use. position: top-left …
+    bottom-right, empty = the type's default. clock: tz (city or IANA zone), analog. timer: minutes/seconds.
+    note: text. pinned: stays above windows."""
+    t = str(type or "").lower().strip()
+    types = widget_types()
+    if t not in (types or ["clock", "timer", "stopwatch", "media", "stats", "note"]):
+        raise Invalid(f'unknown widget type "{type}" ({", ".join(types)})')
+    role, pos = _check_screen(screen), _check_position(position)
+    params = {}
+    label = " ".join(str(label or "").split())[:32]
+    if label:
+        params["label"] = label
+    if t == "clock":
+        if tz:
+            zone = city_tz(tz)
+            if not zone:
+                raise Invalid(f'unknown time zone or city "{tz}"')
+            params["tz"] = zone
+            params.setdefault("label", str(tz).title() if "/" not in str(tz) else zone.split("/")[-1].replace("_", " "))
+        params["analog"] = bool(analog)
+    if t == "timer":
+        try:
+            secs = float(minutes or 0) * 60 + float(seconds or 0)
+        except (TypeError, ValueError):
+            raise Invalid("minutes / seconds must be numbers")
+        if not 1 <= secs <= 86400:
+            raise Invalid("a timer runs from 1 second to 24 hours")
+        params["seconds"] = round(secs)
+    if t == "note":
+        params["text"] = str(text or "")[:600]
+    if pinned:
+        params["pinned"] = True
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"widget {t} on {role} at {pos} {params}"}
+    return _ipc_widgets("add", t, role, pos, json.dumps(params))
+
+
+def _widget_targets(target, screen=""):
+    """'clock' / 'timer4' / 'all' (+ screen) → the matching widgets."""
+    t = _norm(target or "").replace("widgets", "all").replace("widget", "").strip() or "all"
+    t = {"music": "media", "now playing": "media", "player": "media", "system": "stats", "stat": "stats",
+         "countdown": "timer", "timers": "timer", "clocks": "clock", "notes": "note", "sticky note": "note",
+         "everything": "all"}.get(t, t)
+    role = _check_screen(screen) if screen else ""
+    items = _widget_list()
+    if role == "current":
+        try:
+            role = _ipc_widgets("list").get("current", "")
+        except Invalid:
+            role = ""
+    hits = [w for w in items if (w["id"] == t or t == "all" or w["type"] == t) and (not role or w["screen"] == role)]
+    return hits
+
+
+@safe
+def widget_remove(target, screen=""):
+    """Close desktop widgets. target: a widget id, a type (clock, timer…), or "all"; screen narrows it.
+    Removing a note needs Trevor's yes (its text is lost)."""
+    hits = _widget_targets(target, screen)
+    if not hits:
+        raise Invalid(f"no {target} widget" + (f" on the {screen}" if screen else "") + " is showing")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": "remove " + ", ".join(w["id"] for w in hits)}
+    for w in hits:
+        _ipc_widgets("remove", w["id"])
+    return {"ok": True, "removed": [w["id"] for w in hits], "types": sorted({w["type"] for w in hits})}
+
+
+@safe
+def widget_move(target, screen="", position="", pinned=None):
+    """Move a desktop widget (the newest match) to another screen and/or position; pinned true/false
+    puts it above windows or back behind them."""
+    hits = _widget_targets(target)
+    if not hits:
+        raise Invalid(f"no {target} widget is showing")
+    w = hits[-1]
+    role = _check_screen(screen) if screen else "-"
+    pos = _check_position(position)
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"move {w['id']} to {role} {pos} pinned={pinned}"}
+    r = _ipc_widgets("move", w["id"], role, pos) if (role != "-" or pos != "-") else {"ok": True, "id": w["id"]}
+    if r.get("ok") and pinned is not None:
+        _ipc_widgets("pin", w["id"], "true" if pinned else "false")
+        r["pinned"] = bool(pinned)
+    return r
+
+
+@safe
+def widget_list():
+    """Desktop widgets showing now: id, type, screen (main / diag / media), position, label, timer time left."""
+    try:
+        d = _ipc_widgets("list")
+    except Invalid as e:
+        raise e
+    return {"ok": True, "docked": d.get("docked"), "current_screen": d.get("current"), "widgets": d.get("widgets", [])}
+
+
+def widget_note_count(target, screen=""):
+    try:
+        return sum(1 for w in _widget_targets(target, screen) if w["type"] == "note")
+    except Invalid:
+        return 0
 
 
 # ── weather (Open-Meteo: no key, no account; read-only) ──
@@ -763,6 +987,7 @@ TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
+    widget_add, widget_remove, widget_move, widget_list,
 ]}
 
 
@@ -783,6 +1008,11 @@ def confirmation_prompt(tool, args):
         return f"Forget that {f.rstrip('.!')}, sir?" if f else "Forget that, sir?"
     if tool == "cancel_reminder":
         return "Cancel that reminder, sir?"
+    if tool == "widget_remove":
+        n = widget_note_count(a.get("target", ""), a.get("screen", ""))
+        if n:
+            return ("Remove that note, sir? Its text will be lost." if n == 1
+                    else f"That closes {n} notes, sir, and their text is lost. Go ahead?")
     if tool == "vpn" and str(a.get("action", "")).lower() == "killswitch_on":
         return "Turn on the Proton kill switch, sir? It cuts the internet if the tunnel drops."
     return None
@@ -815,6 +1045,11 @@ def tool_label(tool, args):
         "forget": lambda: "MEMORY → FORGET",
         "open_in_browser": lambda: "BROWSER → CLAUDE",
         "weather": lambda: f"WEATHER → {v('place') or 'HOME'}",
+        "widget_add": lambda: f"WIDGET → {v('type')}" + (f" · {v('tz') or v('label')}" if a.get("tz") or a.get("label") else "")
+                              + (f" @ {(WIDGET_ROLES.get(norm_screen(a.get('screen')) or '', '') or 'HERE').upper()}"),
+        "widget_remove": lambda: f"WIDGET ✕ {v('target') or 'ALL'}" + (f" @ {v('screen')}" if a.get("screen") else ""),
+        "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen')}".rstrip(" ⇢"),
+        "widget_list": lambda: "WIDGETS → LIST",
     }
     try:
         return labels[tool]()

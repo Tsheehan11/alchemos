@@ -62,6 +62,7 @@ Singleton {
             property string displayLayout: "extend"  // extend | mirror | external | laptop
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open
             property bool osd: true                   // volume / brightness pop-up
+            property bool showWidgets: true           // desktop widgets (Widgets.qml; the list itself is in widgets.json)
             property int idleDim: 3                  // minutes (0 = never)
             property int idleLock: 5
             property int idleScreenOff: 10
