@@ -1,8 +1,11 @@
 // A desktop widget: hologram card (HudFrame look) around a widgets/<Type>.qml body.
 //   • Unpinned it sits under your windows and hides when they cover the screen, like the
 //     clock and panels (Perf.hidden). Pinned (◆) it floats above them.
-//   • Drag it anywhere, onto any monitor: WidgetMoveOverlay takes over while it moves, and on
-//     release it snaps to the nearest of the nine slots there.
+//   • Drag it anywhere, onto any monitor; on release it snaps to the nearest of the nine slots
+//     there. Hyprland keeps sending the pointer to the surface it was pressed on, even far off
+//     it and on other outputs, so the card's own mouse events give the position; the window
+//     stays put meanwhile (moving it under the pointer made the position jump) and the
+//     click-through WidgetMoveOverlay draws the ghost and the lit slot.
 //   • × closes it. Hover shows the buttons. Size (small → huge) scales the whole card.
 import QtQuick
 import Quickshell
@@ -115,9 +118,12 @@ PanelWindow {
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton
             cursorShape: win.lifted ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-            onPressed: m => Widgets.arm(win.wid, m.x * win.k, m.y * win.k)
-            onReleased: Widgets.release()
-            onCanceled: if (!Widgets.moving) Widgets.cancelMove()    // moving: the overlay finishes it
+            // card-local (unscaled) → global layout coordinates
+            function global(m) { return [win.screen.x + win.margins.left + m.x * win.k, win.screen.y + win.margins.top + m.y * win.k]; }
+            onPressed: m => { Widgets.arm(win.wid, m.x * win.k, m.y * win.k); const g = global(m); Widgets.setCursor(g[0], g[1]); }
+            onPositionChanged: m => { if (pressed) { const g = global(m); Widgets.setCursor(g[0], g[1]); } }
+            onReleased: m => { const g = global(m); Widgets.setCursor(g[0], g[1]); Widgets.release(); }
+            onCanceled: Widgets.cancelMove()
             onDoubleClicked: if (body.item && body.item.doubleClicked) body.item.doubleClicked()
         }
 

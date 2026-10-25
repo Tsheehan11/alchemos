@@ -1,6 +1,6 @@
 // While a widget is being moved (Widgets.moving), every screen gets this transparent layer:
 // the nine drop slots (the one it would land in lit up) and a ghost of the card under the
-// cursor, on whichever monitor the cursor is on. Release, or click, to drop; Esc cancels.
+// cursor, on whichever monitor the cursor is on. Release to drop (back where it came from = no change).
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -13,7 +13,7 @@ PanelWindow {
     visible: Widgets.moving !== ""
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "stark-widget-move"
-    WlrLayershell.keyboardFocus: here ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None      // taking the keyboard ended the pointer grab too
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     color: Theme.back(here ? 0.22 : 0.12)
@@ -63,19 +63,12 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 90
         visible: ov.here
-        text: "RELEASE OR CLICK TO PLACE  ·  ESC CANCELS"
+        text: "RELEASE TO PLACE"
         color: Theme.dim; font.family: ov.mono; font.pixelSize: 12; font.letterSpacing: 3
     }
 
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.ClosedHandCursor
-        onPositionChanged: m => Widgets.setCursor(m.x + ov.modelData.x, m.y + ov.modelData.y)
-        onPressed: m => { Widgets.setCursor(m.x + ov.modelData.x, m.y + ov.modelData.y); Widgets.drop(); }
-    }
-    Item {
-        focus: ov.here
-        Keys.onEscapePressed: Widgets.cancelMove()
-    }
+    // Click-through: the pointer stays with the widget being dragged (a layer that takes input
+    // appearing under it broke the grab and lost the release)
+    mask: Region {}
+
 }

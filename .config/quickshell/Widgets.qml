@@ -143,11 +143,10 @@ Singleton {
     }
 
     // ── moving by mouse, across screens ──
-    // Press on a widget arms it; once the cursor travels a few pixels a move layer covers every
-    // screen (WidgetMoveOverlay) with the drop slots and a ghost. The cursor comes from Hyprland
-    // (works whichever surface has the pointer, so a fast flick or another monitor can't lose it)
-    // and from the overlays' own hover. Release (or click, if the release was missed) drops it on
-    // whatever screen the cursor is over, in the nearest slot. Esc cancels.
+    // Press on a widget arms it; once the pointer travels a few pixels it's lifted and
+    // WidgetMoveOverlay shows the slots and a ghost on every screen (click-through, so the
+    // pointer stays with the widget, which reports it in global coordinates). Release drops it
+    // on the screen under the pointer, in the nearest slot; Esc cancels.
     property string armed: ""
     property string moving: ""
     property real grabX: 0              // where in the widget it was grabbed (window pixels)
@@ -159,7 +158,6 @@ Singleton {
     function arm(id, gx, gy) {
         root.armed = id; root.moving = ""; root.grabX = gx; root.grabY = gy;
         root.startX = -1; root.startY = -1;
-        cursorTick.start();
     }
     function setCursor(x, y) {
         root.curX = x; root.curY = y;
@@ -167,7 +165,7 @@ Singleton {
         if (root.startX < 0) { root.startX = x; root.startY = y; return; }
         if (!root.moving && Math.hypot(x - root.startX, y - root.startY) >= 6) root.moving = root.armed;
     }
-    function release() {               // the widget saw the button go up
+    function release() {               // the button went up: drop, or it was just a click
         if (root.moving) drop(); else cancelMove();
     }
     function screenAt(x, y) {
@@ -193,15 +191,7 @@ Singleton {
         const it = get(id);
         if (it && (it.screen !== role || it.position !== d.position)) update(id, { screen: role, position: d.position });
     }
-    function cancelMove() { root.armed = ""; root.moving = ""; cursorTick.stop(); }
-    Process {
-        id: cursorProc
-        command: ["hyprctl", "cursorpos", "-j"]
-        stdout: StdioCollector {
-            onStreamFinished: { try { const c = JSON.parse(text); if (root.armed) root.setCursor(c.x, c.y); } catch (e) {} }
-        }
-    }
-    Timer { id: cursorTick; interval: 16; repeat: true; triggeredOnStart: true; onTriggered: if (!cursorProc.running) cursorProc.running = true }
+    function cancelMove() { root.armed = ""; root.moving = ""; }
 
     // ── params: every key is checked; anything else is dropped ──
     function parseDuration(p) {
