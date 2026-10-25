@@ -3,10 +3,12 @@
 //     clock and panels (Perf.hidden). Pinned (📌) it floats above them.
 //   • Drag it anywhere; on release it snaps to the nearest of the nine slots.
 //   • × closes it. Hover shows the buttons.
-// While dragging, the window briefly covers the whole screen so the card can follow the
-// pointer without waiting on the compositor to move a small surface.
+// While dragging, the pointer position comes from Hyprland (hyprctl cursorpos, ~30×/s, only
+// during a drag): pointer coordinates inside a surface that is itself moving lag behind,
+// and growing the window to full screen dropped the pointer grab.
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 
 PanelWindow {
@@ -45,10 +47,34 @@ PanelWindow {
     property real dragX: 0
     property real dragY: 0
 
-    anchors { top: true; left: true; right: dragging; bottom: dragging }
-    margins { top: dragging ? 0 : baseY; left: dragging ? 0 : baseX }
-    implicitWidth: dragging ? sw : card.width
-    implicitHeight: dragging ? sh : card.height
+    anchors { top: true; left: true }
+    margins { top: dragging ? dragY : baseY; left: dragging ? dragX : baseX }
+    implicitWidth: card.width
+    implicitHeight: card.height
+
+    // ── drag: follow the global cursor ──
+    property real grabX: 0                // where in the card it was grabbed
+    property real grabY: 0
+    property real startGX: -1             // cursor at press (global), to tell a click from a drag
+    property real startGY: -1
+    Process {
+        id: cursor
+        command: ["hyprctl", "cursorpos", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let c;
+                try { c = JSON.parse(text); } catch (e) { return; }
+                if (!dragTick.running) return;
+                const sx = c.x - (win.screen ? win.screen.x : 0), sy = c.y - (win.screen ? win.screen.y : 0);
+                if (win.startGX < 0) { win.startGX = c.x; win.startGY = c.y; return; }
+                if (!win.dragging && Math.hypot(c.x - win.startGX, c.y - win.startGY) < 6) return;
+                win.dragX = Math.max(0, Math.min(win.sw - card.width, sx - win.grabX));
+                win.dragY = Math.max(0, Math.min(win.sh - card.height, sy - win.grabY));
+                win.dragging = true;
+            }
+        }
+    }
+    Timer { id: dragTick; interval: 33; repeat: true; triggeredOnStart: true; onTriggered: if (!cursor.running) cursor.running = true }
 
     // Effects clock, frozen while hidden or covered (Perf), like the reactor
     readonly property bool live: shown && Perf.live(screen) && !Perf.lite
@@ -59,8 +85,6 @@ PanelWindow {
 
     Item {
         id: card
-        x: win.dragging ? win.dragX : 0
-        y: win.dragging ? win.dragY : 0
         width: Math.max(160, (body.item ? body.item.implicitWidth : 200) + 28)
         height: (body.item ? body.item.implicitHeight : 80) + 34 + 14
         onHeightChanged: Widgets.setHeight(win.wid, height)
@@ -118,31 +142,14 @@ PanelWindow {
             acceptedButtons: Qt.LeftButton
             cursorShape: win.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
             preventStealing: true
-            property real pressX: 0
-            property real pressY: 0
-            property bool armed: false
-            property bool needStart: false
-            property real sceneX: 0
-            property real sceneY: 0
-            property real startX: 0
-            property real startY: 0
-            onPressed: m => { pressX = m.x; pressY = m.y; armed = true; }
-            onPositionChanged: m => {
-                if (!pressed || !armed) return;
-                if (!win.dragging) {
-                    if (Math.hypot(m.x - pressX, m.y - pressY) < 6) return;
-                    win.dragX = win.baseX; win.dragY = win.baseY;
-                    win.dragging = true;          // window goes full-screen; card stays put
-                    needStart = true;
-                    return;
-                }
-                const p = mapToItem(null, m.x, m.y);
-                if (needStart) { sceneX = p.x; sceneY = p.y; startX = win.dragX; startY = win.dragY; needStart = false; return; }
-                win.dragX = Math.max(0, Math.min(win.sw - card.width, startX + p.x - sceneX));
-                win.dragY = Math.max(0, Math.min(win.sh - card.height, startY + p.y - sceneY));
+            onPressed: m => {
+                win.grabX = m.x; win.grabY = m.y;
+                win.dragX = win.baseX; win.dragY = win.baseY;
+                win.startGX = -1; win.startGY = -1;
+                dragTick.start();
             }
             onReleased: {
-                armed = false;
+                dragTick.stop();
                 if (!win.dragging) return;
                 const cx = win.dragX + card.width / 2, cy = win.dragY + card.height / 2;
                 const c = cx < win.sw / 3 ? "left" : cx > win.sw * 2 / 3 ? "right" : "";
@@ -151,6 +158,7 @@ PanelWindow {
                 win.dragging = false;
                 if (p !== win.pos) Widgets.move(win.wid, "-", p);
             }
+            onCanceled: { dragTick.stop(); win.dragging = false; }
             onDoubleClicked: if (body.item && body.item.doubleClicked) body.item.doubleClicked()
         }
 

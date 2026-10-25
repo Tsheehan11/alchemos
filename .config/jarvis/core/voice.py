@@ -114,11 +114,35 @@ def chime_audio(kind):
 
 
 class Ducker:
-    """Turns other apps' audio streams down (pactl, so any app: Spotify, browsers) and back up."""
+    """Turns other apps' audio streams down (pactl, so any app: Spotify, browsers) and back up.
+    What it turned down is also written to a file, so if Jarvis is stopped mid-reply (a HUD
+    reload restarts it) the next start puts the music back (restore_leftover)."""
+
+    FILE = trace.STATE_DIR / "ducked.json"
 
     def __init__(self):
         self.saved = {}
         self._lock = threading.Lock()
+
+    def _write(self):
+        try:
+            if self.saved:
+                self.FILE.parent.mkdir(parents=True, exist_ok=True)
+                self.FILE.write_text(json.dumps({str(k): v for k, v in self.saved.items()}))
+            else:
+                self.FILE.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    def restore_leftover(self):
+        """At startup: volumes a previous run turned down and never restored."""
+        try:
+            left = json.loads(self.FILE.read_text())
+        except (OSError, ValueError):
+            return
+        with self._lock:
+            self.saved = {int(k): v for k, v in left.items()}
+        self.restore()
 
     @property
     def held(self):
@@ -144,6 +168,7 @@ class Ducker:
                 self.saved[si["index"]] = vols
                 subprocess.run(["pactl", "set-sink-input-volume", str(si["index"])] + [str(int(v * level)) for v in vols],
                                capture_output=True, timeout=2)
+            self._write()
             return True
 
     def restore(self):
@@ -152,6 +177,7 @@ class Ducker:
                 subprocess.run(["pactl", "set-sink-input-volume", str(idx)] + [str(v) for v in vols],
                                capture_output=True, timeout=2)
             self.saved = {}
+            self._write()
 
 
 class Engines:

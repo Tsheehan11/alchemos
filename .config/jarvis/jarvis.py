@@ -656,6 +656,14 @@ class VoiceLoop:
     def run(self):
         open_log()
         self.load()
+        self.voice.ducker.restore_leftover()      # a previous run stopped mid-reply: music back up
+
+        def stop(signum, frame):                  # HUD reload / dock change: don't leave the music down
+            self.voice.ducker.restore()
+            hud.offline()
+            os._exit(0)
+        import signal
+        signal.signal(signal.SIGTERM, stop)
         db.prune_log()
         atexit.register(hud.offline)
 
