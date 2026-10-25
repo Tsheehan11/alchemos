@@ -12,6 +12,7 @@
     "7c:d4:a8:d3:27:cd"
   ],
   "strip_overrides": {
-    "#ff5a4d": "#ff0a00"
+    "#ff5a4d": "#ff0a00",
+    "#b48cff": "#a01aff"
   }
 }
