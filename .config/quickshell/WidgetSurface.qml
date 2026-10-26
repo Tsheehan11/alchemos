@@ -1,0 +1,105 @@
+// A screen's widgets on one full-screen, transparent layer (two per screen: pinned ones above
+// windows, the rest below them). Only the cards take input (the mask), except while one is
+// dragged: then the whole screen does, so the pointer never leaves the surface it pressed on
+// and the drag can't be lost however fast it moves (Hyprland doesn't always keep a pointer
+// grab on layer surfaces). The drop slots light up during the drag. Dragged on to another
+// monitor, the press ends at this screen's edge; Widgets.drop asks Hyprland where the cursor
+// really is and puts the widget there.
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+
+PanelWindow {
+    id: surf
+    property bool pinned: false
+    required property var scr              // the screen (fixed; reading the window's own `screen` looped)
+    screen: scr
+
+    // Card list, kept stable (a ListModel synced by id) so editing one widget doesn't rebuild the rest
+    readonly property string idKey: Widgets.idsOn(scr ? scr.name : "", pinned).join(",")
+    onIdKeyChanged: sync()
+    Component.onCompleted: sync()
+    ListModel { id: cards }
+    function sync() {
+        const want = idKey ? idKey.split(",") : [];
+        for (let i = cards.count - 1; i >= 0; i--)
+            if (want.indexOf(cards.get(i).wid) < 0) cards.remove(i);
+        const have = [];
+        for (let i = 0; i < cards.count; i++) have.push(cards.get(i).wid);
+        for (const w of want) if (have.indexOf(w) < 0) cards.append({ wid: w });
+    }
+
+    visible: cards.count > 0 && Theme.cfg.showWidgets
+        && (pinned ? !Perf.locked && !(GameMode.quiet && Perf.gameScreens[scr?.name] === true)
+                   : !Perf.hidden(scr, "widgets"))
+    WlrLayershell.layer: pinned ? WlrLayer.Top : WlrLayer.Bottom
+    WlrLayershell.namespace: pinned ? "stark-widgets-pinned" : "stark-widgets"
+    WlrLayershell.keyboardFocus: editing ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    exclusionMode: ExclusionMode.Ignore
+    anchors { top: true; bottom: true; left: true; right: true }
+    color: "transparent"
+
+    // Effects clock, frozen while hidden or covered (Perf), like the reactor
+    readonly property bool live: visible && Perf.live(scr) && !Perf.lite
+    property real t: 0
+    Binding on t { when: surf.live; value: Perf.time; restoreMode: Binding.RestoreNone }
+
+    // ── input: the cards, or everything while dragging ──
+    property var dragged: null
+    property point point: Qt.point(-1, -1)
+    property var regions: []
+    property bool editing: false
+    function updateRegions() {
+        const r = [];
+        let ed = false;
+        for (let i = 0; i < rep.count; i++) {
+            const c = rep.itemAt(i);
+            if (c) { r.push(c.region); ed = ed || c.wantsKeyboard; }
+        }
+        regions = r;
+        editing = ed;
+    }
+    function grab(card) { dragged = card; }
+    function release(card) { if (dragged === card) dragged = null; point = Qt.point(-1, -1); }
+    Item { id: whole; anchors.fill: parent }
+    property Region wholeRegion: Region { item: whole }
+    mask: Region { regions: surf.dragged ? [surf.wholeRegion] : surf.regions }
+
+    // ── drop slots, while dragging ──
+    readonly property string target: dragged && point.x >= 0
+        ? Widgets.slotAt(scr, dragged.dragX + dragged.width / 2, dragged.dragY + dragged.height / 2) : ""
+    Repeater {
+        model: surf.dragged ? Widgets.positions : []
+        delegate: Rectangle {
+            required property string modelData
+            readonly property int c: modelData.endsWith("left") ? 0 : modelData.endsWith("right") ? 2 : 1
+            readonly property int r: modelData.startsWith("top") ? 0 : modelData.startsWith("bottom") ? 2 : 1
+            readonly property bool lit: surf.target === modelData
+            width: Math.min(surf.dragged ? surf.dragged.width : 200, surf.width / 3 - 40)
+            height: Math.min(surf.dragged ? surf.dragged.height : 100, surf.height / 3 - 40)
+            x: c === 0 ? 28 : c === 2 ? surf.width - width - 28 : (surf.width - width) / 2
+            y: r === 0 ? 54 : r === 2 ? surf.height - height - 28 : (surf.height - height) / 2
+            color: lit ? Theme.p(0.12) : "transparent"
+            border.color: lit ? Theme.primary : Theme.p(0.22)
+            border.width: lit ? 2 : 1
+        }
+    }
+    Text {
+        visible: surf.dragged !== null && surf.point.x >= 0
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 90
+        text: "RELEASE TO PLACE  ·  DRAG OFF THE EDGE FOR THE NEXT MONITOR"
+        color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.letterSpacing: 3
+    }
+
+    Repeater {
+        id: rep
+        model: cards
+        delegate: WidgetCard {           // wid comes from the model
+            surface: surf
+            onWantsKeyboardChanged: Qt.callLater(surf.updateRegions)
+        }
+        onItemAdded: Qt.callLater(surf.updateRegions)
+        onItemRemoved: Qt.callLater(surf.updateRegions)
+    }
+}

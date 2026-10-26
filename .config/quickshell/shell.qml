@@ -39,10 +39,6 @@ ShellRoot {
         model: Quickshell.screens
         WidgetLayer {}
     }
-    Variants {
-        model: Quickshell.screens
-        WidgetMoveOverlay {}
-    }
     Variants {                  // right-click the empty desktop → pick a widget
         model: Quickshell.screens
         WidgetMaker {}

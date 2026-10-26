@@ -93,7 +93,9 @@ Singleton {
 
     // ── lookups ──
     function get(id) { return root.items.find(i => i.id === id) || null; }
-    function idsOn(screenName) { return root.items.filter(i => screenFor(i.screen)?.name === screenName).map(i => i.id); }
+    function idsOn(screenName, pinned) {
+        return root.items.filter(i => screenFor(i.screen)?.name === screenName && (pinned === undefined || (i.pinned === true) === pinned)).map(i => i.id);
+    }
     // "clock3" | "clock" | "clock:diag" | "diag" | "all" → matching widgets, oldest first
     function match(query) {
         query = String(query || "").toLowerCase().trim();
@@ -174,56 +176,43 @@ Singleton {
         }
     }
 
-    // ── moving by mouse, across screens ──
-    // Press on a widget arms it; once the pointer travels a few pixels it's lifted and
-    // WidgetMoveOverlay shows the slots and a ghost on every screen (click-through, so the
-    // pointer stays with the widget, which reports it in global coordinates). Release drops it
-    // on the screen under the pointer, in the nearest slot; Esc cancels.
-    property string armed: ""
-    property string moving: ""
-    property real grabX: 0              // where in the widget it was grabbed (window pixels)
-    property real grabY: 0
-    property real curX: -1              // cursor, global layout coordinates
-    property real curY: -1
-    property real startX: -1
-    property real startY: -1
-    function arm(id, gx, gy) {
-        root.armed = id; root.moving = ""; root.grabX = gx; root.grabY = gy;
-        root.startX = -1; root.startY = -1;
-    }
-    function setCursor(x, y) {
-        root.curX = x; root.curY = y;
-        if (!root.armed) return;
-        if (root.startX < 0) { root.startX = x; root.startY = y; return; }
-        if (!root.moving && Math.hypot(x - root.startX, y - root.startY) >= 6) root.moving = root.armed;
-    }
-    function release() {               // the button went up: drop, or it was just a click
-        if (root.moving) drop(); else cancelMove();
-    }
+    // ── moving by mouse (WidgetCard) ──
     function screenAt(x, y) {
         return Quickshell.screens.find(s => x >= s.x && x < s.x + s.width && y >= s.y && y < s.y + s.height) || null;
     }
-    function slotAt(s, cx, cy) {       // card centre (screen pixels) → slot
+    function slotAt(s, cx, cy) {       // a point on screen s (screen pixels) → slot
         const c = cx < s.width / 3 ? "left" : cx > s.width * 2 / 3 ? "right" : "";
         const r = cy < s.height / 3 ? "top" : cy > s.height * 2 / 3 ? "bottom" : "";
         return (r && c) ? r + "-" + c : (r || c || "center");
     }
-    function dropSlot() {              // { screen, position } the ghost would land in, or null
-        const s = screenAt(root.curX, root.curY);
-        if (!s || !root.moving) return null;
-        const w = root.widths[root.moving] || 200, h = root.heights[root.moving] || 100;
-        return { screen: s, position: slotAt(s, root.curX - s.x - root.grabX + w / 2, root.curY - s.y - root.grabY + h / 2) };
+    function roleOf(s) { const r = Roles.role(s); return root.roles.indexOf(r) >= 0 ? r : "main"; }
+    function place(id, s, position) {
+        const it = get(id), role = roleOf(s);
+        if (it && (it.screen !== role || it.position !== position)) update(id, { screen: role, position: position });
     }
-    function drop() {
-        const d = dropSlot(), id = root.moving;
-        cancelMove();
-        if (!d || !id) return;
-        let role = Roles.role(d.screen);
-        if (root.roles.indexOf(role) < 0) role = "main";
-        const it = get(id);
-        if (it && (it.screen !== role || it.position !== d.position)) update(id, { screen: role, position: d.position });
+    // End of a drag. If the pointer went on to another monitor the press ended at this screen's
+    // edge, so ask Hyprland where the cursor really is: another screen → the slot under it there
+    // (card centred on the cursor), else the slot the card was dropped in.
+    function drop(id, s, slot, w, h) {
+        dropProc.req = { id: id, screen: s.name, slot: slot, w: w, h: h };
+        dropProc.running = true;
     }
-    function cancelMove() { root.armed = ""; root.moving = ""; }
+    Process {
+        id: dropProc
+        property var req: null
+        command: ["hyprctl", "cursorpos", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const q = dropProc.req, s = root.screenOf(q ? q.screen : "");
+                if (!q || !s) return;
+                let c = null;
+                try { c = JSON.parse(text); } catch (e) {}
+                const o = c ? root.screenAt(c.x, c.y) : null;
+                if (o && o.name !== s.name) root.place(q.id, o, root.slotAt(o, c.x - o.x, c.y - o.y));
+                else root.place(q.id, s, q.slot);
+            }
+        }
+    }
 
     // ── params: every key is checked; anything else is dropped ──
     function parseDuration(p) {
