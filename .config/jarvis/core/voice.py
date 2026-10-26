@@ -412,7 +412,7 @@ class Utterance:
                     trace.t("tts.audio", sink=target or "default", since_speech_end=trace.since("speech_end"))
                     if self.v.cfg["jarvisDuck"]:
                         ducked = self.v.ducker.duck(DUCK_SPEAK)
-                self.proc.stdin.write(audio.tobytes())
+                self.proc.stdin.write((audio * self.v.volume()).astype(np.float32).tobytes())
                 self.proc.stdin.flush()
             self.proc.stdin.close()
             while self.proc.poll() is None and not self.stopped.wait(0.03):
@@ -521,6 +521,13 @@ class Voice:
         threading.Thread(target=run, daemon=True).start()
 
     # ── playback ──
+    def volume(self):
+        """Settings → JARVIS → Volume (read per sentence, so a change applies straight away)."""
+        try:
+            return max(0.05, min(1.0, float(self._setting("volume", "jarvisVolume", 0.7))))
+        except (TypeError, ValueError):
+            return 0.7
+
     def open_stream(self, target=None):
         return subprocess.Popen(
             ["pw-play", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "f32",
@@ -552,7 +559,7 @@ class Voice:
                                       "--media-role", "Notification", "-P", f'{{ media.name = "Jarvis chime" {NO_RESTORE} }}']
                                      + (["--target", target] if target else []) + ["-"],
                                      stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                p.communicate(self._chimes.setdefault(kind, chime_audio(kind)).tobytes(), timeout=5)
+                p.communicate((self._chimes.setdefault(kind, chime_audio(kind)) * self.volume()).astype(np.float32).tobytes(), timeout=5)
             except (OSError, subprocess.TimeoutExpired):
                 pass
         threading.Thread(target=play, daemon=True).start()

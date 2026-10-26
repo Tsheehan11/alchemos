@@ -35,7 +35,11 @@ def presets():
 
 
 def on_headphones():
-    """Is the default output headphones / a headset (Bluetooth, USB or the jack)?"""
+    """Is the default output personal (headphones / a headset) rather than a room speaker?
+    Personal: anything that says headphone / headset (Bluetooth, the jack), and any USB audio
+    device: USB headsets and dongles report a plain "USB Audio" card with an "analog-output-speaker"
+    port and no form factor, so the name can't be trusted. Room: the laptop speakers, HDMI /
+    DisplayPort monitors, and Bluetooth speakers (the Google Home reports "unknown")."""
     try:
         default = subprocess.run(["pactl", "get-default-sink"], capture_output=True, text=True, timeout=2).stdout.strip()
         sinks = json.loads(subprocess.run(["pactl", "-f", "json", "list", "sinks"], capture_output=True,
@@ -46,7 +50,7 @@ def on_headphones():
         if s.get("name") == default:
             p = s.get("properties", {})
             hints = " ".join(str(x) for x in (p.get("device.form_factor"), p.get("device.icon_name"), s.get("active_port")))
-            return bool(re.search(r"head(phone|set)", hints, re.I))
+            return bool(re.search(r"head(phone|set)", hints, re.I)) or p.get("device.bus") == "usb"
     return False
 
 

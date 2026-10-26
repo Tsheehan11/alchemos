@@ -51,6 +51,7 @@ Singleton {
             property string jarvisModel: "auto"       // auto (haiku, sonnet when needed) | haiku | sonnet | opus
             property string jarvisVoice: "bm_george"  // Kokoro voice (bm_*), or piper model[:speaker] in ~/.local/share/jarvis/voices
             property real jarvisSpeed: 1.0            // speech rate
+            property real jarvisVolume: 0.7           // Jarvis's voice + chime loudness (0.2–1); other audio untouched
             property real jarvisPitch: 0.0            // semitones, on top of the effect preset
             property string jarvisEffect: "AUTO"      // AUTO = SUIT on headphones, HOLOGRAM on speakers; presets in ~/.config/jarvis/effects.json
             property bool jarvisSpeak: true           // spoken replies (the toast shows them either way)

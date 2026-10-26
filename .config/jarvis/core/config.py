@@ -26,6 +26,7 @@ DEFAULTS = {
     "jarvisModel": "auto",              # auto = haiku, sonnet for harder requests
     "jarvisVoice": "bm_george",         # Kokoro voice, or a piper model[:speaker] in ~/.local/share/jarvis/voices
     "jarvisSpeed": 1.0,                 # speech rate multiplier
+    "jarvisVolume": 0.7,                # Jarvis's own loudness (voice + chime), 0.2-1.0; other audio is untouched
     "jarvisPitch": 0.0,                 # semitones, on top of the effect preset's
     "jarvisEffect": "AUTO",             # AUTO (SUIT on headphones, else HOLOGRAM) | CLEAN | HOLOGRAM | SUIT
     "jarvisSpeak": True,                # spoken replies (HUD text either way)
