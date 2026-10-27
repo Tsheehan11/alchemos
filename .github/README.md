@@ -1,308 +1,562 @@
 # STARK OS
 
-A holographic, Iron-Man-inspired desktop for **Hyprland** on Arch / CachyOS, built with **Quickshell**.
+> *"Sometimes you gotta run before you can walk."*
 
-Arc-reactor clock · spinning holographic workspace overview · flow-cloud app launcher ·
-security-door lock / unlock / shutdown animations · Jarvis voice assistant · live system HUD ·
-audio deck with visualizer · full themeable settings — all reacting to how many screens are plugged in.
+A holographic, Iron-Man-inspired desktop for **Hyprland** on Arch / CachyOS. The HUD is built with
+**Quickshell**, and a local voice assistant, **Jarvis**, runs everything through **Claude**. Every
+colour, screen, light and voice can be changed, and every piece can be driven by every other one.
+
+Arc-reactor clock · holographic workspace ring · radial app launcher · security-door lock and
+shutdown animations · diagnostics wall · audio deck with visualizer · desktop widgets · Govee
+ambient lights · VPN switch · combat (gaming) mode · Jarvis voice control.
+
+<!-- Screenshots: drop PNGs into .github/screenshots/ and uncomment.
+| | |
+| --- | --- |
+| ![Desk, three screens](screenshots/desk.png) | ![Radial launcher](screenshots/launcher.png) |
+| ![Workspace overview](screenshots/overview.png) | ![Settings → APPEARANCE](screenshots/settings.png) |
+| ![Security doors](screenshots/doors.png) | ![Jarvis toast](screenshots/jarvis.png) |
+-->
+> 📸 *Screenshots coming soon: desk, launcher, overview, settings, security doors, Jarvis.*
 
 ---
 
-## Features
+## Contents
 
-| | |
-| --- | --- |
-| **Arc-reactor clock** | CPU / RAM / GPU / battery rings around the time |
-| **Flow-cloud launcher** | `Super + Space` — apps spin out of the cursor in branches (AI, NET, MEDIA, SYS, CTRL) |
-| **App search** | `Super + R`, or start typing in the launcher |
-| **Workspace overview** | `Super + Tab` — workspaces as hologram panels on a 3D ring, with live window previews |
-| **Control center** | `Super + C` or click the stats in the top-right |
-| **Settings** | `Super + ,` — Wi-Fi, Bluetooth, themes, HUD, sleep timings, battery saver |
-| **Lock** | `Super + L` — security doors slam shut, lock screen lines up with them, doors open on unlock |
-| **Power menu** | Power button or `Super + Escape` — shutdown plays a CRT power-off animation |
-| **Widgets** | Holographic desktop cards on any screen: clocks (any time zone, analog or digital), timers that ring and flash the lights, stopwatch, now playing, system stats, sticky notes. Drag to snap, pin above windows, or just ask Jarvis (see [Widgets](#widgets)) |
-| **Jarvis** | Claude-powered voice assistant: "Hey Jarvis, set the theme to Mark III and dim the lights". Local wake word, speech-to-text and voice; Claude only for the thinking (see [Jarvis](#jarvis)) |
-| **Docking aware** | Laptop alone: everything on one screen. Docked: clock / diagnostics / audio deck across 3 screens. Display profiles per setup (desk / laptop / TV), switched on plug-in |
-| **Battery saver** | Unplugged → static effects, no blur, 48 Hz, power-saver profile |
-| **Themes** | Stark, Mark III, Vibranium, Matrix, Arctic, Solar, or custom colors |
-| **Cursor** | Holographic STARK-OS cursor theme, rebuilt in the accent colour on every theme change; arc-reactor busy cursor |
+- [Suit-up (install)](#suit-up-install)
+- [Keybinds](#keybinds)
+- [Make it yours: customization](#make-it-yours-customization)
+- [How the pieces talk: integration](#how-the-pieces-talk-integration)
+- [Extend it](#extend-it)
+- [Jarvis](#jarvis)
+- [Troubleshooting: lock screen, fingerprint, lid](#troubleshooting-lock-screen-fingerprint-lid)
+- [Roadmap](#roadmap)
 
-## Layout
+---
+
+## Suit-up (install)
+
+### 1. Packages
 
 ```
-~/.config/hypr/         Hyprland, hyprlock (template), hypridle, lock + lid scripts
-~/.config/hypr/system/  Files installed outside $HOME (hyprlock PAM stack, suspend hooks)
-~/.config/quickshell/   The whole HUD (shell.qml is the entry point)
-~/.config/jarvis/       Voice assistant (jarvis.py; its .venv is not tracked); data in ~/.local/share/jarvis
-~/.config/stark-cursor/ Cursor theme: SVG templates (src/) and build.sh
-```
-
-## Requirements
-
-```
-hyprland quickshell hyprlock hypridle cava kitty fuzzel brightnessctl playerctl
+hyprland quickshell hyprlock hypridle cava kitty fuzzel brightnessctl playerctl jq
 ttf-jetbrains-mono-nerd networkmanager bluez-utils uv librsvg hyprcursor python-pillow
 ```
 
-`xorg-xcursorgen` is optional: without it the cursor build uses its own `xcursorgen.py`.
+Optional: `xorg-xcursorgen` (the cursor build falls back to its own `xcursorgen.py`), `protonvpn`
+(for the Proton provider in stark-vpn), `gamemode`.
 
-Jarvis: `cd ~/.config/jarvis && uv venv --python 3.11 && uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp piper-tts kokoro-onnx pedalboard`,
-then put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx GitHub releases, `model-files-v1.0`) in
-`~/.local/share/jarvis/kokoro/`. Claude uses your `claude` login (Pro/Max); no API key.
+### 2. Clone the dotfiles (bare repo)
 
-## Widgets
+The config lives in a **bare git repo** at `~/.stark-os` with `$HOME` as its work tree, driven
+through a `stark` command:
 
-`quickshell/Widgets.qml` keeps the list (saved in `widgets.json`, not committed); each widget is its own
-layer window on its screen, in one of nine slots (widgets in the same slot stack). Unpinned widgets hide
-behind windows like the panels; pinned ones float above. Screens are roles (main / second / laptop), so
-undocked everything shows on the laptop and returns when you dock. A new type is one QML file in
-`quickshell/widgets/`.
+```fish
+# fish (add the function to ~/.config/fish/config.fish to keep it)
+function stark; git --git-dir=$HOME/.stark-os --work-tree=$HOME $argv; end
+```
+```sh
+# bash / zsh
+alias stark='git --git-dir=$HOME/.stark-os --work-tree=$HOME'
+```
 
-- **Voice:** "set a timer for 10 minutes on monitor 2", "show a clock on the second monitor", "show New York
-  time on the laptop screen", "start a stopwatch", "show now playing", "add a note saying …", "move the timer
-  to the top right", "pin the clock", "remove the clock", "clear monitor 2". Removing a note asks first.
-- **Mouse:** drag to move (snaps), ◇ to pin, × to close; Settings → WIDGETS to add / reset.
-- **Script:** `qs ipc call widgets add clock diag top-right '{"tz":"America/New_York"}'`, `remove clock`,
-  `move timer - top-right`, `pin clock true`, `clear diag`, `list`, `types`.
+```sh
+git clone --bare https://github.com/Tsheehan11/stark-os.git ~/.stark-os
+stark config status.showUntrackedFiles no
+stark checkout            # move any conflicting files out of the way first
+```
 
-## Jarvis
+Then wire up the VS Code clean filter (tracked `settings.json` stays free of theme colours) and the
+local excludes for files the HUD generates:
 
-"Hey Jarvis" (openWakeWord) → faster-whisper `base.en` → a regex fast path for everyday commands
-(media, lights, workspaces, VPN, themes, timers, weather, CPU temp: 5–40 ms, no AI) → otherwise Claude
-through the Agent SDK on the `claude` login: Haiku by default, Sonnet for longer or "explain / plan"
-requests, its reply spoken sentence by sentence as it streams. About 0.6–1 s from the end of your
-sentence to Jarvis's voice on the fast path, about 2–3 s on Claude.
-Runs only while docked (Settings → JARVIS), started by the HUD under `setpriv --no-new-privs`.
+```sh
+stark config filter.stark-code-theme.clean '$HOME/.local/bin/stark-code-settings-clean'
+stark config filter.stark-code-theme.smudge cat
+echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.stark-os/info/attributes
+printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/stark-lock-bg-*' .config/hypr/monitors.conf \
+  .config/kitty/stark-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
+  .config/jarvis/.venv/ >> ~/.stark-os/info/exclude
+```
 
-- **Tools, not a shell.** Claude gets no built-in tools, only the STARK MCP server
-  (`mcp/stark_tools.py`, 22 validated tools: apps, windows, workspaces, themes, lights, media, VPN,
-  UW CS servers, timers / reminders, memory, power, weather via Open-Meteo for `jarvisPlace`). Jarvis enforces the rules itself in the SDK's
-  permission callback: at most 8 tool calls per request, a 30 s timeout, the browser only when asked,
-  and a spoken "yes" before power actions, closing windows, deleting, the kill switch, or anything
-  that sends a message. Tool output is treated as data. No network listeners; works with Proton VPN on.
-- **Phase 2** integrations (calendar, mail, smart home…) are extra MCP servers in `servers.json`; every
-  tool of a new server needs a spoken yes unless listed in `auto_allow`.
-- **Voice.** Kokoro (`bm_lewis` by default) with piper as fallback, then an effect chain (pedalboard):
-  presets CLEAN / HOLOGRAM / SUIT in `effects.json`; AUTO uses SUIT on headphones and HOLOGRAM on
-  speakers. Text is normalized first (`core/speech.py`: "16:07" → "four oh seven PM", dates, units,
-  symbols; `python tests/test_speech.py`). The first sentence plays while the rest render; short
-  stock lines are cached.
-  `jarvis-voices` auditions every British male voice. Without headphones, Jarvis can talk through a
-  paired Bluetooth speaker (Settings → JARVIS → Speaker), connecting when it hears the wake word; if
-  it isn't up within 1.5 s, that reply plays on the laptop.
-- **Hearing** (`core/hearing.py`, tuned on recordings). `jarvisMic` picks the PipeWire source (the
-  laptop mic at the desk). The command starts from just before the wake word, so "hey Jarvis dim the
-  lights" in one breath keeps every word; Silero VAD ends it after 0.56 s of silence; whisper gets a
-  vocabulary prompt. Music is turned down while it listens. Barge in with "Hey Jarvis" while it talks or
-  thinks; follow-ups need no wake word for 8 s. It never goes quiet after the chime: anything that
-  fails gets a short spoken line and the reason on the toast.
-- **CLI.** `jarvis --text "…"` (add `--dry-run` to only show what it would do), `--misses` (requests
-  the fast path missed), `--log`, `--facts`, `--reminders`, `--say "…"`. Log: `~/.local/share/jarvis/jarvis.log`.
-  `jarvis --trace` follows every exchange stage by stage (wake score, VAD, transcript, route, latency);
-  `jarvis --record [MIN]` keeps WAVs of each exchange in `~/.local/state/jarvis/rec` for tuning.
-- Secrets, if a phase-2 service ever needs one, go in gnome-keyring (`core/secrets.py`), never in tracked files.
+Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (straight to `main`).
 
-## Lock screen, fingerprint and faillock
+### 3. Your hardware
 
-hyprlock takes the password or the fingerprint, whichever comes first. It runs the password
-through PAM (`/etc/pam.d/hyprlock`) and the fingerprint through fprintd over D-Bus, so a
-fingerprint error or timeout never counts as a failed login.
+- **Monitors:** `hyprland.conf` matches the two desk monitors by model + serial (`$leftMon`,
+  `$midMon`). Put your own `desc:` strings there (`hyprctl monitors` shows them). Screen *roles*
+  are worked out by position, so port names don't matter.
+- **Display profiles:** the desk is detected in `quickshell/ProfileLogic.js`. Change the dock /
+  monitor IDs there, or just use **SAVE CURRENT AS THIS PROFILE** in Settings → DISPLAY.
+- **Govee strip:** `stark-govee setup` finds the strip on the LAN and saves its IP;
+  `stark-govee home` remembers your home network. Power hook: `fish ~/.config/govee/install.fish`.
+- **Fingerprint / lock PAM:** `fish ~/.config/hypr/fprint-install.fish` (see
+  [Troubleshooting](#troubleshooting-lock-screen-fingerprint-lid)).
 
-**Why the account used to lock itself.** While the lock screen is up, hyprlock always has a
-PAM password prompt open. When the fingerprint (or `SIGUSR1`) unlocks it, hyprlock aborts that
-prompt, and the stock stack (`login` -> `system-auth`) recorded the abort as a failed login
-(`pam_unix(hyprlock:auth): conversation failed`). The success path never runs, so nothing
-cleared those records. Three fingerprint unlocks within 15 minutes locked the account
-(`pam_faillock ... temporarily locked`), and from then on the correct password failed too, in
-hyprlock and on the TTY, until `unlock_time` ran out.
+### 4. Jarvis
 
-`~/.config/hypr/system/hyprlock.pam` is the same stack as login with one change: an aborted
-prompt (`authtok_err` / `conv_err`: no password was checked) ends it without a faillock record.
-Wrong passwords are still counted and still lock the account. Check the tally with
-`faillock --user $USER`.
+```sh
+cd ~/.config/jarvis && uv venv --python 3.11
+uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp piper-tts kokoro-onnx pedalboard
+```
 
-**faillock settings.** `/etc/security/faillock.conf` sets `deny = 5`: five wrong passwords
-within 15 minutes (`fail_interval`, default) lock the account for 10 minutes (`unlock_time`,
-default), for every PAM service: hyprlock, the TTY, sudo. Stock Arch is `deny = 3`. No PAM
-file passes its own `deny=`/`unlock_time=`, so this one file is the only place to change it.
-The installer keeps the original as `faillock.conf.orig`.
+Put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx releases, `model-files-v1.0`) in
+`~/.local/share/jarvis/kokoro/`. Claude runs on your `claude` CLI login (Pro / Max), no API key.
 
-**Fingerprint across suspend.** The Elan reader (`04f3:0c88`) sometimes wedges across suspend:
-fprintd logs `fpi_ssm_mark_failed: assertion 'machine != NULL' failed` (or
-`Cannot run while suspended` after wake), and only a USB reset brings it back. hyprlock claims
-the reader once when it starts and keeps that claim through suspend, so fprintd must never be
-killed or restarted under it. If it is, hyprlock gets `Device was not claimed before use` and
-has no fingerprint until the next lock. So the `stark-fprintd` hook leaves fprintd alone before
-sleep. After wake, a background unit watches fprintd for a few seconds and, if the sensor
-wedged, resets it once no hyprlock is running. The password works the whole time. If a wake
-leaves the fingerprint dead, unlock with the password and the reader is fixed for the next lock.
+Log out and back in: Hyprland starts `qs`, `stark-govee daemon`, `stark-game daemon` and the audio
+watcher; the HUD starts Jarvis when docked.
 
-If the sensor wedges for real, `usbreset` may not clear it. A full shutdown (not a reboot)
-does.
+---
 
-| Installed file | Source in this repo |
+## Keybinds
+
+| Keys | Action |
 | --- | --- |
-| `/etc/pam.d/hyprlock` | `~/.config/hypr/system/hyprlock.pam` |
-| `/etc/security/faillock.conf` (`deny = 5`) | edited in place by the installer |
-| `/usr/lib/systemd/system-sleep/stark-fprintd` | `~/.config/hypr/system/stark-fprintd-sleep` |
-| `/usr/lib/systemd/system-sleep/stark-thaw` | `~/.config/hypr/system/stark-thaw-sleep` |
-| `/etc/systemd/logind.conf.d/stark.conf` | `~/.config/hypr/system/logind-stark.conf` |
+| `Super + Space` | Radial launcher (keys `1`–`9`, `0` launch the first ten; type to search) |
+| `Super + R` | App search |
+| `Super + Tab` | Workspace overview: hologram panels on a 3D ring, live previews |
+| `Super + C` | Control center (Wi-Fi, Bluetooth, VPN, lights, Jarvis, combat mode…) |
+| `Super + ,` | Settings |
+| `Super + P` | Settings → DISPLAY |
+| `Super + L` | Lock: security doors slam shut |
+| `Super + Escape` / power key | Power menu (shutdown plays a CRT power-off) |
+| `Super + Return` | kitty |
+| `Super + B` / `Super + E` | Zen browser / Dolphin |
+| `Super + M` | Show / hide Spotify (relaunches it if closed) |
+| `Super + Shift + R` | fuzzel (plain launcher) |
+| `Super + Q` / `F` / `V` | Close / fullscreen / float window |
+| `Super + ←↑→↓` | Move focus (`+ Shift`: move window) |
+| `Super + 1…9` | Workspace (`+ Shift`: send window there) |
+| `Super + drag` | Left: move window · right: resize |
+| `Super + Shift + M` | Exit Hyprland |
+| Media / volume / brightness keys | wpctl / playerctl / brightnessctl, with the HUD's pop-up |
+| "Hey Jarvis…" | Everything else |
 
-Install (keeps the old PAM file as `/etc/pam.d/hyprlock.orig`, unwedges a stuck reader and
-asks for a test scan; run it while unlocked):
+Docked, workspaces 1–3 live on the main monitor, 4–6 on the second and 7–9 on the laptop.
 
+---
+
+## Make it yours: customization
+
+Nearly everything is a toggle in **Settings** (`Super + ,`). Every Settings value is saved in
+`~/.config/quickshell/settings.json` (`Theme.qml` holds the full list with defaults), and any plain
+value can also be set from a shell:
+
+```sh
+qs ipc call theme set panelOpacity 0.9
+qs ipc call theme get jarvisVoice
+qs ipc call settings open appearance     # open a Settings tab
 ```
-fish ~/.config/hypr/fprint-install.fish
-```
 
-Manual equivalent:
+### Where each setting lives
 
-```
-sudo install -m 644 ~/.config/hypr/system/hyprlock.pam /etc/pam.d/hyprlock
-sudo install -m 755 ~/.config/hypr/system/stark-fprintd-sleep /usr/lib/systemd/system-sleep/stark-fprintd
-sudo install -m 755 ~/.config/hypr/system/stark-thaw-sleep /usr/lib/systemd/system-sleep/stark-thaw
-sudo install -D -m 644 ~/.config/hypr/system/logind-stark.conf /etc/systemd/logind.conf.d/stark.conf
-sudo cp -n /etc/security/faillock.conf /etc/security/faillock.conf.orig
-sudo sed -i -E '/^[[:space:]]*deny[[:space:]]*=/d; s/^# deny = 3$/&\ndeny = 5/' /etc/security/faillock.conf
-sudo systemctl unmask --runtime fprintd; faillock --user $USER --reset
-```
+| What | Settings tab | File / command |
+| --- | --- | --- |
+| Theme presets + custom presets | APPEARANCE | `settings.json` → `preset`, `primary`, `secondary`, `background`, `customPresets` |
+| Panel opacity, effects frame rate, clock size | APPEARANCE | `panelOpacity`, `effectsFps`, `reactorScale` |
+| Cursor size / opacity / animated busy cursor | APPEARANCE → CURSOR | `cursorSize`, `cursorOpacity`, `cursorAnimated` · `stark-cursor/build.sh` |
+| Terminal glass (kitty transparency) | APPEARANCE | `terminalGlass` → `kitty/stark-theme.conf` |
+| Govee mode + animation speed | APPEARANCE → AMBIENT LIGHTS | `govee/config.json` · `stark-govee mode / speed / level` |
+| Which panels show on which screen | HUD | `showReactor`, `showDiag`, `showMedia`, `hideHudBehindWindows`, `osd` |
+| Display layout + profiles | DISPLAY | `quickshell/display-profiles.json`, `ProfileLogic.js` |
+| Audio outputs / inputs | AUDIO | PipeWire |
+| Desktop widgets | WIDGETS | `quickshell/widgets.json` · `qs ipc call widgets …` |
+| Jarvis voice, effect, model, speaker, mic | JARVIS | `jarvis*` keys · `jarvis/effects.json` |
+| Radial launcher entries | LAUNCHER | `settings.json` → `launcherApps` |
+| Idle dim / lock / screen-off / sleep | SYSTEM | `idleDim`, `idleLock`, `idleScreenOff`, `idleSleep` |
+| Battery saver | SYSTEM | `autoSaver`, `batteryFps`, `saverNoBlur`, `saverLowRefresh`, `saverStopJarvis` |
+| Combat mode | Control center | `game*` keys · `stark-game/games.conf` (extra game window classes) |
+| VPN providers | NETWORK → VPN | `stark-vpn/providers.json` |
 
-If it breaks again: `journalctl -b | grep -E 'hyprlock|faillock'`, hyprlock's own log of the
-last two locks in `~/.local/state/stark/hyprlock.log{,.1}`,
-`journalctl -u fprintd -b | grep -E 'claimed|machine != NULL'` and
-`journalctl -u stark-fprintd-wake -u stark-thaw-wake -b`.
+### Themes and custom presets
 
-## Locked out? `stark-rescue`
+Six built-in suits: **STARK** (cyan / amber), **MARK III** (red / gold), **VIBRANIUM**, **MATRIX**,
+**ARCTIC** and **SOLAR**. Pick primary and accent swatches to make a **CUSTOM** theme, then give it a
+name to save it as a preset (up to 14 characters). Custom presets sit next to the built-ins, show up
+in `qs ipc call theme presets`, and Jarvis can apply them by name ("set the theme to Midnight").
 
-From a TTY (Ctrl+Alt+F3, log in), run `stark-rescue` (`~/.config/hypr/stark-rescue`, linked
-into `~/.local/bin`; if the link is missing: `sh ~/.config/hypr/stark-rescue`). It:
+One theme change ripples out to everything (see [the theme fan-out](#the-theme-fan-out)):
+HUD, Hyprland borders, lock screen pictures, kitty, VS Code, cursor and the Govee strip.
 
-1. clears faillock for your user (no sudo needed, and it has to come first because sudo goes
-   through faillock too);
-2. thaws `user.slice` if suspend left it frozen (only then asks for sudo);
-3. turns the screens back on (`dpms on`);
-4. unlocks hyprlock with `SIGUSR1`. If hyprlock is gone, or hung and ignores the signal, it
-   kills it and puts a fresh lock back (`misc:allow_session_lock_restore`, set in
-   `hyprland.conf`), so the session is never left open or stuck on the "lock screen died"
-   page.
-
-Then switch back with Ctrl+Alt+F2 and, if a fresh lock came up, type your password.
-
-## Lid close / suspend
-
-Closing the lid runs `~/.config/hypr/lid.sh`. Docked (more than one monitor in
-`hyprctl monitors -j`) it does nothing, and logind doesn't suspend either
-(`HandleLidSwitchDocked=ignore`). Undocked, it shuts the doors, waits until hyprlock has the
-session locked (at most ~1.5 s), and only then turns the screen off (`dpms off`): locking with
-the screen already off left the HUD undrawn under the lock, which flashed at unlock. logind
-suspends on its own; hypridle's `before_sleep_cmd` holds a sleep inhibitor until hyprlock is up,
-so the session is never asleep unlocked. For 5 s after waking logind ignores the lid
-(`HoldoffTimeoutSec=5s` in `/etc/systemd/logind.conf.d/stark.conf`); if logind isn't preparing
-to sleep within 2 s and the lid is still closed, `lid.sh` suspends itself. Opening the lid turns
-the screen back on with hyprlock already drawn.
-The lid lock skips the security-door animation, and the HUD's animations pause while locked.
-Unlocking cuts straight from the lock screen (a picture of the shut doors) to the real doors,
-then they open. Five things keep that seamless:
-- every monitor has its own picture (`stark-lock-bg-<NAME>.png`: its size, and the emblem on
-  the main screen or ◈ on the others) and its own `background` block in `hyprlock.conf`; the
-  clock and password sit on the main screen only. The HUD redraws a picture offscreen whenever
-  the theme, the screen's size or its role changes (dock / undock / TV); a stamp next to it
-  (`.png.key`) records what it was drawn with, so a stale one is redrawn at startup too. Super+L
-  captures only a picture that's still stale (re-writing current ones just before hyprlock
-  started left it showing a blank background for a few frames). The emblem always rests at 0°
-  when the doors are shut, so the pictures match the real doors pixel for pixel;
-- while the session is locked, Hyprland draws only black under hyprlock, so hyprlock has no
-  fade-out (`fadeOut, 0` in `hyprlock.template.conf`), which would show that black;
-- `stark-lock.sh` shuts the doors and waits (at most ~0.6 s) until they're on screen before
-  starting hyprlock: a lid lock is followed at once by the freeze for suspend, and doors that
-  weren't drawn by then showed as black or the bare desktop at unlock;
-- the `stark-doors` layer has no fade-in (`layerrule ... no_anim`), since Hyprland holds a
-  layer's fade-in until the session unlocks;
-- the reveal starts when hyprlock logs a successful unlock, not when it exits (after a
-  fingerprint unlock it lingers ~2 s while PAM's fail delay ends the aborted password prompt).
-
-The system-sleep hooks (`stark-fprintd`, `stark-govee`, `stark-thaw`) run while systemd has the
-whole user session frozen, and the screen stays frozen until they finish, before sleep and after
-wake. So they must never wait on anything in the session: the Govee hook doesn't talk to its
-(frozen) daemon before sleep, and all of them hand their wake work to a background unit that
-runs once the suspend is over. `stark-thaw`'s unit is the backstop: if anything under
-`user.slice` is still frozen by then, it thaws it. To check timings: `journalctl -b -o short-precise | grep -E 'Lid|systemd-sleep|froze|thawed'`.
-
-## Cursor
+### Cursor recolouring
 
 `~/.config/stark-cursor/build.sh <rrggbb> [animated|static] [24|32|48] [20-90]` renders the SVG
-templates in `src/` (`{{ACCENT}}` is the theme colour, `{{FILL_ALPHA}}` the body fill opacity
-in %) into one theme directory,
-`~/.local/share/icons/STARK-OS`, holding both an XCursor theme (all three sizes) and a
-hyprcursor theme (SVG). It then applies the theme with `hyprctl setcursor`. `src/cursors.txt`
-lists every cursor with its hotspot and aliases (X11, CSS and Qt-hash names), so no app falls
-back to Adwaita. Builds are cached per colour in `~/.cache/stark-cursor` (about 1 s cold,
-0.15 s cached).
+templates in `src/` (`{{ACCENT}}`, `{{FILL_ALPHA}}`) into `~/.local/share/icons/STARK-OS`: an
+XCursor theme in three sizes plus a hyprcursor theme, with an arc-reactor busy cursor.
+`src/cursors.txt` lists every cursor's hotspot and aliases so nothing falls back to Adwaita. Builds
+are cached per colour (about 1 s cold, 0.15 s cached).
 
-Theme.qml runs it whenever the accent, Settings → APPEARANCE → CURSOR (size, CURSOR OPACITY,
-ANIMATED BUSY CURSOR) or battery saver changes, 600 ms after the last change and one build at a time.
-Battery saver always uses the still busy cursor. build.sh also keeps everything else pointed
-at the theme, rewriting a file only when a value changes: the `env =` lines in `hyprland.conf`, gsettings, GTK 3/4
-`settings.ini`, xsettingsd, `~/.icons/default`, `kcminputrc` (KDE / Dolphin), Xresources and
-the systemd / D-Bus environment.
+`Theme.qml` rebuilds it 600 ms after the accent or a CURSOR setting changes. `build.sh` keeps
+Hyprland's `env` lines, gsettings, GTK 3/4, xsettingsd, KDE and Xresources pointed at it, and
+nudges GTK apps (Zen) to reload by briefly switching to an alias theme. XWayland apps (Steam,
+Spotify) pick up a new colour on restart.
 
-Hyprland draws the cursor for Qt 6, Electron and the HUD itself, so those recolour at once.
-GTK apps like Zen draw their own cursor and reload it only when the theme *name* changes,
-so build.sh briefly switches GTK to `STARK-OS-reload` (an alias of the same theme) and back.
-That reliably recolours Zen, but a size change may only show in Zen after a restart.
-XWayland apps (Steam, Spotify) read the theme when they start, so they need a restart to
-pick up a new colour or size.
+### kitty and VS Code theme sync
 
-## Panel opacity
+- **kitty:** the HUD writes `~/.config/kitty/stark-theme.conf` (16 ANSI colours tuned for contrast
+  against the theme background, plus opacity from TERMINAL GLASS) and sends `SIGUSR1` to every kitty
+  so open windows recolour live. `kitty.conf` just does `include stark-theme.conf`.
+- **VS Code:** `stark-code-theme` merges `workbench.colorCustomizations` and the token colour keys
+  into `~/.config/Code/User/settings.json` with `jq`, leaving every other setting alone. VS Code
+  watches the file, so windows recolour without a reload. The terminal uses the same palette as
+  kitty. The repo's clean filter (`stark-code-settings-clean`) strips those keys on commit.
 
-Settings → APPEARANCE → PANEL OPACITY (50–100 %, default 85 %) sets the background of the
-HUD's pop-up panels: Settings, the control center and app search (`Theme.panelAlpha`, used by
-`HudFrame.qml` and `AppSearch.qml`). The diagnostics wall keeps its own 55 % so the desktop
-still looks like a hologram. The HUD layers are never blurred, so battery saver doesn't change
-how the panels look.
+### Radial launcher entries
 
-Preferences can also be set from a shell: `qs ipc call theme set panelOpacity 0.9`,
-`qs ipc call theme get cursorOpacity`, `qs ipc call theme preset matrix`, and
-`qs ipc call settings open appearance` opens a Settings tab.
+Settings → LAUNCHER edits the ring: up to 16 apps (8 branches). Apps fill the ring in pairs: the
+first of each pair sits by the core and carries the **branch** label (AI, NET, MEDIA…), the second
+flows out from it. Each entry is:
 
-## Display profiles
+```json
+{ "id": "my-app", "name": "OBSIDIAN", "icon": "", "exec": "obsidian", "desktopId": "obsidian", "group": "NOTES" }
+```
 
-What's plugged in picks a display profile, and switching applies it at once (no 15 s
-keep-or-revert prompt):
+`desktopId` launches through the desktop entry (and borrows its icon); `exec` is a shell command
+run through Hyprland (`~` works); `@control` and `@lock` are built-in actions. **RESET TO DEFAULTS**
+reseeds from `LauncherApps.qml`.
+
+### Per-monitor roles
+
+`Roles.qml` gives each screen a job by position, never by port name:
+
+| Setup | main | diag | media |
+| --- | --- | --- | --- |
+| Laptop only | laptop: clock, workspaces 1–5 | none | none |
+| Docked | leftmost external: arc-reactor clock, 1–3 | next external: diagnostics wall, 4–6 | laptop: audio deck, 7–9 |
+
+Settings → HUD turns each panel on or off and hides panels on screens with open windows. Widgets
+and Jarvis use the same role names ("show a clock on the second monitor"), so undocking moves
+everything to the laptop and docking puts it back.
+
+### Display profiles
+
+What's plugged in picks a profile; each keeps its own arrangement, layout mode
+(`extend | mirror | external | laptop`), Jarvis, Govee and battery saver settings:
 
 | Profile | When | Gets |
 | --- | --- | --- |
-| HOME DESK | the USB-C dock (its card reader `0bda:5350` serial `202503061002`, or its LAN adapter `0bda:8153`) **and** both Acers (serials `16220214A4B00` left/main, `1622022294B00` middle/diag) | extend, left Acer / middle Acer / laptop, workspaces 1–3 / 4–6 / 7–9, Jarvis on, Govee strip on in the mode you last used at the desk |
+| HOME DESK | the dock and both desk monitors | extend, three roles, Jarvis on, strip on |
 | LAPTOP ONLY | no external monitor | Jarvis off, strip off, battery saver |
-| anything else | keyed by the connected monitors' descriptions, e.g. the TV over HDMI | starts as extend with Jarvis and the strip off; keeps whatever you save for it |
+| anything else | keyed by the monitors' descriptions (e.g. a TV) | starts as extend; keeps what you save |
 
-Each profile remembers its own arrangement and layout mode, so mirroring the TV is saved
-for the TV only and never reaches the desk. Settings → DISPLAY shows the active profile;
-APPLY + KEEP saves into it, **SAVE CURRENT AS THIS PROFILE** stores what's on screen now
-(plus the current Jarvis / strip / battery-saver settings), and **RESET PROFILE** forgets
-it and puts the defaults back.
+Switching happens on Hyprland's `monitoradded` / `monitorremoved` (debounced 2.5 s) and after
+resume. Settings → DISPLAY: **APPLY + KEEP**, **SAVE CURRENT AS THIS PROFILE**, **RESET PROFILE**.
+`~/.config/hypr/monitors.conf` is generated from the active profile. From a shell:
+`qs ipc call profiles status | recheck`.
 
-Switches happen on Hyprland's `monitoradded` / `monitorremoved` (debounced 2.5 s, as the dock
-brings its monitors up one at a time) and after a resume. While a switch settles, the old
-layout mode isn't re-applied to the new screens. The profile's reload still goes through the
-Displays loop guard (at most one `hyprctl reload` per 20 s), deferred rather than dropped.
+### Govee animations
 
-Files: `~/.config/quickshell/Profiles.qml` (switching), `ProfileLogic.js` (detection and
-defaults), `display-profiles.json` (saved profiles). `~/.config/hypr/monitors.conf` is
-generated from the active profile and not tracked. By hand: `qs ipc call profiles status`,
-and `qs ipc call profiles recheck` re-detects and re-applies the profile.
+`stark-govee` drives an H618C strip over the LAN, per segment (15 segments at up to 30 fps through
+the DreamView "razer" stream):
 
-## Notes
+- **Modes:** `auto` (theme colour, switching to a music spectrum from cava while audio plays),
+  `music`, `theme`, `manual`, `off`.
+- **Events:** boot, login, lock, unlock, logout, shutdown, sleep, wake, plus `alert` (a widget timer
+  finished) and `listen` (Jarvis heard the wake word).
+- **Tuning** in `govee/config.json`: `idle_level`, `music_floor`, `music_gain`, `gamma`,
+  `white_balance`, `segment_fps`, `anim_speed`, `require_docked`, `silence_seconds`.
+- **Colour overrides** for hues LEDs render badly: `stark-govee override "#ff5a4d" "#ff2000"`.
+- Test an animation with `stark-govee anim unlock`; see the rest with `stark-govee` (no args).
 
-- Monitors are matched by model + serial in `hyprland.conf` — change those two lines for your own screens.
-- Sounds in `quickshell/sounds/` are synthesized from scratch (no samples).
-- Files the HUD writes from its theme aren't tracked: `hypr/hyprlock.conf`, `hypr/stark-lock-bg-*`,
-  `hypr/monitors.conf`, `kitty/stark-theme.conf`, `govee/theme.json` (listed in the repo's
-  `info/exclude`). VS Code's `settings.json` is tracked without the three theme keys
-  `stark-code-theme` merges in, via a clean filter. After cloning, set both up:
-  ```sh
-  stark config filter.stark-code-theme.clean '$HOME/.local/bin/stark-code-settings-clean'
-  stark config filter.stark-code-theme.smudge cat
-  echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.stark-os/info/attributes
-  ```
-- Built with help from Claude.
+### Jarvis voice presets and settings
+
+Settings → JARVIS: Claude model (`auto` = Haiku, Sonnet when needed · or haiku / sonnet / opus),
+voice (Kokoro `bm_*`, or a piper model; `jarvis-voices` auditions them all), volume, speech rate,
+pitch, voice effect, Bluetooth speaker, follow-up window, spoken replies, music ducking, pause in
+combat mode, plus **TEST VOICE** and **MISSED COMMANDS**.
+
+Voice effects are presets in `~/.config/jarvis/effects.json`, an effect chain run through pedalboard:
+
+| Preset | Sound |
+| --- | --- |
+| `CLEAN` | Dry voice |
+| `HOLOGRAM` | Warm, slight chorus and small-room reverb |
+| `SUIT` | Band-limited helmet comms, a little drive |
+| `AUTO` | SUIT on headphones, HOLOGRAM on speakers |
+
+Add your own by copying a block in `effects.json` (keys: `highpass_hz`, `lowpass_hz`, `warmth_db`,
+`presence_db`, `air_db`, `drive_db`, `compress`, `chorus_*`, `reverb_*`, `gain_db`, `speed`,
+`pitch`); `_help` in the file explains each.
+
+### Desktop widgets
+
+Holographic cards on any screen, in one of nine slots: clock (any time zone, analog or digital),
+timer (rings and flashes the lights), stopwatch, now playing, system stats, sticky note. Drag to
+snap, ◇ to pin above windows, × to close, right-click the empty desktop to make one. A new type is
+one QML file in `quickshell/widgets/`.
+
+---
+
+## How the pieces talk: integration
+
+```mermaid
+flowchart LR
+    subgraph You
+        K[Keybinds]
+        V["'Hey Jarvis'"]
+        M[Mouse / Settings]
+    end
+
+    subgraph Hyprland
+        H[hyprland.conf<br/>binds · rules · monitors.conf]
+        EV[(event socket<br/>monitoradded · workspace · openwindow)]
+    end
+
+    subgraph HUD["Quickshell HUD (~/.config/quickshell)"]
+        IPC{{qs ipc targets<br/>launcher · search · control · overview · settings<br/>theme · widgets · vpn · profiles · jarvis · game · stark · osd}}
+        T[Theme.qml]
+        R[Roles / Profiles]
+        W[Widgets]
+    end
+
+    subgraph Jarvis["Jarvis (~/.config/jarvis)"]
+        EAR[wake word → whisper]
+        FP[fast path]
+        BR[Claude Agent SDK<br/>permission gate]
+        MCP[MCP: stark_tools.py<br/>+ servers.json]
+        VO[Kokoro / piper → effects]
+    end
+
+    G[stark-govee daemon] --> STRIP[(Govee strip)]
+    VPN[stark-vpn] --> NM[(NetworkManager / Proton)]
+    GAME[stark-game daemon]
+    BT[(Bluetooth speaker)]
+
+    K --> H --> IPC
+    M --> IPC
+    EV --> R & GAME
+    V --> EAR --> FP --> MCP
+    EAR --> BR --> MCP
+    MCP -->|qs ipc call| IPC
+    MCP --> G & VPN & H
+    BR --> VO --> BT
+    Jarvis -.->|qs ipc call jarvis …| IPC
+    T --> H & G
+    T --> KITTY[kitty stark-theme.conf]
+    T --> CODE[stark-code-theme → VS Code]
+    T --> CUR[stark-cursor build.sh]
+    T --> LOCK[hyprlock.conf + lock pictures]
+    IPC --> VPN & G
+    VPN -.->|watch| IPC
+    GAME -->|qs ipc call game refresh| IPC
+    W --> G
+```
+
+### Quickshell IPC: the backbone
+
+Everything goes through `qs ipc call <target> <function> [args]`, so keybinds, scripts and Jarvis
+all use the same entry points (`quickshell/shell.qml`):
+
+| Target | Functions | Used by |
+| --- | --- | --- |
+| `launcher` / `search` / `control` / `overview` | `toggle` | Hyprland binds |
+| `settings` | `toggle`, `display`, `open <tab>` | binds, scripts |
+| `theme` | `get <key>`, `set <key> <value>`, `presets`, `preset <name>` | Jarvis `set_theme`, scripts |
+| `widgets` | `add`, `remove`, `move`, `pin`, `resize`, `clear`, `list`, `types` | Jarvis widget tools, scripts |
+| `vpn` | `toggle`, `connect`, `disconnect`, `killswitch`, `status` | Jarvis `vpn`, control center |
+| `profiles` | `status`, `recheck` | debugging |
+| `stark` | `lock`, `locked`, `unlocked`, `power`, `menu` | `stark-lock.sh`, lid, power key |
+| `game` | `refresh`, `toggle` | `stark-game` |
+| `jarvis` | `listening`, `transcript`, `thinking`, `tool`, `reply`, `confirm`, `toast`, `error`… | `jarvis/core/hud.py` → the Jarvis toast |
+| `osd` | `brightness` | brightness keys |
+
+```sh
+qs ipc call widgets add clock diag top-right '{"tz":"America/New_York"}'
+qs ipc call vpn toggle proton
+qs ipc call theme preset "mark iii"
+```
+
+### The theme fan-out
+
+A change to `primary` / `secondary` in `Theme.qml` restarts short debounce timers that push the
+palette to:
+
+| Sink | How |
+| --- | --- |
+| Hyprland | `hyprctl keyword` for borders and shadows |
+| Lock screen | rewrites `hypr/hyprlock.conf` from `hyprlock.template.conf` and redraws one picture per monitor (`stark-lock-bg-<NAME>.png`) |
+| kitty | `kitty/stark-theme.conf` + `SIGUSR1` |
+| VS Code | `stark-code-theme '<json>'` |
+| Cursor | `stark-cursor/build.sh <hex> …` |
+| Govee | `stark-govee theme <primary> <accent>` (with `strip_overrides` applied by the daemon) |
+
+### The helper daemons
+
+- **stark-govee** (`~/.config/govee/stark-govee.py`, started by Hyprland) owns the strip and
+  listens on `$XDG_RUNTIME_DIR/stark-govee.sock`. The HUD (`Govee.qml`, via the CLI) sends modes, speed and
+  lock / unlock events; widgets send `alert`; Jarvis sends `listen` and the `lights` tool's commands.
+  `govee/system/stark-govee-power.service` (installed by `govee/install.fish`) covers shutdown.
+- **stark-vpn** (`~/.config/stark-vpn/stark-vpn`) puts Proton VPN and NetworkManager VPNs (e.g.
+  a school Cisco VPN) behind one CLI: `status | connect <id> | toggle <id> | disconnect |
+  killswitch on|off | watch`. `VPN.qml` runs `watch` for live state; the control center tile, the
+  bar, Settings → NETWORK and Jarvis all act through it. Only one provider is up at a time.
+- **stark-game** watches Hyprland for game windows (`steam_app_*`, gamescope, and the regexes in
+  `stark-game/games.conf`) and switches to **combat mode**: blur / animations off, performance power
+  profile, HUD paused, COMBAT TELEMETRY on the other screens, Jarvis paused, do-not-disturb.
+  Everything returns as it was when the last game closes.
+
+### Jarvis ↔ everything
+
+Jarvis never gets a shell. Claude sees only MCP tools: the local **stark** server
+(`jarvis/mcp/stark_tools.py`, 26 typed tools, with the logic and validation in `stark_actions.py`)
+plus whatever you add to `servers.json`. Those tools act through the same doors as you do:
+`qs ipc call` for themes, widgets, VPN and lock; `hyprctl` for apps, windows and workspaces;
+`stark-govee` for lights; `playerctl` / `wpctl` for media. Jarvis reports its own state back with
+`qs ipc call jarvis …`, which drives the on-screen toast.
+
+The same server works in the Claude Code CLI too:
+
+```sh
+claude mcp add stark -- ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/mcp/stark_tools.py
+```
+
+### Bluetooth speaker
+
+Set **Speaker without headphones** in Settings → JARVIS (stored as a MAC in `jarvisSpeaker`). When
+the output isn't headphones, Jarvis connects the speaker as soon as it hears the wake word; if it
+isn't up within 1.5 s, that reply plays on the laptop instead. Headphones, headsets and USB audio
+always keep Jarvis on them.
+
+---
+
+## Extend it
+
+### Add a Jarvis tool
+
+1. Write the action in `jarvis/mcp/stark_actions.py`. Validate input (raise `Invalid`), return a
+   dict, and run commands through `_do(...)` so `--dry-run` works:
+
+   ```python
+   def set_night_light(on):
+       """Warm the screens for the evening."""
+       return _do(f"night light {'on' if on else 'off'}",
+                  ["hyprctl", "hyprsunset", "temperature", "4000" if on else "6500"])
+   ```
+
+2. Declare it in `jarvis/mcp/stark_tools.py`; the docstring is what Claude reads:
+
+   ```python
+   @mcp.tool(structured_output=False)
+   def night_light(on: bool) -> str:
+       """Turn the warm night-light filter on or off."""
+       return out(A.set_night_light(on))
+   ```
+
+3. Optional: add a HUD label in `tool_label()` (`"NIGHT LIGHT → ON"`), a spoken "yes" in
+   `confirmation_prompt()` if it's destructive, and a regex in `core/fastpath.py` so common phrasings
+   skip Claude.
+4. Try it without side effects: `jarvis --text "turn on the night light" --dry-run`.
+
+### Add a launcher entry
+
+Settings → LAUNCHER → add, or edit `launcherApps` in `settings.json` (see
+[the entry format](#radial-launcher-entries)). To change the first-run defaults, edit `defaults()`
+in `quickshell/LauncherApps.qml`.
+
+### Add a theme preset
+
+- **For you:** pick swatches in Settings → APPEARANCE and save with a name. Stored in
+  `customPresets`: `[{ "name": "MIDNIGHT", "primary": "#7aa2ff", "secondary": "#ff9e64", "background": "#05060f" }]`.
+- **Built in for everyone:** add a line to `presets` in `quickshell/Theme.qml`. Jarvis picks it up
+  automatically through `qs ipc call theme presets`.
+
+### Add an MCP server (`servers.json`)
+
+```json
+"calendar": {
+    "command": "{venv}/python",
+    "args": ["-I", "{jarvis}/mcp/calendar_tools.py"],
+    "auto_allow": ["list_events"]
+}
+```
+
+`{venv}` and `{jarvis}` expand to the Jarvis venv and folder. Any server without `"policy": "stark"`
+is gated: every tool needs a spoken "Shall I…, sir?" yes unless it's in `auto_allow`. Set
+`"enabled": false` to park one. Secrets go in gnome-keyring through `core/secrets.py`, never in
+this file.
+
+### Add a widget type or game
+
+- Widget: one QML file in `quickshell/widgets/` (copy `Stopwatch.qml`). `Widgets.qml` picks up
+  every file there as a type; add it to the `widget_add` tool's `Literal` if Jarvis should make it.
+- Game: a regex line in `~/.config/stark-game/games.conf` (`hyprctl clients | grep class`).
+
+---
+
+## Jarvis
+
+**"Hey Jarvis"** (openWakeWord) → faster-whisper `base.en` → a regex **fast path** for everyday
+commands (media, lights, workspaces, VPN, themes, timers, weather: 5–40 ms, no AI) → otherwise
+**Claude** through the Agent SDK: Haiku by default, Sonnet for longer or "explain / plan" requests.
+Replies are spoken sentence by sentence as they stream. About 0.6–1 s from the end of your sentence
+to his voice on the fast path, 2–3 s through Claude.
+
+- **Rules enforced by Jarvis, not the model:** at most 8 tool calls per request, a 30 s timeout,
+  the browser only when you ask for it, and a spoken yes before power actions, closing windows,
+  deleting anything, the VPN kill switch, or sending a message. Tool output is data, never
+  instructions. No network listeners. Started by the HUD under `setpriv --no-new-privs`.
+- **Hearing:** `jarvisMic` picks the PipeWire source; pre-roll keeps "hey Jarvis dim the lights"
+  in one breath intact; Silero VAD ends the command; music ducks while listening. Barge in with
+  "Hey Jarvis"; follow-ups need no wake word for 8 s.
+- **Speech:** text is normalised first (`core/speech.py`: times, dates, units), the first sentence
+  plays while the rest render, and stock lines are cached.
+- **Memory:** "remember that…", reminders and facts live in `~/.local/share/jarvis/jarvis.db`.
+- **CLI:** `jarvis --text "…" [--dry-run]`, `--misses`, `--log`, `--facts`, `--reminders`,
+  `--say "…"`, `--trace` (wake score, VAD, transcript, route, latency), `--record [MIN]`.
+
+Try: *"set the theme to Mark III and dim the lights"*, *"timer for 10 minutes on the second
+monitor"*, *"connect the VPN"*, *"what's playing"*, *"move the clock to the top right"*.
+
+---
+
+## Troubleshooting: lock screen, fingerprint, lid
+
+**Locked out?** From a TTY (Ctrl+Alt+F3) run `stark-rescue`. It clears faillock, thaws `user.slice`
+if suspend left it frozen, turns the screens on, and unlocks hyprlock (or restarts a hung one under
+`allow_session_lock_restore`). Back with Ctrl+Alt+F2.
+
+**Fingerprint and faillock.** hyprlock takes the password or the fingerprint, whichever comes
+first. The stock PAM stack recorded every fingerprint unlock as a failed password (the aborted
+prompt), so three unlocks locked the account. `hypr/system/hyprlock.pam` ends an aborted prompt
+without a faillock record; wrong passwords still count (`deny = 5`). Never kill or restart fprintd
+under a running hyprlock: the suspend hooks only reset a wedged reader once no lock is up.
+
+| Installed file | Source in this repo |
+| --- | --- |
+| `/etc/pam.d/hyprlock` | `hypr/system/hyprlock.pam` |
+| `/etc/security/faillock.conf` (`deny = 5`) | edited in place by the installer |
+| `/usr/lib/systemd/system-sleep/stark-fprintd` | `hypr/system/stark-fprintd-sleep` |
+| `/usr/lib/systemd/system-sleep/stark-thaw` | `hypr/system/stark-thaw-sleep` |
+| `/etc/systemd/logind.conf.d/stark.conf` | `hypr/system/logind-stark.conf` |
+
+Install with `fish ~/.config/hypr/fprint-install.fish` (keeps `.orig` backups; run while unlocked).
+
+**Lid.** Docked, closing the lid does nothing. Undocked, `hypr/lid.sh` shuts the doors, waits for
+hyprlock, then turns the screen off; logind suspends and hypridle holds sleep until the lock is up.
+Each monitor gets its own lock picture of the shut doors, so unlocking cuts seamlessly to the real
+doors opening.
+
+**Logs:** `journalctl -b | grep -E 'hyprlock|faillock'`, `~/.local/state/stark/hyprlock.log`,
+`journalctl -u fprintd -b`, `~/.local/share/jarvis/jarvis.log`, `stark-govee status`,
+`stark-vpn status`.
+
+---
+
+## Roadmap
+
+**Jarvis phase 2: from desktop to house.** Each item is a new MCP server in `servers.json`; the core
+loop doesn't change.
+
+- [ ] **Calendar:** "what's on tomorrow", "move my 3 pm" (reads auto-allowed, writes confirmed)
+- [ ] **Mail:** summaries and drafts; sending always needs a spoken yes
+- [ ] **Smart home:** Nest thermostat, more lights, scenes tied to theme presets
+- [ ] **Phone:** KDE Connect: notifications on the HUD, "find my phone", texts read aloud
+- [ ] **Remote:** Tailscale, so Jarvis can check on the desk from the laptop
+- [ ] **Hardware:** ESP32 sensors and a physical arc-reactor status light
+- [ ] Proactive briefings: morning summary on login, reminders spoken at the desk
+
+Also on the list: screenshot gallery, a one-shot bootstrap script, per-profile theme presets.
+
+---
+
+<sub>Sounds in `quickshell/sounds/` are synthesized from scratch. Not affiliated with Marvel. Built
+with help from Claude.</sub>
