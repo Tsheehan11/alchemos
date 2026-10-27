@@ -1,14 +1,86 @@
 {
-    "_doc": "MCP servers Jarvis loads (core/config.py load_servers). Add phase-2 integrations (calendar, Gmail, Nest, KDE Connect, Tailscale, ESP) as new entries; the core loop doesn't change. Without policy 'stark', every tool asks for a spoken yes unless named in auto_allow. Secrets: gnome-keyring via core/secrets.py, never in this file.",
+    "_doc": "MCP servers Jarvis loads (core/config.py load_servers). Phase-2 integrations are entries with policy 'integration': they load only when enabled, are read-only unless read_only is false, and every tool not in read_tools is a write that needs Trevor's spoken yes (auto_write: tool -> settings key that lets it run without one). Without a policy, every tool asks unless named in auto_allow. Secrets (OAuth tokens, feed URLs): system keyring via core/secrets.py, never in this file. Connect with `jarvis connect <auth>`; see docs/phase2-*.md.",
     "stark": {
         "command": "{venv}/python",
-        "args": ["-I", "{jarvis}/mcp/stark_tools.py"],
+        "args": [
+            "-I",
+            "{jarvis}/mcp/stark_tools.py"
+        ],
         "policy": "stark"
     },
-    "_example_calendar": {
-        "enabled": false,
+    "google": {
+        "name": "Google",
+        "label": "GMAIL · CALENDAR · DRIVE",
         "command": "{venv}/python",
-        "args": ["-I", "{jarvis}/mcp/calendar_tools.py"],
-        "auto_allow": ["list_events"]
+        "args": [
+            "-I",
+            "{jarvis}/mcp/google_tools.py"
+        ],
+        "auth": "google",
+        "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/calendar.readonly",
+            "https://www.googleapis.com/auth/drive.readonly"
+        ],
+        "write_scopes": [
+            "https://www.googleapis.com/auth/calendar.app.created"
+        ],
+        "enabled": false,
+        "read_only": true,
+        "policy": "integration",
+        "read_tools": [
+            "calendar_today",
+            "calendar_next",
+            "email_unread_summary",
+            "email_search",
+            "docs_search"
+        ]
+    },
+    "microsoft": {
+        "name": "Microsoft 365",
+        "label": "UWATERLOO OUTLOOK · MAIL · CALENDAR",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{jarvis}/mcp/microsoft_tools.py"
+        ],
+        "auth": "microsoft",
+        "scopes": [
+            "Mail.Read",
+            "Calendars.ReadWrite",
+            "offline_access",
+            "User.Read"
+        ],
+        "enabled": false,
+        "read_only": true,
+        "policy": "integration",
+        "read_tools": [
+            "calendar_today",
+            "calendar_next",
+            "email_unread_summary",
+            "email_search"
+        ],
+        "note": "UWaterloo may require admin consent; if it's blocked, LEARN uses its iCal feed and grade notices come from whichever inbox is connected."
+    },
+    "academic": {
+        "name": "LEARN",
+        "label": "ASSIGNMENTS · GRADES",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{jarvis}/mcp/academic_tools.py"
+        ],
+        "auth": "learn-ical",
+        "enabled": false,
+        "read_only": false,
+        "policy": "integration",
+        "read_tools": [
+            "assignments_upcoming",
+            "grades_new"
+        ],
+        "auto_write": {
+            "calendar_add_assignment": "jarvisAutoAddAssignments"
+        },
+        "note": "Writes only ever go to the dedicated 'STARK – Assignments' calendar (jarvisAssignmentsAccount picks Google or Outlook)."
     }
 }

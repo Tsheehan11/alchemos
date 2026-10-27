@@ -36,6 +36,8 @@ DEFAULTS = {
     "jarvisSpeaker": "",                # Bluetooth MAC of a speaker to use when not on headphones; "" = off
     "jarvisMic": "",                    # PipeWire source node.name; "" = system default input
     "jarvisPlace": "Waterloo, Ontario", # home town for the weather (read by stark_actions.weather)
+    "jarvisAutoAddAssignments": False,  # LEARN sync may write to the dedicated assignments calendar without asking
+    "jarvisAssignmentsAccount": "google",   # where "STARK – Assignments" lives: google | microsoft
 }
 
 TIMEOUT_S = 30
@@ -74,14 +76,34 @@ class Config:
         return STRONG_MODEL if strong else FAST_MODEL
 
 
+def read_servers():
+    return json.loads(SERVERS_FILE.read_text())
+
+
+def write_servers(raw):
+    """Same layout read_servers() reads (json.dumps, indent 4), so a rewrite only shows the change."""
+    tmp = SERVERS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(raw, indent=4, ensure_ascii=False) + "\n")
+    tmp.replace(SERVERS_FILE)
+
+
+def integrations(raw=None):
+    """Phase-2 entries (policy "integration"), enabled or not: {key: entry}."""
+    raw = raw or read_servers()
+    return {k: v for k, v in raw.items() if not k.startswith("_") and v.get("policy") == "integration"}
+
+
 def load_servers(dry_run=False):
     """MCP servers Jarvis may use (servers.json). Phase-2 integrations are new entries here.
 
     Each entry: {"command", "args", "env"?, "enabled"?, "policy"?, "auto_allow"?}
-      policy "stark" → stark_actions decides which calls need a spoken yes
-      otherwise      → every tool needs a yes except those listed in auto_allow
+      policy "stark"       → stark_actions decides which calls need a spoken yes
+      policy "integration" → off unless enabled; read_tools run freely, every other tool is a
+                             write: refused if read_only (the default), else needs a spoken yes
+                             unless auto_write maps it to a settings key that's on
+      otherwise            → every tool needs a yes except those listed in auto_allow
     """
-    raw = json.loads(SERVERS_FILE.read_text())
+    raw = read_servers()
     subs = {"{jarvis}": str(JARVIS_DIR), "{venv}": str(JARVIS_DIR / ".venv/bin"), "~": str(HOME)}
 
     def expand(s):
@@ -91,12 +113,17 @@ def load_servers(dry_run=False):
 
     servers, policies = {}, {}
     for name, s in raw.items():
-        if name.startswith("_") or not s.get("enabled", True):
+        if name.startswith("_"):
+            continue
+        integ = s.get("policy") == "integration"
+        if not s.get("enabled", not integ):
             continue
         env = {k: expand(v) for k, v in s.get("env", {}).items()}
         if dry_run:
             env["STARK_DRY_RUN"] = "1"
         servers[name] = {"type": "stdio", "command": expand(s["command"]),
                          "args": [expand(a) for a in s.get("args", [])], "env": env}
-        policies[name] = {"policy": s.get("policy", "confirm"), "auto_allow": set(s.get("auto_allow", []))}
+        policies[name] = {"policy": s.get("policy", "confirm"), "auto_allow": set(s.get("auto_allow", [])),
+                          "name": s.get("name", name), "read_only": s.get("read_only", True),
+                          "read_tools": set(s.get("read_tools", [])), "auto_write": dict(s.get("auto_write", {}))}
     return servers, policies

@@ -24,6 +24,11 @@ Text mode / testing:
   jarvis --misses | --log | --facts | --reminders | --say "text"
   jarvis --trace          follow each exchange stage by stage (wake score, VAD, STT, route, TTS)
   jarvis --record [MIN]   also keep WAVs of each exchange for tuning (~/.local/state/jarvis/rec)
+
+Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
+  jarvis integrations [--json]       CONNECTED / NOT CONNECTED for each
+  jarvis connect google | microsoft | learn-ical [URL]
+  jarvis disconnect google | microsoft | learn-ical
 """
 import argparse
 import asyncio
@@ -43,6 +48,10 @@ JARVIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(JARVIS_DIR / "mcp"))
 sys.path.insert(0, str(JARVIS_DIR))
 os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
+
+if __name__ == "__main__" and sys.argv[1:2] in (["connect"], ["disconnect"], ["integrations"]):
+    from core import integrations          # before the heavy imports: Settings polls `integrations --json`
+    sys.exit(integrations.main(sys.argv[1:]))
 
 import jarvis_db as db  # noqa: E402
 import stark_actions as A  # noqa: E402
@@ -196,7 +205,7 @@ class Jarvis:
             trace.t("route", to="fast", steps=",".join(s["tool"] or "say" for s in steps))
             reply, tools = self.run_steps(steps)
             tier = "fast"
-        elif self.is_usage_question(text):
+        elif self.is_usage_question(text) and not fastpath.is_integration_intent(text):
             trace.t("route", to="usage")
             hud.thinking()
             self._on_tool("CLAUDE USAGE")
@@ -341,6 +350,7 @@ class VoiceLoop:
         self.paused = False
         self.barge = False
         self.last_reminder_check = 0.0
+        self.last_academic_check = 0.0
         from collections import deque
         self.pre = deque(maxlen=int(2.0 * RATE / CHUNK))   # the last 2 s before the wake word
         self.near = 0.0                                   # peak of a wake score that didn't reach THRESHOLD
@@ -571,6 +581,25 @@ class VoiceLoop:
             else:
                 self.voice.speak(msg)
 
+    def check_academic(self):
+        """Grade notices queued by the academic sync ("Sir, your CS 137 A5 has been graded").
+        The voice loop only runs while docked, so they wait for the desk."""
+        now = time.time()
+        if now - self.last_academic_check < 60:
+            return
+        self.last_academic_check = now
+        try:
+            import academic
+            lines = academic.pop_announcements()
+        except Exception as e:
+            log(f"JARVIS: academic: {e}")
+            return
+        for line in lines:
+            log(f"JARVIS: {line}")
+            hud.toast("LEARN", line.upper())
+            if not self.paused:
+                self.say(line)
+
     # ── one exchange ──
     def converse(self):
         """Listen → answer → follow-ups. Returns when the conversation goes idle."""
@@ -679,6 +708,7 @@ class VoiceLoop:
         last, last_prune = 0.0, time.time()
         while True:
             self.check_reminders()
+            self.check_academic()
             self.check_combat()
             if self.paused:
                 time.sleep(1)

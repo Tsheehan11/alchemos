@@ -32,6 +32,19 @@ NUM = r"(\d+(?:\.\d+)?|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)
 HOMOPHONES = {"to": 2, "too": 2, "for": 4, "fore": 4, "won": 1, "tree": 3, "free": 3, "ate": 8}
 
 
+# Email, calendars, documents, assignments and grades always go to Claude, which has the
+# integration tools and the untrusted-content rules (core/brain.py); no local rule may answer
+# them, even when a phrase looks like one ("remind me when my CS 137 assignment is due").
+INTEGRATION_INTENT = re.compile(
+    r"\b(?:e ?mails?|inbox|gmail|outlook|mail|messages? from|calendars?|schedule|agenda|meetings?|events?|"
+    r"appointments?|google drive|drive|docs?|documents?|spreadsheets?|assignments?|homework|due|deadlines?|"
+    r"grades?|graded|crowdmark|learn|d2l|quiz(?:zes)?|midterms?|exams?)\b")
+
+
+def is_integration_intent(text):
+    return bool(INTEGRATION_INTENT.search(norm(text)))
+
+
 def norm(s):
     s = s.lower().replace("-", " ")
     s = re.sub(r"[^\w\s'%.]", " ", s)
@@ -398,7 +411,7 @@ def _spoken_minutes(m):
 
 def match(text, last_query=""):
     t = norm(text)
-    if not t:
+    if not t or INTEGRATION_INTENT.search(t):
         return None
     whole = _clause(t, last_query)
     if whole:

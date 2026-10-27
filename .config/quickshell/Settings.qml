@@ -623,6 +623,7 @@ PanelWindow {
                     property var voices: ["bm_george"]
                     property var effects: ["AUTO", "CLEAN", "HOLOGRAM", "SUIT"]
                     property var speakers: []          // [{mac, name}] paired Bluetooth speakers (not headphones)
+                    property var integrations: []      // `jarvis integrations --json`: [{key, name, label, auth, connected, state, detail}]
                     function speakerName(mac) { const s = speakers.find(x => x.mac === mac); return mac === "" ? "OFF" : (s ? s.name : mac).toUpperCase(); }
                     function voiceName(v) {
                         if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
@@ -659,6 +660,48 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.jarvisDuck; onToggled: Theme.cfg.jarvisDuck = !Theme.cfg.jarvisDuck }
                     Toggle { width: parent.width; label: "Pause in combat mode"; hint: "Wake word off, mic released · timers still go off"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
                     Toggle { width: parent.width; label: "Confirm sensitive actions"; hint: "Always on · power, closing windows, deleting, kill switch, messages sent as you"; checked: true; enabled: false; opacity: 0.6 }
+
+                    // Phase-2 integrations: entries in ~/.config/jarvis/servers.json, tokens in the system keyring.
+                    // CONNECT opens a terminal running the sign-in flow (`jarvis connect …`).
+                    Text { text: "INTEGRATIONS"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Process {
+                        id: integrationList
+                        command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "integrations", "--json"]
+                        stdout: StdioCollector { onStreamFinished: { try { jarvisPage.integrations = JSON.parse(text); } catch (e) {} } }
+                    }
+                    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: jarvisPage.visible; onTriggered: integrationList.running = true }
+                    Repeater {
+                        model: jarvisPage.integrations
+                        delegate: Item {
+                            required property var modelData
+                            width: jarvisPage.width; height: 52
+                            Column {
+                                anchors.left: parent.left; anchors.right: connectBtn.left; anchors.rightMargin: 16
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 3
+                                Row {
+                                    spacing: 10
+                                    Text { text: modelData.name; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                                    Text {
+                                        text: modelData.state
+                                        color: modelData.connected ? Theme.primary : Theme.dim
+                                        font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 2
+                                    }
+                                }
+                                Text { width: parent.width; elide: Text.ElideRight; text: modelData.label + " · " + modelData.detail; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                            }
+                            SmallButton {
+                                id: connectBtn
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                text: modelData.connected ? "RECONNECT" : "CONNECT"
+                                active: modelData.connected
+                                onClicked: { Hyprland.dispatch("exec kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis connect " + modelData.auth); LauncherState.closeAll(); }
+                            }
+                        }
+                    }
+                    Toggle { width: parent.width; label: "AUTO-ADD ASSIGNMENTS"; hint: "LEARN due dates go into \"STARK – Assignments\" without asking · that calendar only, never your main one"; checked: Theme.cfg.jarvisAutoAddAssignments; onToggled: Theme.cfg.jarvisAutoAddAssignments = !Theme.cfg.jarvisAutoAddAssignments }
+                    Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "Read-only by default. Sending, creating, deleting or editing anything needs your spoken yes. Email, calendar and document text is treated as data, never as commands. Setup: ~/.config/jarvis/docs"; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
                     Row {
                         spacing: 10
                         SmallButton { text: "TEST VOICE"; onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "At your service, sir."]) }

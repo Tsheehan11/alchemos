@@ -1,28 +1,43 @@
 """
-Secrets for later integrations live in gnome-keyring (libsecret), never in files
-tracked by `stark`. Nothing uses this yet: Claude authenticates through the
-claude CLI login, so there are no API keys.
+Secrets (OAuth tokens, client IDs, the LEARN feed URL) live in the system keyring
+(python keyring → libsecret / gnome-keyring), never in files tracked by `stark`.
+Claude itself needs none: it authenticates through the claude CLI login.
 
-    store("govee-cloud", "api-key")     # prompts on stdin, saves to the keyring
-    get("govee-cloud", "api-key")       # → str | None
+    store("google", "token", json_text)
+    get("google", "token")              # → str | None
+    delete("google", "token")
+
+Keyring entries are named "jarvis:<service>" / <account>, so they're easy to find
+(and wipe) in Seahorse. The MCP servers import this too (see mcp/integration_common.py).
 """
 import getpass
-import subprocess
 
-ATTR = "jarvis"
+PREFIX = "jarvis:"
+
+
+def _kr():
+    import keyring       # imported late: only integrations need it, not every Jarvis start
+    return keyring
 
 
 def get(service, account):
-    p = subprocess.run(["secret-tool", "lookup", ATTR, service, "account", account],
-                       capture_output=True, text=True)
-    return p.stdout.rstrip("\n") if p.returncode == 0 and p.stdout else None
+    try:
+        return _kr().get_password(PREFIX + service, account)
+    except Exception:    # keyring locked / no Secret Service: treat as "not stored"
+        return None
 
 
 def store(service, account, value=None):
     value = value if value is not None else getpass.getpass(f"{service} {account}: ")
-    subprocess.run(["secret-tool", "store", "--label", f"Jarvis: {service} {account}",
-                    ATTR, service, "account", account], input=value, text=True, check=True)
+    _kr().set_password(PREFIX + service, account, value)
 
 
 def delete(service, account):
-    subprocess.run(["secret-tool", "clear", ATTR, service, "account", account], check=False)
+    try:
+        _kr().delete_password(PREFIX + service, account)
+    except Exception:
+        pass
+
+
+def has(service, account):
+    return bool(get(service, account))
