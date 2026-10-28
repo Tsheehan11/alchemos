@@ -6,7 +6,8 @@ JARVIS: Claude-powered voice assistant for STARK OS.
     (from just before the wake word, so a one-breath "hey Jarvis dim the lights"
     keeps its first word; see core/hearing.py) → faster-whisper → fast path
     (local rules, no AI: media, lock, workspaces, lights, VPN, apps, themes,
-    timers, weather) or Claude (Agent SDK on the Pro login, tools from MCP
+    timers, weather) → local router (core/router_local.py: sentence embedding vs
+    intents.json, acts only when sure and every slot is filled) → Claude (Agent SDK on the Pro login, tools from MCP
     servers in servers.json, reply spoken sentence by sentence as it streams)
     → spoken reply (Kokoro) + HUD toast.
   Anything that goes wrong after the chime gets a short spoken line and the
@@ -29,6 +30,9 @@ Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
   jarvis integrations [--json]       CONNECTED / NOT CONNECTED for each
   jarvis connect google | microsoft | learn-ical [URL]
   jarvis disconnect google | microsoft | learn-ical
+
+Local router (intents.json, tools/eval_router.py):
+  jarvis intents [list | log [N] | review | remove N…]   learned examples, recent decisions
 """
 import argparse
 import asyncio
@@ -52,6 +56,10 @@ os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
 if __name__ == "__main__" and sys.argv[1:2] in (["connect"], ["disconnect"], ["integrations"]):
     from core import integrations          # before the heavy imports: Settings polls `integrations --json`
     sys.exit(integrations.main(sys.argv[1:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
+    sys.path.insert(0, str(JARVIS_DIR / "mcp"))
+    from core import router_local          # list / review / remove need no model
+    sys.exit(router_local.cli(sys.argv[2:]))
 
 import jarvis_db as db  # noqa: E402
 import stark_actions as A  # noqa: E402
@@ -138,6 +146,14 @@ class Jarvis:
         from core.brain import Brain, is_usage_question
         self.is_usage_question = is_usage_question
         self.brain = Brain(cfg, self._confirm_async, self._on_tool, dry_run=dry_run, log=log)
+        self.router = None
+        self.learning = []                     # learn() threads; text mode waits for them before exiting
+        try:                                   # load once, keep warm (≈0.2 s with cached vectors)
+            from core.router_local import LocalRouter
+            self.router = LocalRouter(cfg, log=log)
+            self.router.warm()
+        except Exception as e:                 # no model files and offline, bad intents.json…: Claude only
+            log(f"JARVIS: local router unavailable ({type(e).__name__}: {e}); using Claude only")
 
     # Brain (asyncio thread) asks; the main thread answers (it owns the mic / terminal)
     async def _confirm_async(self, prompt):
@@ -211,8 +227,13 @@ class Jarvis:
             self._on_tool("CLAUDE USAGE")
             reply, tools = asyncio.run_coroutine_threadsafe(self.brain.usage_report(), self.loop).result(), ["usage"]
             tier = "usage"
+        elif (d := self.route_local(text)) and d.path == "local":
+            trace.t("route", to="local", intent=d.intent, score=d.top3[0][1], ms=d.ms)
+            steps = d.steps
+            reply, tools = self.run_steps(steps)
+            tier = f"local:{d.intent}"
         else:
-            trace.t("route", to="claude")
+            trace.t("route", to="claude", **({"why": d.path.split(":", 1)[1]} if d else {}))
             hud.thinking()
             self.last_query = text
             fut = asyncio.run_coroutine_threadsafe(self.brain.ask(text, on_sentence), self.loop)
@@ -223,6 +244,8 @@ class Jarvis:
             reply, tools = r.text, r.tools
             tier = r.tier if not r.error else f"error:{r.error}"
             self.error = r.error
+            if d and not r.error:
+                self._learn(text, d, r)
         if steps is not None and any(t.endswith("[failed]") for t in tools):
             self.error = "tool"
         ms = int((time.monotonic() - t0) * 1000)
@@ -230,6 +253,27 @@ class Jarvis:
         log(f"  [{tier} · {ms} ms]")
         trace.t("reply", tier=tier, ms=ms, tools=len(tools), text=reply)
         return reply
+
+    def route_local(self, text):
+        """The local router's decision, or None when it's off (Settings → JARVIS → DECISIONS) or not loaded."""
+        if not self.router or self.cfg["jarvisDecisions"] != "local":
+            return None
+        try:
+            return self.router.decide(text)
+        except Exception as e:
+            log(f"JARVIS: local router failed: {type(e).__name__}: {e}")
+            return None
+
+    def _learn(self, text, d, r):
+        """Claude answered with exactly one stark tool call: teach the router that phrasing."""
+        if self.dry_run or d.path in ("claude:claude-only", "claude:empty") or len(r.calls) != 1:
+            return
+        server, tool, args = r.calls[0]
+        if server != "stark":
+            return
+        th = threading.Thread(target=lambda: self.router.learn(text, tool, args), daemon=True)
+        th.start()
+        self.learning.append(th)
 
     def _log_action(self, *row):
         """SQLite write off the critical path (it was ~50 ms before the reply could play)."""
@@ -280,6 +324,8 @@ def text_mode(args):
             hud.reply(reply)
             if voice:
                 voice.speak(reply)
+    for th in j.learning:                     # onnxruntime aborts if the interpreter exits mid-inference
+        th.join(10)
     asyncio.run_coroutine_threadsafe(j.brain.disconnect(), j.loop).result(10)
 
 

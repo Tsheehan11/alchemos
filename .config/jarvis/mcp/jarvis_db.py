@@ -4,6 +4,7 @@ Jarvis memory: one SQLite file shared by the voice loop and the MCP server.
   facts       things Trevor asked Jarvis to remember (FTS5 index for recall)
   action_log  every request: tier used, tools called, result (pruned after 30 days)
   reminders   timers / reminders; the voice loop fires them, so they survive restarts
+  router_log  every local-router decision: top-3 intents, slots, latency, path (pruned with action_log)
 
 WAL mode + a busy timeout, since two processes write to it.
 """
@@ -50,6 +51,17 @@ CREATE TABLE IF NOT EXISTS reminders (
     fired REAL                   -- NULL until it goes off
 );
 CREATE INDEX IF NOT EXISTS reminders_due ON reminders(fired, due);
+CREATE TABLE IF NOT EXISTS router_log (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    request TEXT NOT NULL,
+    path TEXT NOT NULL,          -- local | claude:<why> (below-threshold, small-gap, other, claude-only, slots, …)
+    intent TEXT,                 -- the top intent
+    top3 TEXT NOT NULL,          -- JSON [[intent, score], …]
+    slots TEXT NOT NULL,         -- JSON {name: value}
+    ms REAL
+);
+CREATE INDEX IF NOT EXISTS router_log_ts ON router_log(ts);
 """
 
 STOPWORDS = set("""a an the and or but to of in on at for with by from is are was were be been am i me my
@@ -127,7 +139,19 @@ def log_action(request, tier, tools, result, ms=None):
 
 def prune_log(days=LOG_DAYS):
     with _db() as db:
+        db.execute("DELETE FROM router_log WHERE ts < ?", (time.time() - days * 86400,))
         return db.execute("DELETE FROM action_log WHERE ts < ?", (time.time() - days * 86400,)).rowcount
+
+
+def log_decision(request, path, intent, top3, slots, ms):
+    with _db() as db:
+        db.execute("INSERT INTO router_log(ts, request, path, intent, top3, slots, ms) VALUES (?,?,?,?,?,?,?)",
+                   (time.time(), request[:1000], path, intent, json.dumps(top3), json.dumps(slots, default=str)[:1000], ms))
+
+
+def recent_decisions(limit=40):
+    with _db() as db:
+        return [dict(r) for r in db.execute("SELECT * FROM router_log ORDER BY ts DESC LIMIT ?", (limit,))]
 
 
 def recent_log(limit=30, tier_prefix=None):

@@ -1,0 +1,951 @@
+{
+  "_doc": "Jarvis's local decision layer (core/router_local.py): example phrases per intent, embedded at start (vectors cached in ~/.local/share/jarvis/router-*.npz). must: a regex the request has to contain before this intent may act (guards for antonyms like open / close). kind: tool (default; runs `tool` locally with `args` + `slots`, slot types in router_local.SLOTS, a trailing ? = optional), chat (always Claude) or claude-only (always Claude; email / calendar / docs / assignments / grades must stay claude-only). say: reply variants with {arg} fields, or @name for a reply built from the result (router_local.RESULT_SAY). learned: added from Claude's single-tool answers; review with `jarvis intents review`.",
+  "intents": {
+    "open_app": {
+      "tool": "open_app",
+      "slots": {
+        "name": "app"
+      },
+      "say": "@opened",
+      "examples": [
+        "open spotify",
+        "launch discord",
+        "start steam",
+        "fire up vs code",
+        "open the browser",
+        "bring up a terminal",
+        "can you open the file manager",
+        "open zen",
+        "launch the music app",
+        "pull up discord for me",
+        "start up firefox",
+        "open settings",
+        "get spotify going",
+        "open my terminal",
+        "load up steam",
+        "open visual studio code",
+        "open up chrome",
+        "open up the terminal",
+        "start kitty",
+        "launch the code editor"
+      ],
+      "learned": []
+    },
+    "close_window": {
+      "tool": "close_focused_window",
+      "say": [
+        "Closed, sir.",
+        "Gone."
+      ],
+      "examples": [
+        "close this window",
+        "close the window",
+        "kill this window",
+        "get rid of this window",
+        "close that",
+        "shut this app",
+        "close the current window",
+        "close whatever's focused",
+        "quit this app",
+        "close it"
+      ],
+      "learned": [],
+      "must": "\\b(?:close|kill|quit|exit|get rid of|shut)\\b"
+    },
+    "switch_workspace": {
+      "tool": "switch_workspace",
+      "slots": {
+        "n": "workspace"
+      },
+      "say": [
+        "Workspace {n}.",
+        "Workspace {n}, sir."
+      ],
+      "examples": [
+        "go to workspace three",
+        "switch to workspace 2",
+        "workspace five",
+        "take me to desktop four",
+        "jump to workspace one",
+        "show me workspace 6",
+        "go to desktop two",
+        "switch to the third workspace",
+        "move to workspace seven",
+        "change to workspace 1"
+      ],
+      "learned": []
+    },
+    "move_window": {
+      "tool": "move_window_to_workspace",
+      "slots": {
+        "n": "workspace"
+      },
+      "say": [
+        "Moved to workspace {n}.",
+        "On workspace {n}, sir."
+      ],
+      "examples": [
+        "move this window to workspace two",
+        "send this to workspace 3",
+        "put this window on desktop four",
+        "move the window to workspace five",
+        "throw this onto workspace one",
+        "send this app to workspace 6",
+        "shift this window over to workspace 2",
+        "move it to desktop three",
+        "relocate this window to workspace 4",
+        "push this to workspace 8"
+      ],
+      "learned": []
+    },
+    "set_theme": {
+      "tool": "set_theme",
+      "slots": {
+        "preset": "theme"
+      },
+      "say": [
+        "{preset} theme engaged.",
+        "{preset}, sir.",
+        "Switching to {preset}."
+      ],
+      "examples": [
+        "set the theme to matrix",
+        "switch to the mark three theme",
+        "change the hud to vibranium",
+        "make it arctic",
+        "use the solar theme",
+        "go back to the stark theme",
+        "apply the matrix preset",
+        "theme mark three",
+        "change colors to arctic",
+        "switch the look to solar",
+        "make the hud pinky",
+        "i want the vibranium theme",
+        "switch the hud to solar",
+        "go with the vibranium look",
+        "solar theme please",
+        "change the theme",
+        "matrix mode for the hud"
+      ],
+      "learned": []
+    },
+    "lights.power": {
+      "tool": "lights",
+      "slots": {
+        "action": "onoff"
+      },
+      "say": [
+        "Lights {action}.",
+        "Lights {action}, sir."
+      ],
+      "examples": [
+        "turn the lights off",
+        "lights off",
+        "turn on the lights",
+        "lights on",
+        "kill the lights",
+        "switch the led strip off",
+        "turn my lights back on",
+        "shut off the strip",
+        "lights out",
+        "switch the lights on",
+        "turn off the leds",
+        "power the lights on"
+      ],
+      "learned": []
+    },
+    "lights.brightness": {
+      "tool": "lights",
+      "args": {
+        "action": "brightness"
+      },
+      "slots": {
+        "value": "percent"
+      },
+      "say": [
+        "Lights at {value} percent.",
+        "{value} percent, sir."
+      ],
+      "examples": [
+        "dim the lights to thirty percent",
+        "set the lights to 50",
+        "lights at twenty percent",
+        "brightness 80 on the strip",
+        "make the lights 40 percent",
+        "turn the lights down to 10",
+        "set the strip brightness to sixty",
+        "lights to full brightness",
+        "put the lights at half",
+        "bring the lights up to seventy percent",
+        "lower the lights to 25 percent",
+        "set brightness of the leds to 90"
+      ],
+      "learned": []
+    },
+    "lights.mode": {
+      "tool": "lights",
+      "args": {
+        "action": "mode"
+      },
+      "slots": {
+        "value": "light_mode"
+      },
+      "say": [
+        "Lights on {value}.",
+        "{value} mode, sir."
+      ],
+      "examples": [
+        "put the lights in music mode",
+        "make the lights react to music",
+        "sync the lights to the music",
+        "lights to theme mode",
+        "make the strip match the theme",
+        "set the lights to auto",
+        "lights back to automatic",
+        "music mode on the lights",
+        "have the lights follow the beat",
+        "lights on theme colors"
+      ],
+      "learned": []
+    },
+    "media.play": {
+      "tool": "media",
+      "args": {
+        "action": "play"
+      },
+      "say": [
+        "Playing.",
+        "Resuming, sir."
+      ],
+      "examples": [
+        "play music",
+        "resume the music",
+        "play",
+        "start the music again",
+        "unpause",
+        "resume playback",
+        "keep playing",
+        "continue the song",
+        "hit play",
+        "play my music"
+      ],
+      "learned": []
+    },
+    "media.pause": {
+      "tool": "media",
+      "args": {
+        "action": "pause"
+      },
+      "say": [
+        "Paused.",
+        "Paused, sir."
+      ],
+      "examples": [
+        "pause the music",
+        "pause",
+        "stop the music",
+        "hold the music",
+        "pause playback",
+        "pause the song",
+        "stop playing",
+        "freeze the music",
+        "pause spotify",
+        "hit pause"
+      ],
+      "learned": []
+    },
+    "media.next": {
+      "tool": "media",
+      "args": {
+        "action": "next"
+      },
+      "say": [
+        "Skipping.",
+        "Next track, sir."
+      ],
+      "examples": [
+        "next song",
+        "skip this track",
+        "skip",
+        "play the next song",
+        "next track please",
+        "skip this one",
+        "go to the next song",
+        "change the song",
+        "skip ahead to the next track",
+        "next"
+      ],
+      "learned": []
+    },
+    "media.previous": {
+      "tool": "media",
+      "args": {
+        "action": "previous"
+      },
+      "say": [
+        "Going back.",
+        "Previous track, sir."
+      ],
+      "examples": [
+        "previous song",
+        "go back a song",
+        "play the last song again",
+        "previous track",
+        "back one track",
+        "replay the previous song",
+        "go back to the last track",
+        "last song",
+        "skip back",
+        "rewind to the previous song"
+      ],
+      "learned": []
+    },
+    "media.volume_up": {
+      "tool": "media",
+      "args": {
+        "action": "volume_up"
+      },
+      "say": [
+        "Louder, sir.",
+        "Volume up."
+      ],
+      "examples": [
+        "turn it up",
+        "volume up",
+        "louder",
+        "turn the volume up",
+        "make it louder",
+        "raise the volume",
+        "crank it up",
+        "increase the volume",
+        "a bit louder please",
+        "pump up the volume"
+      ],
+      "learned": []
+    },
+    "media.volume_down": {
+      "tool": "media",
+      "args": {
+        "action": "volume_down"
+      },
+      "say": [
+        "Quieter, sir.",
+        "Volume down."
+      ],
+      "examples": [
+        "turn it down",
+        "volume down",
+        "quieter",
+        "turn the volume down",
+        "make it quieter",
+        "lower the volume",
+        "decrease the volume",
+        "a bit softer",
+        "bring the volume down",
+        "it's too loud"
+      ],
+      "learned": []
+    },
+    "media.set_volume": {
+      "tool": "media",
+      "args": {
+        "action": "set_volume"
+      },
+      "slots": {
+        "value": "percent"
+      },
+      "say": [
+        "Volume {value} percent.",
+        "{value} percent, sir."
+      ],
+      "examples": [
+        "set the volume to 40",
+        "volume 30 percent",
+        "put the volume at fifty",
+        "set volume to twenty five percent",
+        "change the volume to 70",
+        "make the volume 60 percent",
+        "volume to 15",
+        "set the sound level to 45 percent",
+        "turn the volume to eighty",
+        "audio at 35 percent"
+      ],
+      "learned": []
+    },
+    "media.mute": {
+      "tool": "media",
+      "slots": {
+        "action": "mute"
+      },
+      "say": [
+        "Done, sir."
+      ],
+      "examples": [
+        "mute",
+        "mute the sound",
+        "unmute",
+        "unmute the audio",
+        "silence everything",
+        "mute the computer",
+        "turn the sound back on",
+        "kill the sound",
+        "mute audio",
+        "unmute please"
+      ],
+      "learned": [],
+      "must": "\\b(?:un ?mute|mute|silence|sound)\\b"
+    },
+    "what_is_playing": {
+      "tool": "what_is_playing",
+      "say": "@now_playing",
+      "examples": [
+        "what's playing",
+        "what song is this",
+        "who sings this",
+        "what's this song called",
+        "what am i listening to",
+        "name this track",
+        "what music is on",
+        "which song is playing right now",
+        "who is this artist",
+        "what's the current track"
+      ],
+      "learned": []
+    },
+    "status.overview": {
+      "tool": "system_status",
+      "say": "@system",
+      "examples": [
+        "system status",
+        "how's the system doing",
+        "give me a status report",
+        "how is my computer doing",
+        "diagnostics",
+        "run a system check",
+        "how much ram am i using",
+        "what's the cpu usage",
+        "status report",
+        "how are the systems"
+      ],
+      "learned": []
+    },
+    "status.battery": {
+      "tool": "system_status",
+      "say": "@battery",
+      "examples": [
+        "how's my battery",
+        "battery level",
+        "how much battery do i have",
+        "what's the battery at",
+        "am i charging",
+        "battery status",
+        "how much charge is left",
+        "is the laptop plugged in",
+        "check the battery",
+        "battery percentage"
+      ],
+      "learned": []
+    },
+    "status.temperature": {
+      "tool": "system_status",
+      "say": "@cpu_temp",
+      "examples": [
+        "how hot is the cpu",
+        "cpu temperature",
+        "what's the cpu temp",
+        "is my computer overheating",
+        "how warm is the processor",
+        "check temperatures",
+        "temps",
+        "how hot is the laptop running",
+        "processor temperature",
+        "is the cpu running hot"
+      ],
+      "learned": []
+    },
+    "vpn.status": {
+      "tool": "vpn",
+      "args": {
+        "action": "status"
+      },
+      "say": "@vpn_status",
+      "examples": [
+        "is the vpn on",
+        "vpn status",
+        "am i on the vpn",
+        "am i connected to a vpn",
+        "which vpn is active",
+        "check the vpn",
+        "is the vpn connected",
+        "what's my vpn doing",
+        "is proton connected",
+        "am i protected"
+      ],
+      "learned": []
+    },
+    "vpn.control": {
+      "tool": "vpn",
+      "slots": {
+        "action": "vpn"
+      },
+      "say": [
+        "Right away, sir.",
+        "On it."
+      ],
+      "examples": [
+        "connect to proton",
+        "turn on proton vpn",
+        "connect the vpn to proton",
+        "disconnect the vpn",
+        "turn the vpn off",
+        "connect to the school vpn",
+        "open the waterloo vpn",
+        "drop the vpn",
+        "start the uw vpn",
+        "get me on proton",
+        "kill the vpn",
+        "log into the campus vpn"
+      ],
+      "learned": []
+    },
+    "open_uwcs": {
+      "tool": "open_uwcs",
+      "slots": {
+        "host": "uwcs_host?"
+      },
+      "say": [
+        "Connecting to the CS servers.",
+        "Opening the CS servers, sir."
+      ],
+      "examples": [
+        "open the cs servers",
+        "connect to the uw cs server",
+        "open vs code on the student servers",
+        "ssh into uwcs",
+        "open uwcs",
+        "get me on the linux servers",
+        "open the school servers in code",
+        "open ubuntu 2404 server 004",
+        "remote into the cs environment",
+        "connect to linux student cs"
+      ],
+      "learned": [],
+      "must": "\\b(?:uw ?cs|cs (?:server|servers|environment)|student (?:server|servers|cs)|linux (?:server|servers|student)|school servers|ubuntu|ssh)\\b"
+    },
+    "lock_screen": {
+      "tool": "lock_screen",
+      "say": [
+        "Locked, sir.",
+        "Locking."
+      ],
+      "examples": [
+        "lock the screen",
+        "lock my computer",
+        "lock it",
+        "lock up",
+        "lock the pc",
+        "secure the workstation",
+        "lock everything",
+        "i'm stepping away lock it",
+        "screen lock",
+        "lock the laptop"
+      ],
+      "learned": [],
+      "must": "\\block"
+    },
+    "power": {
+      "tool": "power",
+      "slots": {
+        "action": "power"
+      },
+      "say": [
+        "Very good, sir."
+      ],
+      "examples": [
+        "shut down the computer",
+        "restart the computer",
+        "reboot",
+        "put the computer to sleep",
+        "suspend",
+        "log me out",
+        "power off",
+        "turn off the pc",
+        "reboot the system",
+        "sleep mode",
+        "sign me out",
+        "shut it all down"
+      ],
+      "learned": [],
+      "must": "\\b(?:shut ?down|restart|reboot|sleep|suspend|hibernate|log ?(?:me )?out|sign ?(?:me )?out|power (?:off|down)|turn off (?:the |my )?(?:computer|pc|laptop|system|machine))\\b"
+    },
+    "set_timer": {
+      "tool": "set_timer",
+      "slots": {
+        "minutes": "minutes",
+        "label": "timer_label?"
+      },
+      "say": [
+        "Timer set for {minutes} minutes.",
+        "{minutes} minutes, sir. Counting down."
+      ],
+      "examples": [
+        "set a timer for 5 minutes",
+        "timer ten minutes",
+        "start a 20 minute timer",
+        "set a pasta timer for twelve minutes",
+        "count down 90 seconds",
+        "give me a timer for an hour",
+        "set a timer for half an hour",
+        "start a timer for 3 minutes",
+        "remind me in 15 minutes",
+        "timer for 45 seconds",
+        "set a tea timer for four minutes",
+        "put a 25 minute timer on"
+      ],
+      "learned": []
+    },
+    "list_reminders": {
+      "tool": "list_reminders",
+      "say": "@timers",
+      "examples": [
+        "how long is left on my timer",
+        "what timers do i have",
+        "any reminders",
+        "how much time is left",
+        "list my timers",
+        "what reminders are set",
+        "show my reminders",
+        "check my timer",
+        "is my timer still running",
+        "timers"
+      ],
+      "learned": []
+    },
+    "weather.now": {
+      "tool": "weather",
+      "slots": {
+        "place": "place?"
+      },
+      "say": "@weather_now",
+      "examples": [
+        "what's the weather",
+        "how's the weather",
+        "is it cold outside",
+        "what's the temperature outside",
+        "weather",
+        "do i need a jacket",
+        "what's it like outside",
+        "weather in toronto",
+        "is it raining",
+        "how hot is it outside today",
+        "what's the weather in ottawa",
+        "how's the weather in chicago right now"
+      ],
+      "learned": []
+    },
+    "weather.tomorrow": {
+      "tool": "weather",
+      "slots": {
+        "place": "place?"
+      },
+      "say": "@weather_tomorrow",
+      "examples": [
+        "what's the weather tomorrow",
+        "will it rain tomorrow",
+        "tomorrow's forecast",
+        "how cold will it be tomorrow",
+        "forecast for tomorrow",
+        "weather tomorrow in vancouver",
+        "should i bring an umbrella tomorrow",
+        "is it going to snow tomorrow",
+        "what's tomorrow looking like weather wise",
+        "tomorrow's weather"
+      ],
+      "learned": []
+    },
+    "widget.clock": {
+      "tool": "widget_add",
+      "args": {
+        "type": "clock"
+      },
+      "slots": {
+        "tz": "tz?",
+        "screen": "screen?",
+        "position": "position?"
+      },
+      "say": [
+        "Clock up, sir.",
+        "Clock added."
+      ],
+      "examples": [
+        "put a clock on my screen",
+        "add a clock for new york",
+        "show a clock on the second monitor",
+        "add a london clock",
+        "put up an analog clock",
+        "give me a tokyo time clock",
+        "add a clock widget",
+        "show the time in sydney on the laptop screen",
+        "add a clock in the top right",
+        "put a world clock for paris up",
+        "put a clock for berlin on the main monitor"
+      ],
+      "learned": []
+    },
+    "widget.stats": {
+      "tool": "widget_add",
+      "args": {
+        "type": "stats"
+      },
+      "slots": {
+        "screen": "screen?",
+        "position": "position?"
+      },
+      "say": [
+        "Stats up, sir."
+      ],
+      "examples": [
+        "show system stats on my screen",
+        "add a stats widget",
+        "put the cpu monitor up",
+        "add a performance widget",
+        "show stats on the second monitor",
+        "put up a system monitor",
+        "add a resource monitor widget",
+        "show me a stats panel",
+        "add a ram and cpu widget",
+        "put stats in the corner"
+      ],
+      "learned": []
+    },
+    "widget.stopwatch": {
+      "tool": "widget_add",
+      "args": {
+        "type": "stopwatch"
+      },
+      "slots": {
+        "screen": "screen?",
+        "position": "position?"
+      },
+      "say": [
+        "Stopwatch running.",
+        "Timing, sir."
+      ],
+      "examples": [
+        "start a stopwatch",
+        "add a stopwatch",
+        "put a stopwatch on the screen",
+        "stopwatch please",
+        "time me",
+        "start timing",
+        "give me a stopwatch widget",
+        "show a stopwatch on the laptop screen",
+        "begin a stopwatch",
+        "count up from zero"
+      ],
+      "learned": []
+    },
+    "widget.media": {
+      "tool": "widget_add",
+      "args": {
+        "type": "media"
+      },
+      "slots": {
+        "screen": "screen?",
+        "position": "position?"
+      },
+      "say": [
+        "Now playing, on screen.",
+        "Player up, sir."
+      ],
+      "examples": [
+        "show the now playing widget",
+        "add a music widget",
+        "put the media player on screen",
+        "add a now playing card",
+        "show what's playing on the second monitor",
+        "put up the music controls",
+        "add a media widget",
+        "show the player widget",
+        "music widget on the laptop",
+        "add a spotify widget"
+      ],
+      "learned": []
+    },
+    "widget.clear": {
+      "tool": "widget_remove",
+      "args": {
+        "target": "all"
+      },
+      "slots": {
+        "screen": "screen?"
+      },
+      "say": [
+        "Cleared, sir.",
+        "All clear."
+      ],
+      "examples": [
+        "clear the widgets",
+        "remove all widgets",
+        "clear the screen",
+        "get rid of all the widgets",
+        "close every widget",
+        "clean up the desktop widgets",
+        "remove the widgets on the second monitor",
+        "clear the laptop screen",
+        "take down all widgets",
+        "wipe the widgets"
+      ],
+      "learned": [],
+      "must": "\\b(?:clear|remove|wipe|get rid of|close|take down|clean)\\b"
+    },
+    "widget.list": {
+      "tool": "widget_list",
+      "say": "@widgets",
+      "examples": [
+        "what widgets are up",
+        "list my widgets",
+        "which widgets are on screen",
+        "what's on my desktop",
+        "show me the widget list",
+        "how many widgets do i have",
+        "what widgets do i have open",
+        "any widgets running"
+      ],
+      "learned": []
+    },
+    "other": {
+      "kind": "chat",
+      "examples": [
+        "why is the sky blue",
+        "tell me a joke",
+        "how are you doing",
+        "what's the capital of australia",
+        "explain recursion",
+        "who won the game last night",
+        "how do i reverse a linked list in c",
+        "what should i have for dinner",
+        "write me a haiku about rain",
+        "what's two hundred times thirty",
+        "good morning jarvis",
+        "what can you do",
+        "give me a fun fact",
+        "summarize the french revolution",
+        "how far away is the moon",
+        "translate hello into spanish",
+        "what's the meaning of life",
+        "help me plan my week",
+        "how many calories in a banana",
+        "thank you that's great",
+        "are you there",
+        "what do you think about ai",
+        "remind me what a monad is",
+        "how does a transistor work",
+        "convert 10 miles to kilometers",
+        "what time is sunset",
+        "recommend a good movie",
+        "what is the speed of light"
+      ],
+      "learned": []
+    },
+    "claude.freeform": {
+      "kind": "claude-only",
+      "note": "Stark tools that need free text (remember, recall, forget, reminders at a time, notes, browser): Claude fills them.",
+      "examples": [
+        "remember that my locker code is 4512",
+        "what did i tell you about my locker",
+        "forget what i said about the locker",
+        "remind me at 3 pm to call mom",
+        "remind me tomorrow morning to submit the form",
+        "cancel my 5 o'clock reminder",
+        "put a sticky note saying buy milk",
+        "open this question in the browser",
+        "ask claude in the browser about rust lifetimes",
+        "move the clock to the top left",
+        "make the timer widget bigger",
+        "pin the stats widget"
+      ],
+      "learned": []
+    },
+    "claude.email": {
+      "kind": "claude-only",
+      "examples": [
+        "any new emails",
+        "read my latest email",
+        "do i have unread mail",
+        "did the professor email me",
+        "check my inbox",
+        "search my email for the midterm",
+        "what did sam say in his email",
+        "summarize my unread messages",
+        "any mail from amazon",
+        "check outlook"
+      ],
+      "learned": []
+    },
+    "claude.calendar": {
+      "kind": "claude-only",
+      "examples": [
+        "what's on my calendar today",
+        "what's my next meeting",
+        "am i free at 3",
+        "what do i have tomorrow",
+        "when is my next event",
+        "what's my schedule this week",
+        "do i have anything tonight",
+        "when's my dentist appointment",
+        "what's on the agenda",
+        "is my afternoon free"
+      ],
+      "learned": []
+    },
+    "claude.docs": {
+      "kind": "claude-only",
+      "examples": [
+        "find my lab report in drive",
+        "search my docs for the essay",
+        "open the document about the budget",
+        "what's in my google drive",
+        "find the spreadsheet from last week",
+        "search drive for cs 136 notes",
+        "where's my resume document",
+        "find the slides for my presentation",
+        "look up the file called project plan",
+        "what docs did i edit yesterday"
+      ],
+      "learned": []
+    },
+    "claude.assignments": {
+      "kind": "claude-only",
+      "examples": [
+        "what assignments are due this week",
+        "when is my cs 137 assignment due",
+        "what's due tomorrow",
+        "any deadlines coming up",
+        "add my assignments to the calendar",
+        "what homework do i have",
+        "when is the math 135 assignment due",
+        "do i have anything due on learn",
+        "list my upcoming deadlines",
+        "is anything due tonight"
+      ],
+      "learned": []
+    },
+    "claude.grades": {
+      "kind": "claude-only",
+      "examples": [
+        "did my midterm get graded",
+        "any new grades",
+        "what did i get on a5",
+        "has my cs 137 assignment been marked",
+        "check crowdmark for new grades",
+        "are my grades out",
+        "what's my mark on the quiz",
+        "did i get feedback on the lab",
+        "any grades on learn",
+        "has the exam been graded"
+      ],
+      "learned": []
+    }
+  }
+}

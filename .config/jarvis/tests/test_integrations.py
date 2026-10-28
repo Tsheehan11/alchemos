@@ -123,7 +123,7 @@ brain = B.Brain(Cfg(jarvisAutoAddAssignments=False), confirm, lambda label: None
 
 def gate(tool, args=None, fresh=False, auto=False):
     if fresh or brain._req is None:
-        brain._req = {"text": "x", "count": 0, "tools": [], "error": "", "tainted": "", "deadline": 1e18}
+        brain._req = {"text": "x", "count": 0, "tools": [], "calls": [], "error": "", "tainted": "", "deadline": 1e18}
     brain.cfg["jarvisAutoAddAssignments"] = auto
     asked.clear()
     r = asyncio.run(brain._gate(tool, args or {}, None))

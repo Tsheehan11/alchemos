@@ -38,6 +38,8 @@ DEFAULTS = {
     "jarvisPlace": "Waterloo, Ontario", # home town for the weather (read by stark_actions.weather)
     "jarvisAutoAddAssignments": False,  # LEARN sync may write to the dedicated assignments calendar without asking
     "jarvisAssignmentsAccount": "google",   # where "STARK – Assignments" lives: google | microsoft
+    "jarvisDecisions": "local",         # local = regex fast path, then the local router (core/router_local.py), then Claude | claude
+    "jarvisRouterThreshold": 0.70,      # cosine similarity the local router needs to act (tools/eval_router.py to tune)
 }
 
 TIMEOUT_S = 30

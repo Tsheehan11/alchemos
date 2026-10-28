@@ -75,6 +75,7 @@ class Reply:
     error: str = ""          # key into ERRORS, "" if fine
     interrupted: bool = False
     streamed: list = field(default_factory=list)   # sentences already handed to on_sentence
+    calls: list = field(default_factory=list)      # (server, tool, args) for each call the gate allowed
 
 
 # "how much Claude do I have left": answered from the CLI's own rate-limit report, never by the model
@@ -292,6 +293,7 @@ class Brain:
             if not ok:
                 req["tools"][-1] += " [declined]"
                 return PermissionResultDeny(message="Declined. Reply only with a brief acknowledgement to him, such as 'Very well, sir.' Don't retry.")
+        req["calls"].append((server, tool, dict(args)))
         return PermissionResultAllow(updated_input=args)
 
     # ── one request ──
@@ -312,7 +314,7 @@ class Brain:
         strong = strong_needed(text)
         model = self.cfg.model_for(strong)
         reply.tier = f"claude:{model}"
-        self._req = req = {"text": text, "count": 0, "tools": reply.tools, "error": "", "tainted": "",
+        self._req = req = {"text": text, "count": 0, "tools": reply.tools, "calls": reply.calls, "error": "", "tainted": "",
                            "interrupted": False, "deadline": time.monotonic() + C.TIMEOUT_S}
         t0 = time.monotonic()
         trace.t("claude", model=model, warm=self.client is not None)
