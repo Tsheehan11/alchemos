@@ -1,5 +1,5 @@
 {
-  "_doc": "Jarvis's local decision layer (core/router_local.py): example phrases per intent, embedded at start (vectors cached in ~/.local/share/jarvis/router-*.npz). must: a regex the request has to contain before this intent may act (guards for antonyms like open / close). kind: tool (default; runs `tool` locally with `args` + `slots`, slot types in router_local.SLOTS, a trailing ? = optional), chat (always Claude) or claude-only (always Claude; email / calendar / docs / assignments / grades must stay claude-only). say: reply variants with {arg} fields, or @name for a reply built from the result (router_local.RESULT_SAY). learned: added from Claude's single-tool answers; review with `jarvis intents review`.",
+  "_doc": "Jarvis's local decision layer (core/router_local.py): example phrases per intent, embedded at start (vectors cached in ~/.local/share/jarvis/router-*.npz). must: a regex the request has to contain before this intent may act (guards for antonyms like open / close). kind: tool (default; runs `tool` locally with `args` + `slots`, slot types in router_local.SLOTS, a trailing ? = optional), chat (always Claude) or claude-only (always Claude; email / calendar / docs / assignments / grades must stay claude-only). say: reply variants with {arg} fields, or @name for a reply built from the result (router_local.RESULT_SAY). Self-learned examples are kept out of this file, in ~/.local/share/jarvis/learned_intents.json (review with `jarvis intents review`).",
   "intents": {
     "open_app": {
       "tool": "open_app",
@@ -28,8 +28,7 @@
         "open up the terminal",
         "start kitty",
         "launch the code editor"
-      ],
-      "learned": []
+      ]
     },
     "close_window": {
       "tool": "close_focused_window",
@@ -49,7 +48,6 @@
         "quit this app",
         "close it"
       ],
-      "learned": [],
       "must": "\\b(?:close|kill|quit|exit|get rid of|shut)\\b"
     },
     "switch_workspace": {
@@ -72,8 +70,7 @@
         "switch to the third workspace",
         "move to workspace seven",
         "change to workspace 1"
-      ],
-      "learned": []
+      ]
     },
     "move_window": {
       "tool": "move_window_to_workspace",
@@ -95,8 +92,7 @@
         "move it to desktop three",
         "relocate this window to workspace 4",
         "push this to workspace 8"
-      ],
-      "learned": []
+      ]
     },
     "set_theme": {
       "tool": "set_theme",
@@ -126,8 +122,7 @@
         "solar theme please",
         "change the theme",
         "matrix mode for the hud"
-      ],
-      "learned": []
+      ]
     },
     "lights.power": {
       "tool": "lights",
@@ -151,8 +146,7 @@
         "switch the lights on",
         "turn off the leds",
         "power the lights on"
-      ],
-      "learned": []
+      ]
     },
     "lights.brightness": {
       "tool": "lights",
@@ -179,8 +173,7 @@
         "bring the lights up to seventy percent",
         "lower the lights to 25 percent",
         "set brightness of the leds to 90"
-      ],
-      "learned": []
+      ]
     },
     "lights.mode": {
       "tool": "lights",
@@ -205,8 +198,7 @@
         "music mode on the lights",
         "have the lights follow the beat",
         "lights on theme colors"
-      ],
-      "learned": []
+      ]
     },
     "media.play": {
       "tool": "media",
@@ -228,8 +220,7 @@
         "continue the song",
         "hit play",
         "play my music"
-      ],
-      "learned": []
+      ]
     },
     "media.pause": {
       "tool": "media",
@@ -251,8 +242,7 @@
         "freeze the music",
         "pause spotify",
         "hit pause"
-      ],
-      "learned": []
+      ]
     },
     "media.next": {
       "tool": "media",
@@ -274,8 +264,7 @@
         "change the song",
         "skip ahead to the next track",
         "next"
-      ],
-      "learned": []
+      ]
     },
     "media.previous": {
       "tool": "media",
@@ -297,8 +286,7 @@
         "last song",
         "skip back",
         "rewind to the previous song"
-      ],
-      "learned": []
+      ]
     },
     "media.volume_up": {
       "tool": "media",
@@ -320,8 +308,7 @@
         "increase the volume",
         "a bit louder please",
         "pump up the volume"
-      ],
-      "learned": []
+      ]
     },
     "media.volume_down": {
       "tool": "media",
@@ -343,8 +330,7 @@
         "a bit softer",
         "bring the volume down",
         "it's too loud"
-      ],
-      "learned": []
+      ]
     },
     "media.set_volume": {
       "tool": "media",
@@ -369,8 +355,7 @@
         "set the sound level to 45 percent",
         "turn the volume to eighty",
         "audio at 35 percent"
-      ],
-      "learned": []
+      ]
     },
     "media.mute": {
       "tool": "media",
@@ -392,7 +377,6 @@
         "mute audio",
         "unmute please"
       ],
-      "learned": [],
       "must": "\\b(?:un ?mute|mute|silence|sound)\\b"
     },
     "what_is_playing": {
@@ -409,8 +393,7 @@
         "which song is playing right now",
         "who is this artist",
         "what's the current track"
-      ],
-      "learned": []
+      ]
     },
     "status.overview": {
       "tool": "system_status",
@@ -426,8 +409,7 @@
         "what's the cpu usage",
         "status report",
         "how are the systems"
-      ],
-      "learned": []
+      ]
     },
     "status.battery": {
       "tool": "system_status",
@@ -443,8 +425,7 @@
         "is the laptop plugged in",
         "check the battery",
         "battery percentage"
-      ],
-      "learned": []
+      ]
     },
     "status.temperature": {
       "tool": "system_status",
@@ -460,8 +441,7 @@
         "how hot is the laptop running",
         "processor temperature",
         "is the cpu running hot"
-      ],
-      "learned": []
+      ]
     },
     "vpn.status": {
       "tool": "vpn",
@@ -480,8 +460,7 @@
         "what's my vpn doing",
         "is proton connected",
         "am i protected"
-      ],
-      "learned": []
+      ]
     },
     "vpn.control": {
       "tool": "vpn",
@@ -505,8 +484,7 @@
         "get me on proton",
         "kill the vpn",
         "log into the campus vpn"
-      ],
-      "learned": []
+      ]
     },
     "open_uwcs": {
       "tool": "open_uwcs",
@@ -529,7 +507,6 @@
         "remote into the cs environment",
         "connect to linux student cs"
       ],
-      "learned": [],
       "must": "\\b(?:uw ?cs|cs (?:server|servers|environment)|student (?:server|servers|cs)|linux (?:server|servers|student)|school servers|ubuntu|ssh)\\b"
     },
     "lock_screen": {
@@ -550,7 +527,6 @@
         "screen lock",
         "lock the laptop"
       ],
-      "learned": [],
       "must": "\\block"
     },
     "power": {
@@ -575,7 +551,6 @@
         "sign me out",
         "shut it all down"
       ],
-      "learned": [],
       "must": "\\b(?:shut ?down|restart|reboot|sleep|suspend|hibernate|log ?(?:me )?out|sign ?(?:me )?out|power (?:off|down)|turn off (?:the |my )?(?:computer|pc|laptop|system|machine))\\b"
     },
     "set_timer": {
@@ -601,8 +576,7 @@
         "timer for 45 seconds",
         "set a tea timer for four minutes",
         "put a 25 minute timer on"
-      ],
-      "learned": []
+      ]
     },
     "list_reminders": {
       "tool": "list_reminders",
@@ -618,8 +592,7 @@
         "check my timer",
         "is my timer still running",
         "timers"
-      ],
-      "learned": []
+      ]
     },
     "weather.now": {
       "tool": "weather",
@@ -640,8 +613,7 @@
         "how hot is it outside today",
         "what's the weather in ottawa",
         "how's the weather in chicago right now"
-      ],
-      "learned": []
+      ]
     },
     "weather.tomorrow": {
       "tool": "weather",
@@ -660,8 +632,7 @@
         "is it going to snow tomorrow",
         "what's tomorrow looking like weather wise",
         "tomorrow's weather"
-      ],
-      "learned": []
+      ]
     },
     "widget.clock": {
       "tool": "widget_add",
@@ -689,8 +660,7 @@
         "add a clock in the top right",
         "put a world clock for paris up",
         "put a clock for berlin on the main monitor"
-      ],
-      "learned": []
+      ]
     },
     "widget.stats": {
       "tool": "widget_add",
@@ -715,8 +685,7 @@
         "show me a stats panel",
         "add a ram and cpu widget",
         "put stats in the corner"
-      ],
-      "learned": []
+      ]
     },
     "widget.stopwatch": {
       "tool": "widget_add",
@@ -742,8 +711,7 @@
         "show a stopwatch on the laptop screen",
         "begin a stopwatch",
         "count up from zero"
-      ],
-      "learned": []
+      ]
     },
     "widget.media": {
       "tool": "widget_add",
@@ -769,8 +737,7 @@
         "show the player widget",
         "music widget on the laptop",
         "add a spotify widget"
-      ],
-      "learned": []
+      ]
     },
     "widget.clear": {
       "tool": "widget_remove",
@@ -796,7 +763,6 @@
         "take down all widgets",
         "wipe the widgets"
       ],
-      "learned": [],
       "must": "\\b(?:clear|remove|wipe|get rid of|close|take down|clean)\\b"
     },
     "widget.list": {
@@ -811,8 +777,7 @@
         "how many widgets do i have",
         "what widgets do i have open",
         "any widgets running"
-      ],
-      "learned": []
+      ]
     },
     "other": {
       "kind": "chat",
@@ -845,8 +810,7 @@
         "what time is sunset",
         "recommend a good movie",
         "what is the speed of light"
-      ],
-      "learned": []
+      ]
     },
     "claude.freeform": {
       "kind": "claude-only",
@@ -864,8 +828,7 @@
         "move the clock to the top left",
         "make the timer widget bigger",
         "pin the stats widget"
-      ],
-      "learned": []
+      ]
     },
     "claude.email": {
       "kind": "claude-only",
@@ -880,8 +843,7 @@
         "summarize my unread messages",
         "any mail from amazon",
         "check outlook"
-      ],
-      "learned": []
+      ]
     },
     "claude.calendar": {
       "kind": "claude-only",
@@ -896,8 +858,7 @@
         "when's my dentist appointment",
         "what's on the agenda",
         "is my afternoon free"
-      ],
-      "learned": []
+      ]
     },
     "claude.docs": {
       "kind": "claude-only",
@@ -912,8 +873,7 @@
         "find the slides for my presentation",
         "look up the file called project plan",
         "what docs did i edit yesterday"
-      ],
-      "learned": []
+      ]
     },
     "claude.assignments": {
       "kind": "claude-only",
@@ -928,8 +888,7 @@
         "do i have anything due on learn",
         "list my upcoming deadlines",
         "is anything due tonight"
-      ],
-      "learned": []
+      ]
     },
     "claude.grades": {
       "kind": "claude-only",
@@ -944,8 +903,7 @@
         "did i get feedback on the lab",
         "any grades on learn",
         "has the exam been graded"
-      ],
-      "learned": []
+      ]
     }
   }
 }

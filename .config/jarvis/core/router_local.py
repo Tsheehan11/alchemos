@@ -3,7 +3,7 @@ Local decision layer: between the regex fast path and Claude, offline, no AI ser
 
   utterance → sentence embedding (ONNX on the CPU, ~2-5 ms) → nearest example phrase in
   intents.json (cosine) → act locally only if
-      best score ≥ threshold (Settings → JARVIS, default 0.75)
+      best score ≥ threshold (Settings → JARVIS, default 0.70)
       and it beats the best *other* intent by ≥ GAP
       and that intent is a stark tool (not "chat" / "claude-only")
       and the request contains the intent's anchor words, if it has any ("must")
@@ -16,8 +16,10 @@ Jarvis.run_steps: same confirmations, dry-run and spoken result as the fast path
 
 Self-learning: when a request falls through and Claude calls exactly one stark tool whose
 arguments this module can also pull out of the transcript, the transcript becomes a new
-"learned" example for that intent (deduplicated, capped). `jarvis intents review` lists
-and removes them. Every decision is logged to jarvis_db.router_log.
+learned example for that intent (deduplicated, capped). Learned examples live in
+~/.local/share/jarvis/learned_intents.json (untracked), not in intents.json; both are
+merged at load. `jarvis intents review` lists and removes them. Every decision is logged
+to jarvis_db.router_log.
 
 Needs onnxruntime, tokenizers, huggingface_hub (already in the venv for Kokoro / whisper) and rapidfuzz.
 The model files download from Hugging Face on the first start, then load offline.
@@ -100,15 +102,58 @@ class Embedder:
         return np.asarray(out, dtype=np.float32)
 
 
-# ── intents.json ──
+# ── intents.json (tracked, hand-written) + learned_intents.json (untracked, self-learned) ──
+LEARNED_DOC = ("Router examples Jarvis learned from Claude's single-tool answers (core/router_local.py), "
+               "merged with ~/.config/jarvis/intents.json at load. Review: jarvis intents review.")
+
+
+def _write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    tmp.replace(path)
+
+
 def load_intents():
     return json.loads(INTENTS_FILE.read_text())
 
 
 def save_intents(data):
-    tmp = INTENTS_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    tmp.replace(INTENTS_FILE)
+    _write_json(INTENTS_FILE, data)
+
+
+def learned_file():
+    return C.DATA_DIR / "learned_intents.json"       # looked up each time: tests point DATA_DIR elsewhere
+
+
+def load_learned():
+    """{intent: [examples]}"""
+    try:
+        return json.loads(learned_file().read_text()).get("learned", {})
+    except (OSError, ValueError):
+        return {}
+
+
+def save_learned(learned):
+    _write_json(learned_file(), {"_doc": LEARNED_DOC, "learned": {k: v for k, v in learned.items() if v}})
+
+
+def migrate_learned():
+    """Move any "learned" lists still inside intents.json (where they lived before 2026-10-28) into
+    the untracked learned file. Returns how many examples moved; rewrites intents.json only if needed."""
+    data = load_intents()
+    if not any("learned" in it for it in data["intents"].values()):
+        return 0
+    learned, moved = load_learned(), 0
+    for name, it in data["intents"].items():
+        for ex in it.pop("learned", None) or []:
+            if norm_text(ex) not in {norm_text(x) for x in learned.get(name, [])}:
+                learned.setdefault(name, []).append(ex)
+                moved += 1
+    if moved:
+        save_learned(learned)
+    save_intents(data)
+    return moved
 
 
 def norm_text(s):
@@ -375,10 +420,13 @@ class LocalRouter:
         self._load()
 
     def _load(self):
+        if migrate_learned():
+            self.log("JARVIS: moved learned router examples to " + str(learned_file()))
         self.data = load_intents()
+        self.learned = load_learned()
         labels, texts = [], []
         for name, it in self.data["intents"].items():
-            for ex in it.get("examples", []) + it.get("learned", []):
+            for ex in it.get("examples", []) + self.learned.get(name, []):
                 labels.append(name)
                 texts.append(norm_text(ex))
         h = hashlib.sha1(("\n".join(f"{l}\t{t}" for l, t in zip(labels, texts)) + self.emb.name).encode()).hexdigest()[:16]
@@ -482,13 +530,12 @@ class LocalRouter:
         if not target:
             return None
         with self.lock:
-            data = load_intents()
-            it = data["intents"][target]
-            known = {norm_text(x) for x in it.get("examples", []) + it.get("learned", [])}
+            learned = load_learned()
+            known = {norm_text(x) for x in self.data["intents"][target].get("examples", []) + learned.get(target, [])}
             if t in known:
                 return None
-            it["learned"] = (it.get("learned", []) + [t])[-LEARN_CAP:]
-            save_intents(data)
+            learned[target] = (learned.get(target, []) + [t])[-LEARN_CAP:]
+            save_learned(learned)
             self._load()
         self.log(f'JARVIS: learned "{t}" → {target}')
         return target
@@ -532,13 +579,16 @@ class LocalRouter:
 
 # ── `jarvis intents …` (no model needed) ──
 def cli(argv):
-    data = load_intents()
-    learned = [(name, i, ex) for name, it in data["intents"].items() for i, ex in enumerate(it.get("learned", []))]
+    migrate_learned()
+    data, store = load_intents(), load_learned()
+    learned = [(name, i, ex) for name, exs in store.items() for i, ex in enumerate(exs)]
     cmd = argv[0] if argv else "list"
     if cmd == "list":
         for name, it in data["intents"].items():
+            n = len(store.get(name, []))
             print(f"{name:<24} {it.get('kind', 'tool'):<12} {len(it.get('examples', [])):>3} examples"
-                  f"{'  + ' + str(len(it.get('learned', []))) + ' learned' if it.get('learned') else ''}")
+                  f"{'  + ' + str(n) + ' learned' if n else ''}")
+        print(f"learned examples: {learned_file()}")
         return 0
     if cmd == "log":
         import jarvis_db as db
@@ -555,7 +605,7 @@ def cli(argv):
         return 0
     if cmd == "review":
         for n, (name, _, ex) in enumerate(learned, 1):
-            print(f"{n:>3}  {name:<24} {ex}")
+            print(f"{n:>3}  {name:<24} {ex}{'   (intent no longer in intents.json)' if name not in data['intents'] else ''}")
         import sys
         if not sys.stdin.isatty():
             return 0
@@ -567,9 +617,6 @@ def cli(argv):
     except (ValueError, IndexError):
         print("Pick numbers from the list.")
         return 2
-    for name, it in data["intents"].items():
-        if it.get("learned"):
-            it["learned"] = [ex for i, ex in enumerate(it["learned"]) if (name, i) not in drop]
-    save_intents(data)
+    save_learned({name: [ex for i, ex in enumerate(exs) if (name, i) not in drop] for name, exs in store.items()})
     print(f"Removed {len(drop)}.")
     return 0
