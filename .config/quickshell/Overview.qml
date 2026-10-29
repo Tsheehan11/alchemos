@@ -58,7 +58,11 @@ PanelWindow {
 
     function go(i) {
         if (i < 0 || i >= n) return;
-        Hyprland.dispatch(Hypr.workspace(ids[i]));
+        goTo(ids[i]);
+    }
+    function goTo(id) {
+        if (OverviewData.isPeeked(id)) Peek.go(id);   // its windows back first, then there
+        else Hyprland.dispatch(Hypr.workspace(id));
         LauncherState.closeAll();
     }
 
@@ -118,10 +122,8 @@ PanelWindow {
             else if (e.key === Qt.Key_Left || e.key === Qt.Key_Up || e.key === Qt.Key_Backtab) ov.turn(-1);
             else if (e.key === Qt.Key_Right || e.key === Qt.Key_Down || e.key === Qt.Key_Tab) ov.turn(1);
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space) ov.go(ov.frontIndex);
-            else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_9) {
-                Hyprland.dispatch(Hypr.workspace(e.key - Qt.Key_0));
-                LauncherState.closeAll();
-            } else return;
+            else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_9) ov.goTo(e.key - Qt.Key_0);
+            else return;
             e.accepted = true;
         }
     }
@@ -139,8 +141,9 @@ PanelWindow {
             readonly property bool front: index === ov.frontIndex
             readonly property bool current: modelData === OverviewData.activeOn(ov.modelData.name) || (!Roles.docked && modelData === (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1))
             readonly property var wins: OverviewData.clientsOn(modelData)
+            readonly property bool peeked: OverviewData.isPeeked(modelData)
             readonly property var mon: {
-                const w = OverviewData.workspaces.find(w => w.id === modelData);
+                const w = OverviewData.workspaces.find(w => OverviewData.homeId(w) === modelData);
                 return (w && OverviewData.monitorByName(w.monitor)) || OverviewData.monitorByName(ov.modelData.name) || { x: 0, y: 0, width: ov.width, height: ov.height };
             }
             readonly property real k: ov.panelW / mon.width
@@ -178,11 +181,12 @@ PanelWindow {
                 border.width: panel.front ? 2 : 1
                 clip: true
 
-                // Window previews
+                // Window previews (dimmed while Peek hides them)
                 Repeater {
                     model: panel.wins
                     delegate: Item {
                         required property var modelData
+                        opacity: panel.peeked ? 0.4 : 1
                         readonly property var wm: OverviewData.monitorById(modelData.monitor) || panel.mon
                         x: (modelData.at[0] - wm.x) * panel.k
                         y: (modelData.at[1] - wm.y) * panel.k
@@ -267,7 +271,7 @@ PanelWindow {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: panel.wins.length + (panel.wins.length === 1 ? " WINDOW" : " WINDOWS") + (panel.current ? "  ·  ACTIVE" : "")
+                    text: panel.wins.length + (panel.wins.length === 1 ? " WINDOW" : " WINDOWS") + (panel.peeked ? "  ·  PEEK" : "") + (panel.current ? "  ·  ACTIVE" : "")
                     color: panel.current ? Theme.secondary : Theme.dim
                     font.family: ov.mono; font.pixelSize: 11; font.letterSpacing: 2
                 }

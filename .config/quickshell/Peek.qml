@@ -18,14 +18,20 @@ Singleton {
     readonly property string prefix: "special:peek"
     // ids of the workspaces whose windows are hidden
     readonly property var peeked: Hyprland.workspaces.values
-        .filter(w => w.name.startsWith(root.prefix))
-        .map(w => Number(w.name.slice(root.prefix.length)))
-    readonly property bool active: peeked.length > 0
+        .map(w => /^special:peek(\d+)$/.exec(w.name)).filter(m => m).map(m => Number(m[1]))
+    readonly property bool active: (peeked || []).length > 0
+
+    // "special:peek4" → 4: the workspace those windows belong to (-1 for any other name)
+    function homeOf(name) {
+        const m = /^special:peek(\d+)$/.exec(String(name || ""));
+        return m ? Number(m[1]) : -1;
+    }
 
     function run(call) { Quickshell.execDetached(Hypr.luaEval("require(\"stark.peek\")." + call)); }
     function toggle() { run("toggle()"); }
     function restore(id) { run("restore(" + Number(id) + ")"); }
     function restoreAll() { run("restore_all()"); }
+    function go(id) { run("go(" + Number(id) + ")"); }   // overview: restore, then switch there
 
     Connections {
         target: LockState
