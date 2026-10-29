@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 import Quickshell.Services.Pipewire
 
 PanelWindow {
@@ -41,7 +42,7 @@ PanelWindow {
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); refreshSoon.restart(); }
     function openApp(cmd) {
         if (cmd.startsWith("@settings")) { LauncherState.openSettings(cmd.split(":")[1] || ""); return; }
-        Hyprland.dispatch("exec " + cmd);
+        Hyprland.dispatch(Hypr.exec(cmd));
         LauncherState.closeAll();
     }
 

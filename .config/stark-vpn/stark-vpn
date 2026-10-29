@@ -195,7 +195,9 @@ def nm_connect(p):
         cmd = " ".join(shlex.quote(x) for x in
                        ["kitty", "--class", AUTH_CLASS, "--title", "STARK // " + p.get("label", p["id"]),
                         "sh", "-c", AUTH_SCRIPT, "sh"] + args)
-        run(["hyprctl", "dispatch", "exec", "[float; size 760 420; center] " + cmd], 10)
+        lua_cmd = '"' + cmd.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'   # Lua string literal
+        run(["hyprctl", "dispatch",
+             f'hl.dsp.exec_cmd({lua_cmd}, {{ float = true, size = "760 420", center = true }})'], 10)
         # Wait for the login to finish, or for the window to be closed without one
         seen, end = False, time.time() + 600
         while time.time() < end and not AUTH_RC.exists():

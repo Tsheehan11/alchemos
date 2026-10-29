@@ -22,7 +22,7 @@ Singleton {
         s += "general {\n";
         s += "    lock_cmd = ~/.config/hypr/stark-lock.sh\n";
         s += "    before_sleep_cmd = loginctl lock-session\n";
-        s += "    after_sleep_cmd = hyprctl dispatch dpms on\n";
+        s += "    after_sleep_cmd = ~/.config/hypr/stark-dpms.sh on\n";
         s += "    ignore_dbus_inhibit = false\n";
         s += "    inhibit_sleep = 3          # don't sleep until the lock screen is really up\n";
         s += "}\n\n";
@@ -31,7 +31,7 @@ Singleton {
         if (c.idleLock > 0)
             s += "listener {\n    timeout = " + c.idleLock * 60 + "\n    on-timeout = loginctl lock-session\n}\n\n";
         if (c.idleScreenOff > 0)
-            s += "listener {\n    timeout = " + c.idleScreenOff * 60 + "\n    on-timeout = hyprctl dispatch dpms off\n    on-resume = hyprctl dispatch dpms on\n}\n\n";
+            s += "listener {\n    timeout = " + c.idleScreenOff * 60 + "\n    on-timeout = ~/.config/hypr/stark-dpms.sh off\n    on-resume = ~/.config/hypr/stark-dpms.sh on\n}\n\n";
         if (c.idleSleep > 0)
             s += "listener {\n    timeout = " + c.idleSleep * 60 + "\n    on-timeout = ~/.local/bin/stark-govee suspend\n}\n";
         return s;

@@ -33,7 +33,7 @@ fi
 # 2. Dark. If logind already suspended while we waited, this runs after the wake, with
 # the lid open again: then leave the screen on.
 lid_closed || exit 0
-hyprctl dispatch dpms off >/dev/null
+"$HOME/.config/hypr/stark-dpms.sh" off >/dev/null
 
 # 3. logind on its way to sleep? Then we're done. Otherwise it ignored the lid (holdoff
 # after waking): suspend ourselves, if the lid is still closed.

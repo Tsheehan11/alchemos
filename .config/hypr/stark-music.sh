@@ -15,12 +15,12 @@ if [ -z "$ws" ]; then
     done
     [ -z "$ws" ] && exit 1
     # The windowrule sends it to special:music; make sure it is visible here.
-    [ "$ws" != special:music ] && hyprctl dispatch movetoworkspacesilent "special:music,class:^(Spotify)$" >/dev/null
-    music_shown || hyprctl dispatch togglespecialworkspace music >/dev/null
+    [ "$ws" != special:music ] && hyprctl dispatch 'hl.dsp.window.move({ window = "class:^(Spotify)$", workspace = "special:music", follow = false })' >/dev/null
+    music_shown || hyprctl dispatch 'hl.dsp.workspace.toggle_special("music")' >/dev/null
     exit 0
 fi
 
 # Running but dragged onto a normal workspace: pull it back before toggling,
 # otherwise the toggle opens an empty scratchpad.
-[ "$ws" != special:music ] && hyprctl dispatch movetoworkspacesilent "special:music,class:^(Spotify)$" >/dev/null
-hyprctl dispatch togglespecialworkspace music >/dev/null
+[ "$ws" != special:music ] && hyprctl dispatch 'hl.dsp.window.move({ window = "class:^(Spotify)$", workspace = "special:music", follow = false })' >/dev/null
+hyprctl dispatch 'hl.dsp.workspace.toggle_special("music")' >/dev/null

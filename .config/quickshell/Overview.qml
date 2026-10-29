@@ -9,6 +9,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 PanelWindow {
     id: ov
@@ -57,7 +58,7 @@ PanelWindow {
 
     function go(i) {
         if (i < 0 || i >= n) return;
-        Hyprland.dispatch("workspace " + ids[i]);
+        Hyprland.dispatch(Hypr.workspace(ids[i]));
         LauncherState.closeAll();
     }
 
@@ -118,7 +119,7 @@ PanelWindow {
             else if (e.key === Qt.Key_Right || e.key === Qt.Key_Down || e.key === Qt.Key_Tab) ov.turn(1);
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space) ov.go(ov.frontIndex);
             else if (e.key >= Qt.Key_1 && e.key <= Qt.Key_9) {
-                Hyprland.dispatch("workspace " + (e.key - Qt.Key_0));
+                Hyprland.dispatch(Hypr.workspace(e.key - Qt.Key_0));
                 LauncherState.closeAll();
             } else return;
             e.accepted = true;

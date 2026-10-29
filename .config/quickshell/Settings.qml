@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 PanelWindow {
     id: st
@@ -144,7 +145,7 @@ PanelWindow {
                         spacing: 10
                         visible: wifi.on
                         SmallButton { text: "RESCAN"; onClicked: st.act(["nmcli", "dev", "wifi", "rescan"], "Scanning") }
-                        SmallButton { text: "ADVANCED (NMTUI)"; onClicked: { Hyprland.dispatch("exec kitty -e nmtui"); LauncherState.closeAll(); } }
+                        SmallButton { text: "ADVANCED (NMTUI)"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty -e nmtui")); LauncherState.closeAll(); } }
                     }
 
                     // VPN (VPN.qml / stark-vpn)
@@ -599,7 +600,7 @@ PanelWindow {
                     Row {
                         spacing: 10
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
-                        SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch("exec kate ~/.config/quickshell"); LauncherState.closeAll(); } }
+                        SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/quickshell")); LauncherState.closeAll(); } }
                     }
                 }
 
@@ -697,7 +698,7 @@ PanelWindow {
                                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.connected ? "RECONNECT" : "CONNECT"
                                 active: modelData.connected
-                                onClicked: { Hyprland.dispatch("exec kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis connect " + modelData.auth); LauncherState.closeAll(); }
+                                onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis connect " + modelData.auth)); LauncherState.closeAll(); }
                             }
                         }
                     }
@@ -707,8 +708,8 @@ PanelWindow {
                     Row {
                         spacing: 10
                         SmallButton { text: "TEST VOICE"; onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "At your service, sir."]) }
-                        SmallButton { text: "MISSED COMMANDS"; onClicked: { Hyprland.dispatch("exec kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis --misses"); LauncherState.closeAll(); } }
-                        SmallButton { text: "EDIT JARVIS"; onClicked: { Hyprland.dispatch("exec kate ~/.config/jarvis"); LauncherState.closeAll(); } }
+                        SmallButton { text: "MISSED COMMANDS"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis --misses")); LauncherState.closeAll(); } }
+                        SmallButton { text: "EDIT JARVIS"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/jarvis")); LauncherState.closeAll(); } }
                     }
                     Text { width: parent.width; wrapMode: Text.Wrap; text: "Claude runs on your Pro login (no API key). Memory: ~/.local/share/jarvis/jarvis.db"; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
                 }
@@ -759,8 +760,8 @@ PanelWindow {
                     Text { text: "Unlock the lock screen with your finger (your password always works too)."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
                     Row {
                         spacing: 10
-                        SmallButton { text: "ENROLL A FINGER"; onClicked: { Hyprland.dispatch("exec kitty -e sh -c 'fprintd-enroll; echo; read -p \"Press Enter to close\"'"); LauncherState.closeAll(); } }
-                        SmallButton { text: "TEST"; onClicked: { Hyprland.dispatch("exec kitty -e sh -c 'fprintd-verify; echo; read -p \"Press Enter to close\"'"); LauncherState.closeAll(); } }
+                        SmallButton { text: "ENROLL A FINGER"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty -e sh -c 'fprintd-enroll; echo; read -p \"Press Enter to close\"'")); LauncherState.closeAll(); } }
+                        SmallButton { text: "TEST"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty -e sh -c 'fprintd-verify; echo; read -p \"Press Enter to close\"'")); LauncherState.closeAll(); } }
                         ConfirmButton { label: "REMOVE ALL"; onConfirmed: st.act(["fprintd-delete", Quickshell.env("USER")], "Removing fingerprints") }
                     }
 
@@ -832,16 +833,16 @@ PanelWindow {
                     Text { text: "Effects, power and notification changes apply the next time it engages."; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
                     Row {
                         spacing: 10
-                        SmallButton { text: "EDIT GAMES LIST"; onClicked: { Hyprland.dispatch("exec kate ~/.config/stark-game/games.conf"); LauncherState.closeAll(); } }
+                        SmallButton { text: "EDIT GAMES LIST"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/stark-game/games.conf")); LauncherState.closeAll(); } }
                         Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/stark-game/games.conf"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
                     }
 
                     Text { text: "CONFIG"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10
-                        SmallButton { text: "HYPRLAND CONFIG"; onClicked: { Hyprland.dispatch("exec kate ~/.config/hypr/hyprland.conf"); LauncherState.closeAll(); } }
-                        SmallButton { text: "IDLE / SLEEP"; onClicked: { Hyprland.dispatch("exec kate ~/.config/hypr/hypridle.conf"); LauncherState.closeAll(); } }
-                        SmallButton { text: "FULL KDE SETTINGS"; onClicked: { Hyprland.dispatch("exec systemsettings"); LauncherState.closeAll(); } }
+                        SmallButton { text: "HYPRLAND CONFIG"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hyprland.lua ~/.config/hypr/stark/*.lua")); LauncherState.closeAll(); } }
+                        SmallButton { text: "IDLE / SLEEP"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hypridle.conf")); LauncherState.closeAll(); } }
+                        SmallButton { text: "FULL KDE SETTINGS"; onClicked: { Hyprland.dispatch(Hypr.exec("systemsettings")); LauncherState.closeAll(); } }
                     }
 
                     Text { text: "SESSION"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }

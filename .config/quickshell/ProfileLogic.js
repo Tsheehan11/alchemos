@@ -1,6 +1,7 @@
 // Display profiles: the pure decisions (no Quickshell), so they can be tested on their own.
 // Profiles.qml does the I/O. A "monitor" is an entry of `hyprctl monitors all -j`.
 .pragma library
+.import "Hypr.js" as Hypr
 
 var LAPTOP = "eDP-1";
 
@@ -97,10 +98,13 @@ function rulesFromMonitors(mons, layout) {
     });
 }
 
+// ~/.config/hypr/stark/display-profile.lua: the rules as hl.monitor specs, read by
+// stark/monitors.lua after its own monitor rules (so these win)
 function confText(key, rules) {
-    var s = "# STARK OS — screen arrangement for the \"" + nameFor(key) + "\" display profile.\n";
-    s += "# Written by the HUD (Profiles.qml) from ~/.config/quickshell/display-profiles.json;\n";
-    s += "# edit it in Settings → Display. Loaded after hyprland.conf, so these lines win.\n";
-    rules.forEach(function (r) { s += "monitor = " + r + "\n"; });
-    return s;
+    var s = "-- STARK OS — screen arrangement for the \"" + nameFor(key) + "\" display profile.\n";
+    s += "-- Written by the HUD (Profiles.qml) from ~/.config/quickshell/display-profiles.json;\n";
+    s += "-- edit it in Settings → Display. Applied by stark/monitors.lua, after its own rules.\n";
+    s += "return {\n";
+    rules.forEach(function (r) { s += "    " + Hypr.lua(Hypr.monitorSpec(r)) + ",\n"; });
+    return s + "}\n";
 }

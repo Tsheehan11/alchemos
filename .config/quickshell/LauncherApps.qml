@@ -12,6 +12,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 Singleton {
     id: root
@@ -105,7 +106,7 @@ Singleton {
         if (app.exec === "@control") { LauncherState.openControl(); return false; }
         if (app.exec === "@lock") { LockState.requestLock(); return false; }
         if (app.entry) app.entry.execute();
-        else Hyprland.dispatch("exec " + app.exec);
+        else Hyprland.dispatch(Hypr.exec(app.exec));
         return true;
     }
 

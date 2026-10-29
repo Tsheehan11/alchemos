@@ -11,6 +11,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 Singleton {
     id: root
@@ -55,13 +56,13 @@ Singleton {
         const existing = Hyprland.workspaces.values.map(w => w.id);
         for (const ws in homes) {
             if (existing.indexOf(Number(ws)) >= 0)
-                Hyprland.dispatch("moveworkspacetomonitor " + ws + " " + homes[ws]);
+                Hyprland.dispatch(Hypr.workspaceTo(ws, homes[ws]));
         }
     }
 
     // At login: laptop only → start on workspace 1; docked → make sure everything is home
     Component.onCompleted: {
-        if (!root.docked) Hyprland.dispatch("workspace 1");
+        if (!root.docked) Hyprland.dispatch(Hypr.workspace(1));
         else redock.restart();
     }
 

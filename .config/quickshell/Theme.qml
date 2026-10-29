@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 Singleton {
     id: root
@@ -184,14 +185,15 @@ Singleton {
 
     // Keep Hyprland's window borders in the theme colors
     function pushToHyprland() {
-        Quickshell.execDetached(["hyprctl", "keyword", "general:col.active_border",
-            "rgba(" + hex(primary) + "ee) rgba(" + hex(primary) + "55) 45deg"]);
-        Quickshell.execDetached(["hyprctl", "keyword", "general:col.inactive_border",
-            "rgba(" + hex(primary) + "22)"]);
-        Quickshell.execDetached(["hyprctl", "keyword", "decoration:shadow:color",
-            "rgba(" + hex(primary) + "40)"]);
-        Quickshell.execDetached(["hyprctl", "keyword", "misc:background_color",
-            "rgb(" + hex(bg) + ")"]);
+        const p = hex(primary);
+        Quickshell.execDetached(Hypr.config({
+            general: { col: {
+                active_border: { colors: ["rgba(" + p + "ee)", "rgba(" + p + "55)"], angle: 45 },
+                inactive_border: "rgba(" + p + "22)"
+            } },
+            decoration: { shadow: { color: "rgba(" + p + "40)" } },
+            misc: { background_color: "rgb(" + hex(bg) + ")" }
+        }));
         pushLockConf();
     }
 

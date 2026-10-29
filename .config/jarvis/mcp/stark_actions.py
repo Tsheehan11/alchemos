@@ -66,9 +66,19 @@ def _qs(target, fn, *args):
     return ["qs", "ipc", "call", target, fn, *[str(a) for a in args]]
 
 
+def _lua(s):
+    """A Lua string literal, for Hyprland's Lua dispatchers (hyprctl dispatch 'hl.dsp…')."""
+    s = str(s).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
+    return f'"{s}"'
+
+
+def _hypr_dispatch(dsp):
+    return ["hyprctl", "dispatch", dsp]
+
+
 def _hypr_exec(cmd):
     """Start a program through Hyprland so it isn't a child of Jarvis."""
-    return ["hyprctl", "dispatch", "exec", cmd]
+    return _hypr_dispatch(f"hl.dsp.exec_cmd({_lua(cmd)})")
 
 
 def _norm(s):
@@ -201,10 +211,10 @@ def _show_window(win, found):
         except ValueError:
             shown = set()
         if ws not in shown:
-            r = _do(f"show {ws}", ["hyprctl", "dispatch", "togglespecialworkspace", ws.split(":", 1)[1]])
+            r = _do(f"show {ws}", _hypr_dispatch(f"hl.dsp.workspace.toggle_special({_lua(ws.split(':', 1)[1])})"))
             if not r["ok"]:
                 return r
-    return _do(f"focus {found}", ["hyprctl", "dispatch", "focuswindow", f"address:{win['address']}"], f"{found} is up")
+    return _do(f"focus {found}", _hypr_dispatch(f"hl.dsp.focus({{ window = {_lua('address:' + win['address'])} }})"), f"{found} is up")
 
 
 @safe
@@ -230,7 +240,7 @@ def close_focused_window():
     if not w.get("address"):
         raise Invalid("no window is focused")
     title = w.get("class") or w.get("title") or "window"
-    return _do(f"close {title}", ["hyprctl", "dispatch", "killactive"], f"closed {title}")
+    return _do(f"close {title}", _hypr_dispatch("hl.dsp.window.close()"), f"closed {title}")
 
 
 def focused_window_name():
@@ -248,14 +258,14 @@ def focused_window_name():
 def switch_workspace(n):
     """Switch to workspace n (1-10)."""
     n = _int(n, 1, 10, "workspace")
-    return _do(f"workspace {n}", ["hyprctl", "dispatch", "workspace", str(n)], f"workspace {n}")
+    return _do(f"workspace {n}", _hypr_dispatch(f"hl.dsp.focus({{ workspace = {n} }})"), f"workspace {n}")
 
 
 @safe
 def move_window_to_workspace(n):
     """Move the focused window to workspace n (1-10), following it."""
     n = _int(n, 1, 10, "workspace")
-    return _do(f"move window to workspace {n}", ["hyprctl", "dispatch", "movetoworkspace", str(n)],
+    return _do(f"move window to workspace {n}", _hypr_dispatch(f"hl.dsp.window.move({{ workspace = {n}, follow = true }})"),
                f"window moved to workspace {n}")
 
 
@@ -371,7 +381,7 @@ def media(action, value=""):
         "play": ["playerctl", "play"], "pause": ["playerctl", "pause"],
         "play_pause": ["playerctl", "play-pause"], "next": ["playerctl", "next"],
         "previous": ["playerctl", "previous"],
-        # same commands as the volume keys in hyprland.conf
+        # same commands as the volume keys in hypr/stark/binds.lua
         "volume_up": ["wpctl", "set-volume", "-l", "1", SINK, "10%+"],
         "volume_down": ["wpctl", "set-volume", SINK, "10%-"],
         "mute": ["wpctl", "set-mute", SINK, "1"], "unmute": ["wpctl", "set-mute", SINK, "0"],

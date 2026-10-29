@@ -5,11 +5,45 @@
 #   3. turns the screens back on
 #   4. unlocks hyprlock (SIGUSR1); if hyprlock is gone or hung, puts a fresh lock back
 # Then switch back to Hyprland with Ctrl+Alt+F2.
+#
+# stark-rescue config: when ~/.config/hypr/hyprland.lua won't load (red error bar, only the
+# emergency binds: Super+Q terminal, Super+R run, Super+M exit). Prints Hyprland's config
+# errors; with no Hyprland running (log out first: Super+Shift+M, Super+M in emergency mode,
+# or loginctl terminate-user), starts it on the old hyprland.conf backup instead:
+# start-hyprland -- --config <backup>.
 set -u
 uid=$(id -u)
 user=$(id -un)
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$uid}"
 say() { printf ':: %s\n' "$*"; }
+backup="$HOME/.config/hypr.conf-backup/hyprland.conf"
+
+find_hyprland() {
+    sig=""
+    for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
+        [ -S "$d.socket.sock" ] && sig=$(basename "$d")
+    done
+    [ -n "$sig" ] && export HYPRLAND_INSTANCE_SIGNATURE="$sig"
+}
+
+if [ "${1:-}" = config ]; then
+    find_hyprland
+    if [ -n "$sig" ] && timeout 3 hyprctl version >/dev/null 2>&1; then
+        say "Hyprland is running; its config errors:"
+        timeout 3 hyprctl configerrors
+        say "fix the file it names (the modules are in ~/.config/hypr/stark/), then: hyprctl reload"
+        say "or boot the old .conf: log out (Super+Shift+M; Super+M in emergency mode),"
+        say "log in on a TTY and run: stark-rescue config"
+        exit 0
+    fi
+    [ -f "$backup" ] || { say "no backup at $backup"; exit 1; }
+    case "$(tty)" in
+        /dev/tty*) say "starting Hyprland on the backup: $backup"
+                   exec start-hyprland -- --config "$backup" ;;
+        *)         say "run this from a TTY login (Ctrl+Alt+F3), or by hand: start-hyprland -- --config $backup"
+                   exit 1 ;;
+    esac
+fi
 
 # 1. faillock: the tally file is yours, no sudo needed. sudo itself goes through faillock.
 faillock --user "$user" --reset && say "faillock cleared"
@@ -26,18 +60,24 @@ done
 
 # 3. Find the running Hyprland. Everything below goes through hyprctl, with a timeout in
 # case the compositor itself is stuck.
-sig=""
-for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
-    [ -S "$d.socket.sock" ] && sig=$(basename "$d")
-done
+find_hyprland
 if [ -z "$sig" ]; then
     say "no Hyprland running; nothing to unlock"
     exit 0
 fi
-export HYPRLAND_INSTANCE_SIGNATURE="$sig"
 hc() { timeout 3 hyprctl "$@" >/dev/null 2>&1; }
+# The Lua config (normal) takes Lua dispatchers; the hyprland.conf backup the old syntax
+if [ "$(timeout 3 hyprctl eval 'return 1' 2>/dev/null)" = ok ]; then
+    dpms_on()     { hc dispatch 'hl.dsp.dpms({ action = "enable" })'; }
+    lock_restore() { hc eval 'hl.config({ misc = { allow_session_lock_restore = true } })'; }
+    hexec()       { hc dispatch "hl.dsp.exec_cmd([[$1]])"; }
+else
+    dpms_on()     { hc dispatch dpms on; }
+    lock_restore() { hc keyword misc:allow_session_lock_restore true; }
+    hexec()       { hc dispatch exec "$1"; }
+fi
 
-if hc dispatch dpms on; then
+if dpms_on; then
     say "screens on"
 else
     say "Hyprland isn't answering (hyprctl timed out). If the desktop stays frozen after"
@@ -47,11 +87,11 @@ fi
 
 # 4. Unlock, or restore the lock.
 restore_lock() {
-    hc keyword misc:allow_session_lock_restore true
-    hc dispatch exec "$HOME/.config/hypr/stark-lock.sh"
+    lock_restore
+    hexec "$HOME/.config/hypr/stark-lock.sh"
     sleep 3
     # stark-lock.sh does nothing if its lock file is still held by a stuck run; go direct.
-    pgrep -u "$uid" -x hyprlock >/dev/null || hc dispatch exec hyprlock
+    pgrep -u "$uid" -x hyprlock >/dev/null || hexec hyprlock
     sleep 1
     if pgrep -u "$uid" -x hyprlock >/dev/null; then
         say "lock screen restored; unlock it with your password"

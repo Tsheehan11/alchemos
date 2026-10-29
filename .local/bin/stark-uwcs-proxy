@@ -27,7 +27,8 @@ show() {    # $1 = message file
     [ $(( $(date +%s) - last )) -lt 60 ] && return
     date +%s > "$run/shown"
     cp "$1" "$run/msg"
-    hyprctl dispatch exec "[float; size 760 260; center] kitty --class stark-uwcs-msg --title 'STARK // UW CS' sh -c 'cat \"\$0\"; printf \"\\nEnter to close.\"; read _' $run/msg" >/dev/null 2>&1
+    # [[…]] is a Lua long string: the command goes in exactly as the shell leaves it
+    hyprctl dispatch "hl.dsp.exec_cmd([[kitty --class stark-uwcs-msg --title 'STARK // UW CS' sh -c 'cat \"\$0\"; printf \"\\nEnter to close.\"; read _' $run/msg]], { float = true, size = \"760 260\", center = true })" >/dev/null 2>&1
 }
 
 if [ "$1" = --show ]; then

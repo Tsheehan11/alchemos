@@ -141,10 +141,10 @@ set_line() {
     fi
 }
 
-hypr=$HOME/.config/hypr/hyprland.conf
+hypr=$HOME/.config/hypr/stark/theme.lua
 for v in XCURSOR_SIZE HYPRCURSOR_SIZE XCURSOR_THEME HYPRCURSOR_THEME; do
     val=$size; [[ $v == *THEME ]] && val=$THEME
-    set_line "$hypr" "^env = $v," "env = $v,$val" "^# ── Environment"
+    set_line "$hypr" "^hl\\.env\\(\"$v\"," "hl.env(\"$v\", \"$val\")" "^-- ── Cursor"
 done
 
 for f in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do

@@ -10,6 +10,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 Singleton {
     id: root
@@ -155,6 +156,6 @@ Singleton {
     Timer { id: logoutFallback; interval: Math.max(3000, Math.round(2500 / Govee.animSpeed)); onTriggered: root.exitHyprland() }
     function exitHyprland() {
         logoutFallback.stop();
-        Hyprland.dispatch("exit");
+        Hyprland.dispatch(Hypr.exit());
     }
 }

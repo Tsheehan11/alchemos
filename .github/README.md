@@ -29,7 +29,7 @@ ambient lights · VPN switch · combat (gaming) mode · Jarvis voice control.
 - [How the pieces talk: integration](#how-the-pieces-talk-integration)
 - [Extend it](#extend-it)
 - [Jarvis](#jarvis)
-- [Troubleshooting: lock screen, fingerprint, lid](#troubleshooting-lock-screen-fingerprint-lid)
+- [Troubleshooting: config, lock screen, fingerprint, lid](#troubleshooting-config-lock-screen-fingerprint-lid)
 - [Roadmap](#roadmap)
 
 ---
@@ -42,6 +42,9 @@ ambient lights · VPN switch · combat (gaming) mode · Jarvis voice control.
 hyprland quickshell hyprlock hypridle cava kitty fuzzel brightnessctl playerctl jq
 ttf-jetbrains-mono-nerd networkmanager bluez-utils uv librsvg hyprcursor python-pillow
 ```
+
+Hyprland 0.56 or newer: the config is Lua (`~/.config/hypr/hyprland.lua`, see
+[Hyprland config](#hyprland-config-lua)). hyprlock, hypridle and xdph still use their own `.conf` files.
 
 Optional: `xorg-xcursorgen` (the cursor build falls back to its own `xcursorgen.py`), `protonvpn`
 (for the Proton provider in stark-vpn), `gamemode`.
@@ -73,7 +76,7 @@ local excludes for files the HUD generates:
 stark config filter.stark-code-theme.clean '$HOME/.local/bin/stark-code-settings-clean'
 stark config filter.stark-code-theme.smudge cat
 echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.stark-os/info/attributes
-printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/stark-lock-bg-*' .config/hypr/monitors.conf \
+printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/stark-lock-bg-*' .config/hypr/stark/display-profile.lua \
   .config/kitty/stark-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
   .config/jarvis/.venv/ >> ~/.stark-os/info/exclude
 ```
@@ -82,15 +85,15 @@ Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (st
 
 ### 3. Your hardware
 
-- **Monitors:** `hyprland.conf` matches the two desk monitors by model + serial (`$leftMon`,
-  `$midMon`). Put your own `desc:` strings there (`hyprctl monitors` shows them). Screen *roles*
+- **Monitors:** `hypr/stark/monitors.lua` matches the two desk monitors by model + serial (`leftMon`,
+  `midMon`). Put your own `desc:` strings there (`hyprctl monitors` shows them). Screen *roles*
   are worked out by position, so port names don't matter.
 - **Display profiles:** the desk is detected in `quickshell/ProfileLogic.js`. Change the dock /
   monitor IDs there, or just use **SAVE CURRENT AS THIS PROFILE** in Settings → DISPLAY.
 - **Govee strip:** `stark-govee setup` finds the strip on the LAN and saves its IP;
   `stark-govee home` remembers your home network. Power hook: `fish ~/.config/govee/install.fish`.
 - **Fingerprint / lock PAM:** `fish ~/.config/hypr/fprint-install.fish` (see
-  [Troubleshooting](#troubleshooting-lock-screen-fingerprint-lid)).
+  [Troubleshooting](#troubleshooting-config-lock-screen-fingerprint-lid)).
 
 ### 4. Jarvis
 
@@ -240,8 +243,48 @@ What's plugged in picks a profile; each keeps its own arrangement, layout mode
 
 Switching happens on Hyprland's `monitoradded` / `monitorremoved` (debounced 2.5 s) and after
 resume. Settings → DISPLAY: **APPLY + KEEP**, **SAVE CURRENT AS THIS PROFILE**, **RESET PROFILE**.
-`~/.config/hypr/monitors.conf` is generated from the active profile. From a shell:
+`~/.config/hypr/stark/display-profile.lua` is generated from the active profile (a list of
+`hl.monitor` specs that `stark/monitors.lua` applies last). Hyprland doesn't watch that file, so
+only the HUD decides when to reload, through its 20 s reload-loop guard. From a shell:
 `qs ipc call profiles status | recheck`.
+
+### Hyprland config (Lua)
+
+Hyprland 0.56 reads `~/.config/hypr/hyprland.lua`, which only loads the modules in
+`~/.config/hypr/stark/`:
+
+| Module | What's in it |
+| --- | --- |
+| `monitors.lua` | desk monitors by `desc:`, workspace homes (1–3 left, 4–6 middle, 7–9 laptop), then the HUD's `display-profile.lua` |
+| `theme.lua` | cursor env (rewritten by `stark-cursor/build.sh`) and the start-up border / shadow / background colours |
+| `looks.lua` | gaps, blur, shadows, animations, dwindle, input, misc (`anr_missed_pings`, lock restore) |
+| `binds.lua` | every keybind |
+| `rules.lua` | window rules (no app maximize, Spotify on `special:music`) and the doors' layer rule |
+| `autostart.lua` | `QT_QPA_PLATFORM` and what starts once at login (`hl.on("hyprland.start")`) |
+
+**Edit the modules in place.** Saving one makes Hyprland reload by itself. Never ship or unpack a
+`hyprland.lua` from a zip over this setup: it replaces the loader, and the HUD-written
+`stark/display-profile.lua` and the module split go with it. New binds go in `binds.lua`, e.g. the
+planned Peek: `bind("D", exec("qs ipc call …"))`. Scripts that add autostart lines append an
+`hl.on("hyprland.start", …)` block to `autostart.lua` (see `govee/install.fish`).
+
+Runtime changes are Lua too; `hyprctl keyword` and the old `dispatch exec …` syntax are gone:
+
+```sh
+hyprctl eval 'hl.config({ decoration = { blur = { enabled = false } } })'   # an option
+hyprctl eval 'hl.monitor({ output = "eDP-1", mode = "1920x1200@48", position = "0x0", scale = 1 })'
+hyprctl dispatch 'hl.dsp.exec_cmd("kitty")'                                   # = hl.dispatch(…)
+hyprctl dispatch 'hl.dsp.focus({ workspace = 3 })'
+hyprctl getoption decoration:blur:enabled                                     # unchanged
+```
+
+`hyprctl reload` still throws runtime changes away and sends `configreloaded`, which is when the
+HUD re-pushes the theme, battery saver and the layout mode, and `stark-game` its combat settings.
+In QML, `quickshell/Hypr.js` builds these strings (`Hypr.config`, `Hypr.monitors`, `Hypr.exec`, …);
+`hypr/stark-dpms.sh on|off` turns screens on and off under either config format.
+
+The Lua API stubs are in `/usr/share/hypr/stubs`; `hypr/.luarc.json` points the Lua language server
+at them, so VS Code (with the `sumneko.lua` extension) completes `hl.*` in `~/.config/hypr`.
 
 ### Govee animations
 
@@ -297,7 +340,7 @@ flowchart LR
     end
 
     subgraph Hyprland
-        H[hyprland.conf<br/>binds · rules · monitors.conf]
+        H[hyprland.lua + stark/*.lua<br/>binds · rules · display-profile.lua]
         EV[(event socket<br/>monitoradded · workspace · openwindow)]
     end
 
@@ -372,7 +415,7 @@ palette to:
 
 | Sink | How |
 | --- | --- |
-| Hyprland | `hyprctl keyword` for borders and shadows |
+| Hyprland | `hyprctl eval 'hl.config({ … })'` for borders, shadows and background |
 | Lock screen | rewrites `hypr/hyprlock.conf` from `hyprlock.template.conf` and redraws one picture per monitor (`stark-lock-bg-<NAME>.png`) |
 | kitty | `kitty/stark-theme.conf` + `SIGUSR1` |
 | VS Code | `stark-code-theme '<json>'` |
@@ -508,7 +551,16 @@ monitor"*, *"connect the VPN"*, *"what's playing"*, *"move the clock to the top 
 
 ---
 
-## Troubleshooting: lock screen, fingerprint, lid
+## Troubleshooting: config, lock screen, fingerprint, lid
+
+**Hyprland config won't load?** A broken module shows Hyprland's red error bar naming the file and
+line; the other modules still load (`hyprland.lua` loads each one on its own). Fix the file, save,
+and Hyprland reloads by itself (`hyprctl configerrors` lists what's left). If nothing loaded at all,
+Hyprland's emergency binds are active: `Super + Q` terminal, `Super + R` run, `Super + M` exit. To
+get back to the old desktop instead, log out, log in on a TTY (Ctrl+Alt+F3) and run
+`stark-rescue config`, which runs `start-hyprland -- --config ~/.config/hypr.conf-backup/hyprland.conf`
+(the pre-Lua config, kept with its own `monitors.conf`). In that session the HUD's colour pushes and
+window commands don't work (they speak Lua); it's for fixing `hyprland.lua`, not for daily use.
 
 **Locked out?** From a TTY (Ctrl+Alt+F3) run `stark-rescue`. It clears faillock, thaws `user.slice`
 if suspend left it frozen, turns the screens on, and unlocks hyprlock (or restarts a hung one under

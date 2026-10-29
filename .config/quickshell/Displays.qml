@@ -7,10 +7,10 @@
 //
 // The arrangement (resolution, scale, rotation, order) and the layout mode are saved
 // per display profile (Profiles.qml: home desk, laptop only, the TV, …), and the active
-// profile's arrangement is written to ~/.config/hypr/monitors.conf. The layout mode is
-// applied live whenever monitors change, so "external only" can never leave you with a
-// black laptop screen after you undock: with no monitors plugged in, the laptop screen
-// always comes back.
+// profile's arrangement is written to ~/.config/hypr/stark/display-profile.lua (applied by
+// stark/monitors.lua). The layout mode is applied live whenever monitors change, so
+// "external only" can never leave you with a black laptop screen after you undock: with no
+// monitors plugged in, the laptop screen always comes back.
 //
 // Applying a change by hand starts a 15 s "keep these settings?" countdown on every
 // screen; if you don't press KEEP it reverts by itself (even if the HUD crashes). KEEP
@@ -20,6 +20,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 Singleton {
     id: root
@@ -40,7 +41,7 @@ Singleton {
         root.pending = true;
         root.countdown = 15;
         tick.restart();
-        Quickshell.execDetached(["hyprctl", "--batch", rules.map(r => "keyword monitor " + r).join(" ; ")]);
+        Quickshell.execDetached(Hypr.monitors(rules.map(Hypr.monitorSpec)));
         enforceSoon.restart();
         // Crash-proof fallback: if nobody confirms, put the saved setup back
         Quickshell.execDetached(["sh", "-c",
@@ -50,7 +51,7 @@ Singleton {
         if (!root.pending) return;
         tick.stop();
         Quickshell.execDetached(["rm", "-f", root.flag]);
-        Profiles.saveLayout(root.pendingRules, root.pendingLayout);   // also writes monitors.conf
+        Profiles.saveLayout(root.pendingRules, root.pendingLayout);   // also writes display-profile.lua
         Theme.cfg.displayLayout = root.pendingLayout;
         root.pending = false;
         root.countdown = 0;
@@ -81,7 +82,7 @@ Singleton {
 
     FileView {
         id: conf
-        path: Quickshell.env("HOME") + "/.config/hypr/monitors.conf"
+        path: Quickshell.env("HOME") + "/.config/hypr/stark/display-profile.lua"
         blockLoading: false
         blockWrites: true       // a profile switch reloads Hyprland right after writing
         printErrors: false
@@ -139,7 +140,7 @@ Singleton {
         const ext = mons.filter(m => m.name !== root.laptop).sort((a, b) => a.x - b.x);
         const mirrored = m => m.mirrorOf !== undefined && m.mirrorOf !== null && String(m.mirrorOf) !== "none" && String(m.mirrorOf) !== "";
         const mirrorsSrc = (m, src) => String(m.mirrorOf) === src.name || String(m.mirrorOf) === String(src.id);
-        const cmds = [];
+        const specs = [];   // hl.monitor rules
 
         // Nothing plugged in → the laptop screen must be on, whatever the mode
         if (ext.length === 0) {
@@ -149,22 +150,22 @@ Singleton {
 
         const mode = root.active;
         if (mode === "external") {
-            if (lap && !lap.disabled) cmds.push("keyword monitor " + root.laptop + ",disable");
+            if (lap && !lap.disabled) specs.push({ output: root.laptop, disabled: true });
         } else if (mode === "laptop") {
             if (!lap) return;   // never turn everything off
-            for (const m of ext) if (!m.disabled) cmds.push("keyword monitor desc:" + m.description + ",disable");
+            for (const m of ext) if (!m.disabled) specs.push({ output: "desc:" + m.description, disabled: true });
         } else if (mode === "mirror") {
             const src = ext.find(m => !m.disabled && !mirrored(m)) || ext[0];
             for (const m of mons) {
                 if (m.name === src.name || mirrorsSrc(m, src)) continue;
                 const key = m.name === root.laptop ? m.name : "desc:" + m.description;
-                cmds.push("keyword monitor " + key + ",preferred,auto,1,mirror," + src.name);
+                specs.push({ output: key, mode: "preferred", position: "auto", scale: 1, mirror: src.name });
             }
         } else {
             // extend: anything still off or mirrored from another mode → reload the saved arrangement
             const stale = (lap && (lap.disabled || mirrored(lap))) || ext.some(m => mirrored(m));
             if (stale && !root.pending) { root.safeReload(); return; }
         }
-        if (cmds.length) Quickshell.execDetached(["hyprctl", "--batch", cmds.join(" ; ")]);
+        if (specs.length) Quickshell.execDetached(Hypr.monitors(specs));
     }
 }

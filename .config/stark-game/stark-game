@@ -37,7 +37,8 @@ STATE, LOCK, DAEMON_LOCK = STATE_DIR / "state.json", STATE_DIR / "lock", STATE_D
 BUILTIN_GAMES = [r"steam_app_\d+", r"gamescope"]
 # Same names + defaults as the game* properties in quickshell/Theme.qml
 DEFAULTS = {"gameAuto": True, "gameHypr": True, "gameNoVfr": False, "gamePower": True, "gameNotify": True}
-# Hyprland keywords while engaged (runtime only, never written to hyprland.conf)
+# Hyprland options while engaged (runtime only, never written to the config). Keys are
+# section:option paths, the same as `hyprctl getoption` and the saved state use.
 HYPR_GAME = {
     "decoration:blur:enabled": "false",
     "decoration:shadow:enabled": "false",
@@ -129,9 +130,37 @@ def hyprctl(*args):
         return ""
 
 
-def hypr_batch(cmds):
-    if cmds:
-        hyprctl("--batch", " ; ".join(cmds))
+def lua(v):
+    """Python value → Lua source (option values arrive as getoption strings: "true", "1", …)."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return repr(v)
+    if isinstance(v, dict):
+        return "{ " + ", ".join(f"{k} = {lua(x)}" for k, x in v.items()) + " }"
+    s = str(v).strip()
+    if s.lower() in ("true", "false"):
+        return s.lower()
+    try:
+        float(s)
+        return s
+    except ValueError:
+        s = s.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{s}"'
+
+
+def hypr_set(opts):
+    """Set options at runtime: {"decoration:blur:enabled": "false"} → hyprctl eval 'hl.config({…})'.
+    (Hyprland's Lua config has no `hyprctl keyword`.)"""
+    tree = {}
+    for path, v in opts.items():
+        *sections, key = path.split(":")
+        node = tree
+        for s in sections:
+            node = node.setdefault(s, {})
+        node[key] = v
+    if tree:
+        hyprctl("eval", f"hl.config({lua(tree)})")
 
 
 def get_option(name):
@@ -139,7 +168,7 @@ def get_option(name):
         d = json.loads(hyprctl("getoption", name, "-j"))
     except ValueError:
         return None
-    for k in ("int", "float", "str", "custom"):
+    for k in ("bool", "int", "float", "str", "custom"):
         if k in d:
             return str(d[k]).strip()
     return None
@@ -155,7 +184,9 @@ def game_windows():
 
 
 def immediate(addrs):
-    hypr_batch([f"dispatch setprop address:0x{a} immediate 1" for a in addrs])
+    if addrs:
+        hyprctl("eval", " ".join(f'hl.dispatch(hl.dsp.window.set_prop({{ window = "address:0x{a}", prop = "immediate", value = "1" }}))'
+                                 for a in addrs))
 
 
 # ---------- power ----------
@@ -226,10 +257,10 @@ def notify_restore(saved):
 
 
 # ---------- engage / disengage ----------
-def hypr_game_cmds(st):
+def hypr_game_opts(st):
     want = dict(HYPR_GAME)
     want.update({k: v for k, v in NO_VFR.items() if k in st["saved"].get("hypr", {})})
-    return [f"keyword {k} {v}" for k, v in want.items()]
+    return want
 
 
 def engage(st, cfg):
@@ -237,7 +268,7 @@ def engage(st, cfg):
     if cfg["gameHypr"]:
         opts = list(HYPR_GAME) + (list(NO_VFR) if cfg["gameNoVfr"] else [])
         st["saved"]["hypr"] = {o: v for o in opts if (v := get_option(o)) is not None}
-        hypr_batch(hypr_game_cmds(st))
+        hypr_set(hypr_game_opts(st))
         immediate(game_windows())
         st["owns"].append("hypr")
     if cfg["gamePower"] and (prev := profile_get()):
@@ -255,7 +286,7 @@ def engage(st, cfg):
 def disengage(st):
     s = st["saved"]
     if "hypr" in s:
-        hypr_batch([f"keyword {k} {v}" for k, v in s["hypr"].items()])
+        hypr_set(s["hypr"])
     if "power" in s:
         profile_set(s["power"])
     if "notify" in s:
@@ -294,11 +325,11 @@ def nudge_hud():
 
 
 def reapply_hypr():
-    """`hyprctl reload` resets runtime keywords — put the game ones back."""
+    """`hyprctl reload` resets runtime options — put the game ones back."""
     with locked():
         st = load_json(STATE, EMPTY)
         if st["active"] and "hypr" in st["saved"]:
-            hypr_batch(hypr_game_cmds(st))
+            hypr_set(hypr_game_opts(st))
             immediate(game_windows())
 
 

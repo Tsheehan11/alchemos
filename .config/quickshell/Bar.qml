@@ -2,6 +2,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 PanelWindow {
     id: bar
@@ -81,7 +82,7 @@ PanelWindow {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Hyprland.dispatch("workspace " + parent.ws)
+                        onClicked: Hyprland.dispatch(Hypr.workspace(parent.ws))
                     }
                 }
             }

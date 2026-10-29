@@ -15,6 +15,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import "Hypr.js" as Hypr
 
 Singleton {
     id: root
@@ -32,18 +33,11 @@ Singleton {
         function onRawEvent(event) { if (event.name === "configreloaded") applyTimer.restart(); }
     }
 
-    function hypr(cmds) {
-        Quickshell.execDetached(["hyprctl", "--batch", cmds.join(" ; ")]);
-    }
-
     function apply() {
         const s = root.saver;
         const blurOn = !(s && Theme.cfg.saverNoBlur);
         if (GameMode.owns.indexOf("hypr") < 0)
-            hypr([
-                "keyword decoration:blur:enabled " + (blurOn ? "true" : "false"),
-                "keyword decoration:shadow:enabled " + (blurOn ? "true" : "false")
-            ]);
+            Quickshell.execDetached(Hypr.config({ decoration: { blur: { enabled: blurOn }, shadow: { enabled: blurOn } } }));
         laptopProbe.running = true;
         // Wait for the first battery reading: until then `saver` is just a default
         if (GameMode.owns.indexOf("power") < 0 && SysStats.polled)
@@ -92,8 +86,8 @@ Singleton {
                 if (low && hz > 48) want = 48;
                 else if (!low && hz === 48) want = 60;
                 if (want === hz) return;
-                Quickshell.execDetached(["hyprctl", "keyword", "monitor",
-                    "eDP-1," + m.width + "x" + m.height + "@" + want + "," + m.x + "x" + m.y + "," + m.scale + ",transform," + m.transform]);
+                Quickshell.execDetached(Hypr.monitors([{ output: "eDP-1", mode: m.width + "x" + m.height + "@" + want,
+                    position: m.x + "x" + m.y, scale: m.scale, transform: m.transform }]));
             }
         }
     }
