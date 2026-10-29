@@ -125,6 +125,7 @@ watcher; the HUD starts Jarvis when docked.
 | `Super + Return` | kitty |
 | `Super + B` / `Super + E` | Zen browser / Dolphin |
 | `Super + M` | Show / hide Spotify (relaunches it if closed) |
+| `Super + D` | Peek: hide every window on this workspace to see the desktop; again to bring them back |
 | `Super + Shift + R` | fuzzel (plain launcher) |
 | `Super + Q` / `F` / `V` | Close / fullscreen / float window |
 | `Super + ←↑→↓` | Move focus (`+ Shift`: move window) |
@@ -260,12 +261,13 @@ Hyprland 0.56 reads `~/.config/hypr/hyprland.lua`, which only loads the modules 
 | `looks.lua` | gaps, blur, shadows, animations, dwindle, input, misc (`anr_missed_pings`, lock restore) |
 | `binds.lua` | every keybind |
 | `rules.lua` | window rules (no app maximize, Spotify on `special:music`) and the doors' layer rule |
+| `peek.lua` | Super + D: moves the workspace's windows to `special:peek<id>` and back. Those workspaces are the only state, so reloads and HUD restarts can't lose windows; `quickshell/Peek.qml` brings them back on lock, dock change, a new window there, and HUD start (`qs ipc call peek status`) |
 | `autostart.lua` | `QT_QPA_PLATFORM` and what starts once at login (`hl.on("hyprland.start")`) |
 
 **Edit the modules in place.** Saving one makes Hyprland reload by itself. Never ship or unpack a
 `hyprland.lua` from a zip over this setup: it replaces the loader, and the HUD-written
-`stark/display-profile.lua` and the module split go with it. New binds go in `binds.lua`, e.g. the
-planned Peek: `bind("D", exec("qs ipc call …"))`. Scripts that add autostart lines append an
+`stark/display-profile.lua` and the module split go with it. New binds go in `binds.lua`
+(`bind("D", peek.toggle)` is Peek, a Lua function from `peek.lua`). Scripts that add autostart lines append an
 `hl.on("hyprland.start", …)` block to `autostart.lua` (see `govee/install.fish`).
 
 Runtime changes are Lua too; `hyprctl keyword` and the old `dispatch exec …` syntax are gone:

@@ -26,6 +26,10 @@ bind("L",      exec("qs ipc call stark lock || ~/.config/hypr/stark-lock.sh"))
 bind("Tab",    exec("qs ipc call overview toggle"))
 bind("Escape", exec("qs ipc call stark menu"))
 bind("SHIFT + M", hl.dsp.exit())
+-- Peek: hide / bring back every window on this workspace (stark/peek.lua). Loaded on its
+-- own, so a mistake in it costs only this bind.
+local peekOk, peek = pcall(require, "stark.peek")
+if peekOk then bind("D", peek.toggle) end
 
 -- Move focus / windows with arrows
 for _, dir in ipairs({ "left", "right", "up", "down" }) do

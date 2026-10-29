@@ -133,6 +133,7 @@ PanelWindow {
                 font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2
             }
             Text { visible: PowerMode.saver; text: "SAVER"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
+            Text { visible: Peek.active; text: "PEEK"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
             Text {
                 visible: GameMode.active
                 text: String.fromCodePoint(0xF0170) + (GameMode.batteryWarn ? " COMBAT · BATTERY" : " COMBAT")

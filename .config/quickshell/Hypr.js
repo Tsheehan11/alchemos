@@ -25,6 +25,7 @@ function str(s) {
 
 // argv for Quickshell.execDetached / Process
 function config(obj) { return ["hyprctl", "eval", "hl.config(" + lua(obj) + ")"]; }
+function luaEval(code) { return ["hyprctl", "eval", code]; }
 function monitors(specs) { return ["hyprctl", "eval", specs.map(function (s) { return "hl.monitor(" + lua(s) + ")"; }).join(" ")]; }
 
 // Dispatchers, for Hyprland.dispatch(…)

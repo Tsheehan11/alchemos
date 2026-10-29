@@ -163,6 +163,14 @@ ShellRoot {
         function menu(): void { LauncherState.togglePower() }        // power button / Super + Esc
     }
 
+    //   Peek (Super + D is bound in hypr/stark/binds.lua; this is for scripts / Jarvis)
+    IpcHandler {
+        target: "peek"
+        function toggle(): void { Peek.toggle() }
+        function restore(): void { Peek.restoreAll() }
+        function status(): string { return JSON.stringify({ active: Peek.active, workspaces: Peek.peeked }) }
+    }
+
     //   used by ~/.local/bin/stark-game after each state change
     IpcHandler {
         target: "game"
