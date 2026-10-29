@@ -28,7 +28,15 @@ case "$1" in
       | grep -q -m1 -E "$WEDGED" || exit 0
 
     echo "sensor wedged after resume; resetting it once the lock screen is gone"
-    while pidof hyprlock >/dev/null; do sleep 2; done
+    # ...and not while the system is going back to sleep (lid shut again right after the
+    # unlock): a reset during suspend entry doesn't take, and the reader stays wedged.
+    preparing() {
+        busctl get-property org.freedesktop.login1 /org/freedesktop/login1 \
+            org.freedesktop.login1.Manager PreparingForSleep 2>/dev/null | grep -q true
+    }
+    while pidof hyprlock >/dev/null || preparing; do sleep 2; done
+    sleep 2   # after a wake, give hyprlock (lid lock) a moment to come up first
+    while pidof hyprlock >/dev/null || preparing; do sleep 2; done
     systemctl kill --signal=SIGKILL fprintd.service 2>/dev/null
     systemctl stop fprintd.service
     systemctl reset-failed fprintd.service 2>/dev/null

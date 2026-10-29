@@ -2,10 +2,30 @@
 # STARK OS lock: plays the lock sound, shows hyprlock, then the unlock animation + sound.
 # Used by Super+L, the launcher's LOCK, and hypridle (idle + before sleep).
 
+log="${XDG_STATE_HOME:-$HOME/.local/state}/stark/hyprlock.log"
+
+# Not locking after all. Super+L shut the doors before calling us, so open them again unless
+# a lock is up or on its way (another run, e.g. lid.sh + hypridle, may be about to start
+# hyprlock): never leave the doors shut on an unlocked desktop.
+give_up() {
+    sleep 2
+    [ "$(hyprctl locked 2>/dev/null)" = true ] || pidof hyprlock >/dev/null \
+        || qs ipc call stark unlocked >/dev/null 2>&1
+    exit 0
+}
+
 # Already locked (or a lock is starting right now, e.g. lid.sh + hypridle)? Do nothing.
+# Except: after an unlock hyprlock can linger ~25 s while it waits on fprintd (a wedged
+# reader never answers its release), and that run of this script still holds the lock file.
+# That hyprlock isn't a lock any more (its log says it unlocked and the session is
+# unlocked): end it and lock again.
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/stark-lock.lock"
-flock -n 9 || exit 0
-pidof hyprlock >/dev/null && exit 0
+if ! flock -n 9 || pidof hyprlock >/dev/null; then
+    grep -qs 'Unlocked, exiting!' "$log" && [ "$(hyprctl locked 2>/dev/null)" = false ] || give_up
+    pkill -x hyprlock
+    flock -w 3 9 || give_up
+    pidof hyprlock >/dev/null && { pkill -KILL -x hyprlock; sleep 0.2; }
+fi
 
 # Snap the HUD doors shut and let them reach the screen before hyprlock starts. Once the
 # session is locked, Hyprland draws only black under hyprlock, and a lid lock is followed
@@ -20,7 +40,6 @@ for _ in 1 2 3 4 5; do
 done
 sleep 0.05   # one more frame for the doors to be drawn
 # Keep hyprlock's own log (auth, fingerprint, sleep) for the last two locks.
-log="${XDG_STATE_HOME:-$HOME/.local/state}/stark/hyprlock.log"
 mkdir -p "${log%/*}" && { [ -f "$log" ] && mv -f "$log" "$log.1"; }
 # Start the reveal the moment authentication succeeds (password, fingerprint, SIGUSR1),
 # i.e. when hyprlock begins its fade-out, not when it exits. After the screens were off
