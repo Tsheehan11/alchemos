@@ -47,14 +47,29 @@ mkdir -p "${log%/*}" && { [ -f "$log" ] && mv -f "$log" "$log.1"; }
 # hyprlock faded onto black; this way the doors redraw during the fade. (hyprlock also
 # lingers ~2 s after a fingerprint unlock while PAM's fail delay ends the aborted
 # password prompt.) "Unlocked" and hyprlock's exit stay as fallbacks.
+#
+# No suspend while fprintd opens the reader. hyprlock claims the fingerprint reader as it
+# starts, and if a suspend begins while fprintd is still opening it (lock, then the lid
+# shut within a second), the Elan MOC sensor (libfprint elanmoc) wedges until a power-off.
+# fprintd reacts to logind's PrepareForSleep, which goes out before delay locks are waited
+# on, so only a block lock helps: "handle-lid-switch" (honoured even with logind's
+# LidSwitchIgnoreInhibited=yes, unlike "sleep") plus "sleep" for an explicit suspend.
+# Held only until hyprlock says the scan is running, 3 s at most. A lid shut meanwhile
+# isn't lost: logind keeps rechecking a closed lid and suspends the moment this ends.
+systemd-inhibit --what=handle-lid-switch:sleep --mode=block --who="STARK lock" \
+    --why="fingerprint reader opening" sleep 3 &
+guard=$!
 stdbuf -oL hyprlock 2>&1 | {
     opened=""
     while IFS= read -r line; do
         printf '%s\n' "$line" >>"$log"
         case "$line" in
+            *"fprint: started verifying"*|*"fprint: "*[Ee]rror*|*"fprint: could not"*)
+                [ -n "$guard" ] && { kill "$guard" 2>/dev/null; guard=""; } ;;
             *"auth: authenticated"*|*"status verify-match"*|*"Unlocking with a SIGUSR1"*|*"Unlocked, exiting!"*)
                 [ -z "$opened" ] && { qs ipc call stark unlocked >/dev/null 2>&1 & opened=1; } ;;
         esac
     done
+    [ -n "$guard" ] && kill "$guard" 2>/dev/null
     [ -n "$opened" ] || qs ipc call stark unlocked >/dev/null 2>&1
 }

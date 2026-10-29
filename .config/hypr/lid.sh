@@ -36,9 +36,13 @@ lid_closed || exit 0
 "$HOME/.config/hypr/stark-dpms.sh" off >/dev/null
 
 # 3. logind on its way to sleep? Then we're done. Otherwise it ignored the lid (holdoff
-# after waking): suspend ourselves, if the lid is still closed.
-for _ in $(seq 10); do
+# after waking): suspend ourselves, if the lid is still closed. stark-lock.sh holds the
+# lid off for up to 3 s while the fingerprint reader opens (logind suspends by itself
+# when that ends), so wait that out before deciding.
+guard_up() { systemd-inhibit --list --no-pager 2>/dev/null | grep -q 'fingerprint reader opening'; }
+n=0
+while [ $n -lt 10 ] || { guard_up && [ $n -lt 25 ]; }; do
     sleeping && exit 0
-    sleep 0.2
+    sleep 0.2; n=$((n + 1))
 done
 lid_closed && systemctl suspend

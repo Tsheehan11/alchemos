@@ -586,6 +586,10 @@ Install with `fish ~/.config/hypr/fprint-install.fish` (keeps `.orig` backups; r
 
 **Lid.** Docked, closing the lid does nothing. Undocked, `hypr/lid.sh` shuts the doors, waits for
 hyprlock, then turns the screen off; logind suspends and hypridle holds sleep until the lock is up.
+While hyprlock opens the fingerprint reader (about half a second after it starts), `stark-lock.sh`
+holds a `handle-lid-switch:sleep` block lock (3 s at most): a suspend that starts mid-open wedges the
+Elan reader until a power-off, and logind suspends the moment the lock ends. If it wedges anyway:
+`stark-fprint-reset` (the HUD says so).
 Each monitor gets its own lock picture of the shut doors, so unlocking cuts seamlessly to the real
 doors opening.
 
