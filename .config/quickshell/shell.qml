@@ -4,6 +4,9 @@ import Quickshell
 import Quickshell.Io
 
 ShellRoot {
+    // started here so it watches from login (FprintWatch.qml)
+    readonly property bool fprintWatching: FprintWatch.watching
+
     // Animated hologram background, on every screen
     Variants {
         model: Quickshell.screens

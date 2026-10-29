@@ -4,6 +4,7 @@
 #   2. thaws the session if suspend left it frozen (only then asks for sudo)
 #   3. turns the screens back on
 #   4. unlocks hyprlock (SIGUSR1); if hyprlock is gone or hung, puts a fresh lock back
+#   5. if the fingerprint reader is stuck, resets it (stark-fprint-reset, asks for sudo)
 # Then switch back to Hyprland with Ctrl+Alt+F2.
 #
 # stark-rescue config: when ~/.config/hypr/hyprland.lua won't load (red error bar, only the
@@ -107,7 +108,11 @@ if [ -n "$pids" ]; then
         pgrep -u "$uid" -x hyprlock >/dev/null || break
         sleep 0.5
     done
-    if pgrep -u "$uid" -x hyprlock >/dev/null; then
+    if pgrep -u "$uid" -x hyprlock >/dev/null && [ "$(timeout 3 hyprctl locked 2>/dev/null)" = false ]; then
+        # unlocked, but a stuck reader keeps hyprlock waiting ~25 s on fprintd: let it go
+        pkill -KILL -u "$uid" -x hyprlock
+        say "unlocked"
+    elif pgrep -u "$uid" -x hyprlock >/dev/null; then
         say "hyprlock is hung (ignored SIGUSR1); killing it and restoring the lock"
         pkill -KILL -u "$uid" -x hyprlock
         sleep 0.5
@@ -118,6 +123,21 @@ if [ -n "$pids" ]; then
 else
     say "hyprlock isn't running (the lock may have died); restoring it"
     restore_lock
+fi
+
+# 5. Fingerprint reader. Stuck if fprintd reported a wedge this boot after the last good
+# reset (stark-fprint-reset tests it first and stops there if it's fine). Only once
+# unlocked: hyprlock holds the reader while it's up.
+stuck='machine != NULL|already claimed|already in use'
+lastbad=$(journalctl -b -u fprintd -o short-unix --no-pager 2>/dev/null | grep -E "$stuck" | tail -1 | cut -d. -f1)
+lastok=$(journalctl -b -t stark-fprint-reset -o short-unix --no-pager 2>/dev/null | grep -E 'reader OK' | tail -1 | cut -d. -f1)
+if [ -n "$lastbad" ] && [ "$lastbad" -gt "${lastok:-0}" ]; then
+    if pgrep -u "$uid" -x hyprlock >/dev/null; then
+        say "the fingerprint reader looks stuck; after unlocking, run: stark-fprint-reset"
+    else
+        say "the fingerprint reader looks stuck; resetting it (sudo)"
+        "$HOME/.local/bin/stark-fprint-reset" || say "still stuck: try stark-fprint-reset --hard, else power off"
+    fi
 fi
 
 # hyprlock's aborted prompt doesn't count any more (see /etc/pam.d/hyprlock), but clear

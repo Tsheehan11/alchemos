@@ -8,6 +8,7 @@ echo ":: installing /etc/pam.d/hyprlock and the suspend hooks (needs sudo)"
 sudo install -m 644 -b --suffix=.orig $sys/hyprlock.pam /etc/pam.d/hyprlock; or exit 1
 sudo install -m 755 $sys/stark-fprintd-sleep /usr/lib/systemd/system-sleep/stark-fprintd; or exit 1
 sudo install -m 755 $sys/stark-thaw-sleep /usr/lib/systemd/system-sleep/stark-thaw; or exit 1
+sudo install -m 755 $sys/stark-fprint-reset /usr/local/bin/stark-fprint-reset; or exit 1
 # Power key → HUD menu, 5 s lid holdoff after waking (lid.sh). Takes effect at next boot;
 # restarting logind could end the session.
 sudo install -D -m 644 $sys/logind-stark.conf /etc/systemd/logind.conf.d/stark.conf; or exit 1

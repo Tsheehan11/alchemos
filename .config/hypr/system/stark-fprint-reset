@@ -1,0 +1,148 @@
+#!/bin/sh
+# STARK OS: bring the fingerprint reader (Elan MOC 04f3:0c88, libfprint "elanmoc") back
+# without a power-off.
+#
+#   stark-fprint-reset              escalate until a test scan starts cleanly (sudo)
+#   stark-fprint-reset --hard       ... and, as a last step, rebind the whole USB controller
+#   stark-fprint-reset --method M   run one method only: restart | usbreset | authorized | power | controller
+#   stark-fprint-reset --check      just test the reader (exit 0 = fine)
+#   stark-fprint-reset --info       sensor, port and port-power capability
+#   (--auto: the sleep hook; no prompts, never the controller)
+#
+# Match-on-Chip sensors keep their state in the sensor's own firmware: when a system
+# suspend lands while fprintd is still opening the reader (lock started, lid shut within
+# a second), libfprint's state machine is left broken ("fpi_ssm_mark_failed: machine !=
+# NULL"), and neither restarting fprintd nor a USB reset (which keeps the sensor powered)
+# clears it. Switching the USB port's power off and on is the step that matches a
+# power-off. Each step is followed by a test scan; the first one that comes back clean
+# wins. Never while hyprlock holds the reader: it keeps its claim, so pulling fprintd out
+# from under it leaves the lock screen without a fingerprint (the password always works).
+# Leaves PAM and faillock alone.
+set -u
+VID=04f3 PID=0c88
+WEDGED='machine != NULL|Cannot run while suspended|already claimed|already in use|Device was not claimed'
+say() { printf ':: %s\n' "$*"; logger -t stark-fprint-reset -- "$*" 2>/dev/null; }
+
+if [ "$(id -u)" != 0 ]; then
+    # root runs the installed copy (root-owned); fall back to this one before it's installed
+    [ -x /usr/local/bin/stark-fprint-reset ] && exec sudo /usr/local/bin/stark-fprint-reset "$@"
+    exec sudo "$0" "$@"
+fi
+
+mode=escalate method="" auto=0 hard=0
+case "${1:-}" in
+    --check) mode=check ;;
+    --info) mode=info ;;
+    --method) mode=one; method=${2:-} ;;
+    --hard) hard=1 ;;
+    --auto) auto=1 ;;
+    "") ;;
+    *) sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac
+
+# The sensor and the root-hub port it sits on
+dev=""
+for d in /sys/bus/usb/devices/*; do
+    [ "$(cat "$d/idVendor" 2>/dev/null)" = $VID ] && [ "$(cat "$d/idProduct" 2>/dev/null)" = $PID ] && { dev=$d; break; }
+done
+[ -n "$dev" ] || { say "reader $VID:$PID not on the USB bus"; }
+port=$( [ -n "$dev" ] && readlink -f "$dev/port" )
+devname=${dev##*/}
+ctrl=$( [ -n "$dev" ] && readlink -f "$dev/../.." )   # the xHCI PCI device
+
+# Whose prints to test with: the sudo caller, else the logged-in user
+user=${SUDO_USER:-}
+[ -n "$user" ] && [ "$user" != root ] || user=$(loginctl list-users --no-legend 2>/dev/null | awk '$1 >= 1000 {print $2; exit}')
+
+if [ $mode = info ]; then
+    echo "sensor:     ${dev:-missing} ($(cat "$dev/product" 2>/dev/null)), driver elanmoc (libfprint $(pacman -Q libfprint 2>/dev/null | cut -d' ' -f2))"
+    echo "port:       ${port:-?} (state $(cat "$port/state" 2>/dev/null), connect_type $(cat "$port/connect_type" 2>/dev/null))"
+    echo "autosuspend: $(cat "$dev/power/control" 2>/dev/null), now $(cat "$dev/power/runtime_status" 2>/dev/null)"
+    cap=/sys/kernel/debug/usb/xhci/${ctrl##*/}/reg-cap
+    if [ -r "$cap" ]; then
+        p=$(awk '/HCCPARAMS1/ {print $3}' "$cap")
+        [ -n "$p" ] && echo "xHCI port power control (PPC): $(( (p >> 3) & 1 )) (1 = the port's power can really be switched off)"
+    fi
+    echo "test user:  $user"
+    exit 0
+fi
+
+lock_up() { pidof hyprlock >/dev/null; }
+
+stop_fprintd() {
+    # a wedged fprintd ignores SIGTERM (stop times out after 10 s): kill it outright
+    systemctl kill --signal=SIGKILL fprintd.service 2>/dev/null
+    systemctl stop fprintd.service 2>/dev/null
+    systemctl reset-failed fprintd.service 2>/dev/null
+}
+
+# A test scan: start a verify as $user and look for the wedge in fprintd's log. Nobody
+# needs to touch the sensor; a stuck reader fails as soon as the scan starts.
+check() {
+    systemctl start fprintd.service 2>/dev/null || return 1
+    since=$(date +%s.%N)
+    out=$(timeout 4 fprintd-verify "$user" 2>&1)
+    sleep 0.5
+    echo "$out" | grep -q 'Verify started' || return 1
+    ! journalctl -u fprintd --since "@$since" -o cat 2>/dev/null | grep -qE "$WEDGED"
+}
+
+wait_for_sensor() {   # after it leaves the bus: wait until it's back (up to 8 s)
+    for _ in $(seq 40); do
+        [ -e "/sys/bus/usb/devices/$devname/idProduct" ] && return 0
+        sleep 0.2
+    done
+    return 1
+}
+
+run() {
+    case "$1" in
+        restart)    stop_fprintd ;;
+        usbreset)   stop_fprintd; usbreset "$VID:$PID" >/dev/null 2>&1 ;;
+        authorized) stop_fprintd
+                    echo 0 > "$dev/authorized" && sleep 1 && echo 1 > "$dev/authorized"
+                    wait_for_sensor ;;
+        power)      [ -w "$port/disable" ] || { say "port power control not available"; return 1; }
+                    stop_fprintd
+                    echo 1 > "$port/disable" && sleep 3 && echo 0 > "$port/disable"
+                    wait_for_sensor ;;
+        controller) stop_fprintd
+                    say "rebinding the USB controller ${ctrl##*/} (every device on it reconnects)"
+                    echo "${ctrl##*/}" > /sys/bus/pci/drivers/xhci_hcd/unbind && sleep 2 \
+                        && echo "${ctrl##*/}" > /sys/bus/pci/drivers/xhci_hcd/bind
+                    wait_for_sensor ;;
+        *) say "unknown method: $1"; return 2 ;;
+    esac
+    sleep 1
+}
+
+if [ $mode = check ]; then
+    lock_up && { say "hyprlock is up; unlock first (its claim makes the test fail)"; exit 1; }
+    check && { say "reader OK"; exit 0; }
+    say "reader stuck"; exit 1
+fi
+
+if lock_up; then
+    if [ $auto = 1 ]; then
+        while lock_up; do sleep 2; done
+    else
+        say "the lock screen holds the reader; unlock with your password first, then run this again"
+        exit 1
+    fi
+fi
+
+if [ $mode = one ]; then
+    run "$method" || exit 1
+    check && { say "reader OK after: $method"; exit 0; }
+    say "still stuck after: $method"; exit 1
+fi
+
+check && { say "reader OK, nothing to reset"; exit 0; }
+steps="restart usbreset authorized power"
+[ $hard = 1 ] && steps="$steps controller"
+for s in $steps; do
+    say "trying: $s"
+    run "$s" && check && { say "reader OK after: $s"; exit 0; }
+done
+say "still stuck after: $steps; $( [ $hard = 1 ] && echo 'a full power-off' || echo 'try: stark-fprint-reset --hard, else a full power-off') clears it"
+exit 1
