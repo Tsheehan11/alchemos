@@ -13,9 +13,11 @@
 # suspend lands while fprintd is still opening the reader (lock started, lid shut within
 # a second), libfprint's state machine is left broken ("fpi_ssm_mark_failed: machine !=
 # NULL"), and neither restarting fprintd nor a USB reset (which keeps the sensor powered)
-# clears it. Switching the USB port's power off and on is the step that matches a
-# power-off. Each step is followed by a test scan; the first one that comes back clean
-# wins. Never while hyprlock holds the reader: it keeps its claim, so pulling fprintd out
+# clears it. The strongest step is turning the USB port off and on: the sensor drops off
+# the bus and enumerates again. On this Inspiron the xHCI controller can't switch port
+# power (PPC = 0, see --info), so the sensor most likely stays powered through it; if
+# that's not enough, only a power-off is left (s2idle keeps USB powered too). Each step
+# is followed by a test scan; the first one that comes back clean wins. Never while hyprlock holds the reader: it keeps its claim, so pulling fprintd out
 # from under it leaves the lock screen without a fingerprint (the password always works).
 # Leaves PAM and faillock alone.
 set -u
@@ -61,7 +63,7 @@ if [ $mode = info ]; then
     cap=/sys/kernel/debug/usb/xhci/${ctrl##*/}/reg-cap
     if [ -r "$cap" ]; then
         p=$(awk '/HCCPARAMS1/ {print $3}' "$cap")
-        [ -n "$p" ] && echo "xHCI port power control (PPC): $(( (p >> 3) & 1 )) (1 = the port's power can really be switched off)"
+        [ -n "$p" ] && echo "xHCI port power control (PPC): $(( (p >> 3) & 1 )) (0: the power step re-enumerates the sensor but can't cut its power)"
     fi
     echo "test user:  $user"
     exit 0
