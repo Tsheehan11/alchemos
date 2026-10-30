@@ -1,13 +1,30 @@
-# Phase 2: Microsoft 365 (UWaterloo Outlook mail and calendar)
+# Phase 2: UWaterloo Outlook (mail + calendar)
 
-Status: **scaffolding**. Registered in `servers.json` as `"microsoft"` (`enabled: false`,
-`read_only: true`). The MCP server is `mcp/microsoft_tools.py` (stubs that say "not
-connected"), and the sign-in is `jarvis connect microsoft` (MSAL device code flow).
+UWaterloo blocks the Microsoft Graph app route (user consent needs an admin), so Outlook comes in
+through two workarounds that need no consent. This is the route in use:
 
-Scopes: `Mail.Read`, `Calendars.ReadWrite`, `offline_access`, `User.Read`.
-`Calendars.ReadWrite` is only there so the academic sync can write to the dedicated
-**STARK – Assignments** calendar when Settings → JARVIS → Assignments calendar is OUTLOOK.
-No tool can send or delete mail, and the integration is read-only to the model.
+| What | How | Where in Jarvis |
+|---|---|---|
+| Calendar | Outlook on the web → Settings → Calendar → Shared calendars → **Publish** → copy the **ICS** link, then `jarvis connect outlook-ical` (it prompts with hidden input; never pass the link as an argument, since it would land in shell history) | `mcp/outlook_ical.py`, merged with Google in `calendar_today` / `calendar_next` (`mcp/calendars.py`) |
+| Mail | Outlook on the web → Settings → Mail → **Forwarding** → your connected Gmail | read by the Google tools (`email_*`), and by the grade-notice scan |
+
+The calendar link is a secret (anyone with it can read the calendar): it lives in the keyring
+(`jarvis:outlook` / `ical_url`). The feed is cached in `~/.local/share/jarvis/outlook.ics`
+(mode 600), refreshed every ~15 min while docked and on demand when older than that. Recurring
+classes, moved or cancelled instances and Outlook's Windows time-zone names are handled by
+`icalendar` + `recurring-ical-events`.
+
+- **Merging:** Google and Outlook events are combined in Toronto time. An event in both (same iCal
+  UID, or same title, start and end) is said once. Jarvis names the calendar only if you ask.
+- **Settings → JARVIS → INTEGRATIONS:** Outlook shows **CONNECTED · calendar link + mail
+  forwarding**. If the link stops working it says "link not updating", and calendar answers say
+  Outlook may be out of date.
+- **Undo:** `jarvis disconnect outlook-ical`, then unpublish the calendar in Outlook to kill the link.
+
+## Optional: direct Microsoft Graph connection (needs admin consent)
+
+Listed in Settings as **Microsoft 365 (direct) · OPTIONAL**, not as broken. Everything above works
+without it. Set it up only if IST approves the app. The original notes follow.
 
 ## Register the app (Entra ID)
 
@@ -66,32 +83,33 @@ naming the app and the four delegated scopes. Meanwhile these fallbacks need no 
    Jarvis recognizes those in whichever inbox is connected: Gmail directly, or forward
    UWaterloo mail to Gmail (Outlook on the web → Settings → Mail → Forwarding).
 
-## Academic sync (`mcp/academic.py`, `mcp/academic_tools.py`)
+## Academic sync (`mcp/academic_sync.py`, `mcp/academic_tools.py`, `mcp/academic.py`)
 
-Calendar writes work on Google: `calendar_add_assignment` creates "STARK – Assignments" with the
-`calendar.app.created` scope on first use, and updates rather than duplicates on re-adds
-(`tests/test_google.py`). Outlook writes, the automatic sync loop and grade-notice scanning
-are still to do; the pure logic is tested in `tests/test_integrations.py`.
+Runs every ~15 min while docked (the voice loop), plus on demand from the tools.
 
-- **Assignments** from the feed are deduplicated by course + title ("Assignment 5" =
-  "A5"; a re-sync updates the due date).
-- They are written as events to a dedicated **STARK – Assignments** calendar in the account
-  chosen in Settings (Google or Outlook), **never the main calendar**. The tool has no
-  calendar argument, so not even the model can aim it elsewhere. Each event has the
-  course, due time, the LEARN link, and a reminder 2 days before.
-- **Grade notices.** A notice counts only if the sender is LEARN/UWaterloo or Crowdmark
-  (and DKIM didn't fail), its subject says a grade or feedback was released, and it
-  names an assignment already known from the feed. Only the sender and subject are
-  read, never the body. The effect is limited to marking that one event graded
-  (title prefix **✓**) and queueing *"Sir, your CS 137 A5 has been graded"*, which the
-  voice loop says when you're docked (`VoiceLoop.check_academic`).
-- The ✓ edit is a calendar write like any other, so it follows the next rule.
-- **Writes stay behind confirmation** ("Add CS 137 A5 to your STARK assignments calendar,
-  sir?"). Settings → JARVIS → **AUTO-ADD ASSIGNMENTS** lets the sync write to that one
-  calendar without asking. Even then, a write Claude proposes right after reading
-  email still asks.
-
-Tools: `assignments_upcoming`, `grades_new`, `calendar_add_assignment` (the only write).
+- **Assignments:** the LEARN feed is deduplicated by course + title ("Assignment 5" = "A5"; a
+  re-sync updates the due date). `assignments_upcoming` answers "what's due this week?",
+  soonest first, and adds recent course emails that mention a due date as hints (subject and
+  sender only).
+- **Calendar (`STARK – Assignments`):** with **AUTO-ADD ASSIGNMENTS** on, new and changed
+  upcoming assignments are written to that calendar only, with course, due time, LEARN link and a
+  reminder two days before. With it off, nothing is written automatically;
+  `calendar_add_assignment` (after your spoken yes) adds one. On Google the calendar is created
+  with `calendar.app.created`, which can't reach any other calendar. Writing to an Outlook
+  calendar isn't possible without Graph.
+- **Grades:** `grades_new` and the sync scan Gmail for LEARN / Crowdmark "grade released /
+  feedback available" notices, including ones forwarded from your UW address. The original sender
+  is taken from From / Sender / Reply-To / X-Original-* / Resent-From / an SRS-rewritten
+  Return-Path, or, for an "FW:" from your UW address, from the "From: …" line Gmail's snippet
+  starts with.
+  - Only LEARN / D2L no-reply addresses and Crowdmark count; a person's `@uwaterloo.ca` doesn't.
+  - DKIM must not have failed (ARC counts).
+  - The subject must say a grade or feedback was released, and name an assignment that is in the feed.
+  - Headers and snippet only; bodies are never fetched.
+- **When a grade is found:** the event gets the **✓** prefix (with AUTO-ADD, or when you add it),
+  and **"Sir, your CS 137 A5 has been graded"** is announced once per assignment, when you're
+  docked and not in combat mode. Only notices from the last two days are announced; the first
+  scan ever records what's already in the inbox without a word.
 
 ## Same safety rules as Google
 

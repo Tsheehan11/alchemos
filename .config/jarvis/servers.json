@@ -1,5 +1,5 @@
 {
-    "_doc": "MCP servers Jarvis loads (core/config.py load_servers). Phase-2 integrations are entries with policy 'integration': they load only when enabled, are read-only unless read_only is false, and every tool not in read_tools is a write that needs Trevor's spoken yes (auto_write: tool -> settings key that lets it run without one). Without a policy, every tool asks unless named in auto_allow. Secrets (OAuth tokens, feed URLs): system keyring via core/secrets.py, never in this file. Connect with `jarvis connect <auth>`; see docs/phase2-*.md.",
+    "_doc": "MCP servers Jarvis loads (core/config.py load_servers). Phase-2 integrations are entries with policy 'integration': they load only when enabled, are read-only unless read_only is false, and every tool not in read_tools is a write that needs Trevor's spoken yes (auto_write: tool -> settings key that lets it run without one). Without a policy, every tool asks unless named in auto_allow. Secrets (OAuth tokens, feed URLs): system keyring via core/secrets.py, never in this file. An entry without a command only shows status (outlook: its calendar is merged into the google server's calendar tools). optional: shown as OPTIONAL rather than NOT CONNECTED. Connect with `jarvis connect <auth>`; see docs/phase2-*.md.",
     "stark": {
         "command": "{venv}/python",
         "args": [
@@ -36,31 +36,14 @@
             "docs_search"
         ]
     },
-    "microsoft": {
-        "name": "Microsoft 365",
-        "label": "UWATERLOO OUTLOOK · MAIL · CALENDAR",
-        "command": "{venv}/python",
-        "args": [
-            "-I",
-            "{jarvis}/mcp/microsoft_tools.py"
-        ],
-        "auth": "microsoft",
-        "scopes": [
-            "Mail.Read",
-            "Calendars.ReadWrite",
-            "offline_access",
-            "User.Read"
-        ],
+    "outlook": {
+        "name": "Outlook",
+        "label": "UWATERLOO CALENDAR · MAIL",
+        "auth": "outlook-ical",
         "enabled": false,
-        "read_only": true,
         "policy": "integration",
-        "read_tools": [
-            "calendar_today",
-            "calendar_next",
-            "email_unread_summary",
-            "email_search"
-        ],
-        "note": "UWaterloo may require admin consent; if it's blocked, LEARN uses its iCal feed and grade notices come from whichever inbox is connected."
+        "served_by": "google",
+        "note": "UW blocks the Graph app route. The calendar comes from Outlook's published ICS link (keyring jarvis:outlook / ical_url, mcp/outlook_ical.py), merged into calendar_today / calendar_next; UW mail forwards into Gmail and is read by the google tools."
     },
     "academic": {
         "name": "LEARN",
@@ -82,5 +65,32 @@
             "calendar_add_assignment": "jarvisAutoAddAssignments"
         },
         "note": "Writes only ever go to the dedicated 'STARK – Assignments' calendar (jarvisAssignmentsAccount picks Google or Outlook)."
+    },
+    "microsoft": {
+        "name": "Microsoft 365 (direct)",
+        "label": "DIRECT CONNECTION · NEEDS ADMIN CONSENT",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{jarvis}/mcp/microsoft_tools.py"
+        ],
+        "auth": "microsoft",
+        "scopes": [
+            "Mail.Read",
+            "Calendars.ReadWrite",
+            "offline_access",
+            "User.Read"
+        ],
+        "enabled": false,
+        "read_only": true,
+        "policy": "integration",
+        "read_tools": [
+            "calendar_today",
+            "calendar_next",
+            "email_unread_summary",
+            "email_search"
+        ],
+        "note": "Optional Graph route; UWaterloo blocks user consent, so Outlook normally comes in through the outlook entry (calendar link + mail forwarding).",
+        "optional": true
     }
 }

@@ -63,7 +63,7 @@ if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
 
 import jarvis_db as db  # noqa: E402
 import stark_actions as A  # noqa: E402
-from core import fastpath, hearing, hud, trace  # noqa: E402
+from core import fastpath, hearing, hud, secrets, trace  # noqa: E402
 from core import config as C  # noqa: E402
 
 # ── Wake word / speech-to-text ──────────────────
@@ -80,6 +80,7 @@ CONFIRM_TIMEOUT_S = 6.0
 RATE = hearing.RATE
 CHUNK = hearing.CHUNK      # 80 ms
 NOT_HEARD = "Sorry sir, I didn't catch that."
+SYNC_S = 15 * 60           # Outlook calendar link + LEARN feed + grade notices, while docked
 
 YES = re.compile(r"\b(yes|yeah|yep|yup|confirm(ed)?|do it|go ahead|affirmative|proceed|sure|please do|correct)\b")
 NO = re.compile(r"\b(no|nope|don't|do not|cancel|stop|negative|never ?mind|wait)\b")
@@ -629,9 +630,9 @@ class VoiceLoop:
 
     def check_academic(self):
         """Grade notices queued by the academic sync ("Sir, your CS 137 A5 has been graded").
-        The voice loop only runs while docked, so they wait for the desk."""
+        The voice loop only runs while docked, so they wait for the desk (and for combat mode to end)."""
         now = time.time()
-        if now - self.last_academic_check < 60:
+        if now - self.last_academic_check < 60 or self.paused:
             return
         self.last_academic_check = now
         try:
@@ -645,6 +646,29 @@ class VoiceLoop:
             hud.toast("LEARN", line.upper())
             if not self.paused:
                 self.say(line)
+
+    def _sync_loop(self):
+        """Every SYNC_S while docked (this process only runs docked): the Outlook calendar link, the LEARN
+        feed, grade notices in Gmail, and with AUTO-ADD the "STARK – Assignments" calendar
+        (mcp/academic_sync.py). Off the main thread, so the wake word never waits on the network."""
+        time.sleep(30)
+        while True:
+            try:
+                import academic_sync
+                import outlook_ical
+                if outlook_ical.url():
+                    m = outlook_ical.fetch()
+                    if not m.get("ok"):
+                        log(f"JARVIS: Outlook calendar link: {m.get('error')}")
+                if secrets.has("learn", "ical_url"):
+                    r = academic_sync.sync(self.cfg, log=log)
+                    busy = {k: v for k, v in r.items() if v and k != "learn"} | (
+                        {"learn": r["learn"]} if r.get("learn", {}).get("new") or r.get("learn", {}).get("changed") else {})
+                    if busy:
+                        log(f"JARVIS: academic sync {busy}")
+            except Exception as e:
+                log(f"JARVIS: sync failed: {type(e).__name__}: {e}")
+            time.sleep(SYNC_S)
 
     # ── one exchange ──
     def converse(self):
@@ -747,6 +771,7 @@ class VoiceLoop:
                 hud.online()
                 time.sleep(5)
         threading.Thread(target=heartbeat, daemon=True).start()
+        threading.Thread(target=self._sync_loop, daemon=True).start()
         self.check_combat()
         if not self.paused:
             self.mic.start()

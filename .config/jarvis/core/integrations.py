@@ -6,7 +6,8 @@ and the sign-in flows.
   jarvis connect google [CLIENT_SECRET.json]     OAuth desktop flow (docs/phase2-google.md)
   jarvis connect microsoft [CLIENT_ID [TENANT]]  MSAL device code flow (docs/phase2-microsoft.md)
   jarvis connect learn-ical [URL]                LEARN's private calendar feed
-  jarvis disconnect google|microsoft|learn-ical
+  jarvis connect outlook-ical                    published Outlook calendar link (prompted, never an argument)
+  jarvis disconnect google|microsoft|learn-ical|outlook-ical
 
 Everything secret goes to the system keyring (core/secrets.py). A successful connect sets
 "enabled": true on the servers.json entry and restarts the voice loop so it loads the new
@@ -49,12 +50,20 @@ def _state(key, e):
                 return True, "Missing " + ", ".join(google_api.SCOPES.get(s, s) for s in missing) + " · reconnect and tick it"
             return True, "Read-only · token in the system keyring"
         return False, "Needs an OAuth client · docs/phase2-google.md" if not secrets.has("google", "client") else "Client saved · sign in"
+    if key == "outlook":
+        if not secrets.has("outlook", "ical_url"):
+            return False, "Paste your published Outlook calendar link"
+        import outlook_ical
+        m = outlook_ical.meta()
+        if m and not m.get("ok"):
+            return True, f"calendar link + mail forwarding · link not updating ({m.get('error', '?')})"
+        return True, "calendar link + mail forwarding"
     if key == "microsoft":
         if secrets.has("microsoft", "token"):
             return True, "Read-only · token in the system keyring"
         if secrets.has("microsoft", "blocked"):
-            return False, "UWaterloo needs admin consent · using the LEARN feed instead"
-        return False, "May need university admin consent · docs/phase2-microsoft.md"
+            return False, "UWaterloo didn't approve it · Outlook works through the calendar link + forwarding"
+        return False, "Optional · needs university admin consent · Outlook already works without it"
     if key == "academic":
         feed = secrets.has("learn", "ical_url")
         inbox = secrets.has("google", "token") or secrets.has("microsoft", "token")
@@ -69,8 +78,9 @@ def status():
     for key, e in C.integrations().items():
         connected, detail = _state(key, e)
         out.append({"key": key, "name": e.get("name", key), "label": e.get("label", ""), "auth": e.get("auth", key),
-                    "enabled": bool(e.get("enabled")), "connected": connected,
-                    "state": "CONNECTED" if connected else "NOT CONNECTED", "detail": detail})
+                    "enabled": bool(e.get("enabled")), "connected": connected, "optional": bool(e.get("optional")),
+                    "state": "CONNECTED" if connected else "OPTIONAL" if e.get("optional") else "NOT CONNECTED",
+                    "detail": detail})
     return out
 
 
@@ -80,7 +90,7 @@ def print_status(as_json=False):
         print(json.dumps(rows, ensure_ascii=False))
         return
     for r in rows:
-        print(f"{r['name']:<15} {r['state']:<14} {'on ' if r['enabled'] else 'off'}  {r['detail']}")
+        print(f"{r['name']:<23} {r['state']:<14} {'on ' if r['enabled'] else 'off'}  {r['detail']}")
 
 
 def _set_enabled(key, on):
@@ -268,15 +278,64 @@ def connect_learn(args):
     return _done(key)
 
 
+# ── Outlook: the published calendar link (UWaterloo blocks the Graph app route) ──
+def connect_outlook(args):
+    key, _ = _entry_for("outlook-ical")
+    import outlook_ical
+    if args:
+        print("Don't put the link on the command line: it would be saved in your shell history.\n"
+              "Run just `jarvis connect outlook-ical` and paste it at the prompt. (If you did paste it,\n"
+              "remove that line from your history, e.g. `history delete --contains outlook` in fish.)")
+        return 2
+    raw = _ask("Published Outlook calendar link (ICS; Outlook on the web → Settings → Calendar → Shared calendars → "
+               "Publish). It's private, so input is hidden: ", hidden=True)
+    if not raw:
+        print("No link. Publish your calendar in Outlook on the web and copy the ICS link.")
+        return 1
+    try:
+        link = outlook_ical.normalize_url(raw)
+    except outlook_ical.FeedError as err:
+        print(f"That doesn't look right: {err}.")
+        return 1
+    if link.lower().endswith((".html", ".htm")) or "/calendar.html" in link.lower():
+        print("That's the HTML link (a web page). Use the ICS link from the same Publish section.")
+        return 1
+    print("Checking the link…")
+    try:
+        m = outlook_ical.fetch(link, force=True)
+    except outlook_ical.FeedError as err:
+        print(f"Couldn't read a calendar from it: {err}. Nothing saved.")
+        return 1
+    if not m.get("ok"):
+        print(f"Couldn't read a calendar from it: {m.get('error')}. Nothing saved.")
+        for f in (outlook_ical.CACHE, outlook_ical.META):
+            f.unlink(missing_ok=True)
+        return 1
+    secrets.store("outlook", "ical_url", link)
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("America/Toronto"))
+    week = outlook_ical.events(now, now + timedelta(days=7), now.tzinfo)
+    print(f"Outlook calendar connected: {m.get('events', 0)} events in the feed, {len(week)} in the next 7 days. "
+          "Link saved in the keyring.")
+    print("Calendar questions now merge Google and Outlook. UW mail is read through its forwarding into Gmail.")
+    return _done(key)
+
+
 def disconnect(target):
     wipe = {"google": [("google", "token"), ("google", "client"), ("google", "granted"), ("google", "assignments_calendar")],
             "microsoft": [("microsoft", "token"), ("microsoft", "blocked"), ("microsoft", "client_id"), ("microsoft", "tenant")],
-            "learn-ical": [("learn", "ical_url")]}
+            "learn-ical": [("learn", "ical_url")],
+            "outlook-ical": [("outlook", "ical_url")]}
     if target not in wipe:
         print(f"usage: jarvis disconnect {'|'.join(wipe)}")
         return 2
     for s, a in wipe[target]:
         secrets.delete(s, a)
+    if target == "outlook-ical":
+        import outlook_ical
+        for f in (outlook_ical.CACHE, outlook_ical.META):
+            f.unlink(missing_ok=True)
     key, _ = _entry_for(target)
     _set_enabled(key, False)
     print(f"{target}: keyring entries removed, integration disabled.")
@@ -292,7 +351,8 @@ def main(argv):
         return 0
     if cmd == "disconnect":
         return disconnect(rest[0] if rest else "")
-    flows = {"google": connect_google, "microsoft": connect_microsoft, "learn-ical": connect_learn}
+    flows = {"google": connect_google, "outlook-ical": connect_outlook, "learn-ical": connect_learn,
+             "microsoft": connect_microsoft}
     if not rest or rest[0] not in flows:
         print(f"usage: jarvis connect {'|'.join(flows)} [...]   (see {DOCS})")
         return 2

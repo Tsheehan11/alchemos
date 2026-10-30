@@ -63,8 +63,9 @@ ev = {"start": now - timedelta(minutes=50), "end": now + timedelta(minutes=18), 
       "where": "MC 2066", "calendar": ""}
 check("happening now", G.describe(ev, now), {"title": "MATH135", "day": "today", "when": "1:12 PM to 2:20 PM",
                                              "status": "happening now", "where": "MC 2066"})
-soon = dict(ev, start=now + timedelta(minutes=28), end=now + timedelta(minutes=78), calendar="Classes")
-check("starts soon", (G.describe(soon, now)["starts_in_minutes"], G.describe(soon, now)["calendar"]), (28, "Classes"))
+soon = dict(ev, start=now + timedelta(minutes=28), end=now + timedelta(minutes=78), sources=["Google · Classes", "Outlook"])
+check("starts soon", (G.describe(soon, now)["starts_in_minutes"], G.describe(soon, now)["source_if_asked"]),
+      (28, "Google · Classes and Outlook"))
 check("timed event parse", G.parse_when({"dateTime": "2026-10-30T18:30:00Z"})[0].hour, 14)
 check("all-day parse", G.parse_when({"date": "2026-10-30"})[1], True)
 

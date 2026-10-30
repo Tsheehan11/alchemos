@@ -704,8 +704,9 @@ PanelWindow {
                             SmallButton {
                                 id: connectBtn
                                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                text: modelData.connected ? "RECONNECT" : "CONNECT"
+                                text: modelData.connected ? "RECONNECT" : modelData.optional ? "SET UP" : "CONNECT"
                                 active: modelData.connected
+                                opacity: modelData.optional && !modelData.connected ? 0.6 : 1
                                 onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis connect " + modelData.auth)); LauncherState.closeAll(); }
                             }
                         }

@@ -2,21 +2,24 @@
 Academic sync: LEARN (D2L) assignments → a dedicated "STARK – Assignments" calendar,
 and grade notices (LEARN / Crowdmark emails) → a ✓ on that assignment + a spoken line.
 
-Phase 2 scaffolding: the pure parts (iCal parsing, de-duplication, event shape, grade
-notice recognition, the announcement queue) are real and tested (tests/test_integrations.py);
-fetching the feed and writing calendar events are wired up once an account is connected.
+The pure parts live here (iCal parsing, de-duplication, event shape, grade-notice recognition
+from email headers, the state file and announcement queue); academic_sync.py fetches the feed,
+scans Gmail and writes the calendar, and academic_tools.py answers Claude.
 
 Rules this module keeps no matter who calls it:
   * Writes only ever target ASSIGNMENTS_CALENDAR, never the main calendar. There is no
     parameter for the calendar, so nothing (the model included) can point it elsewhere.
-  * A grade notice only counts if the sender is LEARN or Crowdmark (and passed DKIM, once
-    the inbox reports it) AND it names an assignment already known from the LEARN feed.
-    Only the sender and subject are read; the body is never used. The only possible effect
-    is the ✓ prefix on that one event and the announcement.
+  * A grade notice only counts if it comes from LEARN / D2L no-reply addresses or Crowdmark
+    (also when UW forwarded it: the original sender is taken from the forwarding headers, or
+    from Gmail's snippet of an "FW:" sent from his UW address), DKIM didn't fail, the subject
+    says a grade or feedback was released, AND it names an assignment already in the LEARN feed.
+    Headers and Gmail's snippet only; the body is never fetched. The only possible effects are
+    the ✓ prefix on that one event and the announcement.
 """
 import json
 import re
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -28,7 +31,11 @@ STATE_FILE = Path.home() / ".local/share/jarvis/academic.json"
 
 COURSE = re.compile(r"\b([A-Z]{2,5})\s?(\d{3}[A-Z]?)\b")
 DUE_NOISE = re.compile(r"\s*[-–:]?\s*\b(?:is )?(?:due|availability ends|ends|deadline)\b.*$", re.I)
-GRADE_SENDERS = re.compile(r"@(?:[\w.-]+\.)?(?:uwaterloo\.ca|desire2learn\.com|d2l\.com|crowdmark\.com)>?$", re.I)
+# LEARN (D2L) notifications come from no-reply style addresses, never a person's @uwaterloo.ca
+GRADE_SENDERS = re.compile(r"(?:^|[<\s])(?:(?:no-?reply|do-?not-?reply|notifications?|d2l)[\w.+-]*@(?:[\w-]+\.)*uwaterloo\.ca"
+                           r"|[\w.+-]+@(?:[\w-]+\.)*(?:learn\.uwaterloo\.ca|crowdmark\.com|d2l\.com|desire2learn\.com))>?$", re.I)
+UW_ADDRESS = re.compile(r"[\w.+-]+@(?:[\w-]+\.)*uwaterloo\.ca>?$", re.I)
+FW_PREFIX = re.compile(r"^\s*(?:(?:fw|fwd|tr|wg)\s*:\s*)+", re.I)
 GRADE_SUBJECT = re.compile(r"\b(?:grades? (?:has been |have been |is |are )?(?:released|posted|available)|"
                            r"feedback (?:is )?(?:now )?(?:available|released)|new grade|has been graded|"
                            r"graded (?:assessment|work)|(?:has|have) been returned|results? (?:are |is )?available)\b", re.I)
@@ -146,6 +153,54 @@ def grade_notice(sender, subject, known, dkim_pass=None):
     return None
 
 
+def _addr(value):
+    """'Crowdmark <noreply@crowdmark.com>' → 'noreply@crowdmark.com' (SRS-rewritten bounce
+    addresses are turned back into the original: SRS0=h=tt=crowdmark.com=noreply@… )."""
+    m = re.search(r"<([^>]+)>", value or "") or re.search(r"[\w.+=-]+@[\w.-]+", value or "")
+    a = (m.group(1) if m and m.lastindex else m.group(0) if m else "").strip().lower()
+    srs = re.match(r"srs[01]=[^=]+=[^=]+=([^=]+)=([^@]+)@", a)
+    return f"{srs.group(2)}@{srs.group(1)}" if srs else a
+
+
+def notice_senders(headers, snippet=""):
+    """Every address that might be the original sender of a (possibly forwarded) email.
+    headers: {lower-case name: [values]}."""
+    names = ("from", "sender", "reply-to", "x-original-from", "x-original-sender", "resent-from", "return-path")
+    out = [_addr(v) for n in names for v in headers.get(n, []) if _addr(v)]
+    subject = (headers.get("subject") or [""])[0]
+    frm = _addr((headers.get("from") or [""])[0])
+    if FW_PREFIX.match(subject) and UW_ADDRESS.search(frm):
+        # an "FW:" from his UW address: Outlook puts the original "From: … <addr>" first in the body,
+        # which is where Gmail's snippet starts
+        m = re.search(r"From:\s*[^<\n]*<?([\w.+-]+@[\w.-]+)>?", snippet or "")
+        if m:
+            out.append(m.group(1).lower())
+    return out
+
+
+def dkim_verdict(headers):
+    """True: a grade sender's DKIM signature passed (directly or per ARC, i.e. before forwarding).
+    False: it explicitly failed and nothing vouches for it. None: the inbox doesn't say."""
+    res = " ".join(headers.get("authentication-results", []) + headers.get("arc-authentication-results", []))
+    domains = r"(?:[\w-]+\.)*(?:uwaterloo\.ca|crowdmark\.com|d2l\.com|desire2learn\.com)"
+    if re.search(rf"dkim=pass[^;]*header\.[di]=@?{domains}\b", res, re.I):
+        return True
+    if re.search(rf"dkim=fail[^;]*header\.[di]=@?{domains}\b", res, re.I):
+        return False
+    return None
+
+
+def notice_from_message(headers, snippet, known):
+    """One Gmail message (headers {lower name: [values]} + snippet) → (assignment, source) or None."""
+    subject = FW_PREFIX.sub("", (headers.get("subject") or [""])[0])
+    dkim = dkim_verdict(headers)
+    for sender in notice_senders(headers, snippet):
+        a = grade_notice(sender, subject, known, dkim)
+        if a:
+            return a, ("Crowdmark" if "crowdmark" in sender else "LEARN")
+    return None
+
+
 def spoken_course(a):
     st = short_title(a["title"])
     return f"{a['course']} {st.upper() if re.fullmatch(r'a[0-9]+', st) else a['title']}"
@@ -156,11 +211,33 @@ def announcement(a):
 
 
 # ── state: known assignments + what's waiting to be said ──
+STATE_KEYS = {"assignments": dict, "graded": list, "announce": list, "announced": list, "synced": dict, "seen_msgs": list}
+
+
+@contextmanager
+def locked():
+    """Held while reading-modifying-writing the state: the voice loop's sync and the MCP server both write it."""
+    import fcntl
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(STATE_FILE.with_suffix(".lock"), "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
 def load_state():
+    """graded: [{key, ts, source, reported, ticked}]; announced: assignment keys already said;
+    synced: {key: due iso} written to the calendar; seen_msgs: Gmail ids already looked at."""
     try:
-        return json.loads(STATE_FILE.read_text())
+        st = json.loads(STATE_FILE.read_text())
     except (OSError, ValueError):
-        return {"assignments": {}, "graded": [], "announce": []}
+        st = {}
+    for k, t in STATE_KEYS.items():
+        if not isinstance(st.get(k), t):
+            st[k] = t()
+    return st
 
 
 def save_state(st):
@@ -177,19 +254,21 @@ def known(st=None):
 
 
 def queue_announcement(text):
-    st = load_state()
-    st["announce"].append({"text": text, "ts": time.time()})
-    save_state(st)
+    with locked():
+        st = load_state()
+        st["announce"].append({"text": text, "ts": time.time()})
+        save_state(st)
 
 
 def pop_announcements():
     """Lines for the voice loop to say (it only runs while docked, so they wait until then)."""
     if not STATE_FILE.exists():
         return []
-    st = load_state()
-    lines, st["announce"] = [a["text"] for a in st.get("announce", [])], []
-    if lines:
-        save_state(st)
+    with locked():
+        st = load_state()
+        lines, st["announce"] = [a["text"] for a in st.get("announce", [])], []
+        if lines:
+            save_state(st)
     return lines
 
 

@@ -18,6 +18,7 @@ import sys
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import calendars  # noqa: E402
 import google_api as G  # noqa: E402
 from integration_common import out, untrusted  # noqa: E402
 from mcp.server.mcpserver import MCPServer  # noqa: E402
@@ -31,6 +32,9 @@ def run(fn):
     except G.GoogleError as e:
         print(f"google: {e.kind}: {e.detail}", file=sys.stderr)
         return out(e.result())
+    except calendars.O.FeedError as e:
+        print(f"google: outlook feed: {e}", file=sys.stderr)
+        return out({"ok": False, "error": f"outlook feed: {e}", "say": "I couldn't read your Outlook calendar link, sir."})
     except Exception as e:                       # never crash the tool: say so, keep the reason for the log
         print(f"google: {type(e).__name__}: {e}", file=sys.stderr)
         return out({"ok": False, "error": f"{type(e).__name__}: {e}"[:300], "say": "Something went wrong reading Google, sir."})
@@ -42,32 +46,36 @@ def _now():
 
 @mcp.tool(structured_output=False)
 def calendar_today() -> str:
-    """Today's events across all his Google calendars (local time): when, title, place, which calendar,
-    and whether each is over / happening now / starting soon."""
+    """Today's events from all his calendars, Google and UW Outlook merged (duplicates removed), in local
+    time: when, title, place, and whether each is over / happening now / starting soon. Don't say which
+    calendar an event is from unless he asks (source_if_asked)."""
     def go():
         now = _now()
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        evs = G.events(start, start + timedelta(days=1))
+        evs, notes = calendars.merged(start, start + timedelta(days=1))
         if not evs:
-            return {"ok": True, "count": 0, "say": "Nothing on your calendar today, sir."}
+            return {"ok": True, "count": 0, "say": " ".join(["Nothing on your calendar today, sir."] + notes)}
         left = sum(1 for e in evs if e["all_day"] or e["end"] > now)
-        return {**untrusted("Google Calendar", [G.describe(e, now) for e in evs]),
-                "now": G.clock(now), "count": len(evs), "still_to_come_or_ongoing": left}
+        return {**untrusted("calendar", [G.describe(e, now) for e in evs]),
+                "now": G.clock(now), "count": len(evs), "still_to_come_or_ongoing": left,
+                **({"also_say": " ".join(notes)} if notes else {})}
     return run(go)
 
 
 @mcp.tool(structured_output=False)
 def calendar_next() -> str:
-    """The next timed event across all his Google calendars (within 30 days), plus anything happening right now."""
+    """The next timed event from all his calendars (Google and UW Outlook, within 30 days), plus anything
+    happening right now. Don't say which calendar it's from unless he asks (source_if_asked)."""
     def go():
         now = _now()
-        evs = [e for e in G.events(now, now + timedelta(days=30), per_calendar=10) if not e["all_day"]]
+        evs, notes = calendars.merged(now, now + timedelta(days=30), per_calendar=10)
+        evs = [e for e in evs if not e["all_day"]]
         current = [G.describe(e, now) for e in evs if e["start"] <= now < e["end"]]
         upcoming = [e for e in evs if e["start"] > now]
         if not upcoming and not current:
-            return {"ok": True, "say": "Nothing on your calendar for the next month, sir."}
+            return {"ok": True, "say": " ".join(["Nothing on your calendar for the next month, sir."] + notes)}
         data = {"next": G.describe(upcoming[0], now) if upcoming else None, "happening_now": current}
-        return {**untrusted("Google Calendar", data), "now": G.clock(now)}
+        return {**untrusted("calendar", data), "now": G.clock(now), **({"also_say": " ".join(notes)} if notes else {})}
     return run(go)
 
 

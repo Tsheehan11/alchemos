@@ -187,7 +187,7 @@ def events(start, end, per_calendar=50):
         items = call("calendar", svc.events().list(
             calendarId=cid, timeMin=start.isoformat(), timeMax=end.isoformat(), singleEvents=True,
             orderBy="startTime", maxResults=per_calendar, timeZone=local_tz(),
-            fields="items(id,summary,location,start,end,status,attendees(self,responseStatus),hangoutLink)")).get("items", [])
+            fields="items(id,iCalUID,summary,location,start,end,status,attendees(self,responseStatus),hangoutLink)")).get("items", [])
         for e in items:
             if e.get("status") == "cancelled":
                 continue
@@ -197,7 +197,8 @@ def events(start, end, per_calendar=50):
             en, _ = parse_when(e.get("end") or e["start"])
             out.append({"start": s, "end": en, "all_day": all_day, "title": e.get("summary") or "(no title)",
                         "where": e.get("location") or ("video call" if e.get("hangoutLink") else ""),
-                        "calendar": "" if primary else cname})
+                        "calendar": "" if primary else cname, "uid": e.get("iCalUID", ""),
+                        "source": "Google" if primary else f"Google · {cname}"})
     return sorted(out, key=lambda e: (not e["all_day"], e["start"]))
 
 
@@ -218,8 +219,8 @@ def describe(e, now):
                 d["starts_in_minutes"] = mins
     if e["where"]:
         d["where"] = e["where"]
-    if e["calendar"]:
-        d["calendar"] = e["calendar"]
+    if e.get("sources") or e.get("source"):
+        d["source_if_asked"] = " and ".join(e.get("sources") or [e["source"]])
     return d
 
 

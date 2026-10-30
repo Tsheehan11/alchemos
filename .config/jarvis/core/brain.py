@@ -150,7 +150,8 @@ class Brain:
         self.usage, self.usage_at = {}, 0.0   # CLI's rate-limit windows (five_hour, seven_day)
         self.servers, self.policies = C.load_servers(dry_run)
         self.offline = [f"{e.get('name', k)} ({e['label'].lower().replace(' · ', ', ')})" if e.get("label") else e.get("name", k)
-                        for k, e in C.integrations().items() if k not in self.servers]
+                        for k, e in C.integrations().items()
+                        if k not in self.servers and e.get("command") and not e.get("optional")]
         self.net = None           # network_signature() the client was started on
         self._watch_task = None
 

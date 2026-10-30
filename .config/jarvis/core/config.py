@@ -116,7 +116,7 @@ def load_servers(dry_run=False):
 
     servers, policies = {}, {}
     for name, s in raw.items():
-        if name.startswith("_"):
+        if name.startswith("_") or "command" not in s:      # status-only entries (e.g. outlook) start no server
             continue
         integ = s.get("policy") == "integration"
         if not s.get("enabled", not integ):
