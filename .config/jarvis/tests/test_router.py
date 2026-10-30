@@ -63,6 +63,10 @@ check("anchor: open ≠ close", path("open it").startswith("claude:"), True)
 check("negation", path("don't turn off the lights"), "claude:negation")
 check("compound", path("dim the lights and play some jazz").startswith("claude:"), True)
 check("chat", path("why do cats purr").startswith("claude:"), True)
+check("speak quieter = Jarvis's voice", local("jarvis speak quieter")[1:], ("jarvis_volume", {"action": "down"}))
+check("set your volume to 40", local("set your volume to 40 percent")[2], {"action": "set", "percent": 40})
+check("music volume stays media", local("set the volume to 40")[1], "media")
+check("'your voice' alone isn't volume", path("make your voice deeper").startswith("claude:"), True)
 for t in ["any new emails", "what's on my calendar today", "when is cs 137 a6 due", "did my midterm get graded",
           "find the lab report in my drive", "check my inbox please"]:
     check(f"phase 2 never local: {t}", path(t), "claude:claude-only")

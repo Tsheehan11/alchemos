@@ -1015,12 +1015,83 @@ def weather(place=""):
             "wind_kmh": round(c["wind_speed_10m"])}, "today": day(0), "tomorrow": day(1)}
 
 
+# ── Jarvis's own voice volume (Settings → JARVIS → VOICE VOLUME) ──
+VOICE_STEP = 15
+
+
+def _hud_settings():
+    try:
+        return json.loads(HUD_SETTINGS.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_hud_setting(key, value):
+    """One key in quickshell/settings.json, written atomically. The HUD (FileView watchChanges)
+    reloads it, and Jarvis's Config re-reads it by mtime, so the next sentence is at the new level."""
+    data = _hud_settings()
+    data[key] = value
+    tmp = HUD_SETTINGS.with_suffix(".jarvis.tmp")
+    tmp.write_text(json.dumps(data, indent=4, ensure_ascii=False) + "\n")
+    tmp.replace(HUD_SETTINGS)
+
+
+def _speaker_in_use(mac):
+    """Jarvis is talking through the Bluetooth speaker: it's connected and the default output isn't
+    headphones (the same rule as core/voice.py Speaker.wanted + core/effects.on_headphones)."""
+    if not mac:
+        return False
+    rc, out, _ = _run(["pactl", "-f", "json", "list", "sinks"], timeout=3)
+    rc2, default, _ = _run(["pactl", "get-default-sink"], timeout=3)
+    try:
+        sinks = json.loads(out) if rc == 0 else []
+    except ValueError:
+        return False
+    if not any(s.get("name", "").startswith("bluez_output." + mac.replace(":", "_")) for s in sinks):
+        return False
+    for s in sinks:
+        if s.get("name") == default:
+            p = s.get("properties", {})
+            hints = " ".join(str(x) for x in (p.get("device.form_factor"), p.get("device.icon_name"), s.get("active_port")))
+            return not (re.search(r"head(phone|set)", hints, re.I) or p.get("device.bus") == "usb")
+    return True
+
+
+@safe
+def jarvis_volume(action, percent=0):
+    """Jarvis's own speaking volume (not the music). action: up | down (one step) | set (percent 0-100).
+    Changes the Bluetooth speaker's own level instead when that's what Jarvis is playing on and it
+    has a separate level."""
+    action = _choice(action, ["up", "down", "set"], "action")
+    cfg = _hud_settings()
+    key = "jarvisVoiceVolume"
+    try:
+        if int(cfg.get("jarvisSpeakerVolume", -1)) >= 0 and _speaker_in_use(str(cfg.get("jarvisSpeaker") or "")):
+            key = "jarvisSpeakerVolume"
+        now = int(round(float(cfg.get(key, 60))))
+    except (TypeError, ValueError):
+        now = 60
+    if action == "set":
+        new = _int(str(percent).rstrip("%"), 0, 100, "percent")
+    elif action == "up":
+        new = min(100, now + VOICE_STEP)
+    else:
+        new = max(10, now - VOICE_STEP)          # a step down never makes him inaudible
+    where = "Bluetooth speaker" if key == "jarvisSpeakerVolume" else "voice"
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"Jarvis {where} volume {now}% → {new}%", "percent": new, "was": now}
+    if new != now or key not in cfg:
+        _write_hud_setting(key, new)
+    return {"ok": True, "percent": new, "was": now, "where": where,
+            **({"note": "already at the limit"} if new == now and action != "set" else {})}
+
+
 # ── registry, confirmation policy, HUD labels ──
 TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_list,
+    widget_add, widget_remove, widget_move, widget_list, jarvis_volume,
 ]}
 
 
@@ -1083,6 +1154,7 @@ def tool_label(tool, args):
         "widget_remove": lambda: f"WIDGET ✕ {v('target') or 'ALL'}" + (f" @ {v('screen')}" if a.get("screen") else ""),
         "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen') or v('size') or ('PIN' if a.get('pinned') else 'UNPIN' if a.get('pinned') is False else '')}".rstrip(" ⇢"),
         "widget_list": lambda: "WIDGETS → LIST",
+        "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
     }
     try:
         return labels[tool]()

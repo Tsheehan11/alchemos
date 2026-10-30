@@ -4,6 +4,13 @@ extra processes): pitch → band limits → warm EQ → drive → compressor →
 small-room reverb → limiter. Presets live in effects.json (CLEAN, HOLOGRAM, SUIT;
 AUTO = SUIT on headphones, HOLOGRAM on speakers); every knob there can be edited, and Settings → JARVIS adds its pitch on top.
 Costs ~6 ms per sentence, ~75 ms with the pitch shifter on.
+
+Loudness is matched on both sides of the chain (BS.1770-style K-weighted, gated LUFS per sentence):
+Kokoro voices come out between -23 and -19 LUFS, so the input is levelled to IN_LUFS first (the drive
+and compressor then behave the same for every voice); the presets themselves moved the level by up
+to 3 dB (HOLOGRAM loudest), so every preset's output is levelled to OUT_LUFS, then a look-ahead
+limiter keeps peaks under CEILING_DB. OUT_LUFS is the level at VOICE VOLUME 100 %; the volume
+setting is a plain gain applied at playback (core/voice.py), after all of this.
 """
 import json
 import re
@@ -17,6 +24,11 @@ from .config import JARVIS_DIR
 PRESETS_FILE = JARVIS_DIR / "effects.json"
 DEFAULT_PRESET = "HOLOGRAM"
 TAIL_S = 0.18          # silence after each sentence: the reverb tail plus a natural pause
+IN_LUFS = -21.0        # Kokoro before the chain (its voices measured -23 to -19)
+OUT_LUFS = -15.0       # every preset after the chain = VOICE VOLUME 100 %; the 60 % default ≈ -19.4
+CEILING_DB = -1.0      # sample peak after the limiter
+MAX_GAIN_DB = 24.0     # never boost more than this (near-silent input)
+NORM_VERSION = 1       # part of the tts-cache key: bump when the levelling changes
 
 _boards = {}
 _auto = {"at": 0.0, "name": DEFAULT_PRESET}
@@ -96,16 +108,74 @@ def _board(fx, pitch):
     if fx.get("reverb_wet"):
         chain.append(Reverb(room_size=fx.get("reverb_room", 0.2), damping=0.6, wet_level=fx["reverb_wet"],
                             dry_level=1.0 - fx["reverb_wet"] / 2, width=0.5))
-    chain.append(Gain(fx.get("gain_db", 0)))
-    chain.append(Limiter(threshold_db=-2.0))
+    chain.append(Limiter(threshold_db=-2.0))     # part of the tone (it squeezes); the level is set afterwards
     return Pedalboard(chain)
 
 
+_kweight = {}
+
+
+def loudness(audio, sr):
+    """Integrated loudness in LUFS, BS.1770 style: K-weighting (38 Hz high-pass + 4 dB shelf at
+    1.5 kHz), 400 ms blocks with 75 % overlap, -70 LUFS absolute and -10 LU relative gates.
+    A sentence shorter than one block is measured whole. -inf for silence."""
+    from pedalboard import HighpassFilter, HighShelfFilter, Pedalboard
+    if sr not in _kweight:
+        _kweight[sr] = Pedalboard([HighpassFilter(38), HighShelfFilter(1500, gain_db=4.0)])
+    k = _kweight[sr](np.asarray(audio, np.float32), sr, reset=True).astype(np.float64)
+    n, hop = int(0.4 * sr), int(0.1 * sr)
+    sq = k * k
+    if len(sq) <= n:
+        blocks = np.array([sq.mean()]) if len(sq) else np.array([0.0])
+    else:
+        c = np.concatenate([[0.0], np.cumsum(sq)])
+        starts = np.arange(0, len(sq) - n + 1, hop)
+        blocks = (c[starts + n] - c[starts]) / n
+    blocks = blocks[blocks > 10 ** ((-70 + 0.691) / 10)]
+    if not len(blocks):
+        return float("-inf")
+    rel = 10 * np.log10(blocks.mean()) - 0.691 - 10
+    blocks = blocks[10 * np.log10(blocks) - 0.691 > rel]
+    return float(10 * np.log10(blocks.mean()) - 0.691)
+
+
+def normalize(audio, sr, target):
+    """Gain so the sentence measures `target` LUFS (silence is left alone, boosts capped)."""
+    lu = loudness(audio, sr)
+    if not np.isfinite(lu):
+        return audio
+    return (audio * 10 ** (min(target - lu, MAX_GAIN_DB) / 20)).astype(np.float32)
+
+
+def limit(audio, sr, ceiling_db=CEILING_DB, lookahead_ms=3.0, release_ms=60.0):
+    """Look-ahead peak limiter: gain reaches its minimum before the peak arrives (no clipped
+    edges), then recovers over release_ms. Untouched when nothing is over the ceiling."""
+    from scipy.ndimage import minimum_filter1d
+    from scipy.signal import lfilter
+    ceiling = 10 ** (ceiling_db / 20)
+    peak = np.abs(audio)
+    if peak.max(initial=0.0) <= ceiling:
+        return audio
+    need = np.minimum(1.0, ceiling / np.maximum(peak, 1e-9))
+    la = max(1, int(sr * lookahead_ms / 1000))
+    need = minimum_filter1d(need, size=2 * la + 1, mode="nearest")      # starts la samples early
+    a = np.exp(-1.0 / (sr * release_ms / 1000))
+    # release: gain may rise only slowly, never above what's needed → run a smoothed max of (1 - gain)
+    red = 1.0 - need
+    smooth = np.maximum(red, lfilter([1 - a], [1, -a], red))
+    out = audio * (1.0 - np.maximum(red, smooth))
+    return np.clip(out, -ceiling, ceiling).astype(np.float32)        # float rounding only
+
+
 def apply(audio, sr, fx, pitch=0.0):
-    """One sentence (float32 mono) → processed, with the tail padded on."""
-    audio = np.concatenate([audio.astype(np.float32), np.zeros(int(sr * TAIL_S), np.float32)])
+    """One sentence (float32 mono) → processed, with the tail padded on, at OUT_LUFS (+ the
+    preset's deliberate gain_db), peaks under CEILING_DB."""
+    audio = normalize(np.asarray(audio, np.float32), sr, IN_LUFS)
+    audio = np.concatenate([audio, np.zeros(int(sr * TAIL_S), np.float32)])
     key = (json.dumps(fx, sort_keys=True), round(pitch, 2), sr)
     if key not in _boards:
         _boards.clear()
         _boards[key] = _board(fx, pitch)
-    return np.clip(_boards[key](audio, sr, reset=True), -0.95, 0.95)   # the limiter can overshoot a little
+    out = _boards[key](audio, sr, reset=True)
+    out = normalize(out, sr, OUT_LUFS + float(fx.get("gain_db", 0) or 0))
+    return limit(out, sr)

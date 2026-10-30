@@ -1,5 +1,5 @@
 {
-  "_doc": "Jarvis's local decision layer (core/router_local.py): example phrases per intent, embedded at start (vectors cached in ~/.local/share/jarvis/router-*.npz). must: a regex the request has to contain before this intent may act (guards for antonyms like open / close). kind: tool (default; runs `tool` locally with `args` + `slots`, slot types in router_local.SLOTS, a trailing ? = optional), chat (always Claude) or claude-only (always Claude; email / calendar / docs / assignments / grades must stay claude-only). say: reply variants with {arg} fields, or @name for a reply built from the result (router_local.RESULT_SAY). Self-learned examples are kept out of this file, in ~/.local/share/jarvis/learned_intents.json (review with `jarvis intents review`).",
+  "_doc": "Jarvis's local decision layer (core/router_local.py): example phrases per intent, embedded at start (vectors cached in ~/.local/share/jarvis/router-*.npz). must: a regex the request has to contain before this intent may act (guards for antonyms like open / close); must_not: one it must not contain (music volume vs Jarvis's own voice). kind: tool (default; runs `tool` locally with `args` + `slots`, slot types in router_local.SLOTS, a trailing ? = optional), chat (always Claude) or claude-only (always Claude; email / calendar / docs / assignments / grades must stay claude-only). say: reply variants with {arg} fields, or @name for a reply built from the result (router_local.RESULT_SAY). Self-learned examples are kept out of this file, in ~/.local/share/jarvis/learned_intents.json (review with `jarvis intents review`).",
   "intents": {
     "open_app": {
       "tool": "open_app",
@@ -308,7 +308,8 @@
         "increase the volume",
         "a bit louder please",
         "pump up the volume"
-      ]
+      ],
+      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))"
     },
     "media.volume_down": {
       "tool": "media",
@@ -330,7 +331,8 @@
         "a bit softer",
         "bring the volume down",
         "it's too loud"
-      ]
+      ],
+      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))"
     },
     "media.set_volume": {
       "tool": "media",
@@ -355,7 +357,8 @@
         "set the sound level to 45 percent",
         "turn the volume to eighty",
         "audio at 35 percent"
-      ]
+      ],
+      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))"
     },
     "media.mute": {
       "tool": "media",
@@ -378,6 +381,78 @@
         "unmute please"
       ],
       "must": "\\b(?:un ?mute|mute|silence|sound)\\b"
+    },
+    "voice.volume_down": {
+      "tool": "jarvis_volume",
+      "args": {
+        "action": "down"
+      },
+      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))",
+      "say": "@voice_volume",
+      "examples": [
+        "speak quieter",
+        "talk quieter",
+        "speak more softly",
+        "lower your voice",
+        "you're too loud",
+        "talk a bit softer",
+        "turn your volume down",
+        "speak a little quieter please",
+        "bring your voice down",
+        "you're a bit loud jarvis",
+        "turn down your voice",
+        "quieter voice please",
+        "decrease your volume",
+        "say it more quietly"
+      ]
+    },
+    "voice.volume_up": {
+      "tool": "jarvis_volume",
+      "args": {
+        "action": "up"
+      },
+      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))",
+      "say": "@voice_volume",
+      "examples": [
+        "speak louder",
+        "talk louder",
+        "speak up",
+        "raise your voice",
+        "you're too quiet",
+        "i can't hear you speak up",
+        "turn your volume up",
+        "talk a bit louder please",
+        "turn up your voice",
+        "you're a little soft jarvis",
+        "increase your volume",
+        "louder voice please",
+        "say that louder",
+        "you're too quiet speak up"
+      ]
+    },
+    "voice.set_volume": {
+      "tool": "jarvis_volume",
+      "args": {
+        "action": "set"
+      },
+      "slots": {
+        "percent": "percent"
+      },
+      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))",
+      "say": "@voice_volume",
+      "examples": [
+        "set your volume to 40 percent",
+        "set your voice to 50",
+        "your volume to thirty percent",
+        "speak at 70 percent volume",
+        "put your voice at sixty percent",
+        "change your volume to 25",
+        "voice volume 80",
+        "set your voice volume to forty five",
+        "make your volume 35 percent",
+        "talk at 50 percent",
+        "make it 30 percent just for you"
+      ]
     },
     "what_is_playing": {
       "tool": "what_is_playing",

@@ -160,6 +160,13 @@ def widget_list() -> str:
 
 
 @mcp.tool(structured_output=False)
+def jarvis_volume(action: Literal["up", "down", "set"], percent: int = 0) -> str:
+    """Your own speaking volume (Jarvis's voice only, not music: use media for that). up / down = one step,
+    set = percent 0-100. Reply in one short line; it's spoken at the new level."""
+    return out(A.jarvis_volume(action, percent))
+
+
+@mcp.tool(structured_output=False)
 def weather(place: str = "") -> str:
     """Current weather and today's/tomorrow's forecast (°C). place: a town or city; empty = home."""
     return out(A.weather(place))

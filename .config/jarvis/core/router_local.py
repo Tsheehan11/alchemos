@@ -6,7 +6,8 @@ Local decision layer: between the regex fast path and Claude, offline, no AI ser
       best score ≥ threshold (Settings → JARVIS, default 0.70)
       and it beats the best *other* intent by ≥ GAP
       and that intent is a stark tool (not "chat" / "claude-only")
-      and the request contains the intent's anchor words, if it has any ("must")
+      and the request contains the intent's anchor words, if it has any ("must"), and none of
+      its excluded ones ("must_not")
       and every required slot is filled (rapidfuzz against live lists, numbers / durations
       with the fast path's parser)
   otherwise the request goes to Claude exactly as before.
@@ -389,6 +390,10 @@ RESULT_SAY = {   # "@name" in intents.json: replies built from the tool's result
     "system": lambda r: (f"CPU at {r.get('cpu_percent', 0):g}%, memory at {r.get('ram_percent', 0):g}%"
                          + (f", battery {r['battery']['percent']}%" if r.get("battery") else "") + ". All nominal, sir."),
     "opened": lambda r: "Right away, sir." if "is up" not in str(r.get("result", "")) else "It's already up, sir.",
+    "voice_volume": lambda r: (random.choice(["Is this better, sir? I'm at {p} percent.", "{p} percent, sir. How's this?",
+                                              "Speaking at {p} percent, sir."]).format(p=r["percent"])
+                               if r.get("percent") != r.get("was") or r.get("dry_run") else
+                               f"I'm already at {r['percent']} percent, sir."),
     "widgets": lambda r: (f"{len(r.get('widgets') or [])} widget{'s' if len(r.get('widgets') or []) != 1 else ''} up, sir."
                           if r.get("widgets") else "No widgets up, sir."),
 }
@@ -487,7 +492,9 @@ class LocalRouter:
             ranked = self.scores(t)
         top3 = [[str(n), round(s, 3)] for n, s in ranked[:3]]
         name, best = ranked[0]
-        second = ranked[1][1] if len(ranked) > 1 else 0.0
+        # the runner-up only counts if it could act on this text at all: an intent whose anchors rule it
+        # out ("set your volume" is never the music volume) can't make the winner ambiguous
+        second = next((s for n, s in ranked[1:] if self._eligible(self.data["intents"][n], t)), 0.0)
         intent = self.data["intents"][name]
         d = Decision("claude:?", intent=name, top3=top3)
         kind = intent.get("kind", "tool")
@@ -503,7 +510,7 @@ class LocalRouter:
             d.path = "claude:long"
         elif NEGATION.search(t):
             d.path = "claude:negation"
-        elif intent.get("must") and not re.search(intent["must"], t):
+        elif not self._eligible(intent, t):
             d.path = "claude:anchor"
         elif len([p for p in COMPOUND.split(t) if p.strip()]) > 1 and not intent.get("compound_ok"):
             d.path = "claude:compound"
@@ -517,6 +524,13 @@ class LocalRouter:
                 d.steps = [fastpath.step(intent["tool"], say_for(intent, full), **full)]
                 d.path = "local"
         return d
+
+    @staticmethod
+    def _eligible(intent, t):
+        if intent.get("kind", "tool") != "tool":
+            return True                       # chat / claude-only always compete
+        return not ((intent.get("must") and not re.search(intent["must"], t))
+                    or (intent.get("must_not") and re.search(intent["must_not"], t)))
 
     # ── self-learning ──
     def learn(self, text, tool, args):
@@ -546,7 +560,7 @@ class LocalRouter:
         for name, it in self.data["intents"].items():
             if it.get("tool") != tool or it.get("kind", "tool") != "tool":
                 continue
-            if it.get("must") and not re.search(it["must"], t):
+            if not self._eligible(it, t):
                 continue
             fixed = it.get("args", {})
             if any(lower(args.get(k)) != lower(v) for k, v in fixed.items()):

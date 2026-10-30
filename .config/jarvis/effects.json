@@ -10,7 +10,7 @@
     "compress": "even out loudness",
     "chorus_mix / chorus_depth": "very small values; 0 mix = off",
     "reverb_room / reverb_wet": "small-room reverb; 0 wet = off",
-    "gain_db": "output trim before the limiter"
+    "gain_db": "deliberate loudness offset in dB; 0 = as loud as every other preset (output is loudness-matched, see core/effects.py)"
   },
   "CLEAN": {
     "speed": 1.0, "pitch": 0, "highpass_hz": 0, "lowpass_hz": 0,
@@ -25,6 +25,6 @@
   "SUIT": {
     "speed": 0.97, "pitch": -0.5, "highpass_hz": 260, "lowpass_hz": 5200,
     "warmth_db": 1.0, "presence_db": 3.0, "presence_hz": 1800, "air_db": -3.0, "drive_db": 4, "compress": true,
-    "chorus_mix": 0.08, "chorus_depth": 0.05, "reverb_room": 0.1, "reverb_wet": 0.06, "gain_db": -2
+    "chorus_mix": 0.08, "chorus_depth": 0.05, "reverb_room": 0.1, "reverb_wet": 0.06, "gain_db": 0
   }
 }

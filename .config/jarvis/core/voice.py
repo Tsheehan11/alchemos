@@ -412,7 +412,7 @@ class Utterance:
                     trace.t("tts.audio", sink=target or "default", since_speech_end=trace.since("speech_end"))
                     if self.v.cfg["jarvisDuck"]:
                         ducked = self.v.ducker.duck(DUCK_SPEAK)
-                self.proc.stdin.write((audio * self.v.volume()).astype(np.float32).tobytes())
+                self.proc.stdin.write((audio * self.v.volume(target)).astype(np.float32).tobytes())
                 self.proc.stdin.flush()
             self.proc.stdin.close()
             while self.proc.poll() is None and not self.stopped.wait(0.03):
@@ -474,7 +474,8 @@ class Voice:
         name, fx, speed, pitch = params or self.params()
         cached = len(text.split()) <= CACHE_MAX_WORDS
         if cached:
-            key = hashlib.sha1(json.dumps([name, round(speed, 3), round(pitch, 2), fx, text, KOKORO_MODEL.name],
+            key = hashlib.sha1(json.dumps([name, round(speed, 3), round(pitch, 2), fx, text, KOKORO_MODEL.name,
+                                           effects.NORM_VERSION],
                                           sort_keys=True).encode()).hexdigest()[:20]
             hit = next(CACHE_DIR.glob(f"{key}-*.npy"), None)
             if hit:
@@ -521,12 +522,19 @@ class Voice:
         threading.Thread(target=run, daemon=True).start()
 
     # ── playback ──
-    def volume(self):
-        """Settings → JARVIS → Volume (read per sentence, so a change applies straight away)."""
+    def volume(self, target=None):
+        """Settings → JARVIS → VOICE VOLUME (0-100 %) as a linear gain on the loudness-matched output
+        (core/effects.py: 100 % = OUT_LUFS), the same on headphones, laptop speakers and the Bluetooth
+        speaker. When `target` is the Bluetooth speaker and SPEAKER VOLUME isn't "same", that level
+        is used instead. Read per sentence, so a change applies to the very next one."""
+        pct = self._setting("volume", "jarvisVoiceVolume", 60)
         try:
-            return max(0.05, min(1.0, float(self._setting("volume", "jarvisVolume", 0.7))))
+            spk = int(self._setting("speaker_volume", "jarvisSpeakerVolume", -1))
+            if spk >= 0 and target and target == self.speaker.sink():
+                pct = spk
+            return max(0.0, min(100.0, float(pct))) / 100.0
         except (TypeError, ValueError):
-            return 0.7
+            return 0.6
 
     def open_stream(self, target=None):
         return subprocess.Popen(
@@ -559,7 +567,7 @@ class Voice:
                                       "--media-role", "Notification", "-P", f'{{ media.name = "Jarvis chime" {NO_RESTORE} }}']
                                      + (["--target", target] if target else []) + ["-"],
                                      stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                p.communicate((self._chimes.setdefault(kind, chime_audio(kind)) * self.volume()).astype(np.float32).tobytes(), timeout=5)
+                p.communicate((self._chimes.setdefault(kind, chime_audio(kind)) * self.volume(target)).astype(np.float32).tobytes(), timeout=5)
             except (OSError, subprocess.TimeoutExpired):
                 pass
         threading.Thread(target=play, daemon=True).start()

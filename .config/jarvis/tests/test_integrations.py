@@ -143,10 +143,11 @@ check("after email, auto-add asks anyway", gate("mcp__academic__calendar_add_ass
 check("after email, reads still free", gate("mcp__academic__assignments_upcoming"), ("Allow", 0))
 check("unknown server refused", gate("mcp__evil__x", fresh=True), ("Deny", 0))
 
-# ── the real servers.json: integrations are registered, disabled and read-only by default ──
+# ── the real servers.json: integrations are registered and read-only. "enabled" is whatever
+#    `jarvis connect` / `disconnect` last set, so only its presence is checked ──
 raw = json.loads(open(os.path.join(ROOT, "servers.json")).read())
 for k in ("google", "microsoft", "academic"):
-    check(f"{k} registered + disabled", (raw[k]["policy"], raw[k]["enabled"]), ("integration", False))
+    check(f"{k} registered with an enabled flag", (raw[k]["policy"], isinstance(raw[k].get("enabled"), bool)), ("integration", True))
 check("google read-only", raw["google"]["read_only"], True)
 check("microsoft read-only", raw["microsoft"]["read_only"], True)
 check("microsoft scopes", raw["microsoft"]["scopes"], ["Mail.Read", "Calendars.ReadWrite", "offline_access", "User.Read"])

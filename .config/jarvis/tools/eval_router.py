@@ -76,6 +76,9 @@ CASES = [
     ("Show my system stats on the laptop screen.", ("widget.stats", {})),
     ("Clear all the widgets.", ("widget.clear", {})),
     ("Start a stopwatch.", ("widget.stopwatch", {})),
+    ("Jarvis, could you talk a little quieter?", ("voice.volume_down", {})),
+    ("Raise your voice a bit.", ("voice.volume_up", {})),
+    ("Set your voice volume to 35%.", ("voice.set_volume", {"percent": 35})),
     # ── ambiguous / incomplete: must go to Claude ──
     ("Open it.", CLAUDE),                                   # no app named
     ("Set the volume.", CLAUDE),                            # no level
@@ -86,6 +89,8 @@ CASES = [
     ("Play something relaxing.", CLAUDE),                   # needs a choice
     ("Remind me at 6 to call Sam.", CLAUDE),                # free-text reminder
     ("Remember that the wifi password is on the fridge.", CLAUDE),
+    ("Make your voice deeper.", CLAUDE),                    # "your voice", but not volume
+    ("Set your volume.", CLAUDE),                           # no level, and music or voice?
     # ── open-ended ──
     ("Why do cats purr?", CLAUDE),
     ("Explain how a hash map works.", CLAUDE),
