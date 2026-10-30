@@ -43,6 +43,10 @@ def _state(key, e):
     """(connected, detail)"""
     if key == "google":
         if secrets.has("google", "token"):
+            import google_api
+            missing = google_api.missing_scopes(e.get("scopes", []) + e.get("write_scopes", []))
+            if missing:
+                return True, "Missing " + ", ".join(google_api.SCOPES.get(s, s) for s in missing) + " · reconnect and tick it"
             return True, "Read-only · token in the system keyring"
         return False, "Needs an OAuth client · docs/phase2-google.md" if not secrets.has("google", "client") else "Client saved · sign in"
     if key == "microsoft":
@@ -154,6 +158,18 @@ def connect_google(args):
                                   prompt="consent", access_type="offline",
                                   success_message="Jarvis is connected. You can close this tab.")
     secrets.store("google", "token", creds.to_json())
+    # Google's consent screen has a checkbox per permission: what came back can be less than was asked
+    got = set(creds.granted_scopes or scopes)
+    secrets.store("google", "granted", json.dumps(sorted(got)))
+    missing = [s for s in scopes if s not in got]
+    if missing:
+        import google_api
+        print("Signed in, but these permission boxes were left unticked on Google's consent screen:")
+        for s in missing:
+            print(f"  ✕ {google_api.SCOPES.get(s, s)}")
+        print("Jarvis can't use those parts until you run `jarvis connect google` again and tick them.")
+        _done(key)
+        return 3
     print("Google connected (read-only). Token stored in the system keyring.")
     return _done(key)
 
@@ -253,7 +269,7 @@ def connect_learn(args):
 
 
 def disconnect(target):
-    wipe = {"google": [("google", "token"), ("google", "client")],
+    wipe = {"google": [("google", "token"), ("google", "client"), ("google", "granted"), ("google", "assignments_calendar")],
             "microsoft": [("microsoft", "token"), ("microsoft", "blocked"), ("microsoft", "client_id"), ("microsoft", "tenant")],
             "learn-ical": [("learn", "ical_url")]}
     if target not in wipe:

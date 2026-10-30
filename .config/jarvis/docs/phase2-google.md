@@ -1,19 +1,31 @@
 # Phase 2: Google (Gmail, Calendar, Drive / Docs)
 
-Status: **scaffolding**. The integration is registered in `servers.json` (`"google"`,
-`enabled: false`, `read_only: true`), its MCP server (`mcp/google_tools.py`) answers
-every tool with a spoken "not connected" line, and `jarvis connect google` runs the
-sign-in. Reading real mail and events is the next step.
+Status: **working, read-only** (2026-10-30). `mcp/google_tools.py` (tools) and `mcp/google_api.py`
+(client, errors) read Calendar, Gmail and Drive with google-api-python-client.
+`calendar_add_assignment` (`mcp/academic_tools.py`) writes LEARN due dates to the app's own
+"STARK – Assignments" calendar.
 
 ## What Jarvis gets
 
 | Tool | Does |
 |---|---|
-| `calendar_today` | today's events |
-| `calendar_next` | the next event |
-| `email_unread_summary` | unread mail: sender, subject, snippet |
-| `email_search` | Gmail search syntax |
-| `docs_search` | Drive / Docs by name and content |
+| `calendar_today` | today's events on every calendar in your list (not hidden ones), local time; declined and cancelled events left out |
+| `calendar_next` | the next timed event within 30 days, plus anything on right now |
+| `email_unread_summary` | unread inbox count, then sender, subject, when and Gmail's snippet for the newest |
+| `email_search` | Gmail search syntax; the same fields |
+| `docs_search` | Drive files by name or content: name, kind, modified, owner, link (contents are never read) |
+
+Email bodies and document contents are never fetched. Every result written by other people is
+fenced as untrusted content.
+
+### When something's wrong, Jarvis says what
+
+| Google says | Jarvis says (details in the log) |
+|---|---|
+| API not enabled in the Cloud project | "The Gmail API isn't turned on in your Google Cloud project, sir." The enable link is logged |
+| A permission box was left unticked | "I don't have permission for Google Drive, sir. Reconnect Google and tick the Drive box." `jarvis connect google` also lists unticked boxes right after sign-in, and Settings shows "Missing …" |
+| Refresh token revoked or expired (Testing mode: 7 days) | "Your Google sign-in has expired, sir. Reconnect it in Settings, under Jarvis." |
+| No network | "I can't reach Google right now, sir." |
 
 Scopes (all read-only):
 

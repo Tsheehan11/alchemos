@@ -68,8 +68,10 @@ naming the app and the four delegated scopes. Meanwhile these fallbacks need no 
 
 ## Academic sync (`mcp/academic.py`, `mcp/academic_tools.py`)
 
-Stubbed until a calendar account is connected. The pure logic is implemented and
-tested (`tests/test_integrations.py`).
+Calendar writes work on Google: `calendar_add_assignment` creates "STARK – Assignments" with the
+`calendar.app.created` scope on first use, and updates rather than duplicates on re-adds
+(`tests/test_google.py`). Outlook writes, the automatic sync loop and grade-notice scanning
+are still to do; the pure logic is tested in `tests/test_integrations.py`.
 
 - **Assignments** from the feed are deduplicated by course + title ("Assignment 5" =
   "A5"; a re-sync updates the due date).
