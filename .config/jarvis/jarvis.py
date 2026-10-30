@@ -662,7 +662,8 @@ class VoiceLoop:
                         log(f"JARVIS: Outlook calendar link: {m.get('error')}")
                 if secrets.has("learn", "ical_url"):
                     r = academic_sync.sync(self.cfg, log=log)
-                    busy = {k: v for k, v in r.items() if v and k != "learn"} | (
+                    busy = {k: v for k, v in r.items() if v and k != "learn"
+                            and not (k == "calendar" and set(v) == {"skipped"})} | (
                         {"learn": r["learn"]} if r.get("learn", {}).get("new") or r.get("learn", {}).get("changed") else {})
                     if busy:
                         log(f"JARVIS: academic sync {busy}")
