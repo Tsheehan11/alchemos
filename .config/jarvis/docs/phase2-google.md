@@ -35,16 +35,19 @@ Scopes (all read-only):
 - only if Settings → JARVIS → Assignments calendar is GOOGLE:
   `https://www.googleapis.com/auth/calendar.app.created`. This one can only touch
   calendars Jarvis itself creates ("STARK – Assignments"), never your main calendar.
+- `https://www.googleapis.com/auth/spreadsheets`, for the SE tracker sheet (docs/jarvis-app.md,
+  stage 1). Google has no scope for one existing sheet, so Jarvis enforces it: the Sheets client
+  refuses any request that names a spreadsheet other than the one `jarvis tracker find` stored.
 
 ## Setup (free, about 10 minutes)
 
 1. **Project.** Go to <https://console.cloud.google.com/>, sign in with the account
    Jarvis should read, and create a project (e.g. `stark-jarvis`). No billing needed.
-2. **APIs.** APIs & Services → Library: enable **Gmail API**, **Google Calendar API**
-   and **Google Drive API**.
+2. **APIs.** APIs & Services → Library: enable **Gmail API**, **Google Calendar API**,
+   **Google Drive API** and **Google Sheets API**.
 3. **Consent screen.** Google Auth Platform (APIs & Services → OAuth consent screen):
    - User type **External**, app name `Jarvis`, your email as support + developer contact.
-   - Data access / Scopes: add the four scopes above.
+   - Data access / Scopes: add the five scopes above.
    - Audience: leave it in **Testing** and add yourself as a **test user**.
      (Testing is fine for a personal app. Its refresh tokens expire after 7 days,
      so you'd rerun `jarvis connect google` weekly. Publishing the app to

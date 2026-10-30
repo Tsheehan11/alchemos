@@ -211,7 +211,8 @@ def announcement(a):
 
 
 # ── state: known assignments + what's waiting to be said ──
-STATE_KEYS = {"assignments": dict, "graded": list, "announce": list, "announced": list, "synced": dict, "seen_msgs": list}
+STATE_KEYS = {"assignments": dict, "graded": list, "announce": list, "announced": list, "synced": dict, "seen_msgs": list,
+              "tracker_events": list, "tracker_offers": list, "tracker_seen": list}
 
 
 @contextmanager
@@ -228,8 +229,10 @@ def locked():
 
 
 def load_state():
-    """graded: [{key, ts, source, reported, ticked}]; announced: assignment keys already said;
-    synced: {key: due iso} written to the calendar; seen_msgs: Gmail ids already looked at."""
+    """graded: [{key, ts, source, reported, ticked, score?}]; announced: assignment keys already said;
+    synced: {key: due iso} written to the calendar; seen_msgs: Gmail ids already looked at.
+    tracker_events: what happened since the last tracker pass (grade / new / due, academic_sync);
+    tracker_offers: tracker writes waiting for his yes; tracker_seen: Gmail ids the course-mail scan has read."""
     try:
         st = json.loads(STATE_FILE.read_text())
     except (OSError, ValueError):

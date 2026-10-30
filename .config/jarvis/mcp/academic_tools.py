@@ -5,8 +5,10 @@ LEARN assignments and grades as a local MCP server.
 Sources, none needing university admin consent: the LEARN (D2L) iCal feed (its private
 URL in the keyring, "jarvis:learn" / ical_url, from `jarvis connect learn-ical <url>`),
 and LEARN / Crowdmark "grade released" notices in whichever inbox is connected.
-calendar_add_assignment is the only write, and it can only reach the dedicated
-"STARK – Assignments" calendar (academic.ASSIGNMENTS_CALENDAR); Jarvis asks first
+With his SE tracker sheet set up (mcp/tracker.py) the tracker is the record: tracker_pending /
+tracker_grade read it, tracker_update / tracker_add write single cells or one new row (always with
+his spoken yes: they are writes with no auto_write setting). Without it, calendar_add_assignment
+is the only write, and it can only reach the dedicated "STARK – Assignments" calendar (academic.ASSIGNMENTS_CALENDAR); Jarvis asks first
 unless Settings → JARVIS → AUTO-ADD ASSIGNMENTS is on. Logic: academic.py. On Google it uses
 the calendar.app.created scope, which can only reach calendars this app created, so even a bug
 here couldn't write to his main calendar (google_api.AssignmentsCalendar).
@@ -128,6 +130,11 @@ def grades_new() -> str:
 def calendar_add_assignment(course: str, title: str) -> str:
     """Add one LEARN assignment (as listed by assignments_upcoming) to the STARK – Assignments calendar,
     with its due time, link and a reminder two days before. Never touches any other calendar."""
+    import tracker
+    if tracker.configured():
+        return out({"ok": False, "error": "the SE tracker is the assignment record now (it syncs to his calendar); "
+                                          "use tracker_add for a missing assignment",
+                    "say": "Your tracker syncs to your calendar, sir, so assignments go in the tracker now."})
     account = "microsoft" if config.Config()["jarvisAssignmentsAccount"] == "microsoft" else "google"
     if not secrets.has("learn", "ical_url"):
         return out(not_connected("LEARN", LEARN_HINT))
@@ -165,6 +172,120 @@ def calendar_add_assignment(course: str, title: str) -> str:
     return out({**untrusted("LEARN", {"course": a["course"], "title": a["title"], "due": when}), "result": what,
                 "calendar": academic.ASSIGNMENTS_CALENDAR,
                 "say": f"{said} {academic.spoken_course(a)} {'on' if what == 'unchanged' else 'to'} your STARK assignments calendar, due {when}."})
+
+
+# ── the SE tracker sheet ──
+TRACKER_HINT = "Your SE tracker sheet isn't set up yet, sir. Run jarvis tracker find."
+
+
+def _tracker(fn):
+    """Run fn(Tracker) with the tracker's errors turned into spoken results."""
+    import google_api as G
+    import tracker
+    if not secrets.has("google", "tracker_sheet"):
+        return out({"ok": False, "error": "no tracker sheet configured", "say": TRACKER_HINT})
+    try:
+        return out(fn(tracker.Tracker()))
+    except G.GoogleError as e:
+        print(f"academic: tracker: {e.kind}: {e.detail}", file=sys.stderr)
+        return out(e.result())
+    except tracker.TrackerError as e:
+        print(f"academic: tracker: {e.detail}", file=sys.stderr)
+        return out({"ok": False, "error": e.detail, "say": e.say})
+
+
+def _date(text):
+    from datetime import date
+    try:
+        return date.fromisoformat(str(text).strip()[:10])
+    except ValueError:
+        return None
+
+
+@mcp.tool(structured_output=False)
+def tracker_pending(days: int = 7) -> str:
+    """From his SE tracker sheet: what he hasn't finished (status not Complete) that's due in the next
+    `days` days ("this week" = 7), soonest first, plus anything overdue from the last two weeks."""
+    import tracker
+
+    def go(t):
+        rows = t.load()
+        soon, late = tracker.pending(rows, max(1, min(int(days or 7), 120)))
+        if not soon and not late:
+            return {"ok": True, "count": 0, "say": "Nothing unfinished in your tracker for that stretch, sir."}
+        data = {"due_soon": [tracker.describe(r) for r in soon], "overdue": [tracker.describe(r) for r in late]}
+        return {**untrusted("SE tracker", data), "count": len(soon), "overdue": len(late)}
+    return _tracker(go)
+
+
+@mcp.tool(structured_output=False)
+def tracker_grade(course: str, assignment: str) -> str:
+    """From his SE tracker sheet: one assignment's grade (out of 100), status and due date.
+    course like "MATH 135"; assignment as he said it ("A6", "assignment 6", "W6", "tutorial 4")."""
+    import tracker
+
+    def go(t):
+        hits = tracker.find(t.load(), course, assignment, strict=False)
+        if len(hits) != 1:
+            return {"ok": False, "error": "no single matching row" if not hits else "ambiguous",
+                    "say": f"I can't find {course} {assignment} in your tracker, sir." if not hits
+                    else f"More than one row in your tracker matches {course} {assignment}, sir."}
+        r = tracker.describe(hits[0])
+        return {**untrusted("SE tracker", r), "graded": "grade" in r}
+    return _tracker(go)
+
+
+@mcp.tool(structured_output=False)
+def tracker_update(course: str, assignment: str, status: str = "", grade: float = -1, due: str = "") -> str:
+    """Change one assignment's row in his SE tracker sheet. status: "Complete" (done / finished / submitted),
+    "In Progress", "Not Started" or "-"; grade: a number out of 100 (-1 = leave it); due: YYYY-MM-DD
+    ("" = leave it). Only those cells are written; Jarvis asks him first."""
+    import tracker
+
+    def go(t):
+        st = tracker.status_name(status) if status else None
+        if status and not st:
+            return {"ok": False, "error": f"unknown status {status!r}", "say": "That isn't one of your tracker's statuses, sir."}
+        d = _date(due) if due else None
+        if due and not d:
+            return {"ok": False, "error": f"bad date {due!r}", "say": "I didn't understand that date, sir."}
+        changes, row = tracker.plan_update(t.load(), course, assignment, status=st,
+                                           grade=None if grade is None or grade < 0 else round(float(grade), 1),
+                                           due=d, strict=False, why="voice")
+        if not changes:
+            return {"ok": True, "result": "unchanged", "say": f"Your tracker already has that for {tracker.label(row)}, sir."}
+        res = t.apply(changes, "voice")
+        bad = [r for r in res if not r["ok"]]
+        if bad:
+            return {"ok": False, "error": bad[0]["error"], "say": bad[0]["say"]}
+        return {"ok": True, "result": "updated", "say": f"Done, sir: {tracker.summary(changes)}."}
+    return _tracker(go)
+
+
+@mcp.tool(structured_output=False)
+def tracker_add(course: str, assignment: str, due: str, kind: str = "Assignment") -> str:
+    """Add a new assignment row to his SE tracker sheet, in due-date order, status Not Started.
+    course must already be in the tracker ("CS 137"); due: YYYY-MM-DD; kind: Assignment, Assessment or Bonus.
+    Jarvis asks him first."""
+    import tracker
+
+    def go(t):
+        d = _date(due)
+        if not d:
+            return {"ok": False, "error": f"bad date {due!r}", "say": "I need a due date for that, sir."}
+        rows = t.load()
+        c = tracker.course_name(course)
+        if c not in tracker.courses(rows):
+            return {"ok": False, "error": f"unknown course {course!r}", "say": f"{course} isn't one of the courses in your tracker, sir."}
+        if tracker.find(rows, c, assignment, strict=True):
+            return {"ok": True, "result": "exists", "say": f"{c} {assignment} is already in your tracker, sir."}
+        k = kind if kind in tracker.TYPES else "Assignment"
+        ch = tracker.change_insert(c, tracker.clean_title(assignment), d, kind=k, why="voice")
+        res = t.apply([ch], "voice")
+        if not res[0]["ok"]:
+            return {"ok": False, "error": res[0]["error"], "say": res[0]["say"]}
+        return {"ok": True, "result": "added", "say": f"Added {c} {tracker.clean_title(assignment)} to your tracker, due {tracker.spoken_date(d)}."}
+    return _tracker(go)
 
 
 if __name__ == "__main__":

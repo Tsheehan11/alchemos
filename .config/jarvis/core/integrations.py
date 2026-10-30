@@ -45,10 +45,11 @@ def _state(key, e):
     if key == "google":
         if secrets.has("google", "token"):
             import google_api
-            missing = google_api.missing_scopes(e.get("scopes", []) + e.get("write_scopes", []))
+            missing = google_api.missing_scopes(e.get("scopes", []) + e.get("write_scopes", []) + e.get("tracker_scopes", []))
             if missing:
                 return True, "Missing " + ", ".join(google_api.SCOPES.get(s, s) for s in missing) + " · reconnect and tick it"
-            return True, "Read-only · token in the system keyring"
+            return True, ("Read-only · SE tracker sheet editable" if secrets.has("google", "tracker_sheet")
+                          else "Read-only · token in the system keyring")
         return False, "Needs an OAuth client · docs/phase2-google.md" if not secrets.has("google", "client") else "Client saved · sign in"
     if key == "outlook":
         if not secrets.has("outlook", "ical_url"):
@@ -158,9 +159,19 @@ def connect_google(args):
     except ImportError:
         print(f"Install the Google libraries first:\n  {PIP} google-auth-oauthlib google-api-python-client")
         return 1
-    scopes = list(e["scopes"])
+    scopes = list(e["scopes"]) + e.get("tracker_scopes", [])
     if C.Config()["jarvisAssignmentsAccount"] == "google":
         scopes += e.get("write_scopes", [])
+    if secrets.has("google", "token"):
+        import google_api
+        missing = google_api.missing_scopes(scopes)
+        if missing:
+            print("Google is connected, but Jarvis is missing a permission it needs now:")
+            for s in missing:
+                print(f"  ✕ {google_api.SCOPES.get(s, s)}")
+            print("Signing in again to add it. Tick every box on Google's consent screen.")
+            if google_api.NEEDS["sheets"] in missing:
+                print("(Sheets: Jarvis only ever opens your SE tracker; the client refuses any other spreadsheet.)")
     flow = InstalledAppFlow.from_client_config(json.loads(client), scopes)
     print("Opening Google sign-in in the browser… (read-only access"
           + (", plus calendars Jarvis creates" if len(scopes) > len(e["scopes"]) else "") + ")")
@@ -323,7 +334,8 @@ def connect_outlook(args):
 
 
 def disconnect(target):
-    wipe = {"google": [("google", "token"), ("google", "client"), ("google", "granted"), ("google", "assignments_calendar")],
+    wipe = {"google": [("google", "token"), ("google", "client"), ("google", "granted"), ("google", "assignments_calendar"),
+                       ("google", "tracker_sheet")],
             "microsoft": [("microsoft", "token"), ("microsoft", "blocked"), ("microsoft", "client_id"), ("microsoft", "tenant")],
             "learn-ical": [("learn", "ical_url")],
             "outlook-ical": [("outlook", "ical_url")]}

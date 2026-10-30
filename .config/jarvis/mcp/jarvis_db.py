@@ -5,6 +5,7 @@ Jarvis memory: one SQLite file shared by the voice loop and the MCP server.
   action_log  every request: tier used, tools called, result (pruned after 30 days)
   reminders   timers / reminders; the voice loop fires them, so they survive restarts
   router_log  every local-router decision: top-3 intents, slots, latency, path (pruned with action_log)
+  tracker_log every write to his SE tracker sheet: cell, old → new, why; `jarvis tracker undo` reverts the last batch
 
 WAL mode + a busy timeout, since two processes write to it.
 """
@@ -62,6 +63,21 @@ CREATE TABLE IF NOT EXISTS router_log (
     ms REAL
 );
 CREATE INDEX IF NOT EXISTS router_log_ts ON router_log(ts);
+CREATE TABLE IF NOT EXISTS tracker_log (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    batch TEXT NOT NULL,         -- one apply() call: undo reverts a whole batch
+    sheet TEXT NOT NULL,         -- spreadsheet id
+    tab TEXT NOT NULL,
+    kind TEXT NOT NULL,          -- set | insert (a whole row; new = JSON of the row's values)
+    cell TEXT NOT NULL,          -- A1 notation: G42, or A42:H42 for an insert
+    row_key TEXT NOT NULL,       -- "CS 137 | Assignment A5 - …": the row it was meant for
+    old TEXT,
+    new TEXT,
+    source TEXT NOT NULL,        -- voice | grade-notice | learn-feed | course-email | undo | …
+    undone REAL                  -- set when `jarvis tracker undo` reverted it
+);
+CREATE INDEX IF NOT EXISTS tracker_log_batch ON tracker_log(batch);
 """
 
 STOPWORDS = set("""a an the and or but to of in on at for with by from is are was were be been am i me my
@@ -197,3 +213,36 @@ def cancel_reminder(rid):
             raise ValueError(f"no pending timer or reminder with id {rid}")
         db.execute("DELETE FROM reminders WHERE id = ?", (rid,))
     return dict(row)
+
+
+# ── tracker writes ─────────────────────────────
+def log_tracker(batch, sheet, tab, kind, cell, row_key, old, new, source):
+    with _db() as db:
+        db.execute("INSERT INTO tracker_log(ts, batch, sheet, tab, kind, cell, row_key, old, new, source) "
+                   "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                   (time.time(), batch, sheet, tab, kind, cell, row_key[:300],
+                    None if old is None else json.dumps(old), None if new is None else json.dumps(new), source))
+
+
+def tracker_writes(limit=30):
+    with _db() as db:
+        rows = [dict(r) for r in db.execute("SELECT * FROM tracker_log ORDER BY id DESC LIMIT ?", (limit,))]
+    for r in rows:
+        r["old"] = None if r["old"] is None else json.loads(r["old"])
+        r["new"] = None if r["new"] is None else json.loads(r["new"])
+    return rows
+
+
+def last_tracker_batch():
+    """Writes of the newest batch that hasn't been undone (newest first), or []."""
+    with _db() as db:
+        row = db.execute("SELECT batch FROM tracker_log WHERE undone IS NULL AND source != 'undo' "
+                         "ORDER BY id DESC LIMIT 1").fetchone()
+    if not row:
+        return []
+    return [r for r in tracker_writes(500) if r["batch"] == row["batch"]]
+
+
+def mark_tracker_undone(batch):
+    with _db() as db:
+        db.execute("UPDATE tracker_log SET undone = ? WHERE batch = ?", (time.time(), batch))

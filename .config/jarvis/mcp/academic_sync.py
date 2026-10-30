@@ -1,11 +1,18 @@
 """
-The academic sync: LEARN feed → known assignments → "STARK – Assignments", and LEARN /
-Crowdmark grade emails in Gmail → ✓ on that event + "Sir, your CS 137 A5 has been graded".
+The academic sync: LEARN feed → known assignments → his SE tracker sheet (or, without one,
+"STARK – Assignments"), and LEARN / Crowdmark grade emails in Gmail → the tracker row's status /
+grade (or ✓ on that event) + "Sir, your CS 137 A5 has been graded".
 
 Run by the voice loop every ~15 min while docked (jarvis.py VoiceLoop._sync_loop); the academic
 MCP tools call the read halves on demand (refresh_learn, scan_grades).
 
 Rules:
+  * With the tracker configured (tracker.configured()), the calendar is left alone: his sheet syncs
+    to Google Calendar itself. Tracker events (a grade notice, a new LEARN deliverable or course
+    email announcing one, a moved deadline) queue in academic.json; tracker_pass turns them into
+    changes and, with Settings → JARVIS → AUTO-UPDATE TRACKER on, applies the sure ones and announces
+    them; everything else becomes an offer the voice loop asks about. tracker.Tracker.apply is the
+    only writer.
   * Calendar writes only with Settings → JARVIS → AUTO-ADD ASSIGNMENTS on, only for assignments
     still to come, and only to the app's own calendar (google_api.AssignmentsCalendar). With it
     off, nothing is written; calendar_add_assignment (with his spoken yes) is the way in.
@@ -25,7 +32,9 @@ GRADE_LOOKBACK_DAYS = 21
 ANNOUNCE_WITHIN_S = 2 * 86400
 REPORT_WITHIN_S = 14 * 86400
 GRADE_QUERY = (f"newer_than:{GRADE_LOOKBACK_DAYS}d (from:crowdmark.com OR from:learn.uwaterloo.ca OR from:d2l.com "
-               "OR from:desire2learn.com OR from:uwaterloo.ca OR subject:(grade OR graded OR feedback OR returned OR results))")
+               "OR from:desire2learn.com OR from:uwaterloo.ca OR from:piazza.com "
+               "OR subject:(grade OR graded OR feedback OR returned OR results OR extension OR extended OR deadline))")
+TRACKER_EVENT_MAX_AGE_S = 14 * 86400      # a grade notice older than this doesn't touch the tracker
 NOTICE_HEADERS = ["From", "Sender", "Reply-To", "Return-Path", "X-Original-From", "X-Original-Sender", "Resent-From",
                   "Subject", "Authentication-Results", "ARC-Authentication-Results"]
 
@@ -33,6 +42,11 @@ NOTICE_HEADERS = ["From", "Sender", "Reply-To", "Return-Path", "X-Original-From"
 def _secrets():
     from integration_common import secrets
     return secrets
+
+
+def _tracker_on():
+    import tracker
+    return tracker.configured()
 
 
 # ── LEARN feed ──
@@ -54,6 +68,16 @@ def refresh_learn(force=False):
         new = {a["key"]: dict(a, due=a["due"].isoformat()) for a in items}
         report = {"new": [k for k in new if k not in old],
                   "changed": [k for k in new if k in old and old[k]["due"] != new[k]["due"]], "total": len(new)}
+        if old and _tracker_on():          # the first fetch ever is the baseline, not news
+            for k in report["new"]:
+                a = new[k]
+                st["tracker_events"].append({"type": "new", "course": a["course"], "title": a["title"],
+                                             "due": a["due"][:10], "source": "learn-feed", "ts": time.time()})
+            for k in report["changed"]:
+                a = new[k]
+                st["tracker_events"].append({"type": "due", "course": a["course"], "title": a["title"],
+                                             "due": a["due"][:10], "from": old[k]["due"][:10],
+                                             "source": "learn-feed", "ts": time.time()})
         st["assignments"], st["feed_fetched"] = new, time.time()
         A.save_state(st)
     return report
@@ -109,9 +133,15 @@ def scan_grades(messages, now=None, announce=True):
             if k in graded_keys:
                 continue
             graded_keys.add(k)
-            entry = {"key": k, "ts": ts, "source": source, "reported": False, "ticked": False}
+            import tracker
+            score = tracker.score_percent(snippet)
+            entry = {"key": k, "ts": ts, "source": source, "reported": False, "ticked": False,
+                     **({"score": score} if score is not None else {})}
             st["graded"].append(entry)
             new.append(entry)
+            if not first and _tracker_on() and now - ts <= TRACKER_EVENT_MAX_AGE_S:
+                st["tracker_events"].append({"type": "grade", "course": a["course"], "title": a["title"], "score": score,
+                                             "source": "grade-notice", "ts": now})
             if announce and not first and k not in st["announced"] and now - ts <= ANNOUNCE_WITHIN_S:
                 st["announce"].append({"text": A.announcement(a), "ts": now})
                 st["announced"].append(k)
@@ -123,9 +153,108 @@ def scan_grades(messages, now=None, announce=True):
     return new
 
 
+def scan_course_mail(messages, known_courses, now=None):
+    """Course emails announcing a new deliverable or a moved deadline → tracker events (subject +
+    snippet only). The first scan only records what's already there."""
+    import tracker
+    now = now or time.time()
+    with A.locked():
+        st = A.load_state()
+        first = "tracker_mail_since" not in st
+        seen = set(st["tracker_seen"])
+        found = []
+        for mid, headers, snippet, ts in messages:
+            if mid in seen:
+                continue
+            seen.add(mid)
+            if first or now - ts > TRACKER_EVENT_MAX_AGE_S:
+                continue
+            ev = tracker.mail_event(headers, snippet, known_courses)
+            if ev:
+                ev.update(source="course-email", ts=now)
+                st["tracker_events"].append(ev)
+                found.append(ev)
+        st["tracker_seen"] = list(seen)[-2000:]
+        st.setdefault("tracker_mail_since", now)
+        A.save_state(st)
+    return found
+
+
+# ── the tracker sheet ──
+OFFER_TTL_S = 3 * 86400
+
+
+def tracker_pass(cfg, messages=None, log=print, sheet=None):
+    """Drain tracker_events → changes. AUTO-UPDATE on: apply the sure ones now and queue an
+    announcement; the rest (or everything, with it off) become offers. Returns a small report."""
+    import tracker
+    if sheet is None and not tracker.configured():
+        return {"skipped": "no tracker"}
+    t = sheet or tracker.Tracker()
+    rows = t.load()
+    if messages:
+        scan_course_mail(messages, tracker.courses(rows))
+    with A.locked():
+        st = A.load_state()
+        events, st["tracker_events"] = st["tracker_events"], []
+        A.save_state(st)
+    if not events:
+        return {}
+    auto = bool(cfg["jarvisAutoUpdateTracker"])
+    applied, offers, said = [], [], []
+    try:
+        for ev in events:
+            changes, sure = tracker.plan_event(t.rows, ev)
+            if not changes:
+                continue
+            what = tracker.summary(changes)
+            if auto and sure:
+                res = t.apply(changes, ev.get("source", "sync"))
+                ok = [r for r in res if r["ok"] and not r.get("unchanged")]
+                bad = [r for r in res if not r["ok"]]
+                if ok:
+                    applied.append(what)
+                    said.append(f"I've updated your tracker, sir: {tracker.summary([r['change'] for r in ok])}.")
+                for r in bad:
+                    log(f"JARVIS: tracker: {r['error']}")
+            else:
+                offers.append({"changes": changes, "source": ev.get("source", "sync"), "ts": time.time(),
+                               "prompt": f"Shall I {what} in your tracker, sir?"})
+    except Exception:
+        with A.locked():                      # offline mid-way: try these again next pass
+            st = A.load_state()
+            st["tracker_events"] = events + st["tracker_events"]
+            A.save_state(st)
+        raise
+    with A.locked():
+        st = A.load_state()
+        st["tracker_offers"] = [o for o in st["tracker_offers"] if time.time() - o["ts"] < OFFER_TTL_S] + offers
+        st["announce"] += [{"text": s, "ts": time.time()} for s in said]
+        A.save_state(st)
+    return {"applied": applied, "offered": len(offers)} if applied or offers else {}
+
+
+def pop_tracker_offer():
+    """The oldest offer still worth asking about, removed from the queue (None if there's none)."""
+    if not A.STATE_FILE.exists():
+        return None
+    with A.locked():
+        st = A.load_state()
+        live = [o for o in st["tracker_offers"] if time.time() - o["ts"] < OFFER_TTL_S]
+        offer = live.pop(0) if live else None
+        if offer or len(live) != len(st["tracker_offers"]):
+            st["tracker_offers"] = live
+            A.save_state(st)
+    return offer
+
+
 # ── calendar ──
 def write_calendar(cfg, now=None, calendar=None):
-    """AUTO-ADD on → upsert new / changed upcoming assignments, then ✓ graded ones. Returns counts."""
+    """AUTO-ADD on → upsert new / changed upcoming assignments, then ✓ graded ones. Returns counts.
+    Not with the tracker configured: his sheet syncs to Google Calendar itself."""
+    import tracker
+    if tracker.configured():
+        return {"skipped": "the tracker sheet syncs to the calendar"}
     if not cfg["jarvisAutoAddAssignments"]:
         return {"skipped": "AUTO-ADD is off"}
     if cfg["jarvisAssignmentsAccount"] == "microsoft":
@@ -165,13 +294,19 @@ def sync(cfg, log=print, dry_run=False):
         report["learn"] = refresh_learn()
     except Exception as e:
         report["learn_error"] = f"{type(e).__name__}: {e}"[:200]
+    messages = None
     if _secrets().has("google", "token"):
         try:
-            report["grades"] = [g["key"] for g in scan_grades(gmail_notices(), announce=not dry_run)] if not dry_run \
-                else len(gmail_notices())
+            messages = gmail_notices()
+            report["grades"] = [g["key"] for g in scan_grades(messages, announce=not dry_run)] if not dry_run \
+                else len(messages)
         except Exception as e:
             report["grades_error"] = f"{type(e).__name__}: {e}"[:200]
     if not dry_run:
+        try:
+            report["tracker"] = tracker_pass(cfg, messages, log=log)
+        except Exception as e:
+            report["tracker_error"] = f"{type(e).__name__}: {e}"[:200]
         try:
             report["calendar"] = write_calendar(cfg)
         except Exception as e:

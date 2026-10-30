@@ -4,7 +4,9 @@ Google APIs for Jarvis (google-api-python-client), shared by google_tools.py and
 Credentials come from the system keyring ("jarvis:google" / token, written by `jarvis connect
 google`); a refreshed access token is written back so the next call doesn't refresh again.
 Everything here is read-only except AssignmentsCalendar, which only ever touches the calendar
-this app created ("STARK – Assignments"): the calendar.app.created scope can't reach any other.
+this app created ("STARK – Assignments"): the calendar.app.created scope can't reach any other,
+and service("sheets"), which can only reach his SE tracker spreadsheet: the spreadsheets scope
+covers every sheet he owns, so the client refuses any request that names another (SheetGuard).
 
 Failures become GoogleError(kind, say, detail): `say` is a line Jarvis can speak, `detail` is
 for the log / the model. Kinds: not_connected, expired (refresh token revoked or, in Testing
@@ -24,12 +26,15 @@ SCOPES = {   # scope → what to re-tick on Google's consent screen
     "https://www.googleapis.com/auth/calendar.readonly": "Calendar (see your calendars)",
     "https://www.googleapis.com/auth/drive.readonly": "Drive (see your files)",
     "https://www.googleapis.com/auth/calendar.app.created": "Calendar (make secondary calendars)",
+    "https://www.googleapis.com/auth/spreadsheets": "Sheets (edit your SE tracker)",
 }
 NEEDS = {"gmail": "https://www.googleapis.com/auth/gmail.readonly",
          "calendar": "https://www.googleapis.com/auth/calendar.readonly",
          "drive": "https://www.googleapis.com/auth/drive.readonly",
-         "assignments": "https://www.googleapis.com/auth/calendar.app.created"}
-API_NAMES = {"gmail": "Gmail", "calendar": "Google Calendar", "drive": "Google Drive", "assignments": "Google Calendar"}
+         "assignments": "https://www.googleapis.com/auth/calendar.app.created",
+         "sheets": "https://www.googleapis.com/auth/spreadsheets"}
+API_NAMES = {"gmail": "Gmail", "calendar": "Google Calendar", "drive": "Google Drive", "assignments": "Google Calendar",
+             "sheets": "Google Sheets"}
 
 
 class GoogleError(Exception):
@@ -88,16 +93,45 @@ def credentials():
 _services = {}
 
 
+def tracker_id():
+    """The one spreadsheet Jarvis may open (his SE academic tracker, set by `jarvis tracker find`), or None."""
+    return secrets.get("google", "tracker_sheet")
+
+
+class SheetGuard:
+    """Request builder for the Sheets client: every request must name the tracker spreadsheet.
+    Anything else (another sheet, spreadsheets.create, a URL without an ID) is refused before it is
+    built, so neither a bug nor a model argument can reach a different file."""
+    allowed = None                                # set by service("sheets")
+
+    def __new__(cls, http, postproc, uri, *args, **kwargs):
+        from googleapiclient.http import HttpRequest
+        m = re.match(r"https://sheets\.googleapis\.com/v4/spreadsheets/([A-Za-z0-9_-]+)(?=[/?:]|$)", uri)
+        if not cls.allowed or not m or m.group(1) != cls.allowed:
+            raise GoogleError("forbidden", "I'm only allowed to open your SE tracker sheet, sir.",
+                              f"blocked a Sheets request outside the tracker: {uri.split('?')[0][:120]}")
+        return HttpRequest(http, postproc, uri, *args, **kwargs)
+
+
 def service(api):
-    """api: calendar | gmail | drive. Built from the bundled discovery documents (no fetch)."""
+    """api: calendar | gmail | drive | sheets. Built from the bundled discovery documents (no fetch)."""
     from googleapiclient.discovery import build
     creds = credentials()
-    name, version = {"calendar": ("calendar", "v3"), "gmail": ("gmail", "v1"), "drive": ("drive", "v3")}[api]
-    key = (api, creds.token)
+    name, version = {"calendar": ("calendar", "v3"), "gmail": ("gmail", "v1"), "drive": ("drive", "v3"),
+                     "sheets": ("sheets", "v4")}[api]
+    extra = {}
+    if api == "sheets":
+        sid = tracker_id()
+        if not sid:
+            raise GoogleError("not_configured", "Your SE tracker sheet isn't set up yet, sir. Run jarvis tracker find.",
+                              "no tracker spreadsheet id in the keyring")
+        SheetGuard.allowed = sid
+        extra["requestBuilder"] = SheetGuard
+    key = (api, creds.token, SheetGuard.allowed if extra else None)
     if key not in _services:
         if len(_services) > 6:                    # old access tokens
             _services.clear()
-        _services[key] = build(name, version, credentials=creds, cache_discovery=False)
+        _services[key] = build(name, version, credentials=creds, cache_discovery=False, **extra)
     return _services[key]
 
 

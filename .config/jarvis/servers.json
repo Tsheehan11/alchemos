@@ -25,6 +25,9 @@
         "write_scopes": [
             "https://www.googleapis.com/auth/calendar.app.created"
         ],
+        "tracker_scopes": [
+            "https://www.googleapis.com/auth/spreadsheets"
+        ],
         "enabled": false,
         "read_only": true,
         "policy": "integration",
@@ -59,12 +62,14 @@
         "policy": "integration",
         "read_tools": [
             "assignments_upcoming",
-            "grades_new"
+            "grades_new",
+            "tracker_pending",
+            "tracker_grade"
         ],
         "auto_write": {
             "calendar_add_assignment": "jarvisAutoAddAssignments"
         },
-        "note": "Writes only ever go to the dedicated 'STARK – Assignments' calendar (jarvisAssignmentsAccount picks Google or Outlook)."
+        "note": "Writes: tracker_update / tracker_add (his SE tracker sheet only, always with his yes) and, while no tracker is set up, the dedicated 'STARK – Assignments' calendar (jarvisAssignmentsAccount picks Google or Outlook)."
     },
     "microsoft": {
         "name": "Microsoft 365 (direct)",

@@ -31,6 +31,9 @@ Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
   jarvis connect google | microsoft | learn-ical [URL]
   jarvis disconnect google | microsoft | learn-ical
 
+SE tracker sheet (mcp/tracker.py, docs/jarvis-app.md):
+  jarvis tracker find [ID] | show | pending [DAYS] | diff | log [N] | undo
+
 Local router (intents.json, tools/eval_router.py):
   jarvis intents [list | log [N] | review | remove N…]   learned examples, recent decisions
 """
@@ -56,6 +59,10 @@ os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
 if __name__ == "__main__" and sys.argv[1:2] in (["connect"], ["disconnect"], ["integrations"]):
     from core import integrations          # before the heavy imports: Settings polls `integrations --json`
     sys.exit(integrations.main(sys.argv[1:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["tracker"]:
+    sys.path.insert(0, str(JARVIS_DIR / "mcp"))
+    import tracker                         # find / show / pending / diff / log / undo: no models needed
+    sys.exit(tracker.cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -629,23 +636,52 @@ class VoiceLoop:
                 self.voice.speak(msg)
 
     def check_academic(self):
-        """Grade notices queued by the academic sync ("Sir, your CS 137 A5 has been graded").
-        The voice loop only runs while docked, so they wait for the desk (and for combat mode to end)."""
+        """Grade notices and tracker updates queued by the academic sync ("Sir, your CS 137 A5 has been
+        graded"), then one tracker offer (AUTO-UPDATE TRACKER off, or a change it wasn't sure of):
+        asked out loud and on the HUD, written only on a yes. The voice loop only runs while docked,
+        so they wait for the desk (and for combat mode to end)."""
         now = time.time()
         if now - self.last_academic_check < 60 or self.paused:
             return
         self.last_academic_check = now
         try:
             import academic
+            import academic_sync
             lines = academic.pop_announcements()
         except Exception as e:
             log(f"JARVIS: academic: {e}")
             return
         for line in lines:
             log(f"JARVIS: {line}")
-            hud.toast("LEARN", line.upper())
+            hud.toast("LEARN" if "tracker" not in line else "TRACKER", line.upper())
             if not self.paused:
                 self.say(line)
+        try:
+            offer = academic_sync.pop_tracker_offer()
+        except Exception as e:
+            log(f"JARVIS: tracker offer: {e}")
+            return
+        if offer:
+            self.offer_tracker(offer)
+
+    def offer_tracker(self, offer):
+        import tracker
+        self.voice.chime()
+        ok = self.confirm(offer["prompt"])
+        if not ok:
+            log("JARVIS: tracker offer declined")
+            hud.idle()
+            return
+        try:
+            res = tracker.Tracker().apply(offer["changes"], offer["source"])
+        except Exception as e:
+            log(f"JARVIS: tracker write failed: {type(e).__name__}: {e}")
+            self.fail("tool", "I couldn't reach your tracker, sir.")
+            return
+        bad = [r for r in res if not r["ok"]]
+        for r in bad:
+            log(f"JARVIS: tracker: {r['error']}")
+        self.say(bad[0]["say"] if bad else "Done, sir. It's in your tracker.")
 
     def _sync_loop(self):
         """Every SYNC_S while docked (this process only runs docked): the Outlook calendar link, the LEARN
@@ -663,7 +699,7 @@ class VoiceLoop:
                 if secrets.has("learn", "ical_url"):
                     r = academic_sync.sync(self.cfg, log=log)
                     busy = {k: v for k, v in r.items() if v and k != "learn"
-                            and not (k == "calendar" and set(v) == {"skipped"})} | (
+                            and not (isinstance(v, dict) and set(v) == {"skipped"})} | (
                         {"learn": r["learn"]} if r.get("learn", {}).get("new") or r.get("learn", {}).get("changed") else {})
                     if busy:
                         log(f"JARVIS: academic sync {busy}")

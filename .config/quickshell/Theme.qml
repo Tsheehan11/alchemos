@@ -63,6 +63,7 @@ Singleton {
             property string jarvisMic: ""             // PipeWire source node.name for the wake word ("" = default input)
             property string jarvisPlace: "Waterloo, Ontario"   // home town for "what's the weather"
             property bool jarvisAutoAddAssignments: false   // LEARN sync writes to the "STARK – Assignments" calendar without asking (that calendar only)
+            property bool jarvisAutoUpdateTracker: false    // grade notices / new LEARN work / moved deadlines write to the SE tracker sheet without asking
             property string jarvisAssignmentsAccount: "google"   // where that calendar lives: google | microsoft
             property string jarvisDecisions: "local"   // local = fast path → local router → Claude | claude = fast path → Claude
             property real jarvisRouterThreshold: 0.70  // similarity the local router needs to act (~/.config/jarvis/tools/eval_router.py)
