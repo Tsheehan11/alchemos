@@ -60,6 +60,10 @@ ShellRoot {
         model: Quickshell.screens
         JarvisToast {}
     }
+    Variants {                  // JARVIS console (Super + J): conversations, typed requests, tasks
+        model: Quickshell.screens
+        JarvisApp {}
+    }
     Variants {
         model: Quickshell.screens
         DisplayConfirm {}
@@ -179,6 +183,14 @@ ShellRoot {
         target: "game"
         function refresh(): void { GameMode.refresh() }
         function toggle(): void { GameMode.toggle() }
+    }
+
+    //   qs ipc call jarvisapp toggle   (Super + J, hypr/stark/binds.lua)
+    IpcHandler {
+        target: "jarvisapp"
+        function toggle(): void { JarvisLink.toggle() }
+        function open(): void { JarvisLink.show() }
+        function close(): void { JarvisLink.open = false }
     }
 
     //   used by ~/.config/jarvis/jarvis.py (core/hud.py)

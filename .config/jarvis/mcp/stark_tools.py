@@ -202,5 +202,13 @@ def open_in_browser(query: str) -> str:
     return out(A.open_in_browser(query))
 
 
+@mcp.tool(structured_output=False)
+def start_task(title: str, instructions: str) -> str:
+    """Start a long, multi-step job in the background (e.g. go through his unread course emails and update the
+    tracker; summarize his week). title: 2-6 words. instructions: everything the task needs, in full. It runs on
+    its own and is announced when done; use it instead of doing many steps yourself."""
+    return out(A.start_task(title, instructions))
+
+
 if __name__ == "__main__":
     mcp.run("stdio")

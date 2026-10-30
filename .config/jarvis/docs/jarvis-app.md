@@ -72,6 +72,13 @@ Google Calendar); it stays as the fallback when the tracker isn't set up.
   for resume. Completion: voice + toast, linked to its thread. A Claude-turns-today counter
   (from `action_log` + tasks) sits in the header.
 
+**Built (stage 2):** Super+J was free (no hyprland.conf any more; nothing in stark/binds.lua bound J).
+The socket is `$XDG_RUNTIME_DIR/jarvis/app.sock` (0600 in a 0700 dir, peer uid checked). Thread titles
+come from the first request (no extra Claude turn). Typed requests answer confirmations in the app
+only; task confirmations show in the app and are asked aloud when idle, first answer wins, 10 min
+timeout = no. While Jarvis is off, the app reads history through `jarvis app-data`. Combat mode:
+no new task starts and nothing is asked aloud; running tasks continue.
+
 ## Stage 3: Window reading + watchers
 
 - Capture a named window only: resolve "this window" (focused), "the Discord window" (class /

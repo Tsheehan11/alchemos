@@ -31,6 +31,9 @@ Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
   jarvis connect google | microsoft | learn-ical [URL]
   jarvis disconnect google | microsoft | learn-ical
 
+JARVIS app (Super + J, quickshell/JarvisApp.qml; core/appserver.py, conversations.py, tasks.py):
+  jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | usage   history as JSON
+
 SE tracker sheet (mcp/tracker.py, docs/jarvis-app.md):
   jarvis tracker find [ID] | show | pending [DAYS] | diff | log [N] | undo
 
@@ -59,6 +62,9 @@ os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
 if __name__ == "__main__" and sys.argv[1:2] in (["connect"], ["disconnect"], ["integrations"]):
     from core import integrations          # before the heavy imports: Settings polls `integrations --json`
     sys.exit(integrations.main(sys.argv[1:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["app-data"]:
+    from core import conversations         # the app reads history this way while Jarvis is off (undocked)
+    sys.exit(conversations.app_data(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["tracker"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     import tracker                         # find / show / pending / diff / log / undo: no models needed
@@ -156,6 +162,15 @@ class Jarvis:
         self.brain = Brain(cfg, self._confirm_async, self._on_tool, dry_run=dry_run, log=log)
         self.router = None
         self.learning = []                     # learn() threads; text mode waits for them before exiting
+        # The JARVIS app (core/appserver.py, voice mode only): voice and typed requests take turns on
+        # one brain, every exchange is recorded in a thread, and tool labels / confirmations reach the app.
+        from core.conversations import Confirmations, Conversations
+        self.notify = lambda ev: None          # set by AppBridge once the socket is up
+        self.turn_lock = threading.RLock()
+        self.surface = "voice"                 # who's asking right now: voice (HUD toast) | typed (app only)
+        self.busy = False
+        self.conv = Conversations(lambda ev: self.notify(ev))
+        self.confirms = Confirmations(lambda ev: self.notify(ev))
         try:                                   # load once, keep warm (≈0.2 s with cached vectors)
             from core.router_local import LocalRouter
             self.router = LocalRouter(cfg, log=log)
@@ -172,23 +187,26 @@ class Jarvis:
     def _on_tool(self, label):
         log(f"  ◆ {label}")
         trace.t("tool", label=label)
-        hud.tool(label)
+        if self.surface == "voice":
+            hud.tool(label)
+        self.notify({"ev": "tool", "label": label})
 
     def warm(self):
         """Start the Claude client now so the first question is fast."""
         return asyncio.run_coroutine_threadsafe(self.brain.connect(), self.loop)
 
-    def run_steps(self, steps):
+    def run_steps(self, steps, confirm=None):
         """Fast-path steps → (spoken text, tool log). Confirmations first, one at a
         time; then the approved steps run side by side ("theme X and dim the lights"
         costs the slower of the two, not the sum)."""
+        confirm = confirm or self.confirm_sync
         said, tools, approved = [], [], []
         for s in steps:
             if s["tool"] is None:
                 continue
             self._on_tool(A.tool_label(s["tool"], s["args"]))
             prompt = A.confirmation_prompt(s["tool"], s["args"])
-            if prompt and not self.confirm_sync(prompt):
+            if prompt and not confirm(prompt):
                 s["declined"] = True
             else:
                 approved.append(s)
@@ -217,36 +235,64 @@ class Jarvis:
             return "Done, sir.", tools
         return " ".join(said), tools
 
-    def handle(self, text, wait=None, on_sentence=None):
+    def handle(self, text, wait=None, on_sentence=None, source="voice", confirm=None):
         """One request → reply text. wait(future) blocks until the Claude future is done
         (voice mode watches the mic for barge-in meanwhile); returns None if interrupted.
         on_sentence(s): Claude's reply as it streams, one sentence at a time.
+        source: voice | typed | cli. confirm(prompt) → bool answers this request's questions
+        (default: confirm_sync, i.e. out loud). The exchange is recorded in the current thread.
         self.error: why it failed (a key of ERROR_LABELS), "" if it didn't."""
+        with self.turn_lock:
+            self.surface = "typed" if source == "typed" else "voice"
+            self.busy = True
+            self.notify({"ev": "busy", "on": True, "source": source, "text": text})
+            reply = None
+            try:
+                reply = self._handle(text, wait, on_sentence, confirm or self.confirm_sync)
+                return reply
+            finally:
+                try:
+                    self.conv.record(text, source, reply if reply is not None else "(interrupted)",
+                                     self._last_tools, self._last_tier)
+                except Exception as e:
+                    log(f"JARVIS: thread record failed: {e}")
+                self.busy = False
+                self.notify({"ev": "busy", "on": False})
+                self.surface = "voice"
+
+    def _thinking(self):
+        if self.surface == "voice":
+            hud.thinking()
+
+    def _handle(self, text, wait, on_sentence, confirm):
         t0 = time.monotonic()
         self.error = ""
+        self._last_tools, self._last_tier = [], ""
         steps = fastpath.match(text, self.last_query)
         if steps is not None:
             trace.t("route", to="fast", steps=",".join(s["tool"] or "say" for s in steps))
-            reply, tools = self.run_steps(steps)
+            reply, tools = self.run_steps(steps, confirm)
             tier = "fast"
         elif self.is_usage_question(text) and not fastpath.is_integration_intent(text):
             trace.t("route", to="usage")
-            hud.thinking()
+            self._thinking()
             self._on_tool("CLAUDE USAGE")
             reply, tools = asyncio.run_coroutine_threadsafe(self.brain.usage_report(), self.loop).result(), ["usage"]
             tier = "usage"
         elif (d := self.route_local(text)) and d.path == "local":
             trace.t("route", to="local", intent=d.intent, score=d.top3[0][1], ms=d.ms)
             steps = d.steps
-            reply, tools = self.run_steps(steps)
+            reply, tools = self.run_steps(steps, confirm)
             tier = f"local:{d.intent}"
         else:
             trace.t("route", to="claude", **({"why": d.path.split(":", 1)[1]} if d else {}))
-            hud.thinking()
+            self._thinking()
             self.last_query = text
-            fut = asyncio.run_coroutine_threadsafe(self.brain.ask(text, on_sentence), self.loop)
-            r = (wait or self.wait_text)(fut)
+            src = "typed" if self.surface == "typed" else "voice"
+            fut = asyncio.run_coroutine_threadsafe(self.brain.ask(text, on_sentence, source=src), self.loop)
+            r = wait(fut) if wait else self.wait_text(fut, confirm)
             if r is None or r.interrupted:
+                self._last_tools, self._last_tier = (r.tools if r else []), "claude:interrupted"
                 self._log_action(text, "claude:interrupted", r.tools if r else [], "", int((time.monotonic() - t0) * 1000))
                 return None
             reply, tools = r.text, r.tools
@@ -257,6 +303,7 @@ class Jarvis:
         if steps is not None and any(t.endswith("[failed]") for t in tools):
             self.error = "tool"
         ms = int((time.monotonic() - t0) * 1000)
+        self._last_tools, self._last_tier = tools, tier
         self._log_action(text, tier, tools, reply, ms)
         log(f"  [{tier} · {ms} ms]")
         trace.t("reply", tier=tier, ms=ms, tools=len(tools), text=reply)
@@ -292,11 +339,12 @@ class Jarvis:
                 log(f"JARVIS: log failed: {e}")
         threading.Thread(target=write, daemon=True).start()
 
-    def wait_text(self, fut):
+    def wait_text(self, fut, confirm=None):
+        confirm = confirm or self.confirm_sync
         while True:
             try:
                 prompt, answer = self.confirm_q.get(timeout=0.05)
-                answer(self.confirm_sync(prompt))
+                answer(confirm(prompt))
             except queue.Empty:
                 pass
             if fut.done():
@@ -326,7 +374,7 @@ def text_mode(args):
     for request in args.text:
         log(f'> {request}')
         hud.transcript(request)
-        reply = j.handle(request)
+        reply = j.handle(request, source="cli")
         if reply:
             log(f"JARVIS: {reply}")
             hud.reply(reply)
@@ -407,6 +455,7 @@ class VoiceLoop:
         self.last_academic_check = 0.0
         from collections import deque
         self.pre = deque(maxlen=int(2.0 * RATE / CHUNK))   # the last 2 s before the wake word
+        self.bg = queue.Queue()                           # ("say", title, line) | ("ask", Pending): tasks, while idle
         self.near = 0.0                                   # peak of a wake score that didn't reach THRESHOLD
         self.spec = None                                  # listen()'s early transcription, if still valid
 
@@ -425,6 +474,10 @@ class VoiceLoop:
         A.apps()
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)
         self.j.warm()
+        try:
+            self.app = AppBridge(self)
+        except Exception as e:                 # the console is optional: voice keeps working without it
+            log(f"JARVIS: app socket unavailable: {type(e).__name__}: {e}")
 
     # ── hearing ──
     def read(self, timeout):
@@ -452,9 +505,10 @@ class VoiceLoop:
             self.near = 0.0
         return 0.0
 
-    def listen(self, no_speech_s, kind="command", pre=()):
+    def listen(self, no_speech_s, kind="command", pre=(), stop=None):
         """Record one command → float32 audio, or None if nothing was said.
-        A fresh "hey Jarvis" in the middle starts the command over from there."""
+        A fresh "hey Jarvis" in the middle starts the command over from there.
+        stop(): checked every chunk; True ends listening with nothing heard (answered in the app)."""
         import numpy as np
         from collections import deque
         trace.t("listen", kind=kind, wait=no_speech_s)
@@ -468,6 +522,10 @@ class VoiceLoop:
             a = self.read(2.0)
             if a is None:
                 why = "mic-stalled"
+                break
+            if stop and stop():
+                why = "answered-elsewhere"
+                ep.speech = False
                 break
             recent.append(a)
             if ep.elapsed > 0.3 and restarts < 2 and self.woke(a, "listening"):
@@ -664,6 +722,48 @@ class VoiceLoop:
         if offer:
             self.offer_tracker(offer)
 
+    def check_background(self):
+        """Task announcements, and a task's question asked out loud (the app can answer it too)."""
+        if self.paused:
+            return
+        while True:
+            try:
+                item = self.bg.get_nowait()
+            except queue.Empty:
+                return
+            if item[0] == "say":
+                _, title, line = item
+                log(f"JARVIS: {line}")
+                hud.toast(title, line.upper()[:300])
+                self.say(line)
+            elif item[0] == "ask" and not item[1].answered:
+                self.ask_pending(item[1])
+
+    def ask_pending(self, p):
+        """Ask a background task's question out loud. A clear yes / no answers it; silence leaves it
+        waiting in the app."""
+        self.voice.chime()
+        prompt = f"For the {p.title.lower()} task: {p.prompt}" if p.title else p.prompt
+        log(f"  ? {prompt}")
+        hud.confirm(prompt)
+        if self.cfg["jarvisSpeak"]:
+            u = self.voice.utterance()
+            u.add(prompt)
+            u.finish()
+            self.play(u)
+        if p.answered:
+            hud.idle()
+            return
+        self.mic.flush()
+        audio = self.listen(CONFIRM_TIMEOUT_S, kind="confirm", stop=lambda: p.answered)
+        answer = self.transcribe(audio)[0] if audio is not None else ""
+        log(f'  > "{answer}"')
+        if answer and not p.answered and (is_yes(answer) or NO.search(answer.lower())):
+            self.j.confirms.answer(p.id, is_yes(answer))
+            self.say("Very good, sir." if is_yes(answer) else "Very well, sir.")
+        else:
+            hud.idle()
+
     def offer_tracker(self, offer):
         import tracker
         self.voice.chime()
@@ -817,6 +917,7 @@ class VoiceLoop:
         while True:
             self.check_reminders()
             self.check_academic()
+            self.check_background()
             self.check_combat()
             if self.paused:
                 time.sleep(1)
@@ -861,6 +962,109 @@ class VoiceLoop:
             self.wake.reset()
             self.mic.flush()
             last = time.time()
+
+
+# ── The JARVIS app (Quickshell console) ────────
+class AppBridge:
+    """Socket ops from the app (core/appserver.py) → Jarvis, the conversations and the task runner."""
+
+    def __init__(self, vl):
+        from core.appserver import AppServer
+        from core.tasks import TaskManager
+        self.vl, self.j = vl, vl.j
+        self.server = AppServer(self.j.loop, self.handlers(), log=log)
+        self.tasks = TaskManager(vl.cfg, self.j.loop, self.notify, self.j.confirms,
+                                 ask_aloud=lambda p: vl.bg.put(("ask", p)),
+                                 announce=lambda title, line, thread: vl.bg.put(("say", title, line)),
+                                 paused=lambda: vl.paused, log=log)
+        asyncio.run_coroutine_threadsafe(self.server.start(), self.j.loop).result(5)
+        self.j.notify = self.notify
+        asyncio.run_coroutine_threadsafe(self.tasks.run_forever(), self.j.loop)
+        log(f"JARVIS: app socket at {self.server.path}")
+
+    def notify(self, ev):
+        self.server.broadcast(ev)
+        if ev.get("ev") == "busy" and not ev.get("on") or ev.get("ev") == "task" and ev["item"]["status"] != "running":
+            self.server.broadcast(self.usage())
+
+    def usage(self):
+        return {"ev": "usage", **db.turns_today(), **self.j.brain.usage_brief()}
+
+    def handlers(self):
+        return {"hello": self.hello, "threads": self.threads, "thread": self.thread, "ask": self.ask, "new": self.new,
+                "resume": self.resume, "tasks": self.task_list, "task_log": self.task_log, "task": self.task_start,
+                "cancel": self.cancel, "task_resume": self.task_resume, "answer": self.answer, "usage": lambda m: self.usage()}
+
+    def hello(self, m):
+        return [{"ev": "state", "current": self.j.conv.current, "busy": self.j.busy},
+                self.threads({}), self.task_list({}), self.usage(),
+                *[{"ev": "confirm", "item": p} for p in self.j.confirms.pending()]]
+
+    def threads(self, m):
+        return {"ev": "threads", "q": m.get("q", ""), "quick": bool(m.get("quick")),
+                "items": db.list_threads(str(m.get("q", ""))[:100], bool(m.get("quick")))}
+
+    def thread(self, m):
+        tid = int(m["id"])
+        return {"ev": "messages", "thread": db.get_thread(tid), "items": db.thread_messages(tid)}
+
+    def ask(self, m):
+        text = " ".join(str(m.get("text", "")).split())[:2000]
+        if text:
+            threading.Thread(target=self._ask, args=(text,), daemon=True).start()
+
+    def _ask(self, text):
+        try:
+            self.j.handle(text, source="typed", confirm=self._confirm_typed)
+        except Exception as e:
+            log(f"JARVIS: typed request failed: {type(e).__name__}: {e}")
+            self.notify({"ev": "error", "op": "ask", "error": "Something went wrong on my end."})
+
+    def _confirm_typed(self, prompt):
+        p = self.j.confirms.open(prompt, "typed")
+        ok = p.wait(120)
+        if not p.answered:
+            self.j.confirms.expire(p)
+        return ok
+
+    def _fresh_brain(self):
+        asyncio.run_coroutine_threadsafe(self.j.brain.reset(), self.j.loop)
+
+    def new(self, m):
+        self.j.conv.new()
+        self.j.brain.history = ""
+        self._fresh_brain()
+        return {"ev": "state", "current": None}
+
+    def resume(self, m):
+        tid = int(m["id"])
+        self.j.brain.history = self.j.conv.resume(tid)
+        self._fresh_brain()
+        return [{"ev": "state", "current": tid}, self.thread({"id": tid})]
+
+    def task_list(self, m):
+        return {"ev": "tasks", "items": [self.tasks.item(t) for t in db.list_tasks(30)]}
+
+    def task_log(self, m):
+        return {"ev": "task_log", "id": int(m["id"]), "items": db.task_log(int(m["id"]))}
+
+    def task_start(self, m):
+        from core.conversations import title_from
+        text = str(m.get("text", "")).strip()[:4000]
+        if text:
+            self.tasks.start(title_from(text, 48), text)
+        return self.task_list({})
+
+    def cancel(self, m):
+        self.tasks.cancel(int(m["id"]))
+        return self.task_list({})
+
+    def task_resume(self, m):
+        self.tasks.resume(int(m["id"]))
+        return self.task_list({})
+
+    def answer(self, m):
+        self.j.confirms.answer(int(m["id"]), bool(m.get("yes")))
 
 
 # ── CLI ────────────────────────────────────────

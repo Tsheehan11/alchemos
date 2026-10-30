@@ -6,6 +6,12 @@ Jarvis memory: one SQLite file shared by the voice loop and the MCP server.
   reminders   timers / reminders; the voice loop fires them, so they survive restarts
   router_log  every local-router decision: top-3 intents, slots, latency, path (pruned with action_log)
   tracker_log every write to his SE tracker sheet: cell, old → new, why; `jarvis tracker undo` reverts the last batch
+  threads     conversations for the JARVIS app: voice and typed turns of one conversation share a thread;
+              kind quick (a one-off command, hidden by default) | thread (several turns or real work) | task
+  messages    each turn of a thread (FTS5 index for the app's search)
+  tasks       background Agent SDK jobs (core/tasks.py): queued → running → done | failed | cancelled | interrupted
+  task_log    a task's steps (tool calls) and text, for the app's live log
+  claude_turns Claude turns per request (ResultMessage.num_turns), for the app's "turns today"
 
 WAL mode + a busy timeout, since two processes write to it.
 """
@@ -78,6 +84,58 @@ CREATE TABLE IF NOT EXISTS tracker_log (
     undone REAL                  -- set when `jarvis tracker undo` reverted it
 );
 CREATE INDEX IF NOT EXISTS tracker_log_batch ON tracker_log(batch);
+CREATE TABLE IF NOT EXISTS threads (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'quick',
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS threads_updated ON threads(updated);
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY,
+    thread INTEGER NOT NULL,
+    ts REAL NOT NULL,
+    role TEXT NOT NULL,          -- user | jarvis
+    source TEXT NOT NULL,        -- voice | typed | task | cli
+    text TEXT NOT NULL,
+    tools TEXT NOT NULL DEFAULT '[]',
+    tier TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS messages_thread ON messages(thread, id);
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(text, content='messages', content_rowid='id');
+CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_fts(rowid, text) VALUES (new.id, new.text);
+END;
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY,
+    thread INTEGER,
+    title TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    status TEXT NOT NULL,        -- queued | running | done | failed | cancelled | interrupted
+    created REAL NOT NULL,
+    started REAL,
+    finished REAL,
+    result TEXT,
+    steps INTEGER NOT NULL DEFAULT 0,
+    turns INTEGER NOT NULL DEFAULT 0,
+    resumed_from INTEGER
+);
+CREATE TABLE IF NOT EXISTS task_log (
+    id INTEGER PRIMARY KEY,
+    task INTEGER NOT NULL,
+    ts REAL NOT NULL,
+    kind TEXT NOT NULL,          -- step | text | note | error
+    text TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS task_log_task ON task_log(task, id);
+CREATE TABLE IF NOT EXISTS claude_turns (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    source TEXT NOT NULL,        -- voice | typed | task | usage
+    turns INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS claude_turns_ts ON claude_turns(ts);
 """
 
 STOPWORDS = set("""a an the and or but to of in on at for with by from is are was were be been am i me my
@@ -156,6 +214,7 @@ def log_action(request, tier, tools, result, ms=None):
 def prune_log(days=LOG_DAYS):
     with _db() as db:
         db.execute("DELETE FROM router_log WHERE ts < ?", (time.time() - days * 86400,))
+        db.execute("DELETE FROM claude_turns WHERE ts < ?", (time.time() - days * 86400,))
         return db.execute("DELETE FROM action_log WHERE ts < ?", (time.time() - days * 86400,)).rowcount
 
 
@@ -246,3 +305,123 @@ def last_tracker_batch():
 def mark_tracker_undone(batch):
     with _db() as db:
         db.execute("UPDATE tracker_log SET undone = ? WHERE batch = ?", (time.time(), batch))
+
+
+# ── threads (the JARVIS app) ───────────────────
+def new_thread(title, kind="quick"):
+    now = time.time()
+    with _db() as db:
+        return db.execute("INSERT INTO threads(title, kind, created, updated) VALUES (?,?,?,?)",
+                          (title[:120], kind, now, now)).lastrowid
+
+
+def update_thread(tid, title=None, kind=None):
+    with _db() as db:
+        if title is not None:
+            db.execute("UPDATE threads SET title = ? WHERE id = ?", (title[:120], tid))
+        if kind is not None:
+            db.execute("UPDATE threads SET kind = ? WHERE id = ?", (kind, tid))
+
+
+def get_thread(tid):
+    with _db() as db:
+        r = db.execute("SELECT * FROM threads WHERE id = ?", (tid,)).fetchone()
+    return dict(r) if r else None
+
+
+def add_message(tid, role, source, text, tools=(), tier=""):
+    now = time.time()
+    with _db() as db:
+        mid = db.execute("INSERT INTO messages(thread, ts, role, source, text, tools, tier) VALUES (?,?,?,?,?,?,?)",
+                         (tid, now, role, source, text[:20000], json.dumps(list(tools))[:4000], tier)).lastrowid
+        db.execute("UPDATE threads SET updated = ? WHERE id = ?", (now, tid))
+    return {"id": mid, "thread": tid, "ts": now, "role": role, "source": source, "text": text[:20000],
+            "tools": list(tools), "tier": tier}
+
+
+def list_threads(query="", include_quick=False, limit=60):
+    """Newest first. query: words matched against titles and message text (FTS)."""
+    kinds = ("quick", "thread", "task") if include_quick else ("thread", "task")
+    marks = ",".join("?" * len(kinds))
+    with _db() as db:
+        if query.strip():
+            terms = [t for t in re.findall(r"[\w']+", query.lower()) if t]
+            match = " AND ".join(f'"{t}"*' for t in terms) or '""'
+            rows = db.execute(
+                f"SELECT t.*, COUNT(m.id) AS n FROM threads t LEFT JOIN messages m ON m.thread = t.id "
+                f"WHERE t.kind IN ({marks}) AND (t.title LIKE ? OR t.id IN (SELECT m2.thread FROM messages_fts "
+                f"JOIN messages m2 ON m2.id = messages_fts.rowid WHERE messages_fts MATCH ?)) "
+                f"GROUP BY t.id ORDER BY t.updated DESC LIMIT ?", (*kinds, f"%{query.strip()}%", match, limit)).fetchall()
+        else:
+            rows = db.execute(f"SELECT t.*, COUNT(m.id) AS n FROM threads t LEFT JOIN messages m ON m.thread = t.id "
+                              f"WHERE t.kind IN ({marks}) GROUP BY t.id ORDER BY t.updated DESC LIMIT ?",
+                              (*kinds, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def thread_messages(tid, limit=200):
+    with _db() as db:
+        rows = db.execute("SELECT * FROM (SELECT * FROM messages WHERE thread = ? ORDER BY id DESC LIMIT ?) ORDER BY id",
+                          (tid, limit)).fetchall()
+    out = [dict(r) for r in rows]
+    for m in out:
+        m["tools"] = json.loads(m["tools"] or "[]")
+    return out
+
+
+# ── tasks ──────────────────────────────────────
+def add_task(title, prompt, thread=None, resumed_from=None):
+    with _db() as db:
+        return db.execute("INSERT INTO tasks(thread, title, prompt, status, created, resumed_from) VALUES (?,?,?,?,?,?)",
+                          (thread, title[:120], prompt[:8000], "queued", time.time(), resumed_from)).lastrowid
+
+
+def update_task(tid, **fields):
+    allowed = {"thread", "status", "started", "finished", "result", "steps", "turns"}
+    sets = {k: v for k, v in fields.items() if k in allowed}
+    if not sets:
+        return
+    with _db() as db:
+        db.execute(f"UPDATE tasks SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?", (*sets.values(), tid))
+
+
+def get_task(tid):
+    with _db() as db:
+        r = db.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+    return dict(r) if r else None
+
+
+def list_tasks(limit=30, status=None):
+    with _db() as db:
+        if status:
+            rows = db.execute("SELECT * FROM tasks WHERE status = ? ORDER BY id", (status,)).fetchall()
+        else:
+            rows = db.execute("SELECT * FROM tasks ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def add_task_log(task, kind, text):
+    with _db() as db:
+        db.execute("INSERT INTO task_log(task, ts, kind, text) VALUES (?,?,?,?)", (task, time.time(), kind, text[:4000]))
+
+
+def task_log(task, limit=200):
+    with _db() as db:
+        rows = db.execute("SELECT * FROM (SELECT * FROM task_log WHERE task = ? ORDER BY id DESC LIMIT ?) ORDER BY id",
+                          (task, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Claude usage ───────────────────────────────
+def add_turns(source, turns):
+    if turns:
+        with _db() as db:
+            db.execute("INSERT INTO claude_turns(ts, source, turns) VALUES (?,?,?)", (time.time(), source, int(turns)))
+
+
+def turns_today():
+    import datetime as _dt
+    start = _dt.datetime.combine(_dt.date.today(), _dt.time()).timestamp()
+    with _db() as db:
+        r = db.execute("SELECT COALESCE(SUM(turns), 0) AS n, COUNT(*) AS req FROM claude_turns WHERE ts >= ?", (start,)).fetchone()
+    return {"turns": r["n"], "requests": r["req"]}

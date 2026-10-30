@@ -1086,12 +1086,31 @@ def jarvis_volume(action, percent=0):
             **({"note": "already at the limit"} if new == now and action != "set" else {})}
 
 
+# ── background tasks (run by the voice process, core/tasks.py) ──
+MAX_QUEUED_TASKS = 4
+
+
+def start_task(title, instructions):
+    """Queue a long, multi-step job. Jarvis's task runner picks it up (at most two at once), runs it
+    with its own Claude session behind the same confirmations, and announces the result."""
+    title = " ".join(str(title or "").split())[:80]
+    instructions = str(instructions or "").strip()[:4000]
+    if not title or not instructions:
+        return {"ok": False, "error": "a task needs a short title and instructions"}
+    if len(db.list_tasks(status="queued")) >= MAX_QUEUED_TASKS:
+        return {"ok": False, "error": "too many tasks already waiting", "say": "I've a queue of tasks already, sir."}
+    if DRY_RUN:
+        return {"ok": True, "would": f"queue task {title!r}"}
+    tid = db.add_task(title, instructions)
+    return {"ok": True, "task": tid, "say": "I've started on that in the background, sir. I'll let you know when it's done."}
+
+
 # ── registry, confirmation policy, HUD labels ──
 TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_list, jarvis_volume,
+    widget_add, widget_remove, widget_move, widget_list, jarvis_volume, start_task,
 ]}
 
 
@@ -1155,6 +1174,7 @@ def tool_label(tool, args):
         "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen') or v('size') or ('PIN' if a.get('pinned') else 'UNPIN' if a.get('pinned') is False else '')}".rstrip(" ⇢"),
         "widget_list": lambda: "WIDGETS → LIST",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
+        "start_task": lambda: f"TASK → {v('title')}",
     }
     try:
         return labels[tool]()
