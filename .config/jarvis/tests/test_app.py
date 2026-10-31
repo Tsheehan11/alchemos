@@ -75,6 +75,19 @@ check("NEW → no current thread", c2.current, None)
 check("title_from trims", CV.title_from("Could you go through all of my unread course emails and update the tracker for me please"),
       "Go through all of my unread course emails and update the…")
 
+# ── the task-finished line ──
+import core.tasks as TK  # noqa: E402
+check("done line split off the summary", TK.split_done("You have nine items due.\nDONE: your tracker review for the next two weeks"),
+      ("You have nine items due.", "your tracker review for the next two weeks"))
+check("no done line", TK.split_done("All clear."), ("All clear.", ""))
+check("natural opener", TK.finished_line("Your tracker review for the next two weeks."),
+      "Sir, your tracker review for the next two weeks is done.")
+check("failed opener", TK.finished_line("your inbox sweep", failed=True), "Sir, your inbox sweep didn't finish.")
+for bad in ("", "tracker review", "your task of checking things", "your really very long description of the whole entire job here",
+            "your <b>sweep</b>"):
+    check(f"unclear → generic: {bad!r}", TK.finished_line(bad), "Sir, your background task is done.")
+check("opener stays short", max(len(TK.finished_line(p).split()) for p in ("your a b c d e f g h", "your inbox sweep")) <= 12, True)
+
 # ── confirmations ──
 cf = CV.Confirmations(events.append)
 p = cf.open("Shall I mark CS 137 A5 complete in your tracker, sir?", "task:1", "Tracker sweep")
@@ -125,6 +138,8 @@ class FakeBrain:
         FakeBrain.made.append(self)
 
     async def ask(self, text, on_sentence=None, source=None, model=None):
+        if text == TK.NAME_ASK:                       # the follow-up naming the finished job
+            return Reply(text="Your inbox sweep.", tier="claude:haiku")
         self.on_tool("GOOGLE → EMAIL UNREAD SUMMARY")
         if "approve" in text:
             ok = await self.confirm("Shall I mark CS 137 A5 complete in your tracker, sir?")
@@ -170,6 +185,7 @@ check("result + turns + steps stored", (ta["result"], ta["turns"], ta["steps"]),
 check("task thread has prompt + result", [m["role"] for m in db.thread_messages(ta["thread"])], ["user", "jarvis"])
 check("task thread kind", db.get_thread(ta["thread"])["kind"], "task")
 check("announced", said[0][0], "TASK DONE")
+check("announced in plain words, not the raw title", said[0][1], "Sir, your inbox sweep is done. Three course emails, one tracker update.")
 check("live log lines pushed", any(e["ev"] == "task_line" and e["kind"] == "step" for e in pushed), True)
 check("no start_task inside a task (brain source)", FakeBrain.made[-1].kw.get("source"), "task")
 
