@@ -53,13 +53,14 @@ Singleton {
         return true;
     }
 
-    // Combat telemetry (DiagPanel's combat layout) goes on the diagnostics screen, or on the
-    // main screen when the game is on the diagnostics one; nowhere if both have the game
+    // Combat telemetry (DiagPanel's combat layout) goes on a STATS screen without the game, else
+    // (for this combat session only) on a CLOCK screen without it; never on a MUSIC / NONE screen
     readonly property string telemetryScreen: {
         if (!GameMode.quiet || !Theme.cfg.gameTelemetry || !root.keeps("diag") || !Roles.docked) return "";
-        for (const role of ["diag", "main"]) {
-            const s = Quickshell.screens.find(x => Roles.role(x) === role);
-            if (s && root.gameScreens[s.name] !== true) return s.name;
+        const free = Quickshell.screens.filter(x => root.gameScreens[x.name] !== true).sort((a, b) => a.x - b.x);
+        for (const shows of ["stats", "clock"]) {
+            const s = free.find(x => Roles.shows(x) === shows);
+            if (s) return s.name;
         }
         return "";
     }

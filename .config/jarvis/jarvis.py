@@ -96,6 +96,7 @@ COOLDOWN_S = 0.5           # after a conversation ends (the model is reset, so i
 WHISPER_MODEL = "base.en"
 NO_SPEECH_TIMEOUT_S = 4.0  # nothing said after the wake word → "Sorry sir, I didn't catch that."
 CONFIRM_TIMEOUT_S = 6.0
+CHOICE_TTL_S = 60         # "Panel or widget?" can be answered this long after it was asked
 RATE = hearing.RATE
 CHUNK = hearing.CHUNK      # 80 ms
 NOT_HEARD = "Sorry sir, I didn't catch that."
@@ -160,6 +161,7 @@ class Jarvis:
         self.confirm_sync = confirm_sync      # (prompt) -> bool, runs on the main thread
         self.speak = speak                    # unused here; voice mode speaks replies itself
         self.last_query = ""
+        self.pending_choice = None             # ("Panel or widget?" choice, asked at): the next request may answer it
         self.confirm_q = queue.Queue()
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
@@ -283,7 +285,11 @@ class Jarvis:
         t0 = time.monotonic()
         self.error = ""
         self._last_tools, self._last_tier = [], ""
-        steps = fastpath.match(text, self.last_query)
+        steps = self._choice_answer(text)
+        if steps is None:
+            steps = fastpath.match(text, self.last_query)
+            if steps and steps[0].get("choice"):
+                steps = self._panel_or_widget(text, steps)
         if steps is not None:
             trace.t("route", to="fast", steps=",".join(s["tool"] or "say" for s in steps))
             reply, tools = self.run_steps(steps, confirm)
@@ -323,6 +329,36 @@ class Jarvis:
         log(f"  [{tier} · {ms} ms]")
         trace.t("reply", tier=tier, ms=ms, tools=len(tools), text=reply)
         return reply
+
+    # "put music on monitor 2": the screen's panel (set_screen_role) or a widget? Asked once per phrasing;
+    # the answer is learned by the router (learned_intents.json), so the same words act straight away next time.
+    def _panel_or_widget(self, text, steps):
+        c = steps[0]["choice"]
+        known = self.router.known_intent(text) if self.router else None
+        if known in ("screen.role", "choice.panel"):
+            return c["panel"]
+        if known and (known.startswith("widget.") or known == "choice.widget"):
+            return c["widget"]
+        self.pending_choice = (c, time.monotonic())
+        return steps                           # "Panel or widget, sir?"
+
+    def _choice_answer(self, text):
+        """The reply to "Panel or widget?" → the chosen steps (and teach the router); None if it isn't one."""
+        pend, self.pending_choice = self.pending_choice, None
+        if not pend or time.monotonic() - pend[1] > CHOICE_TTL_S:
+            return None
+        pick = fastpath.choice_answer(text)
+        if not pick:
+            return None
+        c = pend[0]
+        steps = c[pick]
+        if self.router and not self.dry_run and len(steps) == 1:
+            s = steps[0]
+            th = threading.Thread(target=lambda: self.router.remember_choice(c["text"], pick, s["tool"], s["args"]),
+                                  daemon=True)
+            th.start()
+            self.learning.append(th)
+        return steps
 
     def route_local(self, text):
         """The local router's decision, or None when it's off (Settings → JARVIS → DECISIONS) or not loaded."""

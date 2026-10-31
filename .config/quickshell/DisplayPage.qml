@@ -1,5 +1,6 @@
 // Settings → Display: layout mode (extend / mirror / one screen), per-screen
-// resolution + refresh, scale, rotation, on/off and left-to-right order.
+// resolution + refresh, scale, rotation, on/off and left-to-right order, and what each
+// screen's HUD shows (Roles.qml: saved per monitor, applied at once, no keep/revert).
 // The work (apply, 15 s keep-or-revert, saving) lives in Displays.qml; which profile
 // (home desk, laptop only, the TV, …) the changes are saved to lives in Profiles.qml.
 import QtQuick
@@ -146,6 +147,16 @@ Column {
         });
     }
 
+    // What a screen shows (Roles.qml), by its description so it works for screens that are off too
+    function descFor(name) { const m = dp.mons.find(x => x.name === name); return m ? m.description : ""; }
+    function pickFor(name) { return Roles.pickOf(dp.descFor(name)); }
+    function showsFor(name) {
+        const s = Quickshell.screens.find(x => x.name === name);
+        const p = dp.pickFor(name);
+        return s ? Roles.shows(s) : (p === "auto" ? "none" : p);
+    }
+    function roleLabel(name) { return (dp.pickFor(name) === "auto" ? "◇ " : "◆ ") + dp.showsFor(name).toUpperCase(); }
+
     function apply() {
         if (!dp.order.some(n => dp.isOn(n))) { dp.status = "At least one screen has to stay on"; return; }
         dp.status = "";
@@ -251,6 +262,7 @@ Column {
                     spacing: 2
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: box.modelData === dp.laptop ? "LAPTOP" : "MONITOR " + (dp.order.filter(n => n !== dp.laptop).indexOf(box.modelData) + 1); color: Theme.text; font.family: dp.mono; font.pixelSize: 12 }
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: dp.edits[box.modelData] ? dp.edits[box.modelData].mode.split("@")[0] + " · " + dp.aspect(dp.edits[box.modelData].mode) : ""; color: Theme.dim; font.family: dp.mono; font.pixelSize: 10 }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: dp.roleLabel(box.modelData); color: Theme.secondary; font.family: dp.mono; font.pixelSize: 10; font.letterSpacing: 2 }
                 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dp.selName = box.modelData }
             }
@@ -271,6 +283,29 @@ Column {
             text: dp.sel ? (dp.sel.name === dp.laptop ? "LAPTOP SCREEN" : dp.sel.description.toUpperCase()) + "  ·  " + dp.sel.name : ""
             color: Theme.primary; font.family: dp.mono; font.pixelSize: 13; font.letterSpacing: 2
             width: parent.width; elide: Text.ElideRight
+        }
+        // What this screen's HUD shows: live, no APPLY / KEEP
+        Text { text: "HUD ON THIS SCREEN  ·  APPLIES NOW"; color: Theme.dim; font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+        Row {
+            spacing: 8
+            Repeater {
+                model: Roles.picks
+                delegate: SmallButton {
+                    required property var modelData
+                    text: modelData.toUpperCase()
+                    active: dp.pickFor(dp.selName) === modelData
+                    onClicked: Roles.setDesc(dp.descFor(dp.selName), modelData)
+                }
+            }
+        }
+        Text {
+            width: parent.width; wrapMode: Text.WordWrap
+            color: Theme.faint; font.family: dp.mono; font.pixelSize: 11
+            text: (dp.layout === "mirror" ? "Mirrored screens show what the source screen is set to. " : "")
+                + (dp.pickFor(dp.selName) === "auto"
+                   ? "AUTO (◇) goes by position: left monitor CLOCK, middle STATS, laptop MUSIC, others NONE. Showing " + dp.showsFor(dp.selName).toUpperCase() + " now. "
+                   : "Saved for this monitor wherever it's plugged in. ")
+                + "Workspaces stay put."
         }
         Toggle {
             width: parent.width

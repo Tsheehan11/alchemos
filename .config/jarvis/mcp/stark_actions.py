@@ -956,6 +956,77 @@ def widget_note_count(target, screen=""):
         return 0
 
 
+# ── what each screen's HUD shows (quickshell/Roles.qml, through `qs ipc call roles …`) ──
+# Not widgets: a whole screen's panel (arc-reactor clock / diagnostics wall / audio deck /
+# nothing), saved per monitor. Never moves workspaces.
+SCREEN_ROLES = ["auto", "clock", "stats", "music", "none"]
+ROLE_WORDS = [   # spoken → role; fullmatch on the normalized phrase
+    (r"(?:the )?(?:arc )?(?:reactor|clock|time)(?: panel| hud| view)?", "clock"),
+    (r"(?:the )?(?:system )?(?:stats|statistics|diagnostics|diag|telemetry)(?: wall| panel| hud| view)?", "stats"),
+    (r"(?:the )?(?:music|media|audio|now playing|visualizer|visualiser|player|spotify)(?: deck| panel| hud| view)?", "music"),
+    (r"nothing|none|blank|empty|(?:just )?(?:the )?grid|no panel|off", "none"),
+    (r"auto|automatic|default|normal", "auto"),
+]
+# Spoken screen → the HUD's target token. "TV" = any screen that isn't a Dell / Acer / the laptop
+ROLE_SCREENS = [
+    (r"(?:the |my )?(?:tv|t v|television|telly)(?: screen)?", "tv"),
+    (r"(?:the |my )?(?:laptop(?: screen| display)?|(?:built in|internal) (?:screen|display))", "laptop"),
+    (r"(?:the |my )?(?:monitor|screen|display) (?:1|one)", "monitor 1"),
+    (r"(?:the |my )?(?:monitor|screen|display) (?:2|two)", "monitor 2"),
+    (r"(?:the |my )?(?:monitor|screen|display) (?:3|three)", "monitor 3"),
+    (r"(?:the |my )?(?:main|primary|first|left)(?: (?:monitor|screen|display))?", "main"),
+    (r"(?:the |my )?(?:second|middle|diagnostics?)(?: (?:monitor|screen|display))?", "diag"),
+    (r"(?:this|current|the current)(?: (?:monitor|screen|display))?|this one|here", "current"),
+]
+
+
+def norm_role(spoken):
+    """'the music deck' → 'music'; None if it isn't a role."""
+    t = _norm(spoken or "")
+    t = re.sub(r"^(?:a|an|my)\s+", "", t)
+    for pat, role in ROLE_WORDS:
+        if re.fullmatch(pat, t):
+            return role
+    return t if t in SCREEN_ROLES else None
+
+
+def norm_role_screen(spoken):
+    """'the TV' / 'monitor 2' / 'laptop screen' / '' → HUD target token ('' = the focused one); None if unknown."""
+    t = _norm(spoken or "")
+    t = re.sub(r"^(?:on|to|for)\s+", "", t)
+    if t in ("", "-"):
+        return "current"
+    for pat, token in ROLE_SCREENS:
+        if re.fullmatch(pat, t):
+            return token
+    return None
+
+
+@safe
+def set_screen_role(screen, role):
+    """Choose what a screen's HUD shows: clock (arc reactor) | stats (diagnostics) | music (audio deck +
+    visualizer) | none (grid only) | auto (by position). screen: "TV" | "laptop screen" | "monitor 2" |
+    "main monitor" | "second monitor" | "" (the one in use). Saved per monitor; workspaces don't move."""
+    r = norm_role(role)
+    if r is None:
+        raise Invalid(f"role must be one of: {', '.join(SCREEN_ROLES)}")
+    s = norm_role_screen(screen)
+    if s is None:
+        raise Invalid(f'unknown screen "{screen}" (TV, laptop screen, monitor 1/2, main / second monitor, or empty for this one)')
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"roles set {s} {r}"}
+    rc, out, err = _run(_qs("roles", "set", s, r), timeout=4)
+    if rc != 0:
+        raise Invalid("the HUD isn't answering (screen roles need Quickshell running)")
+    try:
+        d = json.loads(out)
+    except ValueError:
+        raise Invalid(f"unexpected reply from the HUD: {out[:120]}")
+    if not d.get("ok"):
+        raise Invalid(d.get("error") or "the HUD refused")
+    return {"ok": True, "role": r, "screens": [x.get("name") for x in d.get("set", [])]}
+
+
 # ── weather (Open-Meteo: no key, no account; read-only) ──
 HUD_SETTINGS = HOME / ".config/quickshell/settings.json"
 DEFAULT_PLACE = "Waterloo, Ontario"
@@ -1110,7 +1181,7 @@ TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_list, jarvis_volume, start_task,
+    widget_add, widget_remove, widget_move, widget_list, set_screen_role, jarvis_volume, start_task,
 ]}
 
 
@@ -1173,6 +1244,7 @@ def tool_label(tool, args):
         "widget_remove": lambda: f"WIDGET ✕ {v('target') or 'ALL'}" + (f" @ {v('screen')}" if a.get("screen") else ""),
         "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen') or v('size') or ('PIN' if a.get('pinned') else 'UNPIN' if a.get('pinned') is False else '')}".rstrip(" ⇢"),
         "widget_list": lambda: "WIDGETS → LIST",
+        "set_screen_role": lambda: f"SCREEN → {(norm_role_screen(a.get('screen')) or v('screen')).upper()} ⇢ {(norm_role(a.get('role')) or v('role')).upper()}",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
         "start_task": lambda: f"TASK → {v('title')}",
     }

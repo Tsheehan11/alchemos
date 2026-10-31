@@ -25,7 +25,8 @@ PanelWindow {
 
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property bool isVol: OsdState.kind === "volume"
-    readonly property color accent: isVol && OsdState.muted ? "#ff5f5f" : (isVol ? Theme.primary : Theme.secondary)
+    readonly property bool isRole: OsdState.kind === "role"
+    readonly property color accent: isVol && OsdState.muted ? "#ff5f5f" : (isVol || isRole ? Theme.primary : Theme.secondary)
     readonly property string icon: isVol
         ? (OsdState.muted || OsdState.value === 0 ? String.fromCodePoint(0xF0581)
            : OsdState.value < 0.34 ? String.fromCodePoint(0xF057F)
@@ -59,8 +60,26 @@ PanelWindow {
         }
 
         // Ring gauge with the icon inside
+        // Screen role (Super+Shift+V)
+        Column {
+            visible: osd.isRole
+            anchors.centerIn: parent
+            spacing: 8
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "DISPLAY // " + OsdState.screenName + " SHOWS"
+                color: Theme.dim; font.family: osd.mono; font.pixelSize: 11; font.letterSpacing: 3
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "◆ " + OsdState.text
+                color: osd.accent; font.family: osd.mono; font.pixelSize: 24; font.bold: true; font.letterSpacing: 4
+            }
+        }
+
         Canvas {
             id: ring
+            visible: !osd.isRole
             width: 70; height: 70
             anchors.left: parent.left; anchors.leftMargin: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -91,6 +110,7 @@ PanelWindow {
         }
 
         Column {
+            visible: !osd.isRole
             anchors.left: ring.right; anchors.leftMargin: 16
             anchors.right: parent.right; anchors.rightMargin: 22
             anchors.verticalCenter: parent.verticalCenter

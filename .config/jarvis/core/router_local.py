@@ -275,6 +275,23 @@ def slot_screen(t):
     return ""
 
 
+def slot_role_screen(t):
+    """set_screen_role's screen: tv | laptop | monitor 2 | main | diag; "" = the one in use."""
+    for span in _spans(t.split(), 3):
+        tok = A.norm_role_screen(span)
+        if tok and tok != "current":
+            return tok
+    return ""
+
+
+def slot_screen_role(t):
+    for span in _spans(t.split(), 3):
+        r = A.norm_role(span)
+        if r:
+            return r
+    return ""
+
+
 def slot_position(t):
     for span in _spans(t.split(), 3):
         if A.norm_position(span):
@@ -351,9 +368,10 @@ def slot_uwcs_host(t):
 SLOTS = {"app": slot_app, "theme": slot_theme, "percent": slot_percent, "workspace": slot_workspace,
          "minutes": slot_minutes, "timer_label": slot_timer_label, "screen": slot_screen, "position": slot_position,
          "tz": slot_tz, "place": slot_place, "onoff": slot_onoff, "light_mode": slot_light_mode, "mute": slot_mute,
-         "vpn": slot_vpn, "power": slot_power, "uwcs_host": slot_uwcs_host}
+         "vpn": slot_vpn, "power": slot_power, "uwcs_host": slot_uwcs_host,
+         "role_screen": slot_role_screen, "screen_role": slot_screen_role}
 # Slot types whose values are a closed set (used to map Claude's calls back to an intent)
-DOMAINS = {"onoff": {"on", "off"}, "light_mode": {"music", "theme", "auto"}, "mute": {"mute", "unmute"},
+DOMAINS = {"screen_role": set(A.SCREEN_ROLES), "onoff": {"on", "off"}, "light_mode": {"music", "theme", "auto"}, "mute": {"mute", "unmute"},
            "vpn": {"disconnect", "connect_proton", "open_school_login"},
            "power": {"suspend", "shutdown", "reboot", "logout"}}
 
@@ -553,6 +571,34 @@ class LocalRouter:
             self._load()
         self.log(f'JARVIS: learned "{t}" → {target}')
         return target
+
+    def known_intent(self, text):
+        """The intent this exact phrasing is an example of, hand-written or learned (e.g. a "Panel or
+        widget?" answer), or None."""
+        t = norm_text(fastpath.TRAILER.sub("", fastpath.FILLER.sub("", fastpath.norm(text))))
+        with self.lock:
+            for name, it in self.data["intents"].items():
+                if t in {norm_text(x) for x in it.get("examples", [])}:
+                    return name
+            for name, exs in self.learned.items():
+                if t in {norm_text(x) for x in exs}:
+                    return name
+        return None
+
+    def remember_choice(self, text, pick, tool, args):
+        """Trevor answered "Panel or widget?" with pick (panel | widget) for `text`, which runs tool(**args).
+        Learned as an example of that tool's intent when there is one; otherwise kept under "choice.<pick>"
+        (not embedded, only read by known_intent) so the same words don't ask again."""
+        t = norm_text(fastpath.TRAILER.sub("", fastpath.FILLER.sub("", fastpath.norm(text))))
+        if not t or self.known_intent(t) or self.learn(text, tool, args):
+            return
+        with self.lock:
+            learned = load_learned()
+            key = f"choice.{pick}"
+            learned[key] = (learned.get(key, []) + [t])[-LEARN_CAP:]
+            save_learned(learned)
+            self.learned = learned
+        self.log(f'JARVIS: remembered "{t}" → {pick}')
 
     def _intent_for(self, tool, args, t):
         lower = lambda v: str(v).strip().lower()

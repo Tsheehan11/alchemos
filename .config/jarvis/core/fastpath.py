@@ -217,6 +217,10 @@ def _clause(t, last_query):
     if M(r"(?:set|change|switch|make)(?: the)? (?:theme|colou?rs?|hud) to (.+?)(?: theme)?|(?:switch to |use |activate )?(.+?) theme|theme (.+)"):
         name = A.match_preset(next(g for g in m.groups() if g))
         return [step("set_theme", f"{_pretty(name)}, sir.", preset=name)] if name else None
+    # ── what a screen's HUD shows (Roles.qml), before widgets: "put music on the TV" ──
+    r = _screen_role(t)
+    if r is not None:
+        return r
     # ── widgets (Widgets.qml) ──
     w = _widget(t)
     if w is not None:
@@ -283,6 +287,67 @@ def _where(t):
 def _on(screen):
     role = A.norm_screen(screen) if screen else ""
     return {"main": " on the main monitor", "diag": " on the second monitor", "media": " on the laptop screen"}.get(role or "", "")
+
+
+# Screen roles (set_screen_role) vs widgets. Widget: the word "widget" or a widget-only thing (timer, note…).
+# Role: the TV, "screen", "panel", "HUD", "set <screen> to <role>", "nothing / none / auto on". Anything else
+# that could be either ("put music on monitor 2") asks "Panel or widget?" once; Jarvis remembers the answer.
+RROLE = (r"(?:the |a |an |my )?(?:arc reactor|reactor|clock|stats|statistics|system stats|diagnostics|telemetry|music|media|"
+         r"audio|now playing|visuali[sz]er|player|nothing|none|blank|auto|automatic|default)(?: deck| panel| hud| wall| view)?")
+RSCREEN = (r"(?:the |my )?(?:tv|t v|television|telly|laptop(?: screen| display)?|(?:built in|internal) (?:screen|display)|"
+           r"(?:main|primary|first|left|second|middle) (?:monitor|screen|display)|(?:monitor|screen|display) (?:1|one|2|two|3|three)|"
+           r"(?:this|current) (?:monitor|screen|display)|this one)")
+RVERB = r"(?:put|show|set|switch|change|make|display|use|give me|throw|pull up|bring up|i want)(?: up)?"
+WIDGET_ONLY = re.compile(r"\b(?:widgets?|timers?|countdown|stopwatch|notes?|sticky|analog|card)\b")
+ROLE_SIGNAL = re.compile(r"\b(?:tv|t v|television|telly|screen|panel|hud)\b")
+CHOICE_PANEL = re.compile(r"(?:the |a )?(?:panel|screen|hud|role|whole screen|the whole thing|first one|the first)(?: one)?")
+CHOICE_WIDGET = re.compile(r"(?:the |a )?(?:widget|card|little one|small one|second one|the second)(?: one)?")
+
+
+def _role_said(role, screen):
+    where = {"tv": "the TV", "laptop": "the laptop screen", "current": "this screen", "main": "the main monitor",
+             "diag": "the second monitor"}.get(screen, screen)
+    if role == "none":
+        return f"Clearing {where}, sir."
+    if role == "auto":
+        return f"{where[0].upper() + where[1:]} is back on automatic."
+    return f"{ {'clock': 'Clock', 'stats': 'Diagnostics', 'music': 'Music'}[role] } on {where}."
+
+
+def _screen_role(t):
+    """Screen-role command → [step]; ambiguous with a widget → [ask step carrying "choice"]; None = not one."""
+    if WIDGET_ONLY.search(t):
+        return None
+    set_form = False
+    m = re.fullmatch(rf"(?:{RVERB} )?({RROLE}) (?:on|onto|to|for|over to) ({RSCREEN})", t)
+    if m:
+        role_w, scr_w = m.group(1), m.group(2)
+    else:
+        m = re.fullmatch(rf"(?:(?:set|switch|change|make|turn|put) )?({RSCREEN}) (?:to|into|as|on|shows?|showing) ({RROLE})", t)
+        if not m:
+            return None
+        scr_w, role_w, set_form = m.group(1), m.group(2), True
+    role, scr = A.norm_role(role_w), A.norm_role_screen(scr_w)
+    if role is None or scr is None:
+        return None
+    panel = step("set_screen_role", _role_said(role, scr), screen=scr, role=role)
+    if set_form or role in ("none", "auto") or ROLE_SIGNAL.search(t):
+        return [panel]
+    widget = _widget(t)
+    if not widget:
+        return [panel]
+    return [{"tool": None, "args": {}, "say": "Panel or widget, sir?", "choice": {"text": t, "panel": [panel], "widget": widget}}]
+
+
+def choice_answer(text):
+    """Reply to "Panel or widget?" → "panel" | "widget" | None (something else: drop the question)."""
+    t = TRAILER.sub("", FILLER.sub("", norm(text))).strip()
+    t = re.sub(r"^(?:make it|use|i mean|i meant|the answer is|a|the) ", "", t)
+    if CHOICE_PANEL.fullmatch(t):
+        return "panel"
+    if CHOICE_WIDGET.fullmatch(t):
+        return "widget"
+    return None
 
 
 def _widget(t):

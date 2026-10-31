@@ -160,6 +160,16 @@ def widget_list() -> str:
 
 
 @mcp.tool(structured_output=False)
+def set_screen_role(screen: str = "", role: Literal["auto", "clock", "stats", "music", "none"] = "auto") -> str:
+    """What a whole screen's HUD shows (not a widget): clock = arc-reactor clock, stats = diagnostics wall,
+    music = audio deck + visualizer, none = grid only, auto = by position. screen: "TV" (any non-Dell,
+    non-Acer screen) | "laptop screen" | "monitor 1" | "monitor 2" | "main monitor" | "second monitor" |
+    "" (the one in use). Saved per monitor; workspaces don't move. If it's unclear whether he means a
+    panel or a widget, ask."""
+    return out(A.set_screen_role(screen, role))
+
+
+@mcp.tool(structured_output=False)
 def jarvis_volume(action: Literal["up", "down", "set"], percent: int = 0) -> str:
     """Your own speaking volume (Jarvis's voice only, not music: use media for that). up / down = one step,
     set = percent 0-100. Reply in one short line; it's spoken at the new level."""

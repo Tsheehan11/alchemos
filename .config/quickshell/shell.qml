@@ -19,22 +19,21 @@ ShellRoot {
         Bar {}
     }
 
-    // Left monitor: arc-reactor clock
+    // What each screen shows (Roles.shows: Settings → Display, Super+Shift+V). A panel only
+    // exists on the screens showing it, so a NONE screen runs no timers / cava / stats for itself.
     Variants {
         model: Quickshell.screens
-        HudWindow {}
-    }
-
-    // Middle monitor: diagnostics wall
-    Variants {
-        model: Quickshell.screens
-        DiagPanel {}
-    }
-
-    // Laptop screen: audio deck
-    Variants {
-        model: Quickshell.screens
-        MediaPanel {}
+        Scope {
+            id: slot
+            required property var modelData
+            readonly property string shows: Roles.shows(modelData)
+            LazyLoader { active: slot.shows === "clock"; HudWindow { modelData: slot.modelData } }       // arc-reactor clock
+            LazyLoader {                                                                                  // diagnostics wall / combat telemetry
+                active: slot.shows === "stats" || Perf.telemetryScreen === slot.modelData.name
+                DiagPanel { modelData: slot.modelData }
+            }
+            LazyLoader { active: slot.shows === "music"; MediaPanel { modelData: slot.modelData } }       // audio deck
+        }
     }
 
     // Desktop widgets: clocks, timers, now playing, stats, notes (Widgets.qml)
@@ -117,6 +116,15 @@ ShellRoot {
         function clear(screen: string): string { return JSON.stringify(Widgets.clear(screen)) }
         function list(): string { return JSON.stringify({ ok: true, docked: Roles.docked, current: Widgets.currentRole(), widgets: Widgets.list() }) }
         function types(): string { return JSON.stringify({ types: Widgets.types, positions: Widgets.positions, screens: Widgets.roles }) }
+    }
+
+    //   qs ipc call roles set tv music | set DP-6 clock | set "monitor 2" none | set laptop auto
+    //   qs ipc call roles get | cycle   (cycle = the focused monitor, Super+Shift+V)
+    IpcHandler {
+        target: "roles"
+        function set(screen: string, role: string): string { return JSON.stringify(Roles.setFor(screen, role)) }
+        function get(): string { return JSON.stringify(Roles.status()) }
+        function cycle(): string { return JSON.stringify(Roles.cycle()) }
     }
 
     //   qs ipc call launcher toggle

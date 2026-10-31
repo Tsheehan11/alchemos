@@ -1,4 +1,4 @@
-// Desktop-layer window holding the arc reactor (main monitor only).
+// Desktop-layer window holding the arc reactor (CLOCK screens, Roles.shows; made per screen in shell.qml).
 // It sits BELOW your windows, so it shows on empty workspaces.
 import QtQuick
 import Quickshell
@@ -9,8 +9,7 @@ PanelWindow {
     required property var modelData
     screen: modelData
 
-    // Main screen = leftmost external monitor when docked, the laptop when not
-    visible: Roles.role(modelData) === "main" && Theme.cfg.showReactor && !Perf.hidden(modelData, "reactor")
+    visible: Roles.shows(modelData) === "clock" && Theme.cfg.showReactor && !Perf.hidden(modelData, "reactor")
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-hud"

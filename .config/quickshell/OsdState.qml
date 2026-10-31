@@ -1,6 +1,7 @@
 // Volume / brightness pop-up state.
 //   Volume: follows the default output's volume + mute, whatever changed it
 //   Brightness: the brightness keys call `qs ipc call osd brightness`
+//   Screen role: Super+Shift+V (Roles.cycle) shows what the focused screen shows now
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -10,7 +11,9 @@ import Quickshell.Services.Pipewire
 Singleton {
     id: root
 
-    property string kind: "volume"     // volume | brightness
+    property string kind: "volume"     // volume | brightness | role
+    property string screenName: ""     // role: the screen it was changed on
+    property string text: ""           // role: "MUSIC", "AUTO · CLOCK"
     property real value: 0
     property bool muted: false
     property bool showing: false
@@ -24,6 +27,14 @@ Singleton {
         hide.restart();
     }
     Timer { id: hide; interval: 1600; onTriggered: root.showing = false }
+    function role(name, text) {
+        if (!Theme.cfg.osd) return;
+        root.kind = "role";
+        root.screenName = name;
+        root.text = text;
+        root.showing = true;
+        hide.restart();
+    }
 
     // ── Volume ──
     readonly property var sink: Pipewire.defaultAudioSink

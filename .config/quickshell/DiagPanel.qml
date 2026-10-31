@@ -1,7 +1,7 @@
-// Diagnostics wall for the middle monitor (DP-5): live graphs + system readouts.
-// Sits behind your windows, like the reactor. In combat mode it switches to the
-// COMBAT TELEMETRY layout (CombatTelemetry.qml), on the main screen instead if the
-// game is on this one (Perf.telemetryScreen).
+// Diagnostics wall for STATS screens (Roles.shows; the middle monitor by default): live graphs +
+// system readouts. Sits behind your windows, like the reactor. In combat mode it switches to the
+// COMBAT TELEMETRY layout (CombatTelemetry.qml) on one STATS screen without the game, or on a
+// CLOCK screen while combat lasts if none is free (Perf.telemetryScreen).
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -11,7 +11,7 @@ PanelWindow {
     required property var modelData
     screen: modelData
     readonly property bool telemetry: Perf.telemetryScreen === modelData.name
-    visible: (telemetry || Roles.role(modelData) === "diag") && Theme.cfg.showDiag
+    visible: (telemetry || Roles.shows(modelData) === "stats") && Theme.cfg.showDiag
              && !Perf.hidden(modelData, telemetry ? "telemetry" : "diag")
 
     WlrLayershell.layer: WlrLayer.Bottom
@@ -38,11 +38,10 @@ PanelWindow {
         mask: Region {}
     }
 
-    // Combat mode: SysStats speeds back up to 2.5 s while this wall is on screen
-    Binding {
-        when: Roles.role(diag.modelData) === "diag"
-        target: SysStats; property: "diagShown"; value: diag.visible
-    }
+    // Combat mode: SysStats speeds back up to 2.5 s while a wall is on screen
+    onVisibleChanged: SysStats.setDiag(modelData.name, visible)
+    Component.onCompleted: SysStats.setDiag(modelData.name, visible)
+    Component.onDestruction: SysStats.setDiag(modelData.name, false)
 
     DesktopMenuArea { screen: diag.modelData }
     readonly property color cyan: Theme.primary

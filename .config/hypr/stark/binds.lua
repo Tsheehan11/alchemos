@@ -22,6 +22,7 @@ bind("B",      exec(browser))
 bind("Q",      hl.dsp.window.close())
 bind("F",      hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 bind("V",      hl.dsp.window.float({ action = "toggle" }))
+bind("SHIFT + V", exec("qs ipc call roles cycle"))    -- what this screen's HUD shows: AUTO → CLOCK → STATS → MUSIC → NONE
 bind("L",      exec("qs ipc call stark lock || ~/.config/hypr/stark-lock.sh"))
 bind("Tab",    exec("qs ipc call overview toggle"))
 bind("Escape", exec("qs ipc call stark menu"))

@@ -68,6 +68,7 @@ Singleton {
             property string jarvisDecisions: "local"   // local = fast path → local router → Claude | claude = fast path → Claude
             property real jarvisRouterThreshold: 0.70  // similarity the local router needs to act (~/.config/jarvis/tools/eval_router.py)
             property string displayLayout: "extend"  // extend | mirror | external | laptop
+            property var screenRoles: ({})            // monitor description → clock | stats | music | none (missing = auto; Roles.qml)
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open
             property bool osd: true                   // volume / brightness pop-up
             property bool showWidgets: true           // desktop widgets (Widgets.qml; the list itself is in widgets.json)

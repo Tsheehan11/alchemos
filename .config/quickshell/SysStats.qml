@@ -9,7 +9,14 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    property bool diagShown: false  // set by DiagPanel
+    property var diagScreens: ({})  // screen name → true while its diagnostics wall is up (DiagPanel)
+    readonly property bool diagShown: Object.keys(diagScreens).length > 0
+    function setDiag(name, on) {
+        if ((root.diagScreens[name] === true) === on) return;
+        const d = Object.assign({}, root.diagScreens);
+        if (on) d[name] = true; else delete d[name];
+        root.diagScreens = d;
+    }
     readonly property int interval: GameMode.quiet ? (diagShown || Telemetry.active ? 2500 : 10000) : PowerMode.saver ? 5000 : 2000
     readonly property int historyLength: 60
 

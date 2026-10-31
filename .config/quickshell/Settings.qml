@@ -591,9 +591,9 @@ PanelWindow {
                     width: parent.width
                     spacing: 12
 
-                    Toggle { width: parent.width; label: "Arc-reactor clock"; hint: "Main screen"; checked: Theme.cfg.showReactor; onToggled: Theme.cfg.showReactor = !Theme.cfg.showReactor }
-                    Toggle { width: parent.width; label: "Diagnostics wall"; hint: "Second monitor, when docked"; checked: Theme.cfg.showDiag; onToggled: Theme.cfg.showDiag = !Theme.cfg.showDiag }
-                    Toggle { width: parent.width; label: "Audio deck"; hint: "Laptop screen, when docked"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
+                    Toggle { width: parent.width; label: "Arc-reactor clock"; hint: "CLOCK screens (Display → HUD on this screen)"; checked: Theme.cfg.showReactor; onToggled: Theme.cfg.showReactor = !Theme.cfg.showReactor }
+                    Toggle { width: parent.width; label: "Diagnostics wall"; hint: "STATS screens"; checked: Theme.cfg.showDiag; onToggled: Theme.cfg.showDiag = !Theme.cfg.showDiag }
+                    Toggle { width: parent.width; label: "Audio deck"; hint: "MUSIC screens"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
                     Toggle { width: parent.width; label: "Hide panels behind windows"; hint: "Clock, diagnostics and audio deck only show on screens with no windows open"; checked: Theme.cfg.hideHudBehindWindows; onToggled: Theme.cfg.hideHudBehindWindows = !Theme.cfg.hideHudBehindWindows }
                     Toggle { width: parent.width; label: "Volume & brightness pop-up"; hint: "Shows on the screen you're using"; checked: Theme.cfg.osd; onToggled: Theme.cfg.osd = !Theme.cfg.osd }
                     Toggle { width: parent.width; label: "Jarvis"; hint: "Runs while docked, stops on laptop only (same as the control center switch)"; checked: JarvisState.userWantsJarvis; onToggled: JarvisState.setWanted(!JarvisState.userWantsJarvis) }

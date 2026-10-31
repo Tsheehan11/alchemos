@@ -1,8 +1,8 @@
-// Audio deck for the laptop screen (eDP-1): now playing, controls, volume
-// and a live visualizer. Works with Spotify (or any player) running in the background.
+// Audio deck for MUSIC screens (Roles.shows; the laptop by default): now playing, controls, volume
+// and a live visualizer (Cava.qml, one cava shared by every deck). Works with Spotify (or any
+// player) running in the background.
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
@@ -11,7 +11,7 @@ PanelWindow {
     id: media
     required property var modelData
     screen: modelData
-    visible: Roles.role(modelData) === "media" && Theme.cfg.showMedia && !Perf.hidden(modelData, "media")
+    visible: Roles.shows(modelData) === "music" && Theme.cfg.showMedia && !Perf.hidden(modelData, "media")
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "stark-media"
@@ -63,18 +63,13 @@ PanelWindow {
         onTriggered: media.player.positionChanged()
     }
 
-    // ── Visualizer feed from cava ── (off in combat mode: the bars freeze where they were)
+    // ── Visualizer feed from the shared cava ── (off in combat mode: the bars freeze where they were)
+    readonly property bool vizOn: media.visible && !media.covered && !Perf.lite
+    onVizOnChanged: Cava.want(modelData.name, vizOn)
+    Component.onCompleted: Cava.want(modelData.name, vizOn)
+    Component.onDestruction: Cava.want(modelData.name, false)
     property var bars: []
-    Process {
-        running: media.visible && !media.covered && !Perf.lite
-        command: ["cava", "-p", Quickshell.env("HOME") + "/.config/quickshell/cava.conf"]
-        stdout: SplitParser {
-            onRead: data => {
-                const v = data.split(";").filter(s => s.length > 0).map(Number);
-                if (v.length > 0) media.bars = v;
-            }
-        }
-    }
+    Binding on bars { when: media.vizOn; value: Cava.bars; restoreMode: Binding.RestoreNone }
 
     // Scroll anywhere on the deck to change volume
     MouseArea {
