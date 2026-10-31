@@ -79,6 +79,26 @@ only; task confirmations show in the app and are asked aloud when idle, first an
 timeout = no. While Jarvis is off, the app reads history through `jarvis app-data`. Combat mode:
 no new task starts and nothing is asked aloud; running tasks continue.
 
+**UI polish (after stage 2):**
+- Pop-up (JarvisToast): projected text on a blurred glass plate (no hard border), glowing text, faint
+  scanlines, an occasional flicker, a projector line; fades in and out. The whole reply, always:
+  `core/hud.py` no longer cuts arguments at 600 characters, and a long reply scrolls inside (max 40 % of
+  the screen). Karaoke: `Utterance` reports each sentence as it starts playing (`hud.speak(start, end,
+  total, ms)`, `speechDone`), the pop-up lights the sentence being said, marks its line and keeps it in
+  view; the mouse wheel scrolls by hand and pauses that. Unspoken replies scroll at reading pace. It
+  stays while he speaks or the pointer is on it, then 3.5-12 s by length; hidden while the console is
+  open on that monitor. A click opens the console on the active thread, on that monitor.
+- Threads: a thread lasts 30 min of quiet (`THREAD_IDLE_S`); Claude's own context still drops after
+  3 min, and carrying on replays the thread's last turns. "new topic" / "new chat" / NEW THREAD start a
+  new one. After a restart the live thread is picked up again. A background task's messages never make
+  its thread current. The console marks the active thread (lit edge, "● ACTIVE", header badge).
+- Tasks: each card shows its state (RUNNING / QUEUED / NEEDS YOUR YES / DONE …), a progress bar
+  (steps of the 40-step budget), the current step in plain words, elapsed time, and YES / NO inline when
+  it's waiting. HELP (always shown with no tasks) explains what a task is and how to start one.
+- Console: fades in/out, stays on the monitor it opened on, focus in the input on open and after
+  thread / NEW / RESUME clicks; the message list follows new messages only while at the bottom
+  ("▼ LATEST" otherwise) and shows a scroll bar.
+
 ## Between stages 2 and 3: calendar editing
 
 **How his sheet syncs** (his Apps Script, confirmed): an installable "From spreadsheet – On edit"

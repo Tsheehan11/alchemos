@@ -347,6 +347,8 @@ class Utterance:
         self.started = False          # any audio written yet
         self.fell_back = False        # speaker unreachable → laptop speakers
         self.n_added = 0
+        self.chars = 0                # spoken characters added so far (for the pop-up's progress)
+        self.progress = voice.progress  # (start, end, total, ms) per sentence as it starts playing; None at the end
         self.params = voice.params()
         self.proc = None
         threading.Thread(target=self._produce, daemon=True).start()
@@ -359,6 +361,7 @@ class Utterance:
             parts, split = first_split(parts)
         for i, p in enumerate(parts):
             self.texts.put((p, COMMA_GAP_S if split and i == 0 else None))
+            self.chars += len(p) + 1
         self.n_added += len(parts)
 
     def finish(self):
@@ -386,7 +389,7 @@ class Utterance:
                 audio = resample(audio, sr, RATE)
                 if gap is not None:      # comma split: shorter pause than a full stop
                     audio = audio[:max(0, len(audio) - int((effects.TAIL_S - gap) * RATE))]
-                self.audio.put(audio)
+                self.audio.put((audio, len(text) + 1))
             except Exception as e:
                 self.v.log(f"JARVIS: speech failed: {e}")
                 trace.t("error", where="tts", err=f"{type(e).__name__}: {e}")
@@ -402,10 +405,18 @@ class Utterance:
                 return
             self.proc = self.v.open_stream(target)
             first = True
+            spoken = 0
             while not self.stopped.is_set():
-                audio = self.audio.get()
-                if audio is None:
+                item = self.audio.get()
+                if item is None:
                     break
+                audio, n = item
+                if self.progress:
+                    try:
+                        self.progress(spoken, spoken + n, max(self.chars, spoken + n), len(audio) * 1000 // RATE)
+                    except Exception:
+                        pass
+                spoken += n
                 if first:
                     first = False
                     self.started = True
@@ -420,6 +431,11 @@ class Utterance:
         except (BrokenPipeError, OSError, ValueError):
             pass
         finally:
+            if self.progress:
+                try:
+                    self.progress(None, None, None, None)
+                except Exception:
+                    pass
             if self.proc and self.proc.poll() is None:
                 self.proc.kill()
             if self.proc:
@@ -451,6 +467,7 @@ class Voice:
         self.ducker = Ducker()
         self.overrides = {}            # audition / preview: {"voice", "preset", "pitch", "speed"}
         self.speaker = Speaker(cfg, log)
+        self.progress = None           # set by jarvis.py: the pop-up follows the speech (core/hud.speak)
 
     # ── settings ──
     def _setting(self, key, cfg_key, default):

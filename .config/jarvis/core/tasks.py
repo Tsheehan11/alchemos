@@ -35,6 +35,8 @@ class TaskManager:
         self.cfg, self.loop, self.notify, self.confirms = cfg, loop, notify, confirms
         self.ask_aloud, self.announce, self.paused, self.log, self.dry_run = ask_aloud, announce, paused, log, dry_run
         self.running = {}         # task id → (future, brain)
+        self.now = {}             # task id → its latest step ("GOOGLE → CALENDAR FIND")
+        self.waiting = {}         # task id → the question waiting for his yes
         self.cancelled = set()
 
     # ── lifecycle ──
@@ -58,8 +60,14 @@ class TaskManager:
                 self.log(f"JARVIS: task runner: {type(e).__name__}: {e}")
 
     def item(self, t):
+        """A task for the app: the row plus what it's doing now (the latest step), what it's waiting on
+        (his yes to a prompt) and the step budget, so the panel can show progress in plain words."""
         t = dict(t)
         t["running"] = t["id"] in self.running
+        t["now"] = self.now.get(t["id"], "")
+        t["waiting"] = self.waiting.get(t["id"], "")
+        t["max_steps"] = TASK_TOOLS
+        t["slots"] = MAX_RUNNING
         return t
 
     def _push(self, tid):
@@ -86,6 +94,7 @@ class TaskManager:
         self._push(tid)
 
     def _step(self, tid, label):
+        self.now[tid] = label
         t = db.get_task(tid)
         db.update_task(tid, steps=(t["steps"] if t else 0) + 1)
         self._line(tid, "step", label)
@@ -94,12 +103,16 @@ class TaskManager:
     def _confirm_for(self, tid, title):
         async def confirm(prompt):
             p = self.confirms.open(prompt, f"task:{tid}", title)
+            self.waiting[tid] = prompt
             self._line(tid, "note", f"Waiting for your yes: {prompt}")
+            self._push(tid)
             self.ask_aloud(p)
             ok = await asyncio.to_thread(p.wait, CONFIRM_WAIT_S)
             if not p.answered:
                 self.confirms.expire(p)
+            self.waiting.pop(tid, None)
             self._line(tid, "note", "Approved." if ok else "Declined.")
+            self._push(tid)
             return ok
         return confirm
 
@@ -117,6 +130,8 @@ class TaskManager:
             except Exception:
                 pass
             self.running.pop(tid, None)
+            self.now.pop(tid, None)
+            self.waiting.pop(tid, None)
         cancelled = tid in self.cancelled
         self.cancelled.discard(tid)
         if cancelled:

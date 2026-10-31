@@ -4,6 +4,7 @@ import subprocess
 import threading
 
 ENABLED = True
+MAX_ARG = 20000
 _q = queue.Queue()
 
 
@@ -11,7 +12,8 @@ def call(fn, *args):
     if not ENABLED:
         return
     try:
-        subprocess.run(["qs", "ipc", "call", "jarvis", fn, *[str(a)[:600] for a in args]],
+        # the whole text, every time: the pop-up scrolls long answers (the cap only guards against a runaway)
+        subprocess.run(["qs", "ipc", "call", "jarvis", fn, *[str(a)[:MAX_ARG] for a in args]],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
     except (OSError, subprocess.TimeoutExpired):
         pass
@@ -47,3 +49,13 @@ def paused(on):    send("paused", "true" if on else "false")
 def toast(title, text): send("toast", title, text)
 def error(reason, line): send("error", reason, line)     # spoken failure line + why, e.g. NO NETWORK
 def note(label):   send("note", label)                   # an extra line on the toast, phase unchanged
+
+
+def speak(start, end, total, ms):
+    """A sentence of the reply starts playing: characters start..end of total (spoken text), ms long.
+    The pop-up highlights and scrolls along with it."""
+    send("speak", int(start), int(end), int(total), int(ms))
+
+
+def speech_done():
+    send("speechDone")

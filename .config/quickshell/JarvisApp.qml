@@ -12,19 +12,21 @@ PanelWindow {
     id: app
     required property var modelData
     screen: modelData
-    visible: JarvisLink.open && (JarvisLink.screenName ? JarvisLink.screenName === modelData.name
-                                                       : Hyprland.focusedMonitor?.name === modelData.name)
+    // on the monitor it was opened on (JarvisLink.screenName), and mapped until it has faded out
+    readonly property bool shown: JarvisLink.open && (JarvisLink.screenName ? JarvisLink.screenName === modelData.name
+                                                                           : Hyprland.focusedMonitor?.name === modelData.name)
+    visible: shown || backdrop.opacity > 0.01
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "stark-jarvis-app"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property var link: JarvisLink
-    onVisibleChanged: if (visible) input.focusInput()
+    onShownChanged: if (shown) { JarvisState.dismiss(); Qt.callLater(() => input.focusInput()); }
 
     function when(ts) {
         if (!ts) return "";
@@ -34,14 +36,30 @@ PanelWindow {
     function statusColor(s) {
         return s === "running" ? Theme.primary : s === "done" ? Theme.dim : s === "queued" ? Theme.textSoft : Theme.secondary;
     }
+    // "1m 12s" from seconds
+    function span(sec) {
+        sec = Math.max(0, Math.round(sec));
+        return sec < 60 ? sec + "s" : sec < 3600 ? Math.floor(sec / 60) + "m " + (sec % 60) + "s" : Math.floor(sec / 3600) + "h " + Math.floor(sec % 3600 / 60) + "m";
+    }
+    // "GOOGLE → CALENDAR FIND" → "Google: calendar find"
+    function plain(label) {
+        const t = String(label || "").toLowerCase().replace(/\s*→\s*/, ": ").replace(/_/g, " ");
+        return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+    property double now: Date.now() / 1000
+    property bool showHelp: false
+    Timer { running: app.visible && app.runningTasks > 0; interval: 1000; repeat: true; onTriggered: app.now = Date.now() / 1000 }
     readonly property int runningTasks: link.tasks.filter(t => t.status === "running").length
     readonly property var selTask: link.tasks.find(t => t.id === link.selectedTask) || null
 
     // ── backdrop ──
     Rectangle {
+        id: backdrop
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.55)
-        MouseArea { anchors.fill: parent; onClicked: JarvisLink.open = false }
+        opacity: app.shown ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: app.shown ? 180 : 220; easing.type: Easing.OutCubic } }
+        MouseArea { anchors.fill: parent; enabled: app.shown; onClicked: JarvisLink.open = false }
     }
 
     HudFrame {
@@ -49,6 +67,10 @@ PanelWindow {
         width: Math.min(1320, app.width * 0.88)
         height: Math.min(820, app.height * 0.86)
         anchors.centerIn: parent
+        opacity: app.shown ? 1 : 0
+        scale: app.shown ? 1 : 0.965
+        Behavior on opacity { NumberAnimation { duration: app.shown ? 220 : 200; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         fill: 0.94
         title: "J.A.R.V.I.S  ·  CONSOLE"
         detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
@@ -89,7 +111,7 @@ PanelWindow {
                 }
                 Row {
                     spacing: 6
-                    SmallButton { text: "NEW"; onClicked: { JarvisLink.newThread(); input.focusInput(); } }
+                    SmallButton { text: "NEW THREAD"; onClicked: { JarvisLink.newThread(); input.focusInput(); } }
                     SmallButton { text: "QUICK"; active: link.showQuick; onClicked: JarvisLink.setQuick(!link.showQuick) }
                 }
                 ListView {
@@ -101,21 +123,33 @@ PanelWindow {
                         required property var modelData
                         width: threadList.width; height: 46
                         readonly property bool shown: link.shownThread && link.shownThread.id === modelData.id
+                        readonly property bool active: modelData.id === link.current
                         color: shown ? Theme.p(0.16) : tma.containsMouse ? Theme.p(0.08) : "transparent"
-                        border.color: modelData.id === link.current ? Theme.primary : Theme.p(shown ? 0.4 : 0.12)
+                        border.color: active ? Theme.primary : Theme.p(shown ? 0.4 : 0.12)
+                        Behavior on color { ColorAnimation { duration: 140 } }
+                        // the active thread: a lit bar down its edge
+                        Rectangle {
+                            visible: parent.active
+                            width: 3; height: parent.height; color: Theme.primary
+                            SequentialAnimation on opacity {
+                                running: parent.visible && app.visible && link.busy; loops: Animation.Infinite
+                                NumberAnimation { to: 0.35; duration: 600 }
+                                NumberAnimation { to: 1; duration: 600 }
+                            }
+                        }
                         Column {
-                            anchors.fill: parent; anchors.margins: 6; spacing: 2
+                            anchors.fill: parent; anchors.margins: 6; anchors.leftMargin: 10; spacing: 2
                             Text {
                                 width: parent.width; elide: Text.ElideRight
                                 text: (modelData.kind === "task" ? "▣ " : modelData.kind === "quick" ? "· " : "") + modelData.title
                                 color: Theme.text; font.family: app.mono; font.pixelSize: 12
                             }
                             Text {
-                                text: app.when(modelData.updated) + "  ·  " + (modelData.n || 0) + " msg" + (modelData.id === link.current ? "  ·  CURRENT" : "")
-                                color: Theme.faint; font.family: app.mono; font.pixelSize: 10
+                                text: (parent.parent.active ? "● ACTIVE  ·  " : "") + app.when(modelData.updated) + "  ·  " + (modelData.n || 0) + " msg"
+                                color: parent.parent.active ? Theme.primary : Theme.faint; font.family: app.mono; font.pixelSize: 10
                             }
                         }
-                        MouseArea { id: tma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: JarvisLink.openThread(modelData.id) }
+                        MouseArea { id: tma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { JarvisLink.openThread(modelData.id); input.focusInput(); } }
                     }
                     Text {
                         visible: threadList.count === 0
@@ -136,12 +170,33 @@ PanelWindow {
                 spacing: 8
 
                 Item {
+                    id: midHead
                     width: parent.width; height: 28
-                    Text {
+                    readonly property bool active: !link.shownThread ? link.current === null : link.shownThread.id === link.current
+                    Row {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width - resumeBtn.width - 10; elide: Text.ElideRight
-                        text: link.shownThread ? link.shownThread.title.toUpperCase() : "NEW CONVERSATION"
-                        color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                        width: parent.width - resumeBtn.width - 10
+                        spacing: 10
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: badge.implicitWidth + 14; height: 20
+                            color: midHead.active ? Theme.p(0.18) : "transparent"
+                            border.color: midHead.active ? Theme.primary : Theme.p(0.3)
+                            Text {
+                                id: badge; anchors.centerIn: parent
+                                text: !link.shownThread ? "● NEW · STARTS WITH YOUR NEXT MESSAGE"
+                                      : link.shownThread.kind === "task" ? "▣ TASK THREAD"
+                                      : midHead.active ? "● ACTIVE · NEW MESSAGES GO HERE" : "OLDER THREAD · RESUME TO CONTINUE IT"
+                                color: midHead.active ? Theme.primary : Theme.dim
+                                font.family: app.mono; font.pixelSize: 9; font.letterSpacing: 1
+                            }
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 260; elide: Text.ElideRight
+                            text: link.shownThread ? link.shownThread.title.toUpperCase() : ""
+                            color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                        }
                     }
                     SmallButton {
                         id: resumeBtn
@@ -180,7 +235,19 @@ PanelWindow {
                     height: parent.height - 28 - 8 - link.confirms.length * 52 - liveLine.height - 8 - inputRow.height - 16
                     clip: true; spacing: 12
                     model: link.messages
-                    onCountChanged: Qt.callLater(() => msgList.positionViewAtEnd())
+                    boundsBehavior: Flickable.StopAtBounds
+                    flickDeceleration: 2500; maximumFlickVelocity: 4000
+                    // follow new messages only while he's reading the end (or it's his own message / a new thread)
+                    property bool follow: true
+                    onMovementEnded: follow = atYEnd
+                    onCountChanged: {
+                        const last = link.messages[link.messages.length - 1];
+                        if (follow || count <= 1 || (last && last.role === "user")) { follow = true; Qt.callLater(() => msgList.positionViewAtEnd()); }
+                    }
+                    Connections {
+                        target: JarvisLink
+                        function onShownThreadChanged() { msgList.follow = true; Qt.callLater(() => msgList.positionViewAtEnd()); }
+                    }
                     delegate: Column {
                         required property var modelData
                         width: msgList.width
@@ -222,6 +289,22 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: link.connected ? "Ask Jarvis anything, or switch to TASK for a background job." : "Jarvis is offline. History stays readable."
                         color: Theme.faint; font.family: app.mono; font.pixelSize: 12
+                    }
+                    // scroll position
+                    Rectangle {
+                        visible: msgList.contentHeight > msgList.height
+                        anchors.right: parent.right
+                        width: 3; radius: 1.5; color: Theme.p(0.45)
+                        height: Math.max(24, msgList.height * msgList.visibleArea.heightRatio)
+                        y: msgList.visibleArea.yPosition * msgList.height
+                        opacity: msgList.moving ? 1 : 0.45
+                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                    }
+                    SmallButton {
+                        visible: !msgList.follow && !msgList.atYEnd
+                        anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
+                        text: "▼ LATEST"
+                        onClicked: { msgList.follow = true; msgList.positionViewAtEnd(); }
                     }
                 }
 
@@ -265,36 +348,133 @@ PanelWindow {
                 id: right
                 width: 320; height: parent.height
                 spacing: 8
-                Text {
-                    text: "TASKS  ·  " + app.runningTasks + "/2 RUNNING"
-                    color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                Item {
+                    width: parent.width; height: 18
+                    Text {
+                        width: parent.width - helpBtn.width - 8; elide: Text.ElideRight
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "TASKS  ·  " + app.runningTasks + "/2 RUNNING"
+                        color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                    }
+                    SmallButton {
+                        id: helpBtn
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        visible: link.tasks.length > 0
+                        text: app.showHelp ? "HIDE HELP" : "HELP"
+                        onClicked: app.showHelp = !app.showHelp
+                    }
+                }
+                // what a task is (always shown while there are none)
+                Rectangle {
+                    id: help
+                    visible: link.tasks.length === 0 || app.showHelp
+                    width: parent.width; height: visible ? helpText.implicitHeight + 20 : 0
+                    color: Theme.p(0.05); border.color: Theme.p(0.18)
+                    Text {
+                        id: helpText
+                        x: 10; y: 10; width: parent.width - 20
+                        wrapMode: Text.Wrap; textFormat: Text.StyledText
+                        color: Theme.textSoft; font.family: app.mono; font.pixelSize: 11; lineHeight: 1.15
+                        text: "<b>A task is a job Jarvis does in the background</b> while you carry on: many steps "
+                            + "(up to 40 tool calls), its own thread, and a spoken note when it's done. Two run at once.<br><br>"
+                            + "<b>Start one</b><br>"
+                            + "· <b>Type</b>: switch the box below from ASK to <b>TASK</b>, describe the job, Enter.<br>"
+                            + "· <b>Say</b>: \"Jarvis, do this in the background: …\"<br>"
+                            + "· Ask for something long, and Jarvis may hand it to a task itself.<br><br>"
+                            + "<b>Examples</b><br>"
+                            + "· Compare my tracker with LEARN and list what's different<br>"
+                            + "· Summarise this week's course emails<br>"
+                            + "· Check my calendar and tracker and plan my week<br><br>"
+                            + "Anything that changes something still waits for your yes; it shows here as NEEDS YOUR YES."
+                    }
                 }
                 ListView {
                     id: taskList
-                    width: parent.width; height: Math.min(contentHeight, parent.height * 0.38)
-                    clip: true; spacing: 4
+                    width: parent.width
+                    height: Math.min(contentHeight, (parent.height - help.height) * 0.5)
+                    clip: true; spacing: 6
                     model: link.tasks
                     delegate: Rectangle {
+                        id: card
                         required property var modelData
-                        width: taskList.width; height: 40
-                        color: link.selectedTask === modelData.id ? Theme.p(0.14) : "transparent"
-                        border.color: Theme.p(0.18)
-                        Text {
-                            x: 8; y: 5; width: parent.width - 16; elide: Text.ElideRight
-                            text: modelData.title; color: Theme.text; font.family: app.mono; font.pixelSize: 12
+                        readonly property var t: modelData
+                        readonly property var ask: link.confirms.find(c => c.origin === "task:" + t.id) || null
+                        readonly property string state_: ask || t.waiting ? "waiting" : t.status
+                        readonly property color tone: state_ === "waiting" ? Theme.secondary : app.statusColor(t.status)
+                        readonly property double elapsed: t.started ? ((t.finished || app.now) - t.started) : 0
+                        width: taskList.width
+                        height: col.implicitHeight + 14
+                        color: link.selectedTask === t.id ? Theme.p(0.14) : Theme.p(state_ === "running" ? 0.06 : 0.0)
+                        border.color: state_ === "waiting" ? Theme.secondary : link.selectedTask === t.id ? Theme.p(0.45) : Theme.p(0.18)
+                        Behavior on height { NumberAnimation { duration: 160 } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: JarvisLink.selectTask(card.t.id) }
+                        Column {
+                            id: col
+                            x: 8; y: 7; width: parent.width - 16
+                            spacing: 5
+                            Row {
+                                spacing: 8; width: parent.width
+                                Rectangle {
+                                    width: chip.implicitWidth + 10; height: 16
+                                    color: Qt.rgba(card.tone.r, card.tone.g, card.tone.b, 0.15); border.color: card.tone
+                                    Text {
+                                        id: chip; anchors.centerIn: parent
+                                        text: ({waiting: "NEEDS YOUR YES", running: "RUNNING", queued: "QUEUED", done: "DONE",
+                                                failed: "FAILED", cancelled: "CANCELLED", interrupted: "INTERRUPTED"})[card.state_] || card.state_.toUpperCase()
+                                        color: card.tone; font.family: app.mono; font.pixelSize: 9; font.letterSpacing: 1
+                                    }
+                                    SequentialAnimation on opacity {
+                                        running: app.visible && (card.state_ === "running" || card.state_ === "waiting"); loops: Animation.Infinite
+                                        NumberAnimation { to: 0.45; duration: 700 }
+                                        NumberAnimation { to: 1; duration: 700 }
+                                    }
+                                }
+                                Text {
+                                    width: parent.width - chip.implicitWidth - 18; elide: Text.ElideRight
+                                    text: card.t.title; color: Theme.text; font.family: app.mono; font.pixelSize: 12
+                                }
+                            }
+                            // progress: steps used of the budget, with a sweep while it works
+                            Rectangle {
+                                visible: card.state_ === "running" || card.state_ === "waiting"
+                                width: parent.width; height: 4; color: Theme.p(0.1); clip: true
+                                Rectangle {
+                                    width: parent.width * Math.min(1, Math.max(0.04, card.t.steps / (card.t.max_steps || 40)))
+                                    height: parent.height; color: card.tone
+                                    Behavior on width { NumberAnimation { duration: 300 } }
+                                }
+                                Rectangle {
+                                    width: 40; height: parent.height; opacity: 0.6
+                                    gradient: Gradient { orientation: Gradient.Horizontal
+                                        GradientStop { position: 0; color: "transparent" } GradientStop { position: 0.5; color: Theme.text } GradientStop { position: 1; color: "transparent" } }
+                                    NumberAnimation on x { running: app.visible && card.state_ === "running"; from: -40; to: card.width; duration: 1400; loops: Animation.Infinite }
+                                }
+                            }
+                            Text {
+                                width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
+                                font.family: app.mono; font.pixelSize: 10
+                                color: card.state_ === "waiting" ? Theme.secondary : Theme.dim
+                                text: {
+                                    const t = card.t, steps = t.steps + (t.steps === 1 ? " step" : " steps");
+                                    switch (card.state_) {
+                                    case "waiting": return "Waiting for you: " + ((card.ask && card.ask.prompt) || t.waiting) + "  ·  " + app.span(card.elapsed);
+                                    case "running": return (t.now ? "Now: " + app.plain(t.now) : "Starting…") + "  ·  " + steps + "  ·  " + app.span(card.elapsed);
+                                    case "queued": return "Waiting for a free slot (" + (t.slots || 2) + " run at once)";
+                                    case "done": return "Done in " + app.span(card.elapsed) + "  ·  " + steps + "  ·  " + app.when(t.finished);
+                                    case "failed": return "Failed after " + app.span(card.elapsed) + "  ·  " + steps + "  ·  see the log";
+                                    case "cancelled": return "Cancelled  ·  " + steps;
+                                    case "interrupted": return "Stopped when Jarvis restarted  ·  RESUME picks it up";
+                                    }
+                                    return steps;
+                                }
+                            }
+                            Row {
+                                visible: card.ask !== null
+                                spacing: 6
+                                SmallButton { text: "YES"; active: true; onClicked: JarvisLink.answer(card.ask.id, true) }
+                                SmallButton { text: "NO"; onClicked: JarvisLink.answer(card.ask.id, false) }
+                            }
                         }
-                        Text {
-                            x: 8; y: 22
-                            text: modelData.status.toUpperCase() + "  ·  " + modelData.steps + " STEPS  ·  " + app.when(modelData.started || modelData.created)
-                            color: app.statusColor(modelData.status); font.family: app.mono; font.pixelSize: 10
-                        }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: JarvisLink.selectTask(modelData.id) }
-                    }
-                    Text {
-                        visible: taskList.count === 0
-                        width: parent.width; wrapMode: Text.Wrap
-                        text: "No tasks. Switch the input to TASK, or ask Jarvis to do something long."
-                        color: Theme.faint; font.family: app.mono; font.pixelSize: 11
                     }
                 }
                 Row {
@@ -306,7 +486,7 @@ PanelWindow {
                 }
                 Rectangle {
                     width: parent.width
-                    height: parent.height - taskList.height - 24 - (app.selTask ? 40 : 0) - 16
+                    height: parent.height - 18 - help.height - taskList.height - (app.selTask ? 34 : 0) - 4 * 8
                     color: Theme.d(0.6); border.color: Theme.p(0.12)
                     ListView {
                         id: logList

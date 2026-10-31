@@ -248,7 +248,16 @@ class Jarvis:
         source: voice | typed | cli. confirm(prompt) → bool answers this request's questions
         (default: confirm_sync, i.e. out loud). The exchange is recorded in the current thread.
         self.error: why it failed (a key of ERROR_LABELS), "" if it didn't."""
+        from core.conversations import NEW_TOPIC
+        if NEW_TOPIC.match(text):                 # "new topic" / "new chat": a fresh thread, nothing recorded
+            self.conv.new()
+            self.brain.history = ""
+            asyncio.run_coroutine_threadsafe(self.brain.reset(), self.loop)
+            return "Fresh start, sir."
         with self.turn_lock:
+            carry = self.conv.carry_on()
+            if carry and not self.brain.history:  # same thread, but Claude's context has dropped since
+                self.brain.history = carry
             self.surface = "typed" if source == "typed" else "voice"
             self.busy = True
             self.notify({"ev": "busy", "on": True, "source": source, "text": text})
@@ -476,6 +485,8 @@ class VoiceLoop:
         self.vad = VAD()
         self.stt = hearing.STT(WHISPER_MODEL)
         self.voice = Voice(self.cfg, log=log, prewarm=True)
+        self.voice.progress = lambda start, end, total, ms: (hud.speech_done() if start is None
+                                                             else hud.speak(start, end, total, ms))
         self.voice.warm()
         A.apps()
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)

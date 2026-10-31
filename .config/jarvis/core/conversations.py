@@ -2,8 +2,10 @@
 Conversations for the JARVIS app (jarvis_db threads + messages).
 
 One conversation = one thread. Voice and typed turns land in whichever thread is current; a new
-one starts after CONTEXT_IDLE_S of quiet (the same moment the brain drops its context), when he
-presses NEW, or when he reopens an old thread (resume). A thread starts as kind "quick" (hidden
+one starts only after THREAD_IDLE_S (30 min) of quiet, when he presses NEW THREAD or says "new
+topic" / "new chat", or when he reopens an old thread (resume). Claude's own context drops sooner
+(CONTEXT_IDLE_S); carrying on in the thread after that replays its last turns (transcript()).
+Background tasks have threads of their own and never change which thread is current. A thread starts as kind "quick" (hidden
 from the app's list by default: "dim the lights") and becomes a real "thread" once it is a
 conversation (a second turn) or real work (Claude used two or more tools, or answered at length).
 
@@ -20,6 +22,8 @@ import jarvis_db as db  # noqa: E402  (mcp/ is on sys.path; see jarvis.py)
 from . import config as C
 
 LONG_REPLY = 240
+NEW_TOPIC = re.compile(r"^\s*(?:(?:hey|ok|okay)\s+)?(?:jarvis[,.!]?\s*)?(?:let'?s\s+)?(?:start\s+(?:a\s+)?)?"
+                       r"(?:new|fresh)\s+(?:topic|chat|conversation|thread)(?:\s+please)?[.!]?\s*$", re.I)
 
 
 def title_from(text, limit=60):
@@ -32,7 +36,7 @@ def title_from(text, limit=60):
 
 
 class Conversations:
-    def __init__(self, notify=lambda ev: None, idle_s=C.CONTEXT_IDLE_S):
+    def __init__(self, notify=lambda ev: None, idle_s=C.THREAD_IDLE_S):
         self.notify = notify
         self.idle_s = idle_s
         self.lock = threading.Lock()
@@ -40,10 +44,38 @@ class Conversations:
         self.kind = None
         self.turns = 0
         self.last = 0.0
+        self._restore()
+
+    def _restore(self):
+        """After a restart (dock, crash, update) carry on in the conversation that was going on, if it
+        was active within idle_s; Claude gets its last turns with the next request (carry_on)."""
+        try:
+            latest = next((t for t in db.list_threads(include_quick=True, limit=10) if t["kind"] != "task"), None)
+        except Exception:
+            return
+        if latest and time.time() - latest["updated"] < self.idle_s:
+            self.current, self.kind, self.last = latest["id"], latest["kind"], latest["updated"]
+            self.turns = sum(1 for m in db.thread_messages(latest["id"], limit=200) if m["role"] == "user")
 
     def new(self):
         with self.lock:
             self.current = None
+        self.notify({"ev": "state", "current": None})
+
+    def carry_on(self, context_idle_s=C.CONTEXT_IDLE_S):
+        """The current thread's last turns, if the next turn continues it after Claude's context has
+        dropped (quiet longer than context_idle_s, but the thread is still live); else ""."""
+        with self.lock:
+            tid, gap = self.current, time.time() - self.last
+        if tid is None or gap <= context_idle_s or gap > self.idle_s:
+            return ""
+        return self.transcript(tid)
+
+    @staticmethod
+    def transcript(tid, limit=12):
+        msgs = db.thread_messages(tid, limit=limit)
+        lines = [f"{'Trevor' if m['role'] == 'user' else 'Jarvis'}: {m['text'][:400]}" for m in msgs]
+        return "\n".join(lines)[-3000:]
 
     def resume(self, tid):
         """Make an old thread current. Returns a short transcript for the brain (data only)."""
@@ -54,8 +86,8 @@ class Conversations:
         with self.lock:
             self.current, self.kind, self.last = tid, t["kind"], time.time()
             self.turns = sum(1 for m in msgs if m["role"] == "user")
-        lines = [f"{'Trevor' if m['role'] == 'user' else 'Jarvis'}: {m['text'][:400]}" for m in msgs]
-        return "\n".join(lines)[-3000:]
+        self.notify({"ev": "state", "current": tid})
+        return self.transcript(tid)
 
     def record(self, text, source, reply, tools=(), tier=""):
         """One exchange → messages in the current thread (a new one if it went idle)."""
@@ -82,6 +114,8 @@ class Conversations:
         thread = db.get_thread(tid)
         if created or promote:
             self.notify({"ev": "thread", "item": thread})
+        if created:
+            self.notify({"ev": "state", "current": tid})
         for m in msgs:
             self.notify({"ev": "message", "item": m, "thread": thread})
         return tid

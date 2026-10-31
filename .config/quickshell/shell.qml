@@ -209,6 +209,8 @@ ShellRoot {
         function toast(title: string, text: string): void { JarvisState.alert(title, text) }   // timers / reminders
         function error(reason: string, text: string): void { JarvisState.fail(reason, text) }  // "NO NETWORK", spoken line
         function note(label: string): void { JarvisState.note(label) }
+        function speak(start: int, end: int, total: int, ms: int): void { JarvisState.speak(start, end, total, ms) }
+        function speechDone(): void { JarvisState.speechDone() }
         function paused(on: string): void { JarvisState.paused = on === "true" }
         function heard(msg: string): void { JarvisState.heard(msg) }
         function status(msg: string): void { JarvisState.status(msg) }

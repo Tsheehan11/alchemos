@@ -58,6 +58,20 @@ hist = conv.resume(t1)
 check("resume: transcript for the brain", hist.splitlines()[0], "Trevor: hey jarvis, dim the lights")
 check("resume makes it current", conv.record("thanks", "voice", "You're welcome, sir.", [], "fast"), t1)
 check("messages pushed live", sum(1 for e in events if e["ev"] == "message"), 8)
+check("new thread announced as current", any(e == {"ev": "state", "current": t2} for e in events), True)
+check("threads last 30 min by default", CV.Conversations().idle_s, 1800)
+for said, want in [("new topic", True), ("Jarvis, new chat", True), ("let's start a new conversation", True),
+                   ("new topic about rust", False), ("what's new", False)]:
+    check(f"new-topic phrase {said!r}", bool(CV.NEW_TOPIC.match(said)), want)
+c2 = CV.Conversations(idle_s=10)
+check("restart: the live thread is current again", c2.current, t1)
+c2.last = time.time() - 5
+check("carry on after Claude's context dropped → last turns", c2.carry_on(context_idle_s=2).splitlines()[0],
+      "Trevor: hey jarvis, dim the lights")
+c2.last = time.time() - 1
+check("still in Claude's context → nothing to replay", c2.carry_on(context_idle_s=2), "")
+c2.new()
+check("NEW → no current thread", c2.current, None)
 check("title_from trims", CV.title_from("Could you go through all of my unread course emails and update the tracker for me please"),
       "Go through all of my unread course emails and update the…")
 
@@ -204,7 +218,7 @@ seen = []
 j.notify = seen.append
 reply = j.handle("pause the music", source="typed", confirm=lambda p: True)
 check("typed fast-path reply", bool(reply), True)
-check("typed request recorded with source", db.thread_messages(j.conv.current)[0]["source"], "typed")
+check("typed request recorded with source", db.thread_messages(j.conv.current)[-2]["source"], "typed")
 check("busy on/off pushed", [e["on"] for e in seen if e["ev"] == "busy"], [True, False])
 check("tool label went to the app, not the HUD surface", any(e["ev"] == "tool" for e in seen), True)
 for th in j.learning:

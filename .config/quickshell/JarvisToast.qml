@@ -1,9 +1,13 @@
-// JARVIS pop-up on the focused screen (the one Quickshell treats as focused). Follows JarvisState.phase:
+// JARVIS pop-up on the focused screen: projected text, not a box. Follows JarvisState.phase:
 //   LISTENING (waveform) → transcript → PROCESSING (tool calls appear one by one,
 //   "◆ THEME → MARK III") → RESPONSE / AWAITING CONFIRMATION → FOLLOW-UP.
-// Clicking it opens the JARVIS console on the same monitor.
-// Timers and reminders use the same panel (phase "alert").
+// The whole reply is always there: a long one scrolls inside, following the speech karaoke-style
+// (JarvisState.speak: the sentence being spoken is lit, the line under it is marked, and the view
+// keeps it in sight). The mouse wheel scrolls it by hand and pauses the following. It stays up while
+// Jarvis speaks or the pointer is on it, then a few seconds scaled to length. A click opens the
+// thread in the JARVIS console on this monitor. Timers and reminders use the same panel (phase "alert").
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -13,17 +17,21 @@ PanelWindow {
     required property var modelData
     screen: modelData
 
-    visible: JarvisState.showing && Hyprland.focusedMonitor?.name === modelData.name
+    // not over the console: it shows the same conversation (and any YES / NO) itself
+    readonly property bool on: JarvisState.showing && Hyprland.focusedMonitor?.name === modelData.name
+                               && !(JarvisLink.open && JarvisLink.screenName === modelData.name)
+    visible: on || holo.opacity > 0.01          // stays mapped while it fades out
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "stark-jarvis"
     exclusionMode: ExclusionMode.Ignore
     anchors { bottom: true }
-    margins { bottom: 60 }
-    implicitWidth: 640
-    implicitHeight: Math.max(104, Math.min(360, body.implicitHeight + 36))
+    margins { bottom: 44 }
+    implicitWidth: Math.min(900, Math.round(modelData.width * 0.52))
+    implicitHeight: Math.min(Math.round(modelData.height * 0.4), content.implicitHeight + 2 * pad)
     color: "transparent"
 
+    readonly property int pad: 26
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property string phase: JarvisState.phase
     readonly property bool hot: phase === "confirm" || phase === "alert" || phase === "error"     // secondary colour
@@ -31,150 +39,203 @@ PanelWindow {
     readonly property bool busy: phase === "thinking"
     readonly property string phaseLabel: ({
         listening: "LISTENING", followup: "LISTENING · FOLLOW-UP", thinking: "PROCESSING",
-        reply: "RESPONSE", confirm: "AWAITING CONFIRMATION", alert: JarvisState.alertTitle,
-        error: "⚠ " + JarvisState.errorReason, idle: ""
+        reply: JarvisState.speaking ? "SPEAKING" : "RESPONSE", confirm: "AWAITING CONFIRMATION",
+        alert: JarvisState.alertTitle, error: "⚠ " + JarvisState.errorReason, idle: ""
     })[phase] || ""
+    readonly property bool showReply: JarvisState.reply !== "" && ["reply", "confirm", "alert", "followup", "error"].includes(phase)
 
+    // ── speech progress → a position in the reply ──
+    property real spoken: 0                      // characters of the spoken text, animated per sentence
+    readonly property bool following: JarvisState.speaking && JarvisState.speakTotal > 0
+    readonly property int pos: JarvisState.speakTotal > 0
+        ? Math.min(JarvisState.reply.length, Math.floor(spoken / JarvisState.speakTotal * JarvisState.reply.length)) : 0
+    NumberAnimation { id: spokenAnim; target: toast; property: "spoken" }
+    Connections {
+        target: JarvisState
+        function onSpeakAtChanged() {
+            spokenAnim.stop();
+            spokenAnim.from = JarvisState.speakStart; spokenAnim.to = JarvisState.speakEnd;
+            spokenAnim.duration = Math.max(1, JarvisState.speakMs);
+            spokenAnim.start();
+        }
+        function onSpeakingChanged() { if (!JarvisState.speaking) { spokenAnim.stop(); toast.spoken = JarvisState.speakTotal; } }
+        function onReplySerialChanged() { scroller.userScrolled = false; scroller.contentY = 0; readPace.pos = 0; }
+    }
+
+    // sentence around a character position: [start, end)
+    function sentenceAt(t, p) {
+        let s = 0;
+        const re = /[.!?…]+["')\]]?(\s+|$)/g;
+        let m;
+        while ((m = re.exec(t)) !== null) {
+            const e = m.index + m[0].length;
+            if (e > p) return [s, e];
+            s = e;
+            if (m[0].length === 0) re.lastIndex++;
+        }
+        return [s, t.length];
+    }
+    function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
+    function hex(c, a) { return Qt.rgba(c.r, c.g, c.b, a === undefined ? 1 : a).toString(); }
+    // karaoke: said · being said (lit) · still to come (dim)
+    readonly property var span: following ? sentenceAt(JarvisState.reply, pos) : [0, 0]
+    readonly property string replyHtml: {
+        const t = JarvisState.reply;
+        if (!following) return esc(t);
+        return "<span style='color:" + hex(Theme.textSoft) + "'>" + esc(t.slice(0, span[0])) + "</span>"
+             + "<span style='color:" + hex(Qt.lighter(toast.accent, 1.45)) + "'>" + esc(t.slice(span[0], span[1])) + "</span>"
+             + "<span style='color:" + hex(Theme.dim) + "'>" + esc(t.slice(span[1])) + "</span>";
+    }
+
+    // ═══ the projection ═══
     Item {
-        id: panel
+        id: holo
         anchors.fill: parent
-        opacity: 0
-        scale: 0.94
-        states: State {
-            name: "on"; when: toast.visible
-            PropertyChanges { target: panel; opacity: 1; scale: 1 }
-        }
-        transitions: Transition {
-            NumberAnimation { properties: "opacity,scale"; duration: 240; easing.type: Easing.OutCubic }
+        opacity: toast.on ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: toast.on ? 260 : 420; easing.type: Easing.OutCubic } }
+        transform: Translate { y: toast.on ? 0 : 16; Behavior on y { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } } }
+
+        HoverHandler { onHoveredChanged: JarvisState.hovered = hovered }
+        TapHandler {
+            onTapped: {
+                JarvisLink.show(toast.modelData.name);
+                if (JarvisLink.current !== null) JarvisLink.openThread(JarvisLink.current);
+                JarvisState.dismiss();
+            }
         }
 
-        // click anywhere on it → the JARVIS console (Super + J) on this monitor; drawn first, so it sits
-        // under everything else in the panel
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: JarvisLink.show(toast.modelData.name)
-        }
-
-        // ── Hologram glass ──
+        // soft glass: a blurred plate with no hard edge, tinted toward the accent at the rim
         Rectangle {
-            id: glass
-            anchors.fill: parent
-            color: Theme.d(Math.max(0.82, Theme.panelAlpha))
-            border.color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.55)
-            border.width: 1
-            clip: true
-            Behavior on border.color { ColorAnimation { duration: 300 } }
-
-            // fine scanlines
-            Column {
-                anchors.fill: parent
-                spacing: 3
-                Repeater {
-                    model: Math.ceil(glass.height / 4)
-                    Rectangle { width: glass.width; height: 1; color: Theme.p(0.035) }
-                }
-            }
-            // sweeping scan band
-            Rectangle {
-                width: parent.width; height: 46
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.5; color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.09) }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                NumberAnimation on y {
-                    running: toast.visible
-                    from: -46; to: glass.height; duration: toast.busy ? 1400 : 2800; loops: Animation.Infinite
-                }
-            }
-            // left edge glow bar
-            Rectangle {
-                width: 3; height: parent.height; color: toast.accent
-                opacity: toast.busy ? 0.55 + 0.45 * Math.sin(glowT.t) : 0.9
-            }
+            id: plate
+            anchors.fill: parent; anchors.margins: 10
+            radius: 22
+            color: Theme.d(0.93)
+            visible: false
+        }
+        MultiEffect {
+            source: plate; anchors.fill: plate
+            autoPaddingEnabled: true
+            blurEnabled: true; blur: 0.45; blurMax: 32
+        }
+        Rectangle {                                     // denser in the middle, so what's behind can't compete
+            anchors.fill: parent; anchors.margins: 30
+            radius: 14; color: Theme.d(0.45)
+        }
+        Rectangle {
+            id: rim
+            anchors.fill: parent; anchors.margins: 6
+            radius: 26; color: "transparent"
+            border.width: 6; border.color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.22)
+            visible: false
+        }
+        MultiEffect {
+            source: rim; anchors.fill: rim
+            autoPaddingEnabled: true
+            blurEnabled: true; blur: 1.0; blurMax: 48
+            opacity: toast.busy ? 0.6 + 0.4 * Math.sin(glowT.t) : 0.9
         }
         QtObject { id: glowT; property real t: 0; NumberAnimation on t { running: toast.visible && toast.busy; from: 0; to: Math.PI * 2; duration: 900; loops: Animation.Infinite } }
 
-        // corner brackets
-        Repeater {
-            model: 4
-            delegate: Item {
-                required property int index
-                width: 14; height: 14
-                x: index % 2 === 0 ? -3 : panel.width - 11
-                y: index < 2 ? -3 : panel.height - 11
-                Rectangle { width: 14; height: 2; color: toast.accent; y: index < 2 ? 0 : 12 }
-                Rectangle { width: 2; height: 14; color: toast.accent; x: index % 2 === 0 ? 0 : 12 }
-            }
-        }
-
-        // ── Reactor ──
+        // scanlines + a slow sweep, kept inside the plate
         Item {
-            id: reactor
-            width: 68; height: 68
-            x: 20; y: 18
-            Ring {
-                anchors.centerIn: parent
-                radius: 30; thickness: 2; value: 1; animated: false
-                dashed: true; dash: [5, 3]
-                color: toast.accent; trackColor: "transparent"
-                RotationAnimation on rotation { running: toast.visible; from: 0; to: 360; duration: toast.busy ? 1100 : 3200; loops: Animation.Infinite }
-            }
-            Ring {
-                anchors.centerIn: parent
-                radius: 22; thickness: 1.5; value: toast.busy ? 0.3 : 0.7; animated: false
-                color: Qt.lighter(toast.accent, 1.3); trackColor: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.12)
-                RotationAnimation on rotation { running: toast.visible; from: 360; to: 0; duration: toast.busy ? 700 : 2400; loops: Animation.Infinite }
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width: 26; height: 26; radius: 13
-                color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.28)
-                border.color: toast.accent
-                SequentialAnimation on scale {
-                    running: toast.visible
-                    loops: Animation.Infinite
-                    NumberAnimation { from: 0.82; to: 1.12; duration: JarvisState.listening ? 380 : 700; easing.type: Easing.InOutSine }
-                    NumberAnimation { from: 1.12; to: 0.82; duration: JarvisState.listening ? 380 : 700; easing.type: Easing.InOutSine }
+            anchors.fill: parent; anchors.margins: 18
+            clip: true
+            Column {
+                anchors.fill: parent; spacing: 3
+                Repeater {
+                    model: Math.ceil(holo.height / 4)
+                    Rectangle { width: holo.width; height: 1; color: Theme.p(0.028) }
                 }
             }
+            Rectangle {
+                width: parent.width; height: 60
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.5; color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.06) }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                NumberAnimation on y { running: toast.visible; from: -60; to: holo.height; duration: toast.busy ? 1500 : 3600; loops: Animation.Infinite }
+            }
         }
 
-        // ── Text column ──
-        Column {
-            id: body
-            anchors.left: reactor.right; anchors.leftMargin: 20
-            anchors.right: parent.right; anchors.rightMargin: 22
-            y: 16
-            spacing: 7
+        // the projector: a bright line along the bottom, light rising from it
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height - 9
+            width: parent.width * 0.78; height: 2; radius: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: toast.accent }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height - 9 - height
+            width: parent.width * 0.7; height: 46
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 1.0; color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.08) }
+            }
+        }
 
-            // header
+        // ═══ content (flickers now and then, like a projection) ═══
+        Column {
+            id: content
+            x: toast.pad + 4; y: toast.pad - 4
+            width: parent.width - 2 * toast.pad - 8
+            spacing: 8
+
+            SequentialAnimation on opacity {
+                id: flicker
+                running: false
+                NumberAnimation { to: 0.78; duration: 40 }
+                NumberAnimation { to: 1; duration: 70 }
+                NumberAnimation { to: 0.9; duration: 30 }
+                NumberAnimation { to: 1; duration: 90 }
+            }
+            Timer {
+                running: toast.visible; repeat: true
+                interval: 2600
+                onTriggered: { interval = 1800 + Math.random() * 4200; if (Math.random() < 0.6) flicker.start(); }
+            }
+
+            // header: a small reactor, the name, the phase
             Item {
-                width: parent.width; height: 16
+                width: parent.width; height: 22
+                Item {
+                    id: reactor
+                    width: 22; height: 22
+                    Ring {
+                        anchors.centerIn: parent
+                        radius: 10; thickness: 1.5; value: 1; animated: false
+                        dashed: true; dash: [4, 3]
+                        color: toast.accent; trackColor: "transparent"
+                        RotationAnimation on rotation { running: toast.visible; from: 0; to: 360; duration: toast.busy ? 1100 : 3200; loops: Animation.Infinite }
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 8; height: 8; radius: 4
+                        color: toast.accent
+                        SequentialAnimation on scale {
+                            running: toast.visible; loops: Animation.Infinite
+                            NumberAnimation { from: 0.7; to: 1.25; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 1.25; to: 0.7; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                        }
+                    }
+                }
                 Text {
+                    anchors.left: reactor.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
                     text: "J.A.R.V.I.S"
                     color: Theme.primary
                     font.family: toast.mono; font.pixelSize: 11; font.letterSpacing: 4
                 }
-                Row {
-                    anchors.right: parent.right
-                    spacing: 7
-                    Rectangle {
-                        width: 6; height: 6; radius: 3
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: toast.accent
-                        SequentialAnimation on opacity {
-                            running: toast.visible; loops: Animation.Infinite
-                            NumberAnimation { from: 1; to: 0.2; duration: 500 }
-                            NumberAnimation { from: 0.2; to: 1; duration: 500 }
-                        }
-                    }
-                    Text {
-                        text: toast.phaseLabel
-                        color: toast.hot ? Theme.secondary : Theme.dim
-                        font.family: toast.mono; font.pixelSize: 10; font.letterSpacing: 3
-                    }
+                Text {
+                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                    text: (scroller.userScrolled && toast.following ? "SCROLLED · " : "") + toast.phaseLabel
+                    color: toast.hot ? Theme.secondary : Theme.dim
+                    font.family: toast.mono; font.pixelSize: 10; font.letterSpacing: 3
                 }
             }
 
@@ -183,7 +244,7 @@ PanelWindow {
                 visible: JarvisState.listening && JarvisState.transcript === ""
                 height: 26; spacing: 4
                 Repeater {
-                    model: 18
+                    model: 22
                     Rectangle {
                         required property int index
                         width: 4; radius: 2
@@ -202,16 +263,18 @@ PanelWindow {
 
             // what Trevor said
             Text {
+                id: said
                 visible: JarvisState.transcript !== ""
                 width: parent.width
                 text: "“" + JarvisState.transcript + "”"
                 color: Theme.textSoft
                 font.family: toast.mono; font.pixelSize: 13; font.italic: true
-                wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
+                wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
             }
 
             // tool calls as they run
             Column {
+                id: toolCol
                 visible: JarvisState.tools.length > 0 && toast.phase !== "alert"
                 width: parent.width
                 spacing: 3
@@ -220,7 +283,6 @@ PanelWindow {
                     Text {
                         id: line
                         required property string modelData
-                        required property int index
                         text: "◆ " + modelData
                         color: Theme.secondary
                         font.family: toast.mono; font.pixelSize: 12; font.letterSpacing: 2
@@ -245,15 +307,97 @@ PanelWindow {
                 Timer { running: parent.visible && toast.visible; interval: 280; repeat: true; onTriggered: dots.n = (dots.n + 1) % 3 }
             }
 
-            // reply / question / reminder
-            Text {
-                visible: JarvisState.reply !== "" && ["reply", "confirm", "alert", "followup", "error"].includes(toast.phase)
+            // ── the reply: all of it, scrolling with the speech ──
+            Item {
+                id: replyBox
+                visible: toast.showReply
                 width: parent.width
-                text: JarvisState.reply
-                color: toast.hot ? Qt.lighter(Theme.secondary, 1.15) : Theme.text
-                font.family: toast.mono; font.pixelSize: toast.phase === "alert" ? 19 : 16
-                wrapMode: Text.Wrap; maximumLineCount: 7; elide: Text.ElideRight
-                lineHeight: 1.08
+                // whatever the half-screen window has left after the header, transcript and tools
+                readonly property int maxH: Math.round(toast.modelData.height * 0.4) - 2 * toast.pad - 22 - 8
+                                            - (said.visible ? said.height + 8 : 0) - (toolCol.visible ? toolCol.height + 8 : 0) - 8
+                height: visible ? Math.min(replyText.implicitHeight, Math.max(80, maxH)) : 0
+                clip: true
+
+                Flickable {
+                    id: scroller
+                    anchors.fill: parent
+                    contentWidth: width; contentHeight: replyText.implicitHeight
+                    interactive: false                       // the wheel is handled below (and pauses following)
+                    property bool userScrolled: false
+                    readonly property real maxY: Math.max(0, contentHeight - height)
+                    Behavior on contentY { enabled: !wheel.active; NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
+
+                    // the line being spoken
+                    Rectangle {
+                        id: lineMark
+                        visible: toast.following
+                        x: -8; width: replyText.width + 16
+                        readonly property rect r: replyText.positionToRectangle(Math.max(0, Math.min(toast.pos, JarvisState.reply.length - 1)))
+                        y: r.y - 2; height: r.height + 4
+                        Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                        radius: 4
+                        color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.10)
+                        Rectangle { width: 2; height: parent.height; color: toast.accent; opacity: 0.8 }
+                        onYChanged: if (toast.following && !scroller.userScrolled)
+                            scroller.contentY = Math.max(0, Math.min(scroller.maxY, y - scroller.height * 0.35))
+                    }
+
+                    TextEdit {                                   // TextEdit: it can say where a character is
+                        id: replyText
+                        width: scroller.width
+                        text: "<div style='line-height:115%'>" + toast.replyHtml + "</div>"
+                        textFormat: TextEdit.RichText
+                        readOnly: true; enabled: false           // display only: clicks go to the pop-up
+                        cursorVisible: false; cursorDelegate: Item {}
+                        color: toast.hot ? Qt.lighter(Theme.secondary, 1.15) : Theme.text
+                        font.family: toast.mono; font.pixelSize: toast.phase === "alert" ? 19 : 16
+                        wrapMode: TextEdit.Wrap
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            shadowEnabled: true; shadowColor: toast.accent
+                            shadowBlur: 0.55; shadowOpacity: 0.55
+                            shadowHorizontalOffset: 0; shadowVerticalOffset: 0
+                        }
+                    }
+                }
+                WheelHandler {
+                    id: wheel
+                    property bool active: false
+                    onWheel: event => {
+                        scroller.userScrolled = true;
+                        active = true;
+                        scroller.contentY = Math.max(0, Math.min(scroller.maxY, scroller.contentY - event.angleDelta.y * 0.6));
+                        active = false;
+                    }
+                }
+                // not spoken (voice off, typed): scroll at reading pace instead
+                QtObject { id: readPace; property real pos: 0 }
+                Timer {
+                    running: toast.visible && toast.showReply && !toast.following && !scroller.userScrolled
+                             && !JarvisState.hovered && scroller.maxY > 0
+                    interval: 60; repeat: true
+                    property int waited: 0
+                    onRunningChanged: waited = 0
+                    onTriggered: {
+                        if ((waited += interval) < 2500) return;         // a moment to start reading at the top
+                        scroller.contentY = Math.min(scroller.maxY, scroller.contentY + 0.9);
+                    }
+                }
+                // more above / below
+                Rectangle {
+                    anchors.top: parent.top; width: parent.width; height: 18
+                    visible: scroller.contentY > 2
+                    gradient: Gradient { GradientStop { position: 0; color: Theme.d(0.7) } GradientStop { position: 1; color: "transparent" } }
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom; width: parent.width; height: 22
+                    visible: scroller.contentY < scroller.maxY - 2
+                    gradient: Gradient { GradientStop { position: 0; color: "transparent" } GradientStop { position: 1; color: Theme.d(0.7) } }
+                    Text {
+                        anchors.right: parent.right; anchors.bottom: parent.bottom
+                        text: "▾"; color: toast.accent; font.pixelSize: 12
+                    }
+                }
             }
         }
     }

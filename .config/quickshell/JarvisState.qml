@@ -3,6 +3,8 @@
 // ~/.config/jarvis/jarvis.py drives the toast through `qs ipc call jarvis …`:
 //   listening → transcript → thinking → tool (one per call) → reply / confirm → followup → idle
 //   error: something failed after the chime; Jarvis says a line and the toast shows why
+//   speak / speechDone: each spoken sentence as it starts (characters start..end of total, ms long);
+//   the pop-up stays up while he's speaking or the pointer is on it, then a few seconds scaled to length
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -22,6 +24,17 @@ Singleton {
     property string alertTitle: ""       // timer / reminder going off
     property string errorReason: ""      // "NO NETWORK", "DIDN'T CATCH THAT", …
     readonly property bool listening: phase === "listening" || phase === "followup"
+    property bool speaking: false
+    property bool hovered: false         // the pointer is on the pop-up: it stays
+    property int holdMs: 4000
+    // speech progress, in characters of the spoken text: the sentence playing now runs from
+    // speakStart to speakEnd (of speakTotal) over speakMs, starting at speakAt
+    property int speakStart: 0
+    property int speakEnd: 0
+    property int speakTotal: 0
+    property int speakMs: 0
+    property double speakAt: 0
+    property int replySerial: 0          // bumps when a new reply arrives (the pop-up resets its scrolling)
     readonly property string message: reply !== "" ? reply : transcript   // old one-line API
 
     function beat() {
@@ -32,9 +45,35 @@ Singleton {
     function show(ph, holdMs) {
         root.phase = ph;
         root.showing = true;
-        hideTimer.interval = holdMs;
+        root.holdMs = holdMs;
+        rearm();
+    }
+    // the hide countdown only runs while he isn't speaking and the pointer isn't on the pop-up
+    function rearm() {
+        if (root.speaking || root.hovered) { hideTimer.stop(); return; }
+        hideTimer.interval = root.holdMs;
         hideTimer.restart();
     }
+    onHoveredChanged: if (root.showing) rearm()
+    function speak(start, end, total, ms) {
+        if (start === 0) root.speakTotal = 0;
+        root.speakStart = start; root.speakEnd = end; root.speakTotal = Math.max(root.speakTotal, total);
+        root.speakMs = ms; root.speakAt = Date.now();
+        root.speaking = true;
+        speechGuard.interval = ms + 15000; speechGuard.restart();
+        if (root.showing) rearm();
+    }
+    function speechDone() {
+        if (!root.speaking) return;
+        root.speaking = false;
+        root.speakStart = root.speakEnd = root.speakTotal;
+        // a few seconds after he stops, longer for a long answer
+        if (root.showing && (root.phase === "reply" || root.phase === "error"))
+            root.holdMs = Math.max(3500, Math.min(12000, 2500 + root.reply.length * 12));
+        if (root.showing) rearm();
+    }
+    // a lost speechDone never keeps the pop-up up for ever
+    Timer { id: speechGuard; onTriggered: root.speechDone() }
     function startListening() {
         root.transcript = ""; root.reply = ""; root.tools = [];
         show("listening", 15000);
@@ -45,8 +84,14 @@ Singleton {
         root.tools = root.tools.concat([label]).slice(-5);
         show("thinking", 35000);
     }
-    // Long enough to read: ~60 ms a character, 4 s minimum
-    function setReply(t) { root.reply = t; show("reply", Math.max(4000, 2500 + t.length * 60)); }
+    // Not spoken (voice off, typed, CLI): long enough to read, ~60 ms a character, 4 s minimum.
+    // Spoken: held while he speaks, then speechDone() sets the tail.
+    function setReply(t) {
+        if (!root.showing) { root.transcript = ""; root.tools = []; }    // a reply on its own (an offer, a reminder)
+        if (t !== root.reply) root.replySerial++;
+        root.reply = t;
+        show("reply", Math.max(4000, 2500 + t.length * 60));
+    }
     function confirm(t) { root.reply = t; show("confirm", 15000); }
     function followup() { show("followup", 12000); }
     function idle() { if (root.phase !== "reply" && root.phase !== "alert" && root.phase !== "error") { hideTimer.interval = 400; hideTimer.restart(); } }
@@ -56,12 +101,13 @@ Singleton {
     }
     function note(label) { if (root.tools[root.tools.length - 1] !== label) root.tools = root.tools.concat([label]).slice(-5); }
     function alert(title, text) {
-        root.alertTitle = title; root.transcript = ""; root.tools = []; root.reply = text;
+        root.alertTitle = title; root.transcript = ""; root.tools = []; root.reply = text; root.replySerial++;
         show("alert", 9000);
     }
 
     // Old API, still used by anything that just wants a line on screen
     function heard(msg) { root.transcript = ""; root.tools = []; setReply(msg); }
+    function dismiss() { root.speaking = false; root.hovered = false; hideTimer.stop(); root.showing = false; root.phase = "idle"; }
     function status(msg) { root.transcript = msg; root.reply = ""; show("listening", 12000); }
 
     Timer {

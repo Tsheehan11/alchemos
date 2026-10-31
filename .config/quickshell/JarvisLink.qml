@@ -6,6 +6,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
 Singleton {
     id: root
@@ -29,14 +30,16 @@ Singleton {
     property var usage: ({})
     property string mode: "ASK"           // ASK = a request now · TASK = a background task
 
-    property string screenName: ""        // the monitor it opened on ("" = the focused one)
+    property string screenName: ""        // the monitor it opened on (it stays there until closed)
 
     function toggle() { if (root.open) root.open = false; else show(); }
     function show(screen) {
         LauncherState.closeAll();
-        root.screenName = screen || "";
+        root.screenName = screen || Hyprland.focusedMonitor?.name || "";
         root.open = true;
         refresh();
+        // open on the conversation that's going on (new turns land there), unless one is already shown
+        if (root.current !== null && !root.shownThread) openThread(root.current);
     }
     function refresh() {
         if (sock.connected) { send({op: "hello"}); send({op: "threads", q: root.query, quick: root.showQuick}); }
@@ -55,7 +58,10 @@ Singleton {
         if (!text) return;
         if (root.mode === "TASK") send({op: "task", text: text});
         else {
-            if (!root.shownThread || root.shownThread.id !== root.current) { root.messages = []; root.shownThread = null; }
+            // the reply lands in the current thread: show that one
+            if (root.shownThread && root.shownThread.id !== root.current) {
+                if (root.current !== null) openThread(root.current); else { root.messages = []; root.shownThread = null; }
+            }
             send({op: "ask", text: text});
         }
     }
@@ -83,7 +89,10 @@ Singleton {
     function handle(m) {
         switch (m.ev) {
         case "state":
-            if (m.current !== undefined) root.current = m.current;
+            if (m.current !== undefined) {
+                root.current = m.current;
+                if (root.open && !root.shownThread && m.current !== null) openThread(m.current);
+            }
             if (m.busy !== undefined) root.busy = m.busy;
             break;
         case "threads":
@@ -97,9 +106,11 @@ Singleton {
             break;
         case "message": {
             const t = m.thread;
-            root.current = t.id;
+            // only a conversation turn makes its thread current; a background task's thread never does
+            const task = t.kind === "task" || m.item.source === "task";
+            if (!task) root.current = t.id;
             if (root.showQuick || t.kind !== "quick") { if (!root.query) root.threads = upsert(root.threads, t); }
-            if (!root.shownThread || root.shownThread.id === t.id) {
+            if ((!root.shownThread && !task) || (root.shownThread && root.shownThread.id === t.id)) {
                 root.shownThread = t;
                 root.messages = root.messages.concat([m.item]);
             }

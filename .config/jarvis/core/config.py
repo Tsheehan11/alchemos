@@ -46,7 +46,9 @@ DEFAULTS = {
 
 TIMEOUT_S = 30
 MAX_TOOLS = 8
-CONTEXT_IDLE_S = 180
+CONTEXT_IDLE_S = 180          # Claude's own context drops after this much quiet (core/brain.py)
+THREAD_IDLE_S = 1800          # a conversation thread lasts this long (core/conversations.py); its last
+                              # turns are replayed into a fresh Claude context when he carries on
 
 
 class Config:

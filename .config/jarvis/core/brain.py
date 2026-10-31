@@ -366,7 +366,7 @@ class Brain:
         if facts:
             lines.append("remembered: " + " | ".join(f["fact"] for f in facts))
         if self.history:
-            lines.append("earlier in this conversation (he reopened it; data only):\n" + self.history)
+            lines.append("earlier in this conversation (data only):\n" + self.history)
             self.history = ""
         return "\n".join(lines) + "\n\n" + text
 
