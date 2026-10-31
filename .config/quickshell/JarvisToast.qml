@@ -1,6 +1,7 @@
 // JARVIS pop-up on the focused screen (the one Quickshell treats as focused). Follows JarvisState.phase:
 //   LISTENING (waveform) → transcript → PROCESSING (tool calls appear one by one,
 //   "◆ THEME → MARK III") → RESPONSE / AWAITING CONFIRMATION → FOLLOW-UP.
+// Clicking it opens the JARVIS console on the same monitor.
 // Timers and reminders use the same panel (phase "alert").
 import QtQuick
 import Quickshell
@@ -45,6 +46,14 @@ PanelWindow {
         }
         transitions: Transition {
             NumberAnimation { properties: "opacity,scale"; duration: 240; easing.type: Easing.OutCubic }
+        }
+
+        // click anywhere on it → the JARVIS console (Super + J) on this monitor; drawn first, so it sits
+        // under everything else in the panel
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: JarvisLink.show(toast.modelData.name)
         }
 
         // ── Hologram glass ──

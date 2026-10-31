@@ -6,6 +6,8 @@ Jarvis memory: one SQLite file shared by the voice loop and the MCP server.
   reminders   timers / reminders; the voice loop fires them, so they survive restarts
   router_log  every local-router decision: top-3 intents, slots, latency, path (pruned with action_log)
   tracker_log every write to his SE tracker sheet: cell, old → new, why; `jarvis tracker undo` reverts the last batch
+  calendar_log every write to his Google calendars (google_api.CalendarWriter): event, before → after;
+              `jarvis calendar undo` reverts the last batch; link ties a batch to the tracker batch it followed
   threads     conversations for the JARVIS app: voice and typed turns of one conversation share a thread;
               kind quick (a one-off command, hidden by default) | thread (several turns or real work) | task
   messages    each turn of a thread (FTS5 index for the app's search)
@@ -84,6 +86,21 @@ CREATE TABLE IF NOT EXISTS tracker_log (
     undone REAL                  -- set when `jarvis tracker undo` reverted it
 );
 CREATE INDEX IF NOT EXISTS tracker_log_batch ON tracker_log(batch);
+CREATE TABLE IF NOT EXISTS calendar_log (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    batch TEXT NOT NULL,         -- one CalendarWriter: undo reverts a whole batch
+    calendar TEXT NOT NULL,      -- calendar id
+    event TEXT NOT NULL,         -- event id
+    kind TEXT NOT NULL,          -- create | update | delete
+    summary TEXT NOT NULL,       -- the event's title, for the log
+    old TEXT,                    -- JSON: the written fields before (the whole event for a delete)
+    new TEXT,                    -- JSON: the written fields after (none for a delete)
+    source TEXT NOT NULL,        -- voice | typed | task | tracker | cli | undo | …
+    link TEXT,                   -- the tracker_log batch this write kept the calendar in step with
+    undone REAL
+);
+CREATE INDEX IF NOT EXISTS calendar_log_batch ON calendar_log(batch);
 CREATE TABLE IF NOT EXISTS threads (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL,
@@ -305,6 +322,45 @@ def last_tracker_batch():
 def mark_tracker_undone(batch):
     with _db() as db:
         db.execute("UPDATE tracker_log SET undone = ? WHERE batch = ?", (time.time(), batch))
+
+
+# ── calendar writes ────────────────────────────
+def log_calendar(batch, calendar, event, kind, summary, old, new, source, link=None):
+    with _db() as db:
+        db.execute("INSERT INTO calendar_log(ts, batch, calendar, event, kind, summary, old, new, source, link) "
+                   "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                   (time.time(), batch, calendar, event, kind, (summary or "")[:300],
+                    None if old is None else json.dumps(old), None if new is None else json.dumps(new), source, link))
+
+
+def calendar_writes(limit=30, batch=None):
+    with _db() as db:
+        if batch:
+            rows = [dict(r) for r in db.execute("SELECT * FROM calendar_log WHERE batch = ? ORDER BY id DESC", (batch,))]
+        else:
+            rows = [dict(r) for r in db.execute("SELECT * FROM calendar_log ORDER BY id DESC LIMIT ?", (limit,))]
+    for r in rows:
+        r["old"] = None if r["old"] is None else json.loads(r["old"])
+        r["new"] = None if r["new"] is None else json.loads(r["new"])
+    return rows
+
+
+def last_calendar_batch(link=None):
+    """Writes of the newest batch not undone (newest first), or []. link: only the batch that followed
+    that tracker batch."""
+    with _db() as db:
+        if link:
+            row = db.execute("SELECT batch FROM calendar_log WHERE undone IS NULL AND link = ? AND source != 'undo' "
+                             "ORDER BY id DESC LIMIT 1", (link,)).fetchone()
+        else:
+            row = db.execute("SELECT batch FROM calendar_log WHERE undone IS NULL AND source != 'undo' "
+                             "ORDER BY id DESC LIMIT 1").fetchone()
+    return calendar_writes(batch=row["batch"]) if row else []
+
+
+def mark_calendar_undone(batch):
+    with _db() as db:
+        db.execute("UPDATE calendar_log SET undone = ? WHERE batch = ?", (time.time(), batch))
 
 
 # ── threads (the JARVIS app) ───────────────────

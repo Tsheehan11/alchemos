@@ -1,6 +1,7 @@
 // JARVIS console: conversations (voice + typed, one thread per conversation), typed requests through
 // the same path as speech (fast path → local router → Claude), background tasks with a live log,
-// and YES / NO for anything Jarvis is waiting on. Super + J, on the focused monitor; Esc closes.
+// and YES / NO for anything Jarvis is waiting on. Super + J, on the focused monitor (or a click on the
+// JARVIS pop-up, on its monitor); Esc closes.
 // Data: JarvisLink.qml (socket to ~/.config/jarvis/core/appserver.py).
 import QtQuick
 import Quickshell
@@ -11,7 +12,8 @@ PanelWindow {
     id: app
     required property var modelData
     screen: modelData
-    visible: JarvisLink.open && Hyprland.focusedMonitor?.name === modelData.name
+    visible: JarvisLink.open && (JarvisLink.screenName ? JarvisLink.screenName === modelData.name
+                                                       : Hyprland.focusedMonitor?.name === modelData.name)
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "stark-jarvis-app"

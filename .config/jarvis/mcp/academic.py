@@ -34,6 +34,7 @@ DUE_NOISE = re.compile(r"\s*[-–:]?\s*\b(?:is )?(?:due|availability ends|ends|d
 # LEARN (D2L) notifications come from no-reply style addresses, never a person's @uwaterloo.ca
 GRADE_SENDERS = re.compile(r"(?:^|[<\s])(?:(?:no-?reply|do-?not-?reply|notifications?|d2l)[\w.+-]*@(?:[\w-]+\.)*uwaterloo\.ca"
                            r"|[\w.+-]+@(?:[\w-]+\.)*(?:learn\.uwaterloo\.ca|crowdmark\.com|d2l\.com|desire2learn\.com))>?$", re.I)
+AVAILABLE = re.compile(r"\s[-–]\s*available\s*$", re.I)
 UW_ADDRESS = re.compile(r"[\w.+-]+@(?:[\w-]+\.)*uwaterloo\.ca>?$", re.I)
 FW_PREFIX = re.compile(r"^\s*(?:(?:fw|fwd|tr|wg)\s*:\s*)+", re.I)
 GRADE_SUBJECT = re.compile(r"\b(?:grades? (?:has been |have been |is |are )?(?:released|posted|available)|"
@@ -107,12 +108,25 @@ def key(course, title):
     return f"{course.replace(' ', '').upper()}|{short_title(title)}"
 
 
+def is_availability(title):
+    """'… Review - Available' / 'a5 provided code - Available': when material opens, not a deadline."""
+    return bool(AVAILABLE.search(title or ""))
+
+
 def dedupe(assignments):
-    """Course + title → one assignment; a later copy (feed re-sync, a second source) updates the due date."""
+    """Course + title → one assignment; a later copy (feed re-sync, a second source) updates the due date.
+    An availability entry never overrides a real one with the same key ("Assignment 3: Rates of Reaction
+    Review - Available", the next morning, is not when CHE 102 A3 is due)."""
     seen = {}
     for a in assignments:
         k = key(a["course"], a["title"])
         if k in seen:
+            old_avail, new_avail = is_availability(seen[k]["title"]), is_availability(a["title"])
+            if new_avail and not old_avail:
+                continue
+            if old_avail and not new_avail:
+                seen[k] = dict(a, key=k)
+                continue
             seen[k].update({f: v for f, v in a.items() if v and f != "title"})
         else:
             seen[k] = dict(a, key=k)

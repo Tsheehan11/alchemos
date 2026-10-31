@@ -66,8 +66,12 @@ def refresh_learn(force=False):
         st = A.load_state()
         old = st["assignments"]
         new = {a["key"]: dict(a, due=a["due"].isoformat()) for a in items}
+        # an entry that was an availability notice and is now the real deadline (academic.dedupe) is a
+        # correction of Jarvis's own record, not LEARN moving the date: no tracker event for it
         report = {"new": [k for k in new if k not in old],
-                  "changed": [k for k in new if k in old and old[k]["due"] != new[k]["due"]], "total": len(new)}
+                  "changed": [k for k in new if k in old and old[k]["due"] != new[k]["due"]
+                              and A.is_availability(old[k].get("title")) == A.is_availability(new[k]["title"])],
+                  "total": len(new)}
         if old and _tracker_on():          # the first fetch ever is the baseline, not news
             for k in report["new"]:
                 a = new[k]
@@ -215,11 +219,18 @@ def tracker_pass(cfg, messages=None, log=print, sheet=None):
                 if ok:
                     applied.append(what)
                     said.append(f"I've updated your tracker, sir: {tracker.summary([r['change'] for r in ok])}.")
+                    # AUTO-UPDATE covers the sheet only: his main calendar still needs his yes
+                    if getattr(t, "touched", None):
+                        offers.append({"changes": [], "calendar": [[tracker.row_json(b), tracker.row_json(a)] for b, a in t.touched],
+                                       "source": ev.get("source", "sync"), "ts": time.time(),
+                                       "prompt": "Shall I bring its calendar event in line too, sir?"})
                 for r in bad:
                     log(f"JARVIS: tracker: {r['error']}")
             else:
                 offers.append({"changes": changes, "source": ev.get("source", "sync"), "ts": time.time(),
-                               "prompt": f"Shall I {what} in your tracker, sir?"})
+                               "prompt": f"Shall I {what} in your tracker"
+                               + (" and calendar" if any(c.get("field") in ("status", "due") or c["kind"] != "set" for c in changes) else "")
+                               + ", sir?"})
     except Exception:
         with A.locked():                      # offline mid-way: try these again next pass
             st = A.load_state()

@@ -6,8 +6,9 @@ Sources, none needing university admin consent: the LEARN (D2L) iCal feed (its p
 URL in the keyring, "jarvis:learn" / ical_url, from `jarvis connect learn-ical <url>`),
 and LEARN / Crowdmark "grade released" notices in whichever inbox is connected.
 With his SE tracker sheet set up (mcp/tracker.py) the tracker is the record: tracker_pending /
-tracker_grade read it, tracker_update / tracker_add write single cells or one new row (always with
-his spoken yes: they are writes with no auto_write setting). Without it, calendar_add_assignment
+tracker_grade read it, tracker_update / tracker_add / tracker_remove write single cells, add or remove one
+row (always with his spoken yes: core/brain.ALWAYS_ASK), and the row's own calendar event follows
+(sheet_calendar.py: his sheet's Apps Script doesn't see API edits). Without it, calendar_add_assignment
 is the only write, and it can only reach the dedicated "STARK – Assignments" calendar (academic.ASSIGNMENTS_CALENDAR); Jarvis asks first
 unless Settings → JARVIS → AUTO-ADD ASSIGNMENTS is on. Logic: academic.py. On Google it uses
 the calendar.app.created scope, which can only reach calendars this app created, so even a bug
@@ -20,6 +21,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import academic  # noqa: E402
+import tracker  # noqa: E402
 from integration_common import not_connected, not_wired, out, secrets, untrusted  # noqa: E402
 from core import config  # noqa: E402  (integration_common put ~/.config/jarvis on sys.path)
 from mcp.server.mcpserver import MCPServer  # noqa: E402
@@ -194,6 +196,18 @@ def _tracker(fn):
         return out({"ok": False, "error": e.detail, "say": e.say})
 
 
+def _done(t, changes):
+    """The spoken result of a tracker write, with what happened to its calendar event."""
+    rep = getattr(t, "calendar_report", None) or {"did": [], "notes": []}
+    line = f"Done, sir: {tracker.summary(changes)}"
+    if rep["did"]:
+        line += "; I " + " and ".join(rep["did"])
+    line += "."
+    if rep["notes"]:
+        line += " " + ". ".join(n[0].upper() + n[1:] for n in rep["notes"]) + "."
+    return line
+
+
 def _date(text):
     from datetime import date
     try:
@@ -254,11 +268,11 @@ def tracker_update(course: str, assignment: str, status: str = "", grade: float 
                                            due=d, strict=False, why="voice")
         if not changes:
             return {"ok": True, "result": "unchanged", "say": f"Your tracker already has that for {tracker.label(row)}, sir."}
-        res = t.apply(changes, "voice")
+        res = t.apply(changes, "voice", calendar=True)
         bad = [r for r in res if not r["ok"]]
         if bad:
             return {"ok": False, "error": bad[0]["error"], "say": bad[0]["say"]}
-        return {"ok": True, "result": "updated", "say": f"Done, sir: {tracker.summary(changes)}."}
+        return {"ok": True, "result": "updated", "say": _done(t, changes)}
     return _tracker(go)
 
 
@@ -281,10 +295,29 @@ def tracker_add(course: str, assignment: str, due: str, kind: str = "Assignment"
             return {"ok": True, "result": "exists", "say": f"{c} {assignment} is already in your tracker, sir."}
         k = kind if kind in tracker.TYPES else "Assignment"
         ch = tracker.change_insert(c, tracker.clean_title(assignment), d, kind=k, why="voice")
-        res = t.apply([ch], "voice")
+        res = t.apply([ch], "voice", calendar=True)
         if not res[0]["ok"]:
             return {"ok": False, "error": res[0]["error"], "say": res[0]["say"]}
-        return {"ok": True, "result": "added", "say": f"Added {c} {tracker.clean_title(assignment)} to your tracker, due {tracker.spoken_date(d)}."}
+        return {"ok": True, "result": "added", "say": _done(t, [ch])}
+    return _tracker(go)
+
+
+@mcp.tool(structured_output=False)
+def tracker_remove(course: str, assignment: str) -> str:
+    """Remove one assignment's row from his SE tracker sheet (cancelled, or added by mistake) and delete its
+    calendar event. Only when he asks for exactly that; Jarvis always asks him first. `jarvis tracker undo`
+    puts both back."""
+    def go(t):
+        hits = tracker.find(t.load(), course, assignment, strict=False)
+        if len(hits) != 1:
+            return {"ok": False, "error": "no single matching row" if not hits else "ambiguous",
+                    "say": f"I can't find {course} {assignment} in your tracker, sir." if not hits
+                    else f"More than one row in your tracker matches {course} {assignment}, sir."}
+        ch = tracker.change_remove(hits[0], why="voice")
+        res = t.apply([ch], "voice", calendar=True)
+        if not res[0]["ok"]:
+            return {"ok": False, "error": res[0]["error"], "say": res[0]["say"]}
+        return {"ok": True, "result": "removed", "say": _done(t, [ch])}
     return _tracker(go)
 
 

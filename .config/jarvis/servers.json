@@ -28,16 +28,21 @@
         "tracker_scopes": [
             "https://www.googleapis.com/auth/spreadsheets"
         ],
+        "calendar_scopes": [
+            "https://www.googleapis.com/auth/calendar.events"
+        ],
         "enabled": false,
-        "read_only": true,
+        "read_only": false,
         "policy": "integration",
         "read_tools": [
             "calendar_today",
             "calendar_next",
+            "calendar_find",
             "email_unread_summary",
             "email_search",
             "docs_search"
-        ]
+        ],
+        "note": "Writes: calendar_create_event / calendar_update_event / calendar_delete_event, his main calendar only, every one with his yes (no auto_write; core/brain.ALWAYS_ASK), logged with `jarvis calendar undo`. Mail and Drive stay read-only: there are no tools for them."
     },
     "outlook": {
         "name": "Outlook",

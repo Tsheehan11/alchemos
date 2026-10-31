@@ -15,12 +15,16 @@ nowhere else. Rules every write keeps (Tracker.apply is the only code that write
   * the target cell is read first with formulas shown, and a formula is never overwritten;
   * the row is re-read just before the write and must still be the same course + assignment;
   * a new row is inserted at its due-date position with inheritFromBefore (formatting, validation
-    and conditional formats come with it); nothing else structural, never Apps Script;
-  * every write is logged in jarvis_db.tracker_log; `jarvis tracker undo` reverts the last batch.
+    and conditional formats come with it); a row is removed only when he asked for that row (and
+    never one holding a formula); nothing else structural, never Apps Script;
+  * every write is logged in jarvis_db.tracker_log; `jarvis tracker undo` reverts the last batch;
+  * with calendar=True (callers that have his yes) the row's own calendar event follows the change
+    (sheet_calendar.py): his sheet's Apps Script only syncs on edits made in the Sheets UI.
 
 The Sheets client itself can only reach this one spreadsheet (google_api.SheetGuard).
 
-CLI (jarvis tracker …): find [ID] | show | pending [DAYS] | diff | log [N] | undo
+CLI (jarvis tracker …): find [ID] | show | pending [DAYS] | diff | log [N] | undo (also reverts the calendar
+writes that followed that batch)
 """
 import re
 import uuid
@@ -271,6 +275,19 @@ def change_insert(course, title, due, kind="Assignment", status="Not Started", w
                                          "type": kind, "status": status}, "why": why}
 
 
+def row_json(r):
+    """A before / after row snapshot that can wait in academic.json (offers)."""
+    return None if r is None else dict(r, due=r["due"].isoformat() if r.get("due") else None)
+
+
+def row_from_json(r):
+    return None if r is None else dict(r, due=date.fromisoformat(r["due"]) if r.get("due") else None)
+
+
+def change_remove(r, why=""):
+    return {"kind": "remove", "row": r["row"], "expect": {"course": r["course"], "title": r["title"]}, "why": why}
+
+
 def plan_update(rows, course, title, status=None, grade=None, due=None, strict=True, why=""):
     """→ (changes, row). Raises TrackerError if the row isn't there (or isn't unique)."""
     hits = find(rows, course, title, strict=strict)
@@ -311,6 +328,9 @@ def summary(changes):
     """A short spoken description of planned changes ("mark CS 137 A5 complete and set its grade to 90")."""
     parts = []
     for c in changes:
+        if c["kind"] == "remove":
+            parts.append(f"remove {c['expect']['course']} {c['expect']['title']}")
+            continue
         if c["kind"] == "insert":
             v = c["values"]
             d = from_serial(v["due"]) if v.get("due") != "" else None
@@ -397,28 +417,79 @@ class Tracker:
         if isinstance(v, str) and v.startswith(("=", "+", "@")):
             raise TrackerError("I won't write a formula into your tracker, sir.", f"formula-like value {v!r}")
 
-    def apply(self, changes, source):
+    def apply(self, changes, source, calendar=False):
         """Make the changes, each re-checked against the sheet as it is now. → [{"ok", "change", ...}].
         A change that doesn't fit any more (row moved and not found again, formula in the cell, value
-        not allowed) is skipped with its reason; the others still go through."""
+        not allowed) is skipped with its reason; the others still go through.
+        calendar: also bring each touched row's calendar event in line (True: a SheetCalendar of its
+        own, logged with this batch as its link; or a SheetCalendar to use). What happened there is
+        in self.calendar_report {"did", "notes"}; a calendar failure never undoes the sheet write."""
         if self.rows is None:
             self.load()
         batch = uuid.uuid4().hex[:12]
+        self.batch, self.calendar_report = batch, {"did": [], "notes": []}
+        touched = {}                                    # (course, title) at the start → [before, after]
         results = []
         for c in changes:
+            key = (c["expect"]["course"], c["expect"]["title"]) if "expect" in c else None
+            before = self._snapshot(*key) if key else None
             try:
                 if c["kind"] == "set":
-                    results.append(self._apply_set(c, batch, source))
+                    res = self._apply_set(c, batch, source)
                 elif c["kind"] == "insert":
-                    results.append(self._apply_insert(c, batch, source))
+                    res = self._apply_insert(c, batch, source)
+                elif c["kind"] == "remove":
+                    res = self._apply_remove(c, batch, source)
                 else:
                     raise TrackerError("Something went wrong on my end, sir.", f"unknown change kind {c['kind']!r}")
+                results.append(res)
             except TrackerError as e:
                 results.append({"ok": False, "change": c, "error": e.detail, "say": e.say})
+                continue
             except self.G.GoogleError as e:
                 results.append({"ok": False, "change": c, "error": e.detail, "say": e.say})
                 break                                   # offline / permission: the rest would fail the same way
+            if res.get("unchanged"):
+                continue
+            if c["kind"] == "insert":
+                v = c["values"]
+                key = ("+", v["course"], v["title"])
+                touched[key] = [None, self._snapshot(v["course"], v["title"])]
+            elif c["kind"] == "remove":
+                touched.setdefault(key, [before, None])[1] = None
+            elif key in touched or before:
+                ex = touched.setdefault(key, [before, None])
+                cur = dict(ex[1] or before)
+                cur[c["field"]] = from_serial(c["new"]) if c["field"] == "due" else c["new"]
+                ex[1] = cur
+        self.touched = list(touched.values())
+        if calendar and touched:
+            self._follow_calendar(calendar, touched, batch)
         return results
+
+    def _snapshot(self, course, title):
+        for r in self.rows or []:
+            if r["course"] == course and r["title"] == title:
+                return {f: r.get(f) for f in ("course", "title", "due", "type", "status")}
+        return None
+
+    def _follow_calendar(self, calendar, touched, batch):
+        import sheet_calendar
+        rep = self.calendar_report
+        if self.G.NEEDS["calendar_write"] not in (self.G.granted() or {self.G.NEEDS["calendar_write"]}):
+            rep["notes"].append("I couldn't touch its calendar event: Jarvis needs calendar access. Run jarvis connect google")
+            return
+        try:
+            cal = calendar if not isinstance(calendar, bool) else sheet_calendar.SheetCalendar(self.G.CalendarWriter("tracker", link=batch))
+            if getattr(cal.w, "link", None) is None:
+                cal.w.link = batch
+            for before, after in touched.values():
+                r = cal.follow(before, after)
+                rep["did"] += r["did"]
+                rep["notes"] += r["notes"]
+        except self.G.GoogleError as e:
+            rep["notes"].append(f"I couldn't update its calendar event: {e.say.rstrip('.')}")
+            rep["error"] = e.detail
 
     def _locate(self, c):
         """The row number holding c["expect"] now (re-read; it may have moved)."""
@@ -485,6 +556,20 @@ class Tracker:
         self.load()
         return {"ok": True, "change": c, "cell": a1}
 
+    def _apply_remove(self, c, batch, source):
+        row, cells = self._locate(c)
+        if row <= self.layout["header"]:
+            raise TrackerError("I won't touch the tracker's header rows, sir.", f"row {row} is a header row")
+        if any(isinstance(v, str) and v.startswith("=") for v in cells):
+            raise TrackerError("That row has a formula in it, sir, so I left it alone.", f"row {row} holds a formula")
+        self._call(self.svc.spreadsheets().batchUpdate(spreadsheetId=self.sid, body={"requests": [{"deleteDimension": {
+            "range": {"sheetId": self._sheet_gid(), "dimension": "ROWS", "startIndex": row - 1, "endIndex": row}}}]}))
+        a1 = f"A{row}:{col_letter(self.layout['width'] - 1)}{row}"
+        self.db.log_tracker(batch, self.sid, TAB, "remove", a1, f"{c['expect']['course']} | {c['expect']['title']}",
+                            cells, None, source)
+        self.load()
+        return {"ok": True, "change": c, "cell": a1}
+
     # ── undo ──
     def undo(self):
         """Revert the newest batch that hasn't been undone, if every cell still holds what Jarvis wrote.
@@ -505,6 +590,11 @@ class Tracker:
                 if cells[idx] != w["new"]:
                     return False, f"{w['cell']} has changed since Jarvis wrote it ({w['new']!r} → {cells[idx]!r}); not undoing."
                 plan.append(("set", w, f"{col}{row}"))
+            elif w["kind"] == "remove":
+                course, _, title = w["row_key"].partition(" | ")
+                if any(r["course"] == course and r["title"] == title for r in self.rows):
+                    return False, f"{course} {title} is back in the tracker already; not undoing."
+                plan.append(("remove", w, None))
             else:
                 v = w["new"]
                 hits = [r for r in self.rows if r["course"] == v["course"] and r["title"] == v["title"]]
@@ -520,13 +610,34 @@ class Tracker:
                                                  body={"values": [[old]]}))
                 self.db.log_tracker(batch, self.sid, TAB, "set", where, w["row_key"], w["new"], old, "undo")
                 done.append(f"{where}: {w['new']!r} → {old!r}")
+            elif kind == "remove":
+                self.load()
+                L, cells = self.layout, w["old"]
+                due = from_serial(cells[L["cols"]["due"]]) if L["cols"]["due"] < len(cells) else None
+                row = insert_at(L, self.rows, due)
+                self._call(self.svc.spreadsheets().batchUpdate(spreadsheetId=self.sid, body={"requests": [{"insertDimension": {
+                    "range": {"sheetId": self._sheet_gid(), "dimension": "ROWS", "startIndex": row - 1, "endIndex": row},
+                    "inheritFromBefore": row > L["header"] + 1}}]}))
+                last = col_letter(len(cells) - 1)
+                self._call(self._values().update(spreadsheetId=self.sid, range=f"'{TAB}'!A{row}:{last}{row}",
+                                                 valueInputOption="RAW", body={"values": [cells]}))
+                self.db.log_tracker(batch, self.sid, TAB, "insert", f"A{row}:{last}{row}", w["row_key"], None,
+                                    dict(zip(("course", "title"), w["row_key"].split(" | ", 1))), "undo")
+                done.append(f"put back {w['row_key']} at row {row}")
             else:
                 self._call(self.svc.spreadsheets().batchUpdate(spreadsheetId=self.sid, body={"requests": [{"deleteDimension": {
                     "range": {"sheetId": self._sheet_gid(), "dimension": "ROWS", "startIndex": where - 1, "endIndex": where}}}]}))
                 self.db.log_tracker(batch, self.sid, TAB, "delete", f"row {where}", w["row_key"], w["new"], None, "undo")
                 done.append(f"removed row {where} ({w['row_key']})")
         self.db.mark_tracker_undone(writes[0]["batch"])
-        return True, "Undid: " + "; ".join(done)
+        msg = "Undid: " + "; ".join(done)
+        if self.db.last_calendar_batch(writes[0]["batch"]):     # the calendar writes that followed it
+            try:
+                ok, cal = self.G.CalendarWriter("undo").undo(link=writes[0]["batch"])
+            except self.G.GoogleError as e:
+                ok, cal = False, f"couldn't undo its calendar writes: {e.say}"
+            msg += f"\n{cal}" + ("" if ok else " Run `jarvis calendar undo` once that's sorted.")
+        return True, msg
 
 
 # ── LEARN feed vs the sheet (read-only report) ──

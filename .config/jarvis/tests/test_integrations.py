@@ -4,6 +4,7 @@ integration rules (read-only, confirmation, taint). No accounts or network. Run:
 import asyncio
 import json
 import os
+import re
 import sys
 from datetime import datetime, timedelta
 
@@ -58,6 +59,11 @@ d = academic.dedupe(items)
 check("dedupe A5 = Assignment 5", len(d), 2)
 check("dedupe key", d[0]["key"], "CS137|a5")
 check("first url kept", d[0]["url"], "https://learn.uwaterloo.ca/d2l/le/calendar/1/event/6606")
+che = [{"course": "CHE 102", "title": "Assignment 3: Rates of Reaction", "due": datetime(2026, 11, 5, 23, 59)},
+       {"course": "CHE 102", "title": "Assignment 3: Rates of Reaction Review - Available", "due": datetime(2026, 11, 6, 8, 0)}]
+check("availability entry keeps the real due", [a["due"] for a in academic.dedupe(che)], [datetime(2026, 11, 5, 23, 59)])
+check("availability entry replaced by the real one", [(a["title"], a["due"]) for a in academic.dedupe(che[::-1])],
+      [("Assignment 3: Rates of Reaction", datetime(2026, 11, 5, 23, 59))])
 
 ev = academic.event_for(d[0])
 check("event calendar", ev["calendar"], "STARK – Assignments")
@@ -148,7 +154,9 @@ check("unknown server refused", gate("mcp__evil__x", fresh=True), ("Deny", 0))
 raw = json.loads(open(os.path.join(ROOT, "servers.json")).read())
 for k in ("google", "microsoft", "academic"):
     check(f"{k} registered with an enabled flag", (raw[k]["policy"], isinstance(raw[k].get("enabled"), bool)), ("integration", True))
-check("google read-only", raw["google"]["read_only"], True)
+google_tools = set(re.findall(r"@mcp\.tool\(structured_output=False\)\ndef (\w+)", open(os.path.join(ROOT, "mcp", "google_tools.py")).read()))
+check("google: the only writes are main-calendar events", sorted(google_tools - set(raw["google"]["read_tools"])),
+      ["calendar_create_event", "calendar_delete_event", "calendar_update_event"])
 check("microsoft read-only", raw["microsoft"]["read_only"], True)
 check("microsoft scopes", raw["microsoft"]["scopes"], ["Mail.Read", "Calendars.ReadWrite", "offline_access", "User.Read"])
 check("google scopes read-only", all(s.endswith(".readonly") for s in raw["google"]["scopes"]), True)

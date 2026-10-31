@@ -79,6 +79,38 @@ only; task confirmations show in the app and are asked aloud when idle, first an
 timeout = no. While Jarvis is off, the app reads history through `jarvis app-data`. Combat mode:
 no new task starts and nothing is asked aloud; running tasks continue.
 
+## Between stages 2 and 3: calendar editing
+
+**How his sheet syncs** (his Apps Script, confirmed): an installable "From spreadsheet – On edit"
+trigger runs `handleEdit`, which on a Status (column G) edit looks on the row's due date
+(`getEventsForDay`) for `[COURSE] Title` / `✓ [COURSE] Title` and sets title, colour (Complete green 10,
+In progress yellow 5, else Assessment mauve 3 / red 11) and description (`Course / Type / Status`, the
+status lower-cased with the first letter capitalised). The "📅 Calendar Sync → Sync All" menu does the
+same for every row. It never creates, moves or deletes an event, and edit triggers never fire for API
+writes, so Jarvis keeps the events in step itself (`mcp/sheet_calendar.py`), in exactly that format.
+
+**Scope.** `calendar.events` (`calendar_scopes` in servers.json); `jarvis connect google` and Settings
+report it missing. Writes go through `google_api.CalendarWriter` only: main calendar (plus Jarvis's own
+STARK – Assignments, for cleanup), subscribed / view-only calendars refused with a spoken reason,
+every write logged in jarvis_db `calendar_log`, `jarvis calendar log | undo`.
+
+**Tools** (google server, no longer read-only; mail and Drive still have no write tools):
+`calendar_find` (read: events with a `ref`, editable or why not), `calendar_create_event`,
+`calendar_update_event`, `calendar_delete_event`. `core/brain.ALWAYS_ASK` makes these, `tracker_update`,
+`tracker_add` and `tracker_remove` ask every time, whatever auto_write and the AUTO settings say.
+
+**Tracker → calendar.** `Tracker.apply(..., calendar=True)` (the tools and accepted offers) brings each
+touched row's event in line: matched by title, never by date, so a moved row's event moves; a new row
+gets one; a removed row's event is deleted; a second copy is only reported. Colour and status text follow the
+script's rules; a new event takes the reminders the existing ones use. AUTO-UPDATE TRACKER still writes only
+the sheet, then offers "Shall I bring its calendar event in line too?". `jarvis tracker undo` also
+reverts the calendar batch linked to it. `tracker_remove` deletes one row (never one holding a formula).
+
+**LEARN merge fix.** `academic.dedupe`: an "… – Available" entry never overrides a real deadline with the
+same key (it had put CHE 102 A3–A6 at the next morning's review time).
+
+**Console.** Clicking the JARVIS pop-up (JarvisToast) opens the console on that monitor.
+
 ## Stage 3: Window reading + watchers
 
 - Capture a named window only: resolve "this window" (focused), "the Discord window" (class /

@@ -4,8 +4,10 @@ Google APIs for Jarvis (google-api-python-client), shared by google_tools.py and
 Credentials come from the system keyring ("jarvis:google" / token, written by `jarvis connect
 google`); a refreshed access token is written back so the next call doesn't refresh again.
 Everything here is read-only except AssignmentsCalendar, which only ever touches the calendar
-this app created ("STARK – Assignments"): the calendar.app.created scope can't reach any other,
-and service("sheets"), which can only reach his SE tracker spreadsheet: the spreadsheets scope
+this app created ("STARK – Assignments"): the calendar.app.created scope can't reach any other;
+CalendarWriter, the one path for writes to his main calendar (calendar.events scope; every write
+logged in jarvis_db.calendar_log, `jarvis calendar undo`; subscribed / read-only calendars are
+refused with a reason; callers only reach it after his yes); and service("sheets"), which can only reach his SE tracker spreadsheet: the spreadsheets scope
 covers every sheet he owns, so the client refuses any request that names another (SheetGuard).
 
 Failures become GoogleError(kind, say, detail): `say` is a line Jarvis can speak, `detail` is
@@ -27,14 +29,16 @@ SCOPES = {   # scope → what to re-tick on Google's consent screen
     "https://www.googleapis.com/auth/drive.readonly": "Drive (see your files)",
     "https://www.googleapis.com/auth/calendar.app.created": "Calendar (make secondary calendars)",
     "https://www.googleapis.com/auth/spreadsheets": "Sheets (edit your SE tracker)",
+    "https://www.googleapis.com/auth/calendar.events": "Calendar (view and edit events on all your calendars)",
 }
 NEEDS = {"gmail": "https://www.googleapis.com/auth/gmail.readonly",
          "calendar": "https://www.googleapis.com/auth/calendar.readonly",
          "drive": "https://www.googleapis.com/auth/drive.readonly",
          "assignments": "https://www.googleapis.com/auth/calendar.app.created",
-         "sheets": "https://www.googleapis.com/auth/spreadsheets"}
+         "sheets": "https://www.googleapis.com/auth/spreadsheets",
+         "calendar_write": "https://www.googleapis.com/auth/calendar.events"}
 API_NAMES = {"gmail": "Gmail", "calendar": "Google Calendar", "drive": "Google Drive", "assignments": "Google Calendar",
-             "sheets": "Google Sheets"}
+             "sheets": "Google Sheets", "calendar_write": "Google Calendar"}
 
 
 class GoogleError(Exception):
@@ -168,6 +172,9 @@ def translate(what, status, content):
         box = SCOPES.get(NEEDS.get(what, ""), api)
         return GoogleError("scope", f"I don't have permission for {api}, sir. Reconnect Google and tick the {box.split(' (')[0]} box.",
                            f"missing scope for {what}: {NEEDS.get(what)} ({box})")
+    if what == "calendar_write" and status == 403 and ({"requiredAccessLevel", "forbidden"} & reasons):
+        return GoogleError("readonly", "That calendar is read-only for me, sir, so I can't change it there.",
+                           f"calendar write refused: {msg[:200]}")
     if status == 401:
         return GoogleError("expired", "Your Google sign-in has expired, sir. Reconnect it in Settings, under Jarvis.", msg)
     return GoogleError("http", f"{api} returned an error, sir.", f"HTTP {status}: {msg[:300]}")
@@ -379,3 +386,182 @@ class AssignmentsCalendar:
         if new != old.get("summary"):
             call("assignments", self.svc.events().patch(calendarId=cid, eventId=old["id"], body={"summary": new}, fields="id"))
         return True
+
+
+# ── writes to his main calendar ──
+WRITABLE_ROLES = ("owner", "writer")
+EVENT_FIELDS = ("summary", "description", "location", "start", "end", "colorId", "reminders", "transparency")
+
+
+def event_fields(ev, fields=EVENT_FIELDS):
+    """The parts of an event Jarvis writes (and compares for undo)."""
+    return {f: ev[f] for f in fields if f in ev}
+
+
+class CalendarWriter:
+    """The only code that writes to his own calendars (besides AssignmentsCalendar's own one).
+    One instance = one batch in jarvis_db.calendar_log, so `jarvis calendar undo` reverts it whole.
+    Targets: his main calendar, and the STARK – Assignments calendar (cleanup). A subscribed or
+    read-only calendar (UW Flow schedule…) raises GoogleError("readonly") with a reason worth
+    saying; any other calendar of his is refused too. Callers ask him first: nothing here asks."""
+
+    def __init__(self, source="voice", link=None, svc=None, db=None):
+        self.svc = svc or service("calendar")
+        if db is None:
+            import jarvis_db as db
+        self.db = db
+        self.source, self.link = source, link
+        self.batch = __import__("uuid").uuid4().hex[:12]
+        self._cals = None
+        self.wrote = 0
+
+    def _call(self, req):
+        return call("calendar_write", req)
+
+    def calendars(self):
+        if self._cals is None:
+            items = call("calendar", self.svc.calendarList().list(
+                maxResults=250, fields="items(id,summary,summaryOverride,primary,accessRole)")).get("items", [])
+            self._cals = [{"id": c["id"], "name": c.get("summaryOverride") or c.get("summary") or c["id"],
+                           "primary": bool(c.get("primary")), "role": c.get("accessRole", "")} for c in items]
+        return self._cals
+
+    def main_id(self):
+        return next((c["id"] for c in self.calendars() if c["primary"]), "primary")
+
+    def check(self, cid):
+        """→ the calendar's name if Jarvis may write to it, else GoogleError("readonly" | "forbidden")."""
+        cid = self.main_id() if cid in (None, "", "primary", "main") else cid
+        cal = next((c for c in self.calendars() if c["id"] == cid), None)
+        if cal is None:
+            raise GoogleError("forbidden", "I can't find that calendar in your list, sir.", f"calendar {cid[:60]} not in calendarList")
+        if cal["role"] not in WRITABLE_ROLES:
+            raise GoogleError("readonly", f"{cal['name']} is a subscribed, read-only calendar, sir, so I can't change it there. "
+                              "It has to change at its source." if "import.calendar.google.com" in cid or cal["role"] == "reader"
+                              else f"You only have view access to {cal['name']}, sir, so I can't change it.",
+                              f"calendar {cal['name']!r} access role {cal['role']!r}")
+        assignments = secrets.get("google", "assignments_calendar")
+        if not cal["primary"] and cid != assignments:
+            raise GoogleError("forbidden", f"I only edit your main calendar, sir, not {cal['name']}.",
+                              f"calendar {cal['name']!r} is not the main calendar")
+        return cid, cal["name"]
+
+    def get(self, cid, eid):
+        cid, _ = self.check(cid)
+        return self._call(self.svc.events().get(calendarId=cid, eventId=eid))
+
+    def create(self, cid, body):
+        cid, _ = self.check(cid)
+        made = self._call(self.svc.events().insert(calendarId=cid, body=body))
+        self.db.log_calendar(self.batch, cid, made["id"], "create", made.get("summary", ""), None,
+                             event_fields(made), self.source, self.link)
+        self.wrote += 1
+        return made
+
+    def update(self, cid, eid, changes, extra=None):
+        """Patch only `changes` (EVENT_FIELDS). extra: fields sent but not undone (eventLabelId).
+        → the event after, or None if nothing differed."""
+        cid, _ = self.check(cid)
+        cur = self._call(self.svc.events().get(calendarId=cid, eventId=eid))
+        if cur.get("status") == "cancelled":
+            raise GoogleError("http", "That event has been deleted, sir.", f"event {eid} is cancelled")
+        diff = {f: v for f, v in changes.items() if cur.get(f) != v}
+        if not diff:
+            return None
+        body = dict(diff, **{k: v for k, v in (extra or {}).items() if cur.get(k) != v})
+        try:
+            after = self._call(self.svc.events().patch(calendarId=cid, eventId=eid, body=body))
+        except GoogleError as e:
+            if not extra or e.kind != "http":
+                raise
+            after = self._call(self.svc.events().patch(calendarId=cid, eventId=eid, body=diff))
+        before = {f: cur.get(f) for f in diff}
+        self.db.log_calendar(self.batch, cid, eid, "update", after.get("summary", ""), before,
+                             {f: after.get(f) for f in diff}, self.source, self.link)
+        self.wrote += 1
+        return after
+
+    def delete(self, cid, eid):
+        cid, _ = self.check(cid)
+        cur = self._call(self.svc.events().get(calendarId=cid, eventId=eid))
+        if cur.get("status") == "cancelled":
+            return False
+        self._call(self.svc.events().delete(calendarId=cid, eventId=eid))
+        self.db.log_calendar(self.batch, cid, eid, "delete", cur.get("summary", ""), cur, None, self.source, self.link)
+        self.wrote += 1
+        return True
+
+    def undo(self, link=None):
+        """Revert the newest batch not undone (or the one that followed tracker batch `link`) if every
+        event still looks the way Jarvis left it. → (ok, message)."""
+        writes = self.db.last_calendar_batch(link)
+        if not writes:
+            return (True, "") if link else (False, "Nothing to undo on the calendar.")
+        plan = []
+        for w in writes:                                    # newest first
+            cur = None
+            try:
+                cur = self._call(self.svc.events().get(calendarId=w["calendar"], eventId=w["event"]))
+            except GoogleError as e:
+                if w["kind"] != "delete" or e.kind != "http":
+                    raise
+            gone = cur is None or cur.get("status") == "cancelled"
+            if w["kind"] == "delete":
+                if not gone:
+                    return False, f"{w['summary']} is back on the calendar already; not undoing."
+            elif gone:
+                return False, f"{w['summary']} has been deleted since Jarvis wrote it; not undoing."
+            elif any(cur.get(f) != v for f, v in (w["new"] or {}).items()):
+                return False, f"{w['summary']} has changed since Jarvis wrote it; not undoing."
+            plan.append((w, cur))
+        undo_batch = __import__("uuid").uuid4().hex[:12]
+        done = []
+        for w, cur in plan:
+            if w["kind"] == "create":
+                self._call(self.svc.events().delete(calendarId=w["calendar"], eventId=w["event"]))
+                self.db.log_calendar(undo_batch, w["calendar"], w["event"], "delete", w["summary"], w["new"], None, "undo")
+                done.append(f"removed {w['summary']}")
+            elif w["kind"] == "update":
+                self._call(self.svc.events().patch(calendarId=w["calendar"], eventId=w["event"], body=w["old"]))
+                self.db.log_calendar(undo_batch, w["calendar"], w["event"], "update", w["summary"], w["new"], w["old"], "undo")
+                done.append(f"put back {w['summary']}")
+            else:
+                try:                                        # a deleted event lingers as cancelled: un-cancel it
+                    self._call(self.svc.events().patch(calendarId=w["calendar"], eventId=w["event"],
+                                                       body={"status": "confirmed"}))
+                    eid = w["event"]
+                except GoogleError:
+                    body = {k: v for k, v in w["old"].items() if k not in ("id", "etag", "iCalUID", "htmlLink", "created",
+                                                                           "updated", "creator", "organizer", "sequence", "status")}
+                    eid = self._call(self.svc.events().insert(calendarId=w["calendar"], body=body))["id"]
+                self.db.log_calendar(undo_batch, w["calendar"], eid, "create", w["summary"], None,
+                                     event_fields(w["old"]), "undo")
+                done.append(f"restored {w['summary']}")
+        self.db.mark_calendar_undone(writes[0]["batch"])
+        return True, "Undid on the calendar: " + "; ".join(done)
+
+
+def calendar_cli(argv):
+    """jarvis calendar log [N] | undo"""
+    from datetime import datetime as _dt
+    import jarvis_db as db
+    cmd, rest = (argv[0] if argv else "log"), argv[1:]
+    if cmd == "log":
+        for w in reversed(db.calendar_writes(int(rest[0]) if rest else 20)):
+            ts = _dt.fromtimestamp(w["ts"]).strftime("%m-%d %H:%M")
+            when = lambda f: (f or {}).get("start", {}).get("date") or (f or {}).get("start", {}).get("dateTime", "")[:16]
+            moved = f"  {when(w['old'])} → {when(w['new'])}" if w["kind"] == "update" and "start" in (w["new"] or {}) else ""
+            flag = " (undone)" if w["undone"] else ""
+            print(f"{ts}  {w['batch']}  {w['source']:<8} {w['kind']:<6} {w['summary'][:60]:<60}{moved}{flag}"
+                  + (f"  [tracker {w['link']}]" if w["link"] else ""))
+        return 0
+    if cmd == "undo":
+        try:
+            ok, msg = CalendarWriter("undo").undo()
+        except GoogleError as e:
+            print(f"{e.say}\n  ({e.kind}: {e.detail})")
+            return 1
+        print(msg)
+        return 0 if ok else 1
+    print("usage: jarvis calendar log [N] | undo")
+    return 2

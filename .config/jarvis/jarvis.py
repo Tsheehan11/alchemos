@@ -36,6 +36,8 @@ JARVIS app (Super + J, quickshell/JarvisApp.qml; core/appserver.py, conversation
 
 SE tracker sheet (mcp/tracker.py, docs/jarvis-app.md):
   jarvis tracker find [ID] | show | pending [DAYS] | diff | log [N] | undo
+Calendar writes (mcp/google_api.CalendarWriter):
+  jarvis calendar log [N] | undo
 
 Local router (intents.json, tools/eval_router.py):
   jarvis intents [list | log [N] | review | remove N…]   learned examples, recent decisions
@@ -69,6 +71,10 @@ if __name__ == "__main__" and sys.argv[1:2] == ["tracker"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     import tracker                         # find / show / pending / diff / log / undo: no models needed
     sys.exit(tracker.cli(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["calendar"]:
+    sys.path.insert(0, str(JARVIS_DIR / "mcp"))
+    import google_api                      # log / undo of Jarvis's calendar writes
+    sys.exit(google_api.calendar_cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -772,8 +778,21 @@ class VoiceLoop:
             log("JARVIS: tracker offer declined")
             hud.idle()
             return
+        if offer.get("calendar"):                # a sheet change AUTO-UPDATE made: its event, now he said yes
+            try:
+                import sheet_calendar
+                cal, did = sheet_calendar.SheetCalendar(), []
+                for before, after in offer["calendar"]:
+                    did += cal.follow(tracker.row_from_json(before), tracker.row_from_json(after))["did"]
+            except Exception as e:
+                log(f"JARVIS: calendar follow failed: {type(e).__name__}: {e}")
+                self.fail("tool", getattr(e, "say", None) or "I couldn't reach your calendar, sir.")
+                return
+            self.say(f"Done, sir: I {' and '.join(did)}." if did else "Its calendar event was already right, sir.")
+            return
         try:
-            res = tracker.Tracker().apply(offer["changes"], offer["source"])
+            t = tracker.Tracker()
+            res = t.apply(offer["changes"], offer["source"], calendar=True)
         except Exception as e:
             log(f"JARVIS: tracker write failed: {type(e).__name__}: {e}")
             self.fail("tool", "I couldn't reach your tracker, sir.")
@@ -781,7 +800,10 @@ class VoiceLoop:
         bad = [r for r in res if not r["ok"]]
         for r in bad:
             log(f"JARVIS: tracker: {r['error']}")
-        self.say(bad[0]["say"] if bad else "Done, sir. It's in your tracker.")
+        for n in t.calendar_report["notes"]:
+            log(f"JARVIS: tracker calendar: {n}")
+        did = t.calendar_report["did"]
+        self.say(bad[0]["say"] if bad else "Done, sir. It's in your tracker" + (f", and I {' and '.join(did)}." if did else "."))
 
     def _sync_loop(self):
         """Every SYNC_S while docked (this process only runs docked): the Outlook calendar link, the LEARN

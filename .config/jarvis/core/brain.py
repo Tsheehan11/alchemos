@@ -88,15 +88,51 @@ FIRST_REPLY_S = 12        # nothing at all back from Claude by then (no text, no
 SENTENCE_END = re.compile(r"(?<=[.!?])[\"')\]]?\s+(?=[\"'(\[]?[A-Z0-9])")
 
 
+# Writes that ask every time, whatever auto_write and the AUTO settings say: his main calendar and
+# anything that deletes (AUTO-ADD only ever covers calendar_add_assignment's own STARK – Assignments).
+ALWAYS_ASK = {"calendar_create_event", "calendar_update_event", "calendar_delete_event", "tracker_remove",
+              "tracker_update", "tracker_add"}
+
+
+def _spoken_when(text):
+    t = str(text or "").strip()
+    try:
+        d = datetime.fromisoformat(t)
+    except ValueError:
+        return t
+    n = d.day
+    day = d.strftime(f"%A, %B {n}")
+    if len(t) == 10:
+        return day
+    return f"{day} at " + (d.strftime("%-I:%M %p").replace(":00 ", " ") if not (d.hour == 12 and d.minute == 0) else "noon")
+
+
 def integration_prompt(name, tool, args):
     """Spoken question before an integration write (shown on the HUD too)."""
+    if tool == "calendar_create_event":
+        return f"Add {args.get('title') or 'that event'} to your calendar on {_spoken_when(args.get('start'))}, sir?"
+    if tool == "calendar_update_event":
+        what = args.get("current_title") or "that event"
+        parts = []
+        if args.get("start"):
+            parts.append(f"move it to {_spoken_when(args['start'])}")
+        if args.get("new_title"):
+            parts.append(f"rename it {args['new_title']}")
+        if args.get("location"):
+            parts.append(f"set its place to {args['location']}")
+        return f"Change {what} on your calendar: {' and '.join(parts) or 'update it'}, sir?"
+    if tool == "calendar_delete_event":
+        return f"Delete {args.get('current_title') or 'that event'} from your calendar, sir?"
+    if tool == "tracker_remove":
+        what = " ".join(str(args.get(k, "")) for k in ("course", "assignment")).strip() or "that assignment"
+        return f"Remove {what} from your tracker and delete its calendar event, sir?"
     if tool == "calendar_add_assignment":
         what = " ".join(str(args.get(k, "")) for k in ("course", "title")).strip() or "that assignment"
         return f"Add {what} to your STARK assignments calendar, sir?"
     if tool in ("tracker_update", "tracker_add"):
         what = " ".join(str(args.get(k, "")) for k in ("course", "assignment")).strip() or "that assignment"
         if tool == "tracker_add":
-            return f"Add {what} to your tracker, due {args.get('due') or 'with no date'}, sir?"
+            return f"Add {what} to your tracker and calendar, due {args.get('due') or 'with no date'}, sir?"
         parts = []
         if args.get("status"):
             parts.append(f"mark {what} {str(args['status']).lower()}")
@@ -104,7 +140,8 @@ def integration_prompt(name, tool, args):
             parts.append(f"set {'its' if parts else what + chr(39) + 's'} grade to {args['grade']:g}")
         if args.get("due"):
             parts.append(f"move {'it' if parts else what} to {args['due']}")
-        return f"Shall I {' and '.join(parts) or 'change ' + what} in your tracker, sir?"
+        where = "tracker and calendar" if args.get("status") or args.get("due") else "tracker"
+        return f"Shall I {' and '.join(parts) or 'change ' + what} in your {where}, sir?"
     return f"Shall I {tool.replace('_', ' ')} in {name}, sir?"
 
 
@@ -298,7 +335,7 @@ class Brain:
             # Reads run freely. A write needs his spoken yes, unless its auto_write setting is on and
             # nothing untrusted has been read in this request.
             setting = pol["auto_write"].get(tool)
-            auto = bool(setting) and bool(self.cfg[setting]) and not req["tainted"]
+            auto = bool(setting) and bool(self.cfg[setting]) and not req["tainted"] and tool not in ALWAYS_ASK
             prompt = integration_prompt(pol["name"], tool, args) if write and not auto else None
         else:
             prompt = None if tool in pol["auto_allow"] else f"Shall I use {server} to {tool.replace('_', ' ')}, sir?"

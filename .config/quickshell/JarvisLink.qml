@@ -29,9 +29,12 @@ Singleton {
     property var usage: ({})
     property string mode: "ASK"           // ASK = a request now · TASK = a background task
 
+    property string screenName: ""        // the monitor it opened on ("" = the focused one)
+
     function toggle() { if (root.open) root.open = false; else show(); }
-    function show() {
+    function show(screen) {
         LauncherState.closeAll();
+        root.screenName = screen || "";
         root.open = true;
         refresh();
     }
