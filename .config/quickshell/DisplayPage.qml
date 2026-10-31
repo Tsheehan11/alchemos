@@ -149,7 +149,14 @@ Column {
 
     // What a screen shows (Roles.qml), by its description so it works for screens that are off too
     function descFor(name) { const m = dp.mons.find(x => x.name === name); return m ? m.description : ""; }
-    function pickFor(name) { return Roles.pickOf(dp.descFor(name)); }
+    // The laptop has a second pick for when it's on its own (Roles.keyOf): "<desc>@solo"
+    function keyFor(name) { const d = dp.descFor(name); return d && name === dp.laptop && !Roles.docked ? d + "@solo" : d; }
+    function pickFor(name) { return Roles.pickOf(dp.keyFor(name)); }
+    function roleRows(name) {
+        const d = dp.descFor(name);
+        if (name !== dp.laptop) return [{ label: "", key: d, now: true }];
+        return [{ label: "DOCKED", key: d, now: Roles.docked }, { label: "UNDOCKED", key: d + "@solo", now: !Roles.docked }];
+    }
     function showsFor(name) {
         const s = Quickshell.screens.find(x => x.name === name);
         const p = dp.pickFor(name);
@@ -286,15 +293,27 @@ Column {
         }
         // What this screen's HUD shows: live, no APPLY / KEEP
         Text { text: "HUD ON THIS SCREEN  ·  APPLIES NOW"; color: Theme.dim; font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 3 }
-        Row {
-            spacing: 8
-            Repeater {
-                model: Roles.picks
-                delegate: SmallButton {
-                    required property var modelData
-                    text: modelData.toUpperCase()
-                    active: dp.pickFor(dp.selName) === modelData
-                    onClicked: Roles.setDesc(dp.descFor(dp.selName), modelData)
+        Repeater {
+            model: dp.roleRows(dp.selName)
+            delegate: Row {
+                id: roleRow
+                required property var modelData
+                spacing: 8
+                Text {
+                    visible: roleRow.modelData.label !== ""
+                    width: 150; anchors.verticalCenter: parent.verticalCenter
+                    text: roleRow.modelData.label + (roleRow.modelData.now ? "  · NOW" : "")
+                    color: roleRow.modelData.now ? Theme.primary : Theme.dim
+                    font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 2
+                }
+                Repeater {
+                    model: Roles.picks
+                    delegate: SmallButton {
+                        required property var modelData
+                        text: modelData.toUpperCase()
+                        active: Roles.pickOf(roleRow.modelData.key) === modelData
+                        onClicked: Roles.setDesc(roleRow.modelData.key, modelData)
+                    }
                 }
             }
         }
@@ -305,6 +324,7 @@ Column {
                 + (dp.pickFor(dp.selName) === "auto"
                    ? "AUTO (◇) goes by position: left monitor CLOCK, middle STATS, laptop MUSIC, others NONE. Showing " + dp.showsFor(dp.selName).toUpperCase() + " now. "
                    : "Saved for this monitor wherever it's plugged in. ")
+                + (dp.selName === dp.laptop ? "UNDOCKED is the laptop on its own (AUTO = CLOCK). " : "")
                 + "Workspaces stay put."
         }
         Toggle {

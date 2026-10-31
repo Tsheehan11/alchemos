@@ -12,7 +12,9 @@ pragma Singleton
 // What a screen SHOWS is separate (shows(): clock / stats / music / none), picked per
 // physical monitor in Settings → Display or with Super+Shift+V and saved in
 // Theme.cfg.screenRoles by Hyprland description. AUTO = by position, as above (other
-// screens: nothing). Picking never moves workspaces: those follow role() only.
+// screens: nothing). Undocked, the laptop has its own pick under "<desc>@solo" (AUTO =
+// clock), so the docked laptop's pick doesn't follow it. Picking never moves workspaces:
+// those follow role() only.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -54,7 +56,12 @@ Singleton {
         const p = desc ? (Theme.cfg.screenRoles || {})[desc] : undefined;
         return root.picks.indexOf(p) >= 0 ? p : "auto";
     }
-    function pick(screen) { return pickOf(descOf(screen)); }
+    // The key the pick is saved under: the description, or "<desc>@solo" for the laptop on its own
+    function keyOf(screen) {
+        const d = descOf(screen);
+        return d && screen.name === root.laptopName && !root.docked ? d + "@solo" : d;
+    }
+    function pick(screen) { return pickOf(keyOf(screen)); }
     // What the screen shows right now; a mirrored screen goes by its source
     function shows(screen) {
         if (!screen || !root.ready) return "none";
@@ -92,13 +99,13 @@ Singleton {
         const exact = all.filter(s => s.name.toLowerCase() === t || descOf(s).toLowerCase() === t);
         return exact.length ? exact : all.filter(s => descOf(s).toLowerCase().indexOf(t) >= 0);
     }
-    function entry(s) { return { name: s.name, desc: descOf(s), pick: pick(s), shows: shows(s), slot: role(s) }; }
+    function entry(s) { return { name: s.name, desc: descOf(s), key: keyOf(s), pick: pick(s), shows: shows(s), slot: role(s) }; }
     function setFor(q, p) {
         p = String(p || "").trim().toLowerCase();
         if (root.picks.indexOf(p) < 0) return { ok: false, error: "role must be one of: " + root.picks.join(", ") };
         const list = targets(q);
         if (!list.length) return { ok: false, error: String(q).toLowerCase() === "tv" ? "no TV connected" : "no screen matches " + q };
-        for (const s of list) setDesc(descOf(s), p);
+        for (const s of list) setDesc(keyOf(s), p);
         return { ok: true, set: list.map(entry) };
     }
     function status() {
@@ -109,7 +116,7 @@ Singleton {
         const s = targets("current")[0];
         if (!s || !descOf(s)) return { ok: false, error: "no focused screen" };
         const p = root.picks[(root.picks.indexOf(pick(s)) + 1) % root.picks.length];
-        setDesc(descOf(s), p);
+        setDesc(keyOf(s), p);
         OsdState.role(s.name, p === "auto" ? "AUTO · " + label(root.autoShows[role(s)]) : label(p));
         return { ok: true, set: [entry(s)] };
     }
