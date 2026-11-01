@@ -132,6 +132,8 @@ PanelWindow {
                 color: VPN.blocked ? "#ff5f5f" : VPN.busy ? Theme.secondary : bar.cyan
                 font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2
             }
+            // Hyprland 0.57 (the unplug-crash fix) out or installed: HyprFix.qml
+            Text { visible: bar.isMain && HyprFix.pending; text: HyprFix.label; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
             Text { visible: PowerMode.saver; text: "SAVER"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
             Text { visible: Peek.active; text: "PEEK"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
             Text {

@@ -7,6 +7,9 @@
 #   5. if the fingerprint reader is stuck, resets it (stark-fprint-reset, asks for sudo)
 # Then switch back to Hyprland with Ctrl+Alt+F2.
 #
+# stark-rescue status: is the Hyprland unplug-crash fix (0.57) out / installed / running,
+# and is the HUD's hotplug settle gate idle. Changes nothing.
+#
 # stark-rescue config: when ~/.config/hypr/hyprland.lua won't load (red error bar, only the
 # emergency binds: Super+Q terminal, Super+R run, Super+M exit). Prints Hyprland's config
 # errors; with no Hyprland running (log out first: Super+Shift+M, Super+M in emergency mode,
@@ -19,13 +22,41 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$uid}"
 say() { printf ':: %s\n' "$*"; }
 backup="$HOME/.config/hypr.conf-backup/hyprland.conf"
 
+# The instance that answers, newest first: a crashed Hyprland (or a nested test one) leaves
+# its folder and socket file behind in $XDG_RUNTIME_DIR/hypr until reboot.
 find_hyprland() {
     sig=""
-    for d in "$XDG_RUNTIME_DIR"/hypr/*/; do
-        [ -S "$d.socket.sock" ] && sig=$(basename "$d")
+    for d in $(ls -1dt "$XDG_RUNTIME_DIR"/hypr/*/ 2>/dev/null); do
+        [ -S "$d.socket.sock" ] || continue
+        s=$(basename "$d")
+        HYPRLAND_INSTANCE_SIGNATURE=$s timeout 2 hyprctl version >/dev/null 2>&1 && { sig=$s; break; }
     done
     [ -n "$sig" ] && export HYPRLAND_INSTANCE_SIGNATURE="$sig"
 }
+
+if [ "${1:-}" = status ]; then
+    # Read-only: the Hyprland fix (stark-hypr-check) and the HUD's hotplug settle gate
+    find_hyprland
+    r=$("$HOME/.config/hypr/stark-hypr-check" --sync)
+    case "$r" in
+        state=waiting*)   say "Hyprland: waiting for 0.57 (unplug-crash fix) in the repos; the settle gate covers it" ;;
+        state=available*) say "Hyprland: 0.57 is in the repos (fixes the unplug crash): sudo pacman -Syu, then log out and back in" ;;
+        state=installed*) say "Hyprland: 0.57 is installed but not running yet: log out and back in" ;;
+        state=running*)   say "Hyprland: running the fixed version; the settle gate stays on anyway" ;;
+    esac
+    say "  $r"
+    settle="$XDG_RUNTIME_DIR/stark-hotplug-settling"
+    if [ -f "$settle" ]; then
+        say "settle gate: screens settling (flag $(( $(date +%s) - $(stat -c %Y "$settle") )) s old; stale after 10 s)"
+    else
+        say "settle gate: idle"
+    fi
+    if [ -n "$sig" ] && n=$(timeout 3 hyprctl clients -j 2>/dev/null | jq '[.[] | select(.monitor < 0)] | length'); then
+        [ "$n" -gt 0 ] && say "windows on no monitor: $n (Super+Tab is unsafe until the gate re-homes them)" \
+                       || say "windows on no monitor: none"
+    fi
+    exit 0
+fi
 
 if [ "${1:-}" = config ]; then
     find_hyprland

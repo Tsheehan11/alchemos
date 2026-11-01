@@ -1,0 +1,46 @@
+#!/bin/sh
+# Has CachyOS shipped the Hyprland that fixes the unplug crash yet?
+#
+# Hyprland 0.56.2 segfaults when something captures a window that lost its monitor
+# (unplugging the screen the others mirror; crashes of 2026-10-31 and 2026-11-01). Fixed
+# upstream in 0.57.0 (212902547 "screenshare: fix potential crash on stale monitors").
+# The HUD's settle gate (quickshell/Hotplug.qml) works around it, and STAYS after the
+# upgrade: this only reports.
+#
+# Prints one line:  state=<s> repo=<ver> installed=<ver> running=<ver>
+#   waiting    the repos still ship < 0.57
+#   available  the repos ship >= 0.57, not installed yet: sudo pacman -Syu
+#   installed  installed, but the running Hyprland is older: log out and back in
+#   running    the fixed Hyprland is running
+# With --sync it refreshes a private copy of the package databases first (checkupdates'
+# fakeroot sync: no root, needs the network); without, it reads the last sync (or the
+# system's). The last result is kept in ~/.cache/stark/hypr-check for the HUD's bar.
+set -u
+want=0.57.0
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/stark"
+db="$cache/hypr-db"
+mkdir -p "$cache"
+
+if [ "${1:-}" = --sync ]; then
+    CHECKUPDATES_DB="$db/" checkupdates >/dev/null 2>&1   # exit 2 = nothing to update; fine
+fi
+dbarg=""
+[ -d "$db/sync" ] && dbarg="--dbpath $db"
+
+# Highest version across the repos that carry it (cachyos-extra-v3, extra, ...)
+repo=""
+for v in $(pacman -Si $dbarg hyprland 2>/dev/null | awk '/^Version/ {print $3}'); do
+    [ -z "$repo" ] || [ "$(vercmp "$v" "$repo")" -gt 0 ] && repo=$v
+done
+installed=$(pacman -Q hyprland 2>/dev/null | awk '{print $2}')
+running=$(timeout 3 hyprctl version -j 2>/dev/null | jq -r '.tag // empty' 2>/dev/null | sed 's/^v//')
+
+ge() { [ -n "$1" ] && [ "$(vercmp "${1%-*}" "$want")" -ge 0 ]; }
+if ge "$running"; then state=running
+elif ge "$installed"; then state=installed
+elif ge "$repo"; then state=available
+else state=waiting
+fi
+
+line="state=$state repo=${repo:-?} installed=${installed:-?} running=${running:-?}"
+printf '%s\n' "$line" | tee "$cache/hypr-check.tmp" && mv -f "$cache/hypr-check.tmp" "$cache/hypr-check"
