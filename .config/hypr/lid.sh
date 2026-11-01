@@ -5,9 +5,19 @@
 # right order without waiting for logind, and suspends itself when logind ignores the lid:
 # for HoldoffTimeoutSec (5 s, logind.conf.d/stark.conf) after waking.
 
+# Screens still coming or going (the HUD's settle gate, Hotplug.qml: a TV unplugged a
+# moment ago)? Decide "docked" only once they've settled, about 2 s at most. A flag older
+# than 10 s is stale (a crashed HUD).
+settle="${XDG_RUNTIME_DIR:-/tmp}/stark-hotplug-settling"
+for _ in $(seq 40); do      # ~2.2 s with the date/stat calls
+    [ -f "$settle" ] && [ $(( $(date +%s) - $(stat -c %Y "$settle" 2>/dev/null || echo 0) )) -lt 10 ] || break
+    sleep 0.05
+done
+
 # Docked (an external monitor connected)? Closing the lid shouldn't sleep (logind's
-# HandleLidSwitchDocked=ignore agrees).
-[ "$(hyprctl monitors -j | jq length)" -gt 1 ] && exit 0
+# HandleLidSwitchDocked=ignore agrees). `monitors all`, enabled ones: plain `monitors`
+# leaves out a screen that mirrors another, so the TV mirror profile counted as 1.
+[ "$(hyprctl monitors all -j | jq '[.[] | select(.disabled | not)] | length')" -gt 1 ] && exit 0
 
 lid_closed() { grep -qs closed /proc/acpi/button/lid/*/state; }
 sleeping() {

@@ -72,7 +72,21 @@ Singleton {
         if (forceApply) root.force = true;
         settle.restart();
     }
-    Timer { id: settle; interval: 2500; onTriggered: detect.running = true }
+    // Detect only once the screens have settled (Hotplug.qml: orphaned windows re-homed),
+    // so a profile is never applied to screens that are still coming or going
+    property bool detectAfterSettle: false
+    Timer {
+        id: settle; interval: 2500
+        onTriggered: { if (Hotplug.settling) root.detectAfterSettle = true; else detect.running = true; }
+    }
+    Connections {
+        target: Hotplug
+        function onSettled() {
+            if (!root.detectAfterSettle || settle.running) return;
+            root.detectAfterSettle = false;
+            detect.running = true;
+        }
+    }
     Component.onCompleted: settle.restart()
 
     Connections {

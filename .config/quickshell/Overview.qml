@@ -216,10 +216,12 @@ PanelWindow {
                                 }
                             }
                         }
-                        // Live preview (captured once when the overview opens)
+                        // Live preview (captured once when the overview opens). Never for a
+                        // window on no monitor or while screens settle (OverviewData.capturable):
+                        // that capture segfaults Hyprland 0.56.2. The fallback tile shows instead.
                         ScreencopyView {
                             anchors.fill: parent
-                            captureSource: ov.visible ? OverviewData.toplevelFor(modelData.address) : null
+                            captureSource: ov.visible && OverviewData.capturable(modelData) ? OverviewData.toplevelFor(modelData.address) : null
                             live: false
                             opacity: 0.92
                         }

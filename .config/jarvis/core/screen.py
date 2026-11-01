@@ -22,6 +22,7 @@ import os
 import re
 import stat
 import subprocess
+import time
 import zlib
 from pathlib import Path
 
@@ -69,6 +70,28 @@ def active_window():
 def locked():
     """The session is locked (hyprlock up): nothing may be captured."""
     return subprocess.run(["pgrep", "-x", "hyprlock"], capture_output=True).returncode == 0
+
+
+# The HUD's hotplug settle gate (quickshell/Hotplug.qml): while screens come or go, this flag is
+# fresh (touched every 4 s; older than 10 s = stale). Windows can be left on no monitor at all
+# then (hyprctl clients: "monitor": -1), and Hyprland 0.56.2 segfaults when one of those is
+# captured through the toplevel export, so nothing is captured while it's up.
+SETTLE_FLAG = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "stark-hotplug-settling")
+
+
+def settling():
+    try:
+        return time.time() - os.stat(SETTLE_FLAG).st_mtime < 10
+    except OSError:
+        return False
+
+
+def hud_log(msg):
+    """One line in the journal under the HUD's tag (journalctl --user -t stark-hud)."""
+    try:
+        subprocess.run(["logger", "-t", "stark-hud", msg[:900]], timeout=2)
+    except Exception:
+        pass
 
 
 def blocklist(cfg=None):
@@ -250,6 +273,13 @@ def capture_window(win, cfg=None):
     why = excluded(now, cfg)
     if why:
         raise ScreenError(f"I won't read that one, sir: {why}")
+    if settling():
+        hud_log(f"jarvis: capture skipped for {now.get('class') or '?'} (workspace {now['workspace']['name']}): screens still settling")
+        raise ScreenError("the screens are still changing, sir; give me a moment")
+    if now.get("monitor", -1) not in {m["id"] for m in monitors()}:
+        hud_log(f"jarvis: capture skipped for {now.get('class') or '?'} (workspace {now['workspace']['name']}): "
+                f"on no monitor (monitor {now.get('monitor')})")
+        raise ScreenError("that window is between screens right now, sir")
     try:
         return wlcap.capture_window(now["address"]), "export"
     except wlcap.CaptureError as e:
@@ -264,6 +294,9 @@ def capture_monitor(mon, cfg=None):
     """The monitor's picture with every never-read window on it blacked out."""
     if locked():
         raise ScreenError("the screen is locked, sir")
+    if settling():
+        hud_log(f"jarvis: capture skipped for monitor {mon['name']}: screens still settling")
+        raise ScreenError("the screens are still changing, sir; give me a moment")
     img = _grim(["-o", mon["name"]])
     scale = mon.get("scale", 1) or 1
     lw, lh = mon["width"] / scale, mon["height"] / scale            # hyprctl sizes are pixels; window coords are logical

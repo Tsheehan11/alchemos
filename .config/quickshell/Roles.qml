@@ -152,7 +152,14 @@ Singleton {
     }
 
     // After docking, send workspaces back to their home screens
+    // Not while the screens are still changing (Hotplug.qml): once they've settled
+    property bool arrangeAfterSettle: false
+    Connections {
+        target: Hotplug
+        function onSettled() { if (root.arrangeAfterSettle) { root.arrangeAfterSettle = false; root.arrangeWorkspaces(); } }
+    }
     function arrangeWorkspaces() {
+        if (Hotplug.settling) { root.arrangeAfterSettle = true; return; }
         if (!root.docked) return;
         const homes = {};
         homes[1] = homes[2] = homes[3] = root.externals[0].name;

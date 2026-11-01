@@ -27,6 +27,16 @@ if ! flock -n 9 || pidof hyprlock >/dev/null; then
     pidof hyprlock >/dev/null && { pkill -KILL -x hyprlock; sleep 0.2; }
 fi
 
+# Screens still coming or going (a TV just unplugged; the HUD's settle gate, Hotplug.qml)?
+# Wait for them, about 2 s at most, so hyprlock never starts on outputs that are changing (it
+# crashes on an output change mid-lock). A flag older than 10 s is stale (a crashed HUD).
+# logind gives a lid / before-sleep lock 5 s (InhibitDelayMaxSec), so this still fits.
+settle="${XDG_RUNTIME_DIR:-/tmp}/stark-hotplug-settling"
+for _ in $(seq 40); do      # ~2.2 s with the date/stat calls
+    [ -f "$settle" ] && [ $(( $(date +%s) - $(stat -c %Y "$settle" 2>/dev/null || echo 0) )) -lt 10 ] || break
+    sleep 0.05
+done
+
 # Snap the HUD doors shut and let them reach the screen before hyprlock starts. Once the
 # session is locked, Hyprland draws only black under hyprlock, and a lid lock is followed
 # at once by the freeze for suspend, so doors that weren't on screen by then showed as

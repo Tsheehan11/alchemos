@@ -7,7 +7,7 @@ hl.env("QT_QPA_PLATFORM", "wayland")
 hl.on("hyprland.start", function()
     hl.exec_cmd("hypridle")
     hl.exec_cmd("/usr/lib/polkit-kde-authentication-agent-1")
-    hl.exec_cmd("qs")
+    hl.exec_cmd("~/.config/hypr/stark-hud.sh")   -- qs with log rules + log cap
     hl.exec_cmd("spotify-launcher")   -- rules.lua parks it on special:music
     -- Portals (xdg-desktop-portal-hyprland, screen sharing) need the session's Wayland env
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")

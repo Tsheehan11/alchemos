@@ -63,7 +63,7 @@ Singleton {
     function toggleOverview() {
         if (root.overviewOpen) { root.overviewOpen = false; return; }
         root.open = false; root.searchOpen = false; root.controlOpen = false; root.settingsOpen = false;
-        OverviewData.refresh();
+        OverviewData.refresh(true);  // also logs the opening (journal, stark-hud)
         overviewDelay.restart();     // give the window snapshot a moment to arrive
     }
     Timer { id: overviewDelay; interval: 60; onTriggered: root.overviewOpen = true }

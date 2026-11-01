@@ -90,8 +90,13 @@ Singleton {
 
     // ── Keep the layout mode in force as monitors come and go ──
     // Not while a profile switch is settling: the old profile's mode (say, mirror for the
-    // TV) must not be applied to the new screens.
-    function enforce() { if (!Profiles.settling) probe.running = true; }
+    // TV) must not be applied to the new screens. Nor while the screens themselves are
+    // still changing (Hotplug.qml): it runs again once they've settled.
+    function enforce() { if (!Profiles.settling && !Hotplug.settling) probe.running = true; }
+    Connections {
+        target: Hotplug
+        function onSettled() { root.enforce(); }
+    }
 
     // Never reload more than once every 20 s, so a monitor that won't take a
     // setting can't put Hyprland into a reload loop (which freezes apps)

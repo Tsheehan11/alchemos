@@ -11,8 +11,14 @@ Singleton {
     property var monitors: []
     property var workspaces: []
     property var clients: []
+    // The snapshot is from this opening (previews only capture from a fresh one)
+    property bool ready: false
+    property bool opening: false
 
-    function refresh() { proc.running = true; }
+    function refresh(open) {
+        if (open) { root.ready = false; root.opening = true; }
+        proc.running = true;
+    }
 
     Process {
         id: proc
@@ -24,9 +30,32 @@ Singleton {
                     root.monitors = JSON.parse(p[0]);
                     root.workspaces = JSON.parse(p[1]);
                     root.clients = JSON.parse(p[2]);
+                    root.ready = true;
                 } catch (e) {}
+                if (root.opening) { root.opening = false; root.logOpen(); }
             }
         }
+    }
+
+    // A preview captures the window through Hyprland's toplevel export, which segfaults
+    // Hyprland 0.56.2 for a window on no monitor (Hotplug.qml). Only windows on a live
+    // monitor, and nothing while the screens are still changing.
+    function capturable(c) {
+        return !!c && root.ready && !Hotplug.settling && root.monitors.some(m => m.id === c.monitor);
+    }
+    function logOpen() {
+        const skipped = root.clients.filter(c => c.mapped !== false && !root.monitors.some(m => m.id === c.monitor))
+                                    .map(c => (c.class || "?") + " (monitor " + c.monitor + ", workspace " + (c.workspace ? c.workspace.name : "?") + ")");
+        let msg = "overview opened on " + root.monitors.map(m => m.name).join(", ");
+        if (!root.ready) msg += "; no window snapshot, previews skipped";
+        else if (Hotplug.settling) msg += "; screens still settling, previews skipped until they have";
+        if (skipped.length) msg += "; capture skipped for windows on no monitor: " + skipped.join(", ");
+        Hotplug.log(msg);
+    }
+    // Screens settled while the overview is open: fresh snapshot, then the previews
+    Connections {
+        target: Hotplug
+        function onSettled() { if (LauncherState.overviewOpen) root.refresh(false); }
     }
 
     function monitorByName(n) { return root.monitors.find(m => m.name === n) || null; }

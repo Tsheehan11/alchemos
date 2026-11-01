@@ -30,7 +30,16 @@ Singleton {
     function run(call) { Quickshell.execDetached(Hypr.luaEval("require(\"stark.peek\")." + call)); }
     function toggle() { run("toggle()"); }
     function restore(id) { run("restore(" + Number(id) + ")"); }
-    function restoreAll() { run("restore_all()"); }
+    // While the screens are still changing (Hotplug.qml), wait until they've settled
+    property bool restoreAfterSettle: false
+    function restoreAll() {
+        if (Hotplug.settling) { root.restoreAfterSettle = true; return; }
+        run("restore_all()");
+    }
+    Connections {
+        target: Hotplug
+        function onSettled() { if (root.restoreAfterSettle) { root.restoreAfterSettle = false; root.run("restore_all()"); } }
+    }
     function go(id) { run("go(" + Number(id) + ")"); }   // overview: restore, then switch there
 
     Connections {

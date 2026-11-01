@@ -86,6 +86,41 @@ check("whole words: 'bmo' doesn't hit 'submodule'", S.excluded({"class": "kitty"
 check("password managers hard-excluded", S.excluded({"class": "Bitwarden", "title": "Vault"}, {"jarvisCaptureBlocklist": []}) != "", True)
 check("hyprlock hard-excluded", S.excluded({"class": "hyprlock", "title": ""}, {"jarvisCaptureBlocklist": []}) != "", True)
 
+# hotplug guard: no capture while the HUD's settle flag is fresh, or of a window on no monitor
+# (Hyprland 0.56.2 segfaults on that toplevel export); each skip goes to the journal
+logged = []
+real_export, real_log, real_flag = S.wlcap.capture_window, S.hud_log, S.SETTLE_FLAG
+S.wlcap.capture_window = lambda a: np.zeros((4, 4, 3), np.uint8)
+S.hud_log = logged.append
+S.SETTLE_FLAG = str(TMP / "stark-hotplug-settling")
+
+
+def cap_err(addr):
+    try:
+        S.capture_window({"address": addr}, cfg)
+        return None
+    except S.ScreenError as e:
+        return str(e)
+
+
+check("guard: plain capture works", cap_err("0xa1"), None)
+Path(S.SETTLE_FLAG).touch()
+check("guard: settling → no window capture", "still changing" in (cap_err("0xa1") or ""), True)
+try:
+    S.capture_monitor(MONS[0], cfg)
+    mon_err = None
+except S.ScreenError as e:
+    mon_err = str(e)
+check("guard: settling → no monitor capture", "still changing" in (mon_err or ""), True)
+os.utime(S.SETTLE_FLAG, (time.time() - 30, time.time() - 30))
+check("guard: a stale flag (crashed HUD) holds nothing up", cap_err("0xa1"), None)
+os.unlink(S.SETTLE_FLAG)
+WINS.append({"address": "0xa9", "class": "mpv", "title": "film", "pid": 19, "workspace": {"id": 7, "name": "7"}, "monitor": -1, "at": [0, 0], "size": [800, 600]})
+check("guard: window on no monitor → refused", "between screens" in (cap_err("0xa9") or ""), True)
+WINS.pop()
+check("guard: skips logged with the window's class", [("mpv" in m or "settling" in m) for m in logged], [True, True, True])
+S.wlcap.capture_window, S.hud_log, S.SETTLE_FLAG = real_export, real_log, real_flag
+
 # monitor capture: never-read windows on it are blacked out
 S._grim = lambda args: np.full((1080, 1920, 3), 200, np.uint8)
 img, _ = S.capture_monitor(MONS[0], cfg)
