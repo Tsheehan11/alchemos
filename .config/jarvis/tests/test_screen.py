@@ -336,6 +336,71 @@ check("watch_window refuses a never-read window", json.loads(T.watch_window("ban
 check("watch_list", len(json.loads(T.watch_list())["watchers"]), 1)
 check("watch_stop", json.loads(T.watch_stop(all=True))["stopped"], 1)
 
+# ── kitty's own text: get-text-only password, user-only socket ──
+import importlib.util  # noqa: E402
+import socket as _socket  # noqa: E402
+import stat as _stat  # noqa: E402
+import subprocess as _sp  # noqa: E402
+
+run_dir = TMP / "run"
+run_dir.mkdir(mode=0o700)
+os.environ["XDG_RUNTIME_DIR"] = str(run_dir)
+check("no socket → nothing", S._kitty_socket(4242), None)
+(run_dir / "kitty-rc-4242").write_text("")
+check("a plain file isn't a socket", S._kitty_socket(4242), None)
+(run_dir / "kitty-rc-4242").unlink()
+srv = _socket.socket(_socket.AF_UNIX)
+srv.bind(str(run_dir / "kitty-rc-4242"))
+check("the user's socket file is used", S._kitty_socket(4242), f"unix:{run_dir}/kitty-rc-4242")
+check("pid must be a number", S._kitty_socket("4242; rm"), None)
+_lstat = os.lstat
+os.lstat = lambda p: type("St", (), {"st_mode": _stat.S_IFSOCK | 0o777, "st_uid": os.getuid() + 1})()
+check("someone else's socket is refused", S._kitty_socket(4242), None)
+os.lstat = _lstat
+
+calls = []
+S._kitty_password = lambda: "s3cret-pw"
+S._kitty_public_key = lambda pid: "1:PUBKEY"
+os.environ["KITTY_WINDOW_ID"] = "7"                  # as if Jarvis itself ran inside a kitty
+
+
+def fake_run(args, **kw):
+    calls.append((args, kw.get("env", {})))
+    return _sp.CompletedProcess(args, 0, "line one\nline two\n", "")
+
+
+_run = S.subprocess.run
+S.subprocess.run = fake_run
+check("kitty text read", S.kitty_text({"pid": 4242, "title": "t"}), "line one\nline two")
+args, env = calls[-1]
+check("password never on the command line", any("s3cret" in a for a in args), False)
+check("password + that kitty's key in the env", (env.get("KITTY_RC_PASSWORD"), env.get("KITTY_PUBLIC_KEY")), ("s3cret-pw", "1:PUBKEY"))
+check("our own kitty env not passed on", "KITTY_WINDOW_ID" in env, False)
+check("only get-text is asked for", [a for a in args if a in ("get-text", "send-text", "ls", "launch")], ["get-text"])
+S._kitty_password = lambda: None
+calls.clear()
+check("no password in the keyring → no request", (S.kitty_text({"pid": 4242}), calls), (None, []))
+S.subprocess.run = _run
+srv.close()
+
+spec = importlib.util.spec_from_file_location("rc_check", os.path.expanduser("~/.config/kitty/jarvis-rc-check.py"))
+rc = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rc)
+check("checker: get-text over the socket", rc.is_cmd_allowed({"cmd": "get-text"}, None, True, {}), True)
+check("checker: get-text over the TTY refused", rc.is_cmd_allowed({"cmd": "get-text"}, None, False, {}), False)
+for cmd in ("send-text", "send-key", "launch", "ls", "close-window", "set-colors", "run", "action"):
+    check(f"checker refuses {cmd}", rc.is_cmd_allowed({"cmd": cmd}, None, True, {}), False)
+
+fake_bin = TMP / "bin"
+fake_bin.mkdir()
+inc = os.path.expanduser("~/.config/kitty/jarvis-rc-password.sh")
+for pw, want in (("abcDEF_123-x", 'remote_control_password "abcDEF_123-x" jarvis-rc-check.py\n'),
+                 ('bad" yes', ""), ("", "")):
+    (fake_bin / "secret-tool").write_text(f"#!/bin/sh\nprintf '%s' '{pw}'\n")
+    (fake_bin / "secret-tool").chmod(0o755)
+    r = _sp.run([inc], capture_output=True, text=True, env={**os.environ, "PATH": f"{fake_bin}:/usr/bin:/bin"})
+    check(f"include for {pw!r}", (r.returncode, r.stdout), (0, want))
+
 # ── the gate: a screen read makes what follows ask ──
 from core import brain as B  # noqa: E402
 from core import config as C  # noqa: E402

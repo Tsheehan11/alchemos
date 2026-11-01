@@ -39,6 +39,9 @@ SE tracker sheet (mcp/tracker.py, docs/jarvis-app.md):
 Calendar writes (mcp/google_api.CalendarWriter):
   jarvis calendar log [N] | undo
 
+Window reading (core/screen.py; ~/.config/kitty/jarvis-rc-*.{sh,py}):
+  jarvis kitty-rc [status | setup | rotate]   kitty's get-text-only password in the keyring
+
 Local router (intents.json, tools/eval_router.py):
   jarvis intents [list | log [N] | review | remove N…]   learned examples, recent decisions
 """
@@ -64,6 +67,9 @@ os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
 if __name__ == "__main__" and sys.argv[1:2] in (["connect"], ["disconnect"], ["integrations"]):
     from core import integrations          # before the heavy imports: Settings polls `integrations --json`
     sys.exit(integrations.main(sys.argv[1:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["kitty-rc"]:
+    from core import screen                # status / setup / rotate of the kitty get-text password
+    sys.exit(screen.kitty_rc_cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["app-data"]:
     from core import conversations         # the app reads history this way while Jarvis is off (undocked)
     sys.exit(conversations.app_data(sys.argv[2:]))

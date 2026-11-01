@@ -161,9 +161,7 @@ same key (it had put CHE 102 A3–A6 at the next morning's review time).
   managers, titles matching "password", and `jarvisCaptureBlocklist` (Settings → JARVIS → WINDOW READING,
   whole-word match on class + title). Re-checked on every capture, so a watched tab that turns into a bank
   page is skipped.
-- Text first: kitty's own text when that kitty listens on a socket (found as `@…-<pid>` in /proc/net/unix;
-  his kitty.conf has no remote control, so today only kittys started with `allow_remote_control` qualify),
-  then AT-SPI through `mcp/atspi_text.py` (system python; showing nodes only, password fields never read),
+- Text first: kitty's own text (see "kitty remote control" below), then AT-SPI through `mcp/atspi_text.py` (system python; showing nodes only, password fields never read),
   else a PNG (≤1568 px) as an MCP image. All results go back fenced by `untrusted()`.
 - Tools: `mcp/screen_tools.py` (server "screen", policy "screen" in servers.json): `read_window`,
   `list_windows` (reads: they taint the request, so any later action needs his yes), `watch_window`,
@@ -178,6 +176,20 @@ same key (it had put CHE 102 A3–A6 at the next morning's review time).
   speaks one cleaned sentence ("Sir, the build finished…") and ends the watcher unless keep_watching. Window
   closed / expired → said once. Paused in combat mode; not running while undocked (voice process). Console:
   WATCHERS cards with state, countdown, Claude looks, PAUSE / STOP.
+
+**kitty remote control (after stage 3).** kitty.conf: `allow_remote_control password`, `listen_on
+unix:${XDG_RUNTIME_DIR}/kitty-rc-{kitty_pid}` (a socket file in the 0700 runtime dir; abstract `@` sockets are
+never used, anyone could connect to or squat one), `geninclude jarvis-rc-password.sh`, which prints
+`remote_control_password "<pw>" jarvis-rc-check.py` from the keyring (`jarvis:kitty` / `rc_password`, via
+secret-tool), so the password is in no file. `jarvis-rc-check.py` allows `get-text` over the socket only:
+send-text, launch, ls, set-* … and anything sent as escape codes through a terminal (a program in the window,
+a remote host over ssh) are refused. A request without a password is refused. A request with an unknown
+password makes kitty ask in a dialog ("A program wishes to control kitty", default ALLOW REQUEST): that is
+kitty's built-in behaviour and can't be configured away; the answer is DENY PASSWORD. kitty encrypts password
+requests with the target instance's public key, which it only gives its children, so Jarvis reads
+KITTY_PUBLIC_KEY from that kitty's child in /proc and passes it and the password in the environment, never
+argv. `listen_on` is read only at start: kittys opened before this have no socket (they fall back to a
+picture). `jarvis kitty-rc status | setup | rotate`.
 
 **Task announcement fix (stage 3 prelude).** The silent run was task 10 (21:30): queued during combat mode
 (on since 21:27), so the runner never started it and nothing said why; it was cancelled at 21:31. Tasks 8

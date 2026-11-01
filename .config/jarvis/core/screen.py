@@ -20,6 +20,7 @@ Nothing here writes a capture to disk; nothing here acts on what it reads (scree
 import json
 import os
 import re
+import stat
 import subprocess
 import zlib
 from pathlib import Path
@@ -284,42 +285,94 @@ def capture(kind, obj, cfg=None):
 
 
 # ── text ──
+KITTY_SOCKET = "kitty-rc-{pid}"     # kitty.conf: listen_on unix:${XDG_RUNTIME_DIR}/kitty-rc-{kitty_pid}
+
+
 def _kitty_socket(pid):
-    """kitty with listen_on=unix:@NAME listens on @NAME-<pid> (abstract) or /path-<pid>."""
+    """That kitty's remote-control socket, only if it is a real socket file in $XDG_RUNTIME_DIR (0700) owned by
+    this user. Abstract sockets (@name) are never used: anyone on the machine could create or connect to one."""
     try:
-        lines = Path("/proc/net/unix").read_text().splitlines()[1:]
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    run = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    path = os.path.join(run, KITTY_SOCKET.format(pid=pid))
+    try:
+        st = os.lstat(path)
     except OSError:
         return None
-    for ln in lines:
-        p = ln.split()
-        if len(p) >= 8 and p[-1].endswith(f"-{pid}") and "kitty" in p[-1]:
-            path = p[-1]
-            return "unix:" + path if path.startswith("@") else "unix:" + path
+    if not stat.S_ISSOCK(st.st_mode) or st.st_uid != os.getuid():
+        return None
+    return "unix:" + path
+
+
+def _kitty_public_key(pid):
+    """kitty encrypts password requests with the target instance's public key, which it only hands to its
+    child processes (KITTY_PUBLIC_KEY): read it from one of that kitty's children (same user, /proc)."""
+    try:
+        kids = " ".join(Path(f"/proc/{pid}/task/{t}/children").read_text() for t in os.listdir(f"/proc/{pid}/task")).split()
+    except OSError:
+        return None
+    for c in kids:
+        try:
+            env = dict(x.split("=", 1) for x in Path(f"/proc/{c}/environ").read_bytes().decode(errors="replace").split("\0") if "=" in x)
+        except OSError:
+            continue
+        if env.get("KITTY_PID") == str(pid) and env.get("KITTY_PUBLIC_KEY"):
+            return env["KITTY_PUBLIC_KEY"]
     return None
 
 
+def _kitty_password():
+    from . import secrets
+    return secrets.get("kitty", "rc_password")
+
+
 def kitty_text(win):
+    """The visible text of a kitty window, through its own remote control. kitty only lets the keyring password
+    run get-text, over the socket (~/.config/kitty/jarvis-rc-check.py); the password goes in the environment,
+    never on the command line."""
     sock = _kitty_socket(win.get("pid"))
-    if not sock:
+    pw = _kitty_password() if sock else None
+    key = _kitty_public_key(win.get("pid")) if pw else None
+    if not sock or not pw or not key:
         return None
+    env = {k: v for k, v in os.environ.items() if not k.startswith("KITTY_")}     # not the env of a kitty we run in
+    env.update(KITTY_RC_PASSWORD=pw, KITTY_PUBLIC_KEY=key)
     try:
-        ls = subprocess.run(["kitty", "@", "--to", sock, "ls"], capture_output=True, text=True, timeout=3)
-        osw = json.loads(ls.stdout)
-        match = None
-        title = win.get("title", "")
-        for o in osw:
-            for tab in o.get("tabs", []):
-                for w in tab.get("windows", []):
-                    if (len(osw) == 1 and tab.get("is_focused") and w.get("is_focused")) or \
-                            (w.get("title") == title and w.get("is_focused")):
-                        match = w["id"]
-        if match is None:
-            return None
-        r = subprocess.run(["kitty", "@", "--to", sock, "get-text", "--match", f"id:{match}", "--extent", "screen"],
-                           capture_output=True, text=True, timeout=3)
+        r = subprocess.run(["kitty", "@", "--to", sock, "--password-env", "KITTY_RC_PASSWORD", "--use-password", "always",
+                            "get-text", "--match", "state:focused_os_window and state:active", "--extent", "screen"],
+                           capture_output=True, text=True, timeout=3, env=env)
         return r.stdout.rstrip() if r.returncode == 0 else None
-    except (OSError, ValueError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired):
         return None
+
+
+def kitty_rc_cli(argv):
+    """jarvis kitty-rc [status | setup | rotate]: the keyring password kitty lets run get-text only.
+    kitty reads it at start (kitty.conf → geninclude jarvis-rc-password.sh), so a rotation reaches each kitty
+    when it reloads its config (a theme change does that) or restarts."""
+    import secrets as pysecrets
+    from . import secrets
+    cmd = argv[0] if argv else "status"
+    have = secrets.has("kitty", "rc_password")
+    if cmd in ("setup", "rotate"):
+        if have and cmd == "setup":
+            print("kitty remote-control password: already in the keyring (jarvis:kitty / rc_password)")
+            return 0
+        secrets.store("kitty", "rc_password", pysecrets.token_urlsafe(32))
+        print("kitty remote-control password " + ("rotated" if have else "stored") + " in the keyring. Running kittys pick it "
+              "up when they reload their config (e.g. a theme change); new kittys straight away.")
+        return 0
+    if cmd != "status":
+        print("usage: jarvis kitty-rc [status | setup | rotate]")
+        return 2
+    run = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    socks = sorted(f for f in os.listdir(run) if re.fullmatch(r"kitty-rc-\d+", f))
+    live = [f for f in socks if Path(f"/proc/{f.rsplit('-', 1)[1]}").exists()]
+    print(f"password in keyring: {'yes' if have else 'no (jarvis kitty-rc setup)'}")
+    print(f"kittys with a reader socket: {len(live)}" + (f" ({', '.join(live)})" if live else ""))
+    return 0
 
 
 def atspi_text(win):
