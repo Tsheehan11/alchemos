@@ -146,8 +146,47 @@ same key (it had put CHE 102 A3–A6 at the next morning's review time).
   pause/stop.
 - Hard exclusions: hyprlock / lock screen, polkit and password dialogs, and a title blocklist
   (`jarvisCaptureBlocklist`: bank, password manager, …). Screen text can't trigger an action.
-- Setup: `grim` is not installed (`sudo pacman -S grim`); Hyprland's screencopy permission
-  settings may need an allow rule for Jarvis's python.
+- Setup: grim and wtype are installed (2026-10-31).
+
+**Built (stage 3):**
+- Capture: `core/wlcap.py` speaks `hyprland_toplevel_export_manager_v1` directly (stdlib socket + memfd
+  `wl_shm` buffer, ~50 ms, works on covered windows and special workspaces); the handle is the low 32 bits
+  of the hyprctl address. Fallback: `grim -t ppm … -` on the visible geometry (a pipe, never a file).
+  Monitors: `grim -o`, with every never-read window on it blacked out. `ecosystem:enforce_permissions` is
+  off here, so no permission rule was needed.
+- Naming (`core/screen.resolve`): "this window" / "" = focused; app or title words; "monitor N" counts
+  left to right; "laptop screen", "left monitor", "this screen", connector names. Two matches → he is asked
+  which (the focused one wins if it's among them); never a guess.
+- Never read: hyprlock running (nothing at all), polkit / pinentry / keyring / askpass prompts, password
+  managers, titles matching "password", and `jarvisCaptureBlocklist` (Settings → JARVIS → WINDOW READING,
+  whole-word match on class + title). Re-checked on every capture, so a watched tab that turns into a bank
+  page is skipped.
+- Text first: kitty's own text when that kitty listens on a socket (found as `@…-<pid>` in /proc/net/unix;
+  his kitty.conf has no remote control, so today only kittys started with `allow_remote_control` qualify),
+  then AT-SPI through `mcp/atspi_text.py` (system python; showing nodes only, password fields never read),
+  else a PNG (≤1568 px) as an MCP image. All results go back fenced by `untrusted()`.
+- Tools: `mcp/screen_tools.py` (server "screen", policy "screen" in servers.json): `read_window`,
+  `list_windows` (reads: they taint the request, so any later action needs his yes), `watch_window`,
+  `watch_list`, `watch_stop`, `watch_pause`. Local router: `claude.screen` (claude-only), and `open_app` /
+  `widget.list` refuse reading words ("read the discord window" used to open Discord).
+- Watchers (`core/watch.py`, `watchers` table, run by the voice process): thumbnails of 8 px cells,
+  changed-cell count vs a baseline (≥6 cells and ≥0.05 %), cells that flicker on their own learned as noise,
+  a small change rejected twice in the same place learned as noise (minute clocks); windows with text compare
+  new lines instead (no Claude call when only pixels moved). Claude (haiku, no tools, no MCP) is asked only
+  once the picture settles (or after 60 s of change), at least 20 s apart, doubling to 5 min while nothing
+  matches, at most 40 per watcher; turns count under source "watch" (console header: WATCHERS n). A match
+  speaks one cleaned sentence ("Sir, the build finished…") and ends the watcher unless keep_watching. Window
+  closed / expired → said once. Paused in combat mode; not running while undocked (voice process). Console:
+  WATCHERS cards with state, countdown, Claude looks, PAUSE / STOP.
+
+**Task announcement fix (stage 3 prelude).** The silent run was task 10 (21:30): queued during combat mode
+(on since 21:27), so the runner never started it and nothing said why; it was cancelled at 21:31. Tasks 8
+and 9 got the generic line because their naming turn returned nothing (the naming turn now works live).
+Also found: an announcement waiting out combat mode sat in an in-memory queue and was lost on a restart.
+Now the line is stored on the task (`tasks.announce`, `announced`), `core.tasks.Announcer` says it when the
+voice loop is free (deferred in combat mode, survives restarts, "While I was away, sir: …" after 2 min,
+retried 3× if speech fails, older than 12 h left in the console), wrap-up errors still owe the generic
+line, an interrupted task is announced too, and a task queued in combat mode logs why it waits.
 
 ## Stage 4: Interacting with windows
 

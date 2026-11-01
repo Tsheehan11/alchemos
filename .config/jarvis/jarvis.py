@@ -32,7 +32,7 @@ Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
   jarvis disconnect google | microsoft | learn-ical
 
 JARVIS app (Super + J, quickshell/JarvisApp.qml; core/appserver.py, conversations.py, tasks.py):
-  jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | usage   history as JSON
+  jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | watchers | usage   history as JSON
 
 SE tracker sheet (mcp/tracker.py, docs/jarvis-app.md):
   jarvis tracker find [ID] | show | pending [DAYS] | diff | log [N] | undo
@@ -506,7 +506,11 @@ class VoiceLoop:
         self.last_academic_check = 0.0
         from collections import deque
         self.pre = deque(maxlen=int(2.0 * RATE / CHUNK))   # the last 2 s before the wake word
-        self.bg = queue.Queue()                           # ("say", title, line) | ("ask", Pending): tasks, while idle
+        self.bg = queue.Queue()                           # ("ask", Pending) | ("say", title, line): tasks / watchers, while idle
+        self.owed = threading.Event()                     # a task stored a line to say (core.tasks.Announcer)
+        self.owed.set()                                   # lines owed from before a restart
+        self.last_owed_check = 0.0
+        self.announcer = None
         self.near = 0.0                                   # peak of a wake score that didn't reach THRESHOLD
         self.spec = None                                  # listen()'s early transcription, if still valid
 
@@ -776,19 +780,32 @@ class VoiceLoop:
             self.offer_tracker(offer)
 
     def check_background(self):
-        """Task announcements, and a task's question asked out loud (the app can answer it too)."""
+        """Task announcements, and a task's question asked out loud (the app can answer it too). Announcements
+        are stored in the db by the task runner and said here when Jarvis is free: in combat mode they wait,
+        and a restart doesn't lose them (core.tasks.Announcer)."""
         if self.paused:
             return
+        now = time.time()
+        if self.owed.is_set() or now - self.last_owed_check > 30:
+            self.owed.clear()
+            self.last_owed_check = now
+            if self.announcer is None:
+                from core.tasks import Announcer
+                self.announcer = Announcer(self.say, hud.toast, log=log)
+            self.announcer.deliver()
         while True:
             try:
                 item = self.bg.get_nowait()
             except queue.Empty:
                 return
-            if item[0] == "say":
+            if item[0] == "say":                          # a watcher's news (it pauses in combat mode itself)
                 _, title, line = item
                 log(f"JARVIS: {line}")
                 hud.toast(title, line.upper()[:300])
-                self.say(line)
+                try:
+                    self.say(line)
+                except Exception as e:
+                    log(f"JARVIS: couldn't say it: {type(e).__name__}: {e}")
             elif item[0] == "ask" and not item[1].answered:
                 self.ask_pending(item[1])
 
@@ -1044,11 +1061,15 @@ class AppBridge:
         self.server = AppServer(self.j.loop, self.handlers(), log=log)
         self.tasks = TaskManager(vl.cfg, self.j.loop, self.notify, self.j.confirms,
                                  ask_aloud=lambda p: vl.bg.put(("ask", p)),
-                                 announce=lambda title, line, thread: vl.bg.put(("say", title, line)),
+                                 announce=lambda title, line, thread: vl.owed.set(),
                                  paused=lambda: vl.paused, log=log)
         asyncio.run_coroutine_threadsafe(self.server.start(), self.j.loop).result(5)
         self.j.notify = self.notify
         asyncio.run_coroutine_threadsafe(self.tasks.run_forever(), self.j.loop)
+        from core.watch import WatchManager
+        self.watch = WatchManager(vl.cfg, self.notify, say=lambda title, line: vl.bg.put(("say", title, line)),
+                                  paused=lambda: vl.paused, log=log)
+        asyncio.run_coroutine_threadsafe(self.watch.run_forever(), self.j.loop)
         log(f"JARVIS: app socket at {self.server.path}")
 
     def notify(self, ev):
@@ -1062,11 +1083,12 @@ class AppBridge:
     def handlers(self):
         return {"hello": self.hello, "threads": self.threads, "thread": self.thread, "ask": self.ask, "new": self.new,
                 "resume": self.resume, "tasks": self.task_list, "task_log": self.task_log, "task": self.task_start,
-                "cancel": self.cancel, "task_resume": self.task_resume, "answer": self.answer, "usage": lambda m: self.usage()}
+                "cancel": self.cancel, "task_resume": self.task_resume, "answer": self.answer, "usage": lambda m: self.usage(),
+                "watchers": self.watchers, "watch_pause": self.watch_pause, "watch_stop": self.watch_stop}
 
     def hello(self, m):
         return [{"ev": "state", "current": self.j.conv.current, "busy": self.j.busy},
-                self.threads({}), self.task_list({}), self.usage(),
+                self.threads({}), self.task_list({}), self.watchers({}), self.usage(),
                 *[{"ev": "confirm", "item": p} for p in self.j.confirms.pending()]]
 
     def threads(self, m):
@@ -1110,6 +1132,17 @@ class AppBridge:
         self.j.brain.history = self.j.conv.resume(tid)
         self._fresh_brain()
         return [{"ev": "state", "current": tid}, self.thread({"id": tid})]
+
+    def watchers(self, m):
+        return {"ev": "watchers", "items": [self.watch.item(w) for w in db.list_watchers()]}
+
+    def watch_pause(self, m):
+        self.watch.pause(int(m["id"]), bool(m.get("on", True)))
+        return self.watchers({})
+
+    def watch_stop(self, m):
+        self.watch.stop(int(m["id"]))
+        return self.watchers({})
 
     def task_list(self, m):
         return {"ev": "tasks", "items": [self.tasks.item(t) for t in db.list_tasks(30)]}

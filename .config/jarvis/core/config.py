@@ -41,7 +41,13 @@ DEFAULTS = {
     "jarvisAssignmentsAccount": "google",   # where "STARK – Assignments" lives: google | microsoft
     "jarvisAutoUpdateTracker": False,   # tracker events (grades, new LEARN work, moved deadlines) write to the SE tracker without asking
     "jarvisDecisions": "local",         # local = regex fast path, then the local router (core/router_local.py), then Claude | claude
-    "jarvisRouterThreshold": 0.70,      # cosine similarity the local router needs to act (tools/eval_router.py to tune)
+    "jarvisRouterThreshold": 0.70,
+    "jarvisWatchInterval": 10,          # seconds between a watcher's captures (core/watch.py)
+    "jarvisCaptureBlocklist": ["bank", "banking", "rbc royal", "td canada", "scotiabank", "cibc", "bmo", "tangerine",
+                               "wealthsimple", "paypal", "interac", "password", "1password", "bitwarden", "keepass",
+                               "lastpass", "proton pass", "authenticator", "2fa", "credit card"],
+                                        # window titles / apps never read or watched (core/screen.py; lock screen and
+                                        # password / permission prompts are refused whatever this says)      # cosine similarity the local router needs to act (tools/eval_router.py to tune)
 }
 
 TIMEOUT_S = 30

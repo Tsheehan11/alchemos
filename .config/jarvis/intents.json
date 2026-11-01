@@ -28,7 +28,8 @@
         "open up the terminal",
         "start kitty",
         "launch the code editor"
-      ]
+      ],
+      "must_not": "\\b(?:read|what(?:'s| is| does)|tell me when|let me know when|watch(?:ing)?|look at|summari[sz]e|keep an eye)\\b"
     },
     "close_window": {
       "tool": "close_focused_window",
@@ -851,7 +852,8 @@
         "how many widgets do i have",
         "what widgets do i have open",
         "any widgets running"
-      ]
+      ],
+      "must_not": "\\b(?:monitor|window|read)\\b|what'?s on (?:my |the |this )?(?:screen|laptop|display)"
     },
     "screen.role": {
       "tool": "set_screen_role",
@@ -931,6 +933,33 @@
         "move the clock to the top left",
         "make the timer widget bigger",
         "pin the stats widget"
+      ]
+    },
+    "claude.screen": {
+      "kind": "claude-only",
+      "note": "Window reading and watchers (mcp/screen_tools.py): Claude names the window from his words and the gate treats what it reads as untrusted.",
+      "examples": [
+        "read this window",
+        "read the discord window",
+        "what does this window say",
+        "what's on monitor 2",
+        "what's on my screen",
+        "what's on the laptop screen",
+        "read me what's in the terminal",
+        "summarize this window",
+        "what's in this tab",
+        "look at my screen and tell me what you see",
+        "tell me when this window changes",
+        "tell me when the build finishes",
+        "watch learn for a new grade",
+        "let me know when the download is done",
+        "keep an eye on discord for a new message",
+        "watch this window",
+        "stop watching",
+        "stop the watcher",
+        "pause the watcher",
+        "what are you watching",
+        "resume watching"
       ]
     },
     "claude.email": {

@@ -216,6 +216,108 @@ check("resume queues a new run in the same thread", (db.get_task(r)["resumed_fro
 check("resume can't restart a finished task", tm.resume(a), None)
 wait_for(lambda: db.get_task(r)["status"] == "done")
 
+# ── announcements: always said, deferred not lost ──
+class Toasts(list):
+    def __call__(self, title, text):
+        self.append((title, text))
+
+
+spoken, toasts = [], Toasts()
+ann = TK.Announcer(spoken.append, toasts)
+for x in db.owed_announcements():                     # what the runs above left owed
+    db.update_task(x["id"], announced=time.time())
+
+
+class NamelessBrain(FakeBrain):                       # the naming turn hangs, then errors
+    async def ask(self, text, on_sentence=None, source=None, model=None):
+        if text == TK.NAME_ASK:
+            raise RuntimeError("naming turn broke")
+        return Reply(text="All five rows checked.", tier="claude:sonnet", turns=2)
+
+
+TK.Brain = NamelessBrain
+said.clear()
+n1 = tm.start("Check rows", "check rows")
+check("nameless task done", wait_for(lambda: db.get_task(n1)["status"] == "done"), True)
+check("naming failed → generic line stored as owed", db.get_task(n1)["announce"],
+      "Sir, your background task is done. All five rows checked.")
+check("runner nudged the voice loop", [x[0] for x in said], ["TASK DONE"])
+check("combat mode: deferred, still owed", (ann.deliver(paused=True), spoken), (0, []))
+# Jarvis restarts during combat mode: a new announcer (fresh process) still finds it
+ann2 = TK.Announcer(spoken.append, toasts)
+check("after a restart it's spoken", ann2.deliver(), 1)
+check("spoken line", spoken, ["Sir, your background task is done. All five rows checked."])
+check("toast too", toasts[-1][0], "TASK DONE")
+check("said once only", (ann2.deliver(), len(spoken)), (0, 1))
+
+# speaking fails: retried, not dropped
+db.update_task(n1, announced=None)
+calls = {"n": 0}
+
+
+def flaky(text):
+    calls["n"] += 1
+    if calls["n"] == 1:
+        raise OSError("pw-play died")
+    spoken.append(text)
+
+
+clock = {"t": time.time()}
+ann3 = TK.Announcer(flaky, toasts, log=lambda *a: None, clock=lambda: clock["t"])
+check("speech failed → not marked said", (ann3.deliver(), db.get_task(n1)["announced"]), (0, None))
+check("not retried before the back-off", ann3.deliver(), 0)
+clock["t"] += max(TK.RETRY_S, TK.AWAY_S) + 1
+check("retried later", ann3.deliver(), 1)
+check("retry says it, from away", spoken[-1], "While I was away, sir: your background task is done. All five rows checked.")
+db.update_task(n1, announced=None, finished=time.time() - TK.STALE_S - 10)
+check("too old: not read out, but settled", (TK.Announcer(spoken.append, toasts).deliver(), db.get_task(n1)["announced"] is not None), (0, True))
+
+
+class BrokenWrapUp(FakeBrain):                        # bookkeeping after the reply blows up
+    async def ask(self, text, on_sentence=None, source=None, model=None):
+        if text == TK.NAME_ASK:
+            return Reply(text="Your grade check.")
+        return Reply(text="Done looking.", tools=object(), turns=1)   # tools can't be stored → add_message raises
+
+
+TK.Brain = BrokenWrapUp
+n2 = tm.start("Grades", "grades")
+check("wrap-up error still finishes", wait_for(lambda: db.get_task(n2)["status"] == "done"), True)
+check("wrap-up error still owes a line", bool(db.get_task(n2)["announce"]), True)
+check("…and it's said", (TK.Announcer(spoken.append, toasts).deliver(), spoken[-1].startswith("Sir, your grade check is done")), (1, True))
+
+# queued during combat mode: the task says why it waits
+TK.Brain = FakeBrain
+paused["on"] = True
+q1 = tm.start("Later", "summarize my week")
+check("queued in combat mode is told why", wait_for(lambda: any("combat mode" in x["text"] for x in db.task_log(q1))), True)
+paused["on"] = False
+check("…and runs after", wait_for(lambda: db.get_task(q1)["status"] == "done"), True)
+check("…and announces", wait_for(lambda: TK.Announcer(spoken.append, toasts).deliver() == 1 or
+                                 db.get_task(q1)["announced"] is not None), True)
+
+# restart mid-task → interrupted is announced too; resuming settles it
+it = db.add_task("Mid job", "x")
+db.update_task(it, status="running", started=time.time())
+tm.recover()
+check("interrupted owes a line", db.get_task(it)["announce"], TK.INTERRUPTED_LINE)
+tm.resume(it)
+check("resume settles it", db.get_task(it)["announced"] is not None, True)
+
+# an old db without the columns: migrated, old rows not read out
+import sqlite3  # noqa: E402
+legacy = TMP / "legacy.db"
+con = sqlite3.connect(legacy)
+con.execute("CREATE TABLE tasks (id INTEGER PRIMARY KEY, thread INTEGER, title TEXT NOT NULL, prompt TEXT NOT NULL, "
+            "status TEXT NOT NULL, created REAL NOT NULL, started REAL, finished REAL, result TEXT, "
+            "steps INTEGER NOT NULL DEFAULT 0, turns INTEGER NOT NULL DEFAULT 0, resumed_from INTEGER)")
+con.execute("INSERT INTO tasks(title, prompt, status, created, finished) VALUES ('old','p','done',1,2)")
+con.commit()
+con.close()
+_path, db.DB_PATH, db._MIGRATED = db.DB_PATH, legacy, False
+check("legacy db migrated, nothing owed", db.owed_announcements(), [])
+db.DB_PATH = _path
+
 # ── start_task tool ──
 import stark_actions as A  # noqa: E402
 res = A.start_task("Inbox sweep", "Go through my unread course emails and update the tracker.")

@@ -67,6 +67,8 @@ Singleton {
             property string jarvisAssignmentsAccount: "google"   // where that calendar lives: google | microsoft
             property string jarvisDecisions: "local"   // local = fast path → local router → Claude | claude = fast path → Claude
             property real jarvisRouterThreshold: 0.70  // similarity the local router needs to act (~/.config/jarvis/tools/eval_router.py)
+            property int jarvisWatchInterval: 10      // seconds between a watcher's captures (~/.config/jarvis/core/watch.py)
+            property var jarvisCaptureBlocklist: ["bank", "banking", "rbc royal", "td canada", "scotiabank", "cibc", "bmo", "tangerine", "wealthsimple", "paypal", "interac", "password", "1password", "bitwarden", "keepass", "lastpass", "proton pass", "authenticator", "2fa", "credit card"]   // titles / apps Jarvis never reads or watches (lock screen + password prompts always refused)
             property string displayLayout: "extend"  // extend | mirror | external | laptop
             property var screenRoles: ({})            // monitor description → clock | stats | music | none (missing = auto; Roles.qml)
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open

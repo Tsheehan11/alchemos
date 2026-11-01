@@ -8,6 +8,20 @@
         ],
         "policy": "stark"
     },
+    "screen": {
+        "name": "screen",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{jarvis}/mcp/screen_tools.py"
+        ],
+        "policy": "screen",
+        "read_tools": [
+            "read_window",
+            "list_windows"
+        ],
+        "note": "Window reading + watchers (core/screen.py, core/watch.py). Reads mark the request as having read untrusted screen content, so a later action needs his yes."
+    },
     "google": {
         "name": "Google",
         "label": "GMAIL · CALENDAR · DRIVE",

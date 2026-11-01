@@ -11,6 +11,7 @@ Jarvis memory: one SQLite file shared by the voice loop and the MCP server.
   threads     conversations for the JARVIS app: voice and typed turns of one conversation share a thread;
               kind quick (a one-off command, hidden by default) | thread (several turns or real work) | task
   messages    each turn of a thread (FTS5 index for the app's search)
+  watchers    "tell me when this window changes": what to watch, until when, its state (core/watch.py)
   tasks       background Agent SDK jobs (core/tasks.py): queued → running → done | failed | cancelled | interrupted
   task_log    a task's steps (tool calls) and text, for the app's live log
   claude_turns Claude turns per request (ResultMessage.num_turns), for the app's "turns today"
@@ -136,7 +137,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     result TEXT,
     steps INTEGER NOT NULL DEFAULT 0,
     turns INTEGER NOT NULL DEFAULT 0,
-    resumed_from INTEGER
+    resumed_from INTEGER,
+    announce TEXT,               -- the line to say about it (finished / failed / interrupted), until said
+    announced REAL               -- when it was said (or given up on); NULL + announce = still owed
 );
 CREATE TABLE IF NOT EXISTS task_log (
     id INTEGER PRIMARY KEY,
@@ -146,6 +149,25 @@ CREATE TABLE IF NOT EXISTS task_log (
     text TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS task_log_task ON task_log(task, id);
+CREATE TABLE IF NOT EXISTS watchers (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL,          -- window | monitor
+    target TEXT NOT NULL,        -- window address (0x…) or monitor name, fixed when it was set up
+    label TEXT NOT NULL,         -- "kitty: cargo build" / "monitor DP-5", for the console and speech
+    condition TEXT NOT NULL,     -- what he asked for, in his words ("the build finishes")
+    interval REAL NOT NULL,      -- seconds between captures
+    min_area REAL NOT NULL DEFAULT 0.0005,
+    repeat INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,        -- active | paused | done | stopped | expired | failed
+    created REAL NOT NULL,
+    expires REAL NOT NULL,
+    checks INTEGER NOT NULL DEFAULT 0,
+    calls INTEGER NOT NULL DEFAULT 0,   -- Claude judgements made
+    last_check REAL,
+    note TEXT NOT NULL DEFAULT '',      -- latest state in plain words
+    result TEXT,
+    finished REAL
+);
 CREATE TABLE IF NOT EXISTS claude_turns (
     id INTEGER PRIMARY KEY,
     ts REAL NOT NULL,
@@ -167,7 +189,25 @@ def connect():
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA busy_timeout=5000")
     db.executescript(SCHEMA)
+    _migrate(db)
     return db
+
+
+_MIGRATED = False
+
+
+def _migrate(db):
+    """Columns added after a table first shipped. Rows that predate a column get the value that keeps them quiet."""
+    global _MIGRATED
+    if _MIGRATED:
+        return
+    cols = {r[1] for r in db.execute("PRAGMA table_info(tasks)")}
+    if "announce" not in cols:
+        db.execute("ALTER TABLE tasks ADD COLUMN announce TEXT")
+    if "announced" not in cols:
+        db.execute("ALTER TABLE tasks ADD COLUMN announced REAL")
+        db.execute("UPDATE tasks SET announced = coalesce(finished, created)")   # old tasks: nothing owed
+    _MIGRATED = True
 
 
 @contextmanager
@@ -433,7 +473,7 @@ def add_task(title, prompt, thread=None, resumed_from=None):
 
 
 def update_task(tid, **fields):
-    allowed = {"thread", "status", "started", "finished", "result", "steps", "turns"}
+    allowed = {"thread", "status", "started", "finished", "result", "steps", "turns", "announce", "announced"}
     sets = {k: v for k, v in fields.items() if k in allowed}
     if not sets:
         return
@@ -453,6 +493,53 @@ def list_tasks(limit=30, status=None):
             rows = db.execute("SELECT * FROM tasks WHERE status = ? ORDER BY id", (status,)).fetchall()
         else:
             rows = db.execute("SELECT * FROM tasks ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── watchers (core/watch.py runs them; mcp/screen_tools.py sets them up) ──
+MAX_WATCHERS = 3
+WATCH_LIVE = ("active", "paused")
+
+
+def add_watcher(kind, target, label, condition, interval, hours, repeat=False, min_area=0.0005):
+    now = time.time()
+    with _db() as db:
+        n = db.execute(f"SELECT COUNT(*) FROM watchers WHERE status IN {WATCH_LIVE}").fetchone()[0]
+        if n >= MAX_WATCHERS:
+            return None
+        return db.execute("INSERT INTO watchers(kind, target, label, condition, interval, min_area, repeat, status, created, expires) "
+                          "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                          (kind, target, label[:120], condition[:300], float(interval), float(min_area), int(bool(repeat)),
+                           "active", now, now + hours * 3600)).lastrowid
+
+
+def update_watcher(wid, **fields):
+    allowed = {"status", "checks", "calls", "last_check", "note", "result", "finished", "expires", "label"}
+    sets = {k: v for k, v in fields.items() if k in allowed}
+    if sets:
+        with _db() as db:
+            db.execute(f"UPDATE watchers SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?", (*sets.values(), wid))
+
+
+def get_watcher(wid):
+    with _db() as db:
+        r = db.execute("SELECT * FROM watchers WHERE id = ?", (wid,)).fetchone()
+    return dict(r) if r else None
+
+
+def list_watchers(live_only=False, limit=12):
+    with _db() as db:
+        if live_only:
+            rows = db.execute(f"SELECT * FROM watchers WHERE status IN {WATCH_LIVE} ORDER BY id").fetchall()
+        else:
+            rows = db.execute(f"SELECT * FROM watchers ORDER BY status IN {WATCH_LIVE} DESC, id DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def owed_announcements():
+    """Tasks whose finished / failed / interrupted line hasn't been said yet, oldest first."""
+    with _db() as db:
+        rows = db.execute("SELECT * FROM tasks WHERE announce IS NOT NULL AND announced IS NULL ORDER BY finished, id").fetchall()
     return [dict(r) for r in rows]
 
 
@@ -479,5 +566,7 @@ def turns_today():
     import datetime as _dt
     start = _dt.datetime.combine(_dt.date.today(), _dt.time()).timestamp()
     with _db() as db:
-        r = db.execute("SELECT COALESCE(SUM(turns), 0) AS n, COUNT(*) AS req FROM claude_turns WHERE ts >= ?", (start,)).fetchone()
-    return {"turns": r["n"], "requests": r["req"]}
+        r = db.execute("SELECT COALESCE(SUM(turns), 0) AS n, COUNT(*) AS req, "
+                       "COALESCE(SUM(CASE WHEN source = 'watch' THEN turns ELSE 0 END), 0) AS w "
+                       "FROM claude_turns WHERE ts >= ?", (start,)).fetchone()
+    return {"turns": r["n"], "requests": r["req"], "watch": r["w"]}

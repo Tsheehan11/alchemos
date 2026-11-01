@@ -48,8 +48,12 @@ PanelWindow {
     }
     property double now: Date.now() / 1000
     property bool showHelp: false
-    Timer { running: app.visible && app.runningTasks > 0; interval: 1000; repeat: true; onTriggered: app.now = Date.now() / 1000 }
+    Timer { running: app.visible && (app.runningTasks > 0 || app.watchLive > 0); interval: 1000; repeat: true; onTriggered: app.now = Date.now() / 1000 }
+    onVisibleChanged: if (visible) app.now = Date.now() / 1000
     readonly property int runningTasks: link.tasks.filter(t => t.status === "running").length
+    readonly property var watchShown: link.watchers.filter(w => w.status === "active" || w.status === "paused"
+                                                               || (w.finished && app.now - w.finished < 900))
+    readonly property int watchLive: link.watchers.filter(w => w.status === "active" || w.status === "paused").length
     readonly property var selTask: link.tasks.find(t => t.id === link.selectedTask) || null
 
     // ── backdrop ──
@@ -76,6 +80,7 @@ PanelWindow {
         detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
                                     : "OFFLINE · HISTORY ONLY · RUNS WHILE DOCKED")
                 + "   ·   CLAUDE TURNS TODAY " + (link.usage.turns ?? 0)
+                + ((link.usage.watch ?? 0) > 0 ? " (WATCHERS " + link.usage.watch + ")" : "")
                 + (link.usage.five_hour !== undefined ? "   ·   5H " + link.usage.five_hour + "%" : "")
                 + (link.usage.seven_day !== undefined ? "   ·   WEEK " + link.usage.seven_day + "%" : "")
         MouseArea { anchors.fill: parent; onClicked: {} }   // clicks inside don't close
@@ -343,11 +348,89 @@ PanelWindow {
 
             Rectangle { width: 1; height: parent.height; color: Theme.p(0.15) }
 
-            // ════ tasks ════
+            // ════ watchers + tasks ════
             Column {
                 id: right
                 width: 320; height: parent.height
                 spacing: 8
+                // ── watchers (core/watch.py): live ones, plus any that finished in the last 15 minutes ──
+                Column {
+                    id: watchBox
+                    width: parent.width
+                    spacing: 6
+                    visible: app.watchShown.length > 0
+                    height: visible ? implicitHeight : 0
+                    Text {
+                        text: "WATCHERS  ·  " + app.watchLive + "/3"
+                        color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                    }
+                    Repeater {
+                        model: app.watchShown
+                        delegate: Rectangle {
+                            id: wcard
+                            required property var modelData
+                            readonly property var w: modelData
+                            readonly property bool live: w.status === "active" || w.status === "paused"
+                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : link.connected ? "WATCHING" : "PAUSED · JARVIS OFF")
+                                                            : w.status === "paused" ? "PAUSED" : w.status === "done" ? "SEEN" : w.status.toUpperCase()
+                            readonly property color tone: w.status === "active" && !w.combat && link.connected ? Theme.primary
+                                                        : w.status === "done" ? Theme.secondary : Theme.dim
+                            width: watchBox.width
+                            height: wcol.implicitHeight + 14
+                            color: Theme.p(live ? 0.06 : 0.0)
+                            border.color: w.status === "done" ? Theme.secondary : Theme.p(0.18)
+                            opacity: live ? 1 : 0.75
+                            Column {
+                                id: wcol
+                                x: 8; y: 7; width: parent.width - 16
+                                spacing: 4
+                                Row {
+                                    spacing: 8; width: parent.width
+                                    Rectangle {
+                                        width: wchip.implicitWidth + 10; height: 16
+                                        color: Qt.rgba(wcard.tone.r, wcard.tone.g, wcard.tone.b, 0.15); border.color: wcard.tone
+                                        Text { id: wchip; anchors.centerIn: parent; text: wcard.chipText; color: wcard.tone; font.family: app.mono; font.pixelSize: 9; font.letterSpacing: 1 }
+                                        SequentialAnimation on opacity {
+                                            running: wcard.chipText === "WATCHING" && app.visible; loops: Animation.Infinite
+                                            NumberAnimation { to: 0.45; duration: 900 }
+                                            NumberAnimation { to: 1; duration: 900 }
+                                        }
+                                    }
+                                    Text {
+                                        width: parent.width - wchip.implicitWidth - 18; elide: Text.ElideRight
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: wcard.w.label; color: Theme.text; font.family: app.mono; font.pixelSize: 11
+                                        textFormat: Text.PlainText
+                                    }
+                                }
+                                Text {
+                                    width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
+                                    text: "For: " + wcard.w.condition; color: Theme.textSoft; font.family: app.mono; font.pixelSize: 11
+                                    textFormat: Text.PlainText
+                                }
+                                Text {
+                                    width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
+                                    visible: text !== ""
+                                    text: wcard.w.result || wcard.w.note || ""
+                                    color: wcard.w.status === "done" ? Theme.secondary : Theme.dim; font.family: app.mono; font.pixelSize: 10
+                                    textFormat: Text.PlainText
+                                }
+                                Text {
+                                    visible: wcard.live
+                                    text: "every " + Math.round(wcard.w.interval) + "s  ·  " + app.span(Math.max(0, wcard.w.expires - app.now)) + " left  ·  "
+                                          + wcard.w.calls + (wcard.w.calls === 1 ? " Claude look" : " Claude looks")
+                                    color: Theme.faint; font.family: app.mono; font.pixelSize: 10
+                                }
+                                Row {
+                                    visible: wcard.live && link.connected
+                                    spacing: 6
+                                    SmallButton { text: wcard.w.status === "paused" ? "RESUME" : "PAUSE"; onClicked: JarvisLink.pauseWatch(wcard.w.id, wcard.w.status !== "paused") }
+                                    SmallButton { text: "STOP"; onClicked: JarvisLink.stopWatch(wcard.w.id) }
+                                }
+                            }
+                        }
+                    }
+                }
                 Item {
                     width: parent.width; height: 18
                     Text {
@@ -487,6 +570,7 @@ PanelWindow {
                 Rectangle {
                     width: parent.width
                     height: parent.height - 18 - help.height - taskList.height - (app.selTask ? 34 : 0) - 4 * 8
+                            - (watchBox.visible ? watchBox.height + 8 : 0)
                     color: Theme.d(0.6); border.color: Theme.p(0.12)
                     ListView {
                         id: logList

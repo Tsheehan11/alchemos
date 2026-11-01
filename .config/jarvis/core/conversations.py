@@ -188,10 +188,12 @@ def app_data(argv):
         out = {"ev": "tasks", "items": db.list_tasks(30)}
     elif cmd == "task" and rest:
         out = {"ev": "task_log", "id": int(rest[0]), "items": db.task_log(int(rest[0]))}
+    elif cmd == "watchers":
+        out = {"ev": "watchers", "items": [dict(w, offline=True) for w in db.list_watchers()]}
     elif cmd == "usage":
         out = {"ev": "usage", **db.turns_today()}
     else:
-        print("usage: jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | usage")
+        print("usage: jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | watchers | usage")
         return 2
     print(json.dumps(out, ensure_ascii=False, default=str))
     return 0

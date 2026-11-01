@@ -714,6 +714,34 @@ PanelWindow {
                     Toggle { width: parent.width; label: "AUTO-UPDATE TRACKER"; hint: Theme.cfg.jarvisAutoUpdateTracker ? "Grades, new LEARN work and moved deadlines go into your SE tracker and are announced · \"jarvis tracker undo\" reverts the last write" : "Each tracker update is offered first, spoken and on the HUD · your own requests always ask"; checked: Theme.cfg.jarvisAutoUpdateTracker; onToggled: Theme.cfg.jarvisAutoUpdateTracker = !Theme.cfg.jarvisAutoUpdateTracker }
                     Toggle { width: parent.width; label: "AUTO-ADD ASSIGNMENTS"; hint: "Fallback while no tracker sheet is set up · LEARN due dates go into \"STARK – Assignments\" without asking · that calendar only, never your main one"; checked: Theme.cfg.jarvisAutoAddAssignments; onToggled: Theme.cfg.jarvisAutoAddAssignments = !Theme.cfg.jarvisAutoAddAssignments }
                     Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
+                    Text { text: "WINDOW READING"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Stepper { width: parent.width; label: "Watch every"; hint: "How often a watcher looks at its window · compared on this machine, Claude only looks when enough changed"; valueText: Theme.cfg.jarvisWatchInterval + " S"; onDec: Theme.cfg.jarvisWatchInterval = Math.max(3, Theme.cfg.jarvisWatchInterval - (Theme.cfg.jarvisWatchInterval > 30 ? 10 : Theme.cfg.jarvisWatchInterval > 10 ? 5 : 1)); onInc: Theme.cfg.jarvisWatchInterval = Math.min(300, Theme.cfg.jarvisWatchInterval + (Theme.cfg.jarvisWatchInterval >= 30 ? 10 : Theme.cfg.jarvisWatchInterval >= 10 ? 5 : 1)) }
+                    Column {
+                        width: parent.width; spacing: 4
+                        Text { text: "Never read or watch (window titles / apps, comma-separated · Enter to save)"; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                        Rectangle {
+                            width: parent.width; height: Math.max(32, blockIn.contentHeight + 14)
+                            color: Theme.d(0.9)
+                            border.color: blockIn.activeFocus ? Theme.primary : Theme.p(0.4)
+                            TextEdit {
+                                id: blockIn
+                                anchors.fill: parent; anchors.margins: 7
+                                wrapMode: TextEdit.Wrap
+                                color: Theme.text; selectByMouse: true
+                                font.family: st.mono; font.pixelSize: 12
+                                text: (Theme.cfg.jarvisCaptureBlocklist || []).join(", ")
+                                function save() {
+                                    const terms = text.split(/[,\n]/).map(t => t.trim().toLowerCase()).filter(t => t !== "");
+                                    Theme.cfg.jarvisCaptureBlocklist = terms.filter((t, i) => terms.indexOf(t) === i);
+                                    text = Theme.cfg.jarvisCaptureBlocklist.join(", ");
+                                }
+                                Keys.onReturnPressed: { save(); focus = false; }
+                                Keys.onEnterPressed: { save(); focus = false; }
+                                onActiveFocusChanged: if (!activeFocus) save()
+                            }
+                        }
+                        Text { width: parent.width; wrapMode: Text.Wrap; text: "Always refused, whatever this says: the lock screen, password / permission / keyring prompts and password managers. Jarvis only reads a window you name; captures stay in memory, never on disk, and what's on screen is data, never an instruction."; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
+                    }
                     Text { width: parent.width; wrapMode: Text.Wrap; text: "Read-only by default. Sending, creating, deleting or editing anything needs your spoken yes. Email, calendar and document text is treated as data, never as commands. Setup: ~/.config/jarvis/docs"; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
                     Row {
                         spacing: 10

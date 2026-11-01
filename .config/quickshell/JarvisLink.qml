@@ -24,6 +24,7 @@ Singleton {
     property var selectedTask: null       // id
     property var taskLines: []
     property var confirms: []
+    property var watchers: []             // core/watch.py: live ones first (active / paused), then the last few finished
     property bool busy: false
     property string busyText: ""
     property string liveTool: ""
@@ -44,7 +45,7 @@ Singleton {
     function refresh() {
         if (sock.connected) { send({op: "hello"}); send({op: "threads", q: root.query, quick: root.showQuick}); }
         else offline(["threads"].concat(root.query ? [root.query] : []).concat(root.showQuick ? ["--quick"] : []));
-        if (!sock.connected) offline(["tasks"]);
+        if (!sock.connected) { offline(["tasks"]); offline(["watchers"]); }
     }
 
     function send(o) {
@@ -79,6 +80,8 @@ Singleton {
     function cancelTask(id) { send({op: "cancel", id: id}); }
     function resumeTask(id) { send({op: "task_resume", id: id}); }
     function answer(id, yes) { send({op: "answer", id: id, yes: yes}); }
+    function pauseWatch(id, on) { send({op: "watch_pause", id: id, on: on}); }
+    function stopWatch(id) { send({op: "watch_stop", id: id}); }
 
     function upsert(list, item) {
         const out = list.filter(x => x.id !== item.id);
@@ -135,7 +138,15 @@ Singleton {
             break;
         case "confirm": root.confirms = root.confirms.filter(c => c.id !== m.item.id).concat([m.item]); break;
         case "confirm_done": root.confirms = root.confirms.filter(c => c.id !== m.id); break;
-        case "usage": root.usage = m; break;
+        case "usage": root.usage = Object.assign({}, root.usage, m); break;
+        case "watchers": root.watchers = m.items; break;
+        case "watch": {
+            const i = root.watchers.findIndex(x => x.id === m.item.id);
+            const copy = root.watchers.slice();
+            if (i >= 0) copy[i] = m.item; else copy.unshift(m.item);
+            root.watchers = copy;
+            break;
+        }
         }
     }
 
