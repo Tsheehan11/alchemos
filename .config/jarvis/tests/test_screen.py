@@ -478,6 +478,30 @@ gate("mcp__screen__read_window", fresh=True)
 check("watch_window after a read: asks", gate("mcp__screen__watch_window"), ("Allow", 1))
 check("a second read stays free", gate("mcp__screen__read_window"), ("Allow", 0))
 
+# Hyprland 0.57: special workspaces have no id (clients, monitors, workspaces): only address / type / name
+SPECIAL = {"address": "special:music", "type": "special", "name": "special:music"}
+NONE = {"address": "", "type": "", "name": ""}
+check("ws_name of a 0.57 special workspace", S.ws_name(SPECIAL), "special:music")
+check("ws_name falls back to the id", S.ws_name({"id": 3}), "3")
+check("monitor with no special open", S.shown_on({"activeWorkspace": {"id": 1, "name": "1"}, "specialWorkspace": NONE}), {"1"})
+check("monitor with a special open", S.shown_on({"activeWorkspace": {"id": 1, "name": "1"}, "specialWorkspace": SPECIAL}),
+      {"1", "special:music"})
+_mons = S.monitors
+S.monitors = lambda: [{"id": 0, "name": "eDP-1", "activeWorkspace": {"id": 1, "name": "1"}, "specialWorkspace": NONE}]
+check("window on a closed special workspace isn't visible", S._visible({"monitor": 0, "workspace": SPECIAL}), False)
+S.monitors = lambda: [{"id": 0, "name": "eDP-1", "activeWorkspace": {"id": 1, "name": "1"}, "specialWorkspace": SPECIAL}]
+check("…and is once it's open", S._visible({"monitor": 0, "workspace": SPECIAL}), True)
+S.monitors = _mons
+_clients, _grim = S.clients, S._grim
+S.clients = lambda: [{"address": "0xs1", "class": "org.keepassxc.KeePassXC", "title": "Vault", "workspace": SPECIAL,
+                      "at": [10, 10], "size": [20, 20]},
+                     {"address": "0xs2", "class": "kitty", "title": "zsh", "workspace": {"id": 1, "name": "1"}, "at": [40, 0], "size": [20, 20]}]
+S._grim = lambda args: np.full((100, 100, 3), 200, np.uint8)
+img, _ = S.capture_monitor({"name": "eDP-1", "x": 0, "y": 0, "width": 100, "height": 100, "scale": 1,
+                            "activeWorkspace": {"id": 1, "name": "1"}, "specialWorkspace": SPECIAL}, cfg)
+check("monitor read with a 0.57 special workspace: never-read window blacked out", (int(img[15, 15, 0]), int(img[5, 45, 0])), (0, 200))
+S.clients, S._grim = _clients, _grim
+
 raw = json.loads(open(os.path.join(ROOT, "servers.json")).read())
 check("screen server registered", (raw["screen"]["policy"], sorted(raw["screen"]["read_tools"])), ("screen", ["list_windows", "read_window"]))
 

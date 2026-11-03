@@ -175,6 +175,26 @@ CREATE TABLE IF NOT EXISTS claude_turns (
     turns INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS claude_turns_ts ON claude_turns(ts);
+CREATE TABLE IF NOT EXISTS control_approvals (
+    token TEXT PRIMARY KEY,      -- random, made by core/brain.py's gate after his yes; the model never sees it
+    plan TEXT NOT NULL,          -- core/control.plan_hash of the exact plan he approved (window + steps)
+    address TEXT NOT NULL,       -- the window it's for
+    source TEXT NOT NULL,        -- voice | typed | task:<id>
+    created REAL NOT NULL,
+    expires REAL NOT NULL,       -- a couple of minutes: an approval is for running that plan now
+    used REAL                    -- set when control_run takes it: one plan, once
+);
+CREATE TABLE IF NOT EXISTS control_log (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    address TEXT NOT NULL,
+    label TEXT NOT NULL,
+    goal TEXT NOT NULL,
+    steps INTEGER NOT NULL,      -- steps in the plan
+    done INTEGER NOT NULL,       -- steps carried out and verified
+    outcome TEXT NOT NULL,       -- done | stopped:<why> | refused:<why>
+    detail TEXT NOT NULL DEFAULT ''
+);
 """
 
 STOPWORDS = set("""a an the and or but to of in on at for with by from is are was were be been am i me my
@@ -567,6 +587,36 @@ def turns_today():
     start = _dt.datetime.combine(_dt.date.today(), _dt.time()).timestamp()
     with _db() as db:
         r = db.execute("SELECT COALESCE(SUM(turns), 0) AS n, COUNT(*) AS req, "
-                       "COALESCE(SUM(CASE WHEN source = 'watch' THEN turns ELSE 0 END), 0) AS w "
+                       "COALESCE(SUM(CASE WHEN source = 'watch' THEN turns ELSE 0 END), 0) AS w, "
+                       "COALESCE(SUM(CASE WHEN source = 'control' THEN turns ELSE 0 END), 0) AS c "
                        "FROM claude_turns WHERE ts >= ?", (start,)).fetchone()
-    return {"turns": r["n"], "requests": r["req"], "watch": r["w"]}
+    return {"turns": r["n"], "requests": r["req"], "watch": r["w"], "control": r["c"]}
+
+
+# ── window control approvals (core/brain.py writes, mcp/control_tools.py takes) ──
+def add_control_approval(token, plan, address, source, ttl=180):
+    now = time.time()
+    with _db() as db:
+        db.execute("DELETE FROM control_approvals WHERE expires < ?", (now - 3600,))
+        db.execute("INSERT INTO control_approvals(token, plan, address, source, created, expires) VALUES (?,?,?,?,?,?)",
+                   (token, plan, address, source, now, now + ttl))
+
+
+def take_control_approval(token, plan, address):
+    """The approval for exactly this plan, if unused and fresh; marks it used (one plan, once). None otherwise."""
+    now = time.time()
+    with _db() as db:
+        r = db.execute("UPDATE control_approvals SET used = ? WHERE token = ? AND plan = ? AND address = ? "
+                       "AND used IS NULL AND expires >= ? RETURNING *", (now, str(token), plan, address, now)).fetchone()
+    return dict(r) if r else None
+
+
+def log_control(address, label, goal, steps, done, outcome, detail=""):
+    with _db() as db:
+        db.execute("INSERT INTO control_log(ts, address, label, goal, steps, done, outcome, detail) VALUES (?,?,?,?,?,?,?,?)",
+                   (time.time(), address, label[:120], goal[:300], int(steps), int(done), outcome[:80], detail[:500]))
+
+
+def list_control_log(limit=20):
+    with _db() as db:
+        return [dict(r) for r in db.execute("SELECT * FROM control_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]

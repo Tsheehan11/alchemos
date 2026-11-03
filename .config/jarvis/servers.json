@@ -22,6 +22,19 @@
         ],
         "note": "Window reading + watchers (core/screen.py, core/watch.py). Reads mark the request as having read untrusted screen content, so a later action needs his yes."
     },
+    "control": {
+        "name": "control",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{jarvis}/mcp/control_tools.py"
+        ],
+        "policy": "control",
+        "read_tools": [
+            "control_look"
+        ],
+        "note": "Window control (core/control.py, core/wlinput.py). control_look is a read of screen content; control_run always asks with the whole plan on show, then runs it under a single-use approval the gate writes. Kill switch: Super+Shift+Escape or \"stop\" (jarvis control stop)."
+    },
     "google": {
         "name": "Google",
         "label": "GMAIL · CALENDAR · DRIVE",

@@ -130,17 +130,20 @@ class Pending:
         self.result = None
         self.event = threading.Event()
         self.voice_asked = False
+        # a window-control plan in a background task can be answered "allow this task" (core/brain.py)
+        self.allow_task = origin.startswith("task:") and "\nPLAN · " in prompt
 
     def wait(self, timeout):
+        """True / False, or "task" ("allow this task", which is also a yes)."""
         self.event.wait(timeout)
-        return bool(self.result)
+        return self.result if self.result == "task" else bool(self.result)
 
     @property
     def answered(self):
         return self.event.is_set()
 
     def item(self):
-        return {"id": self.id, "prompt": self.prompt, "origin": self.origin, "title": self.title}
+        return {"id": self.id, "prompt": self.prompt, "origin": self.origin, "title": self.title, "allow_task": self.allow_task}
 
 
 class Confirmations:
@@ -160,7 +163,7 @@ class Confirmations:
         with self.lock:
             p = self.open_.pop(pid, None)
         if p and not p.answered:
-            p.result = bool(yes)
+            p.result = "task" if yes == "task" and p.allow_task else bool(yes)
             p.event.set()
             self.notify({"ev": "confirm_done", "id": pid, "yes": bool(yes)})
         return p is not None

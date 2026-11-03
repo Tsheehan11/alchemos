@@ -32,6 +32,7 @@ Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
   jarvis disconnect google | microsoft | learn-ical
 
 JARVIS app (Super + J, quickshell/JarvisApp.qml; core/appserver.py, conversations.py, tasks.py):
+  jarvis control stop | status | log    window control: kill switch (Super+Shift+Escape runs "stop"), state, history
   jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | watchers | usage   history as JSON
 
 SE tracker sheet (mcp/tracker.py, docs/jarvis-app.md):
@@ -67,6 +68,9 @@ os.environ.pop("ANTHROPIC_API_KEY", None)   # Pro login only, never an API key
 if __name__ == "__main__" and sys.argv[1:2] in (["connect"], ["disconnect"], ["integrations"]):
     from core import integrations          # before the heavy imports: Settings polls `integrations --json`
     sys.exit(integrations.main(sys.argv[1:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["control"]:
+    from core import control
+    sys.exit(control.cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["kitty-rc"]:
     from core import screen                # status / setup / rotate of the kitty get-text password
     sys.exit(screen.kitty_rc_cli(sys.argv[2:]))
@@ -88,7 +92,7 @@ if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
 
 import jarvis_db as db  # noqa: E402
 import stark_actions as A  # noqa: E402
-from core import fastpath, hearing, hud, secrets, trace  # noqa: E402
+from core import control, fastpath, hearing, hud, secrets, trace  # noqa: E402
 from core import config as C  # noqa: E402
 
 # ── Wake word / speech-to-text ──────────────────
@@ -109,6 +113,10 @@ NOT_HEARD = "Sorry sir, I didn't catch that."
 SYNC_S = 15 * 60           # Outlook calendar link + LEARN feed + grade notices, while docked
 
 YES = re.compile(r"\b(yes|yeah|yep|yup|confirm(ed)?|do it|go ahead|affirmative|proceed|sure|please do|correct)\b")
+ALLOW_TASK = re.compile(r"\ballow (it |this |the )?(for )?(the |this |whole )?task\b")
+# "stop" while Jarvis works a window (or just after the kill switch): it lets go, nothing else (not "stop the music")
+STOP_CONTROL = re.compile(r"^\s*(?:(?:hey )?jarvis,? )?(?:stop|stop it|stop that|stop now|halt|abort|let go|hands off|"
+                          r"stop (?:control|controlling|clicking|typing))\s*(?:,? jarvis)?[.!]*\s*$", re.I)
 NO = re.compile(r"\b(no|nope|don't|do not|cancel|stop|negative|never ?mind|wait)\b")
 
 LOG_FILE = None   # voice mode: ~/.local/share/jarvis/jarvis.log (the HUD discards stdout)
@@ -145,6 +153,11 @@ def govee_pulse():
         except OSError:
             pass                                   # no strip / daemon: nothing to do
     threading.Thread(target=send, daemon=True).start()
+
+
+def spoken_prompt(prompt):
+    """A window-control plan is shown in full (console / HUD); only its first line is said."""
+    return prompt.split("\n", 1)[0]
 
 
 def is_yes(text):
@@ -291,6 +304,10 @@ class Jarvis:
         t0 = time.monotonic()
         self.error = ""
         self._last_tools, self._last_tier = [], ""
+        if STOP_CONTROL.match(text) and (control.active() or control.stopped_recently(20)):
+            control.stop_all("voice")
+            self._last_tier = "control:stop"
+            return "Stopped, sir. I've let go of the window."
         steps = self._choice_answer(text)
         if steps is None:
             steps = fastpath.match(text, self.last_query)
@@ -677,14 +694,14 @@ class VoiceLoop:
         hud.confirm(prompt)
         if self.cfg["jarvisSpeak"]:
             u = self.voice.utterance()
-            u.add(prompt)
+            u.add(spoken_prompt(prompt))
             u.finish()
             self.play(u)
         self.mic.flush()
         audio = self.listen(CONFIRM_TIMEOUT_S, kind="confirm")
         answer = self.transcribe(audio)[0] if audio is not None else ""
         log(f'  > "{answer}"')
-        ok = is_yes(answer)
+        ok = is_yes(answer) or bool(ALLOW_TASK.search(answer.lower()))
         if ok:
             hud.thinking()
         return ok
@@ -820,11 +837,13 @@ class VoiceLoop:
         waiting in the app."""
         self.voice.chime()
         prompt = f"For the {p.title.lower()} task: {p.prompt}" if p.title else p.prompt
+        if p.allow_task:
+            prompt = prompt.replace(" Go ahead, sir?", " Go ahead, sir? You can also say allow this task.", 1)
         log(f"  ? {prompt}")
         hud.confirm(prompt)
         if self.cfg["jarvisSpeak"]:
             u = self.voice.utterance()
-            u.add(prompt)
+            u.add(spoken_prompt(prompt))
             u.finish()
             self.play(u)
         if p.answered:
@@ -834,7 +853,9 @@ class VoiceLoop:
         audio = self.listen(CONFIRM_TIMEOUT_S, kind="confirm", stop=lambda: p.answered)
         answer = self.transcribe(audio)[0] if audio is not None else ""
         log(f'  > "{answer}"')
-        if answer and not p.answered and (is_yes(answer) or NO.search(answer.lower())):
+        if answer and not p.answered and p.allow_task and ALLOW_TASK.search(answer.lower()):
+            self.j.confirms.answer(p.id, "task")
+        elif answer and not p.answered and (is_yes(answer) or NO.search(answer.lower())):
             self.j.confirms.answer(p.id, is_yes(answer))
             self.say("Very good, sir." if is_yes(answer) else "Very well, sir.")
         else:
@@ -1090,7 +1111,8 @@ class AppBridge:
         return {"hello": self.hello, "threads": self.threads, "thread": self.thread, "ask": self.ask, "new": self.new,
                 "resume": self.resume, "tasks": self.task_list, "task_log": self.task_log, "task": self.task_start,
                 "cancel": self.cancel, "task_resume": self.task_resume, "answer": self.answer, "usage": lambda m: self.usage(),
-                "watchers": self.watchers, "watch_pause": self.watch_pause, "watch_stop": self.watch_stop}
+                "watchers": self.watchers, "watch_pause": self.watch_pause, "watch_stop": self.watch_stop,
+                "control_stop": self.control_stop}
 
     def hello(self, m):
         return [{"ev": "state", "current": self.j.conv.current, "busy": self.j.busy},
@@ -1107,6 +1129,9 @@ class AppBridge:
 
     def ask(self, m):
         text = " ".join(str(m.get("text", "")).split())[:2000]
+        if text and STOP_CONTROL.match(text) and control.active():
+            control.stop_all("console")                 # now, not after the running request lets go of the turn lock
+            return {"ev": "control", "active": False}
         if text:
             threading.Thread(target=self._ask, args=(text,), daemon=True).start()
 
@@ -1172,7 +1197,11 @@ class AppBridge:
         return self.task_list({})
 
     def answer(self, m):
-        self.j.confirms.answer(int(m["id"]), bool(m.get("yes")))
+        self.j.confirms.answer(int(m["id"]), "task" if m.get("yes") == "task" else bool(m.get("yes")))
+
+    def control_stop(self, m):
+        control.stop_all("console")
+        return {"ev": "control", "active": False}
 
 
 # ── CLI ────────────────────────────────────────

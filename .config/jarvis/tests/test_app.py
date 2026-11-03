@@ -201,8 +201,9 @@ tm.cancel(b1)
 check("cancel", wait_for(lambda: db.get_task(b1)["status"] == "cancelled"), True)
 check("third starts when a slot frees", wait_for(lambda: db.get_task(b3)["status"] == "running"), True)
 tm.cancel(b2)
-tm.cancel(b3)
+check("cancel just as it starts is honoured", tm.cancel(b3), True)    # it used to be dropped: ran on, announced done
 wait_for(lambda: not tm.running)
+check("…and it ends cancelled", wait_for(lambda: db.get_task(b3)["status"] == "cancelled"), True)
 
 c1 = tm.start("Tracker sweep", "approve something")
 check("confirmation reaches app + voice", wait_for(lambda: bool(asked)), True)
@@ -241,6 +242,7 @@ n1 = tm.start("Check rows", "check rows")
 check("nameless task done", wait_for(lambda: db.get_task(n1)["status"] == "done"), True)
 check("naming failed → generic line stored as owed", db.get_task(n1)["announce"],
       "Sir, your background task is done. All five rows checked.")
+wait_for(lambda: said)        # status "done" is stored before the runner's last bookkeeping and its announce call
 check("runner nudged the voice loop", [x[0] for x in said], ["TASK DONE"])
 check("combat mode: deferred, still owed", (ann.deliver(paused=True), spoken), (0, []))
 # Jarvis restarts during combat mode: a new announcer (fresh process) still finds it
@@ -343,6 +345,24 @@ for th in j.learning:
     th.join(10)
 
 check("turns today counts", db.turns_today()["turns"] >= 0, True)
+
+# ── "stop" while Jarvis works a window (stage 4): lets go, never "stop the music" ──
+from core import control as K  # noqa: E402
+for said, want in (("stop", True), ("Jarvis, stop", True), ("stop it!", True), ("hands off", True), ("stop clicking", True),
+                   ("stop the music", False), ("stop the vpn", False), ("stop watching discord", False)):
+    check(f"stop phrase: {said}", bool(JV.STOP_CONTROL.match(said)), want)
+K.STOP_FLAG = TMP / "control-stop"
+K.STATE_FILE = TMP / "control.json"
+K.STATE_FILE.write_text(json.dumps({"pid": os.getpid(), "address": "0x1"}))
+_popen, K.subprocess.Popen = K.subprocess.Popen, lambda *a, **k: None
+t0 = time.time() - 0.01
+reply = j.handle("stop", source="typed", confirm=lambda p: True)
+K.subprocess.Popen = _popen
+check("'stop' lets go of the window", reply, "Stopped, sir. I've let go of the window.")
+check("…and sets the kill flag", K.stopped_since(t0), True)
+K.STATE_FILE.unlink()
+check("spoken prompt is the plan's first line", JV.spoken_prompt("Take control?\nPLAN · x\n1. Click"), "Take control?")
+check("allow this task heard", bool(JV.ALLOW_TASK.search("allow this task")), True)
 print(f"\n{'FAILED: ' + ', '.join(FAILS) if FAILS else 'all app tests passed'}")
 sys.stdout.flush()
 os._exit(1 if FAILS else 0)

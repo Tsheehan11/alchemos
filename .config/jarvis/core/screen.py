@@ -75,7 +75,8 @@ def locked():
 # The HUD's hotplug settle gate (quickshell/Hotplug.qml): while screens come or go, this flag is
 # fresh (touched every 4 s; older than 10 s = stale). Windows can be left on no monitor at all
 # then (hyprctl clients: "monitor": -1), and Hyprland 0.56.2 segfaults when one of those is
-# captured through the toplevel export, so nothing is captured while it's up.
+# captured through the toplevel export, so nothing is captured while it's up. 0.57.0 fixed the crash and re-homes
+# those workspaces itself (nested repro 2026-11-02); the gate stays anyway.
 SETTLE_FLAG = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "stark-hotplug-settling")
 
 
@@ -254,13 +255,24 @@ def _grim(args):
     return _ppm(r.stdout)
 
 
+def ws_name(ws):
+    """A workspace's key. Hyprland 0.57 gives special workspaces no id at all (only address / type / name), in
+    clients, monitors and workspaces alike; names are unique ("1", "special:music"), so compare those."""
+    ws = ws or {}
+    return ws.get("name") or (str(ws["id"]) if "id" in ws else "")
+
+
+def shown_on(mon):
+    """Names of the workspaces a monitor shows: its active one, plus its special one if it's open."""
+    return {n for n in (ws_name(mon.get("activeWorkspace")), ws_name(mon.get("specialWorkspace"))) if n}
+
+
 def _visible(win):
     mons = {m["id"]: m for m in monitors()}
     m = mons.get(win.get("monitor"))
     if not m:
         return False
-    ws = win["workspace"]["id"]
-    return ws == m["activeWorkspace"]["id"] or ws == (m.get("specialWorkspace") or {}).get("id")
+    return ws_name(win["workspace"]) in shown_on(m)
 
 
 def capture_window(win, cfg=None):
@@ -303,9 +315,9 @@ def capture_monitor(mon, cfg=None):
     if mon.get("transform", 0) % 2:
         lw, lh = lh, lw
     fx, fy = img.shape[1] / lw, img.shape[0] / lh
-    shown = {mon["activeWorkspace"]["id"], (mon.get("specialWorkspace") or {}).get("id")}
+    shown = shown_on(mon)
     for c in clients():
-        if c["workspace"]["id"] in shown and excluded(c, cfg):
+        if ws_name(c["workspace"]) in shown and excluded(c, cfg):
             (x, y), (w, h) = c["at"], c["size"]
             x0, y0 = int((x - mon["x"]) * fx), int((y - mon["y"]) * fy)
             x1, y1 = int(x0 + w * fx + 1), int(y0 + h * fy + 1)

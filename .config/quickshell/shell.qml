@@ -63,6 +63,10 @@ ShellRoot {
         model: Quickshell.screens
         JarvisApp {}
     }
+    Variants {                  // the glow around a window Jarvis is working (stage 4, core/control.py)
+        model: Quickshell.screens
+        JarvisControl {}
+    }
     Variants {
         model: Quickshell.screens
         DisplayConfirm {}
@@ -199,6 +203,14 @@ ShellRoot {
         function toggle(): void { JarvisLink.toggle() }
         function open(): void { JarvisLink.show() }
         function close(): void { JarvisLink.open = false }
+    }
+
+    //   used by ~/.config/jarvis/core/control.py while Jarvis works a window; stop = the kill switch
+    IpcHandler {
+        target: "jarviscontrol"
+        function frame(scr: string, x: int, y: int, w: int, h: int, label: string): void { JarvisControlState.show(scr, x, y, w, h, label) }
+        function hide(): void { JarvisControlState.hide() }
+        function stop(): void { JarvisControlState.stop() }
     }
 
     //   used by ~/.config/jarvis/jarvis.py (core/hud.py)

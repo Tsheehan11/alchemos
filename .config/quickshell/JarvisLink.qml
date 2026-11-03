@@ -45,7 +45,7 @@ Singleton {
     function refresh() {
         if (sock.connected) { send({op: "hello"}); send({op: "threads", q: root.query, quick: root.showQuick}); }
         else offline(["threads"].concat(root.query ? [root.query] : []).concat(root.showQuick ? ["--quick"] : []));
-        if (!sock.connected) { offline(["tasks"]); offline(["watchers"]); }
+        if (!sock.connected) { offline(["tasks"]); offline(["watchers"]); offline(["usage"]); }
     }
 
     function send(o) {
@@ -82,6 +82,7 @@ Singleton {
     function answer(id, yes) { send({op: "answer", id: id, yes: yes}); }
     function pauseWatch(id, on) { send({op: "watch_pause", id: id, on: on}); }
     function stopWatch(id) { send({op: "watch_stop", id: id}); }
+    function stopControl() { send({op: "control_stop"}); }
 
     function upsert(list, item) {
         const out = list.filter(x => x.id !== item.id);

@@ -29,7 +29,7 @@
         "start kitty",
         "launch the code editor"
       ],
-      "must_not": "\\b(?:read|what(?:'s| is| does)|tell me when|let me know when|watch(?:ing)?|look at|summari[sz]e|keep an eye)\\b"
+      "must_not": "\\b(?:read|what(?:'s| is| does)|tell me when|let me know when|watch(?:ing)?|look at|summari[sz]e|keep an eye|click|press|type|scroll|tap|hit|fill in|in (?:this|that|the) (?:window|terminal|tab|app))\\b"
     },
     "close_window": {
       "tool": "close_focused_window",
@@ -960,6 +960,27 @@
         "pause the watcher",
         "what are you watching",
         "resume watching"
+      ]
+    },
+    "claude.control": {
+      "kind": "claude-only",
+      "note": "Window control (stage 4, mcp/control_tools.py): Claude looks at the window he named and proposes a plan; the gate shows it and asks every time.",
+      "examples": [
+        "click the increment button in this window",
+        "in this window press ctrl t",
+        "press enter in this terminal",
+        "type hello into the test window",
+        "scroll down in this window",
+        "click play in spotify",
+        "fill in my name in this form",
+        "in the terminal type ls and press enter",
+        "click the second link in this tab",
+        "open a new tab in this window",
+        "hit save in the editor window",
+        "double click the folder in this window",
+        "right click the file in the test window",
+        "press escape in this window",
+        "tap the next button in the jtest window"
       ]
     },
     "claude.email": {

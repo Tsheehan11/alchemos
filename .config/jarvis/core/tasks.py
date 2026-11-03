@@ -156,7 +156,8 @@ class TaskManager:
             if not p.answered:
                 self.confirms.expire(p)
             self.waiting.pop(tid, None)
-            self._line(tid, "note", "Approved." if ok else "Declined.")
+            self._line(tid, "note", "Approved for the rest of this task (this window)." if ok == "task"
+                       else "Approved." if ok else "Declined.")
             self._push(tid)
             return ok
         return confirm
@@ -243,7 +244,18 @@ class TaskManager:
             db.update_task(tid, status="cancelled", finished=time.time())
             self._push(tid)
             return True
+        if t and t["status"] == "running":
+            # starting this very moment: _start (on the loop) has marked it running but not yet registered its run.
+            # Without this the cancel was silently dropped and the task ran on and was announced as done.
+            self.cancelled.add(tid)
+            asyncio.run_coroutine_threadsafe(self._cancel_started(tid), self.loop)
+            return True
         return False
+
+    async def _cancel_started(self, tid):
+        if tid in self.running:                   # _start runs on this loop, so it has finished by now
+            fut, brain = self.running[tid]
+            await self._cancel(fut, brain)
 
     async def _cancel(self, fut, brain):
         await brain.interrupt()

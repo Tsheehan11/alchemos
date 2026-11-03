@@ -1,4 +1,4 @@
-# Jarvis upgrade: tracker, app, window reading, window control
+# Jarvis upgrade: tracker, app, window reading, window control (all four stages built)
 
 Four stages, built and committed one at a time. Every existing rule still holds: other people's
 content goes back to the model fenced by `integration_common.untrusted()`, the gate in
@@ -200,6 +200,17 @@ voice loop is free (deferred in combat mode, survives restarts, "While I was awa
 retried 3× if speech fails, older than 12 h left in the console), wrap-up errors still owe the generic
 line, an interrupted task is announced too, and a task queued in combat mode logs why it waits.
 
+**Checked on Hyprland 0.57.0 (2026-11-02, before stage 4).** 70c8f07 + 3d20abb + the hotplug gate (8f5d6a8,
+e2c1b4a) on main and pushed; all suites and the router eval (0 wrong at 0.70) pass. Live on dummies: kitty read
+through its own text, GTK through AT-SPI, toplevel export from a hidden special workspace, one watcher end to end
+(one Claude look, match spoken, SEEN), the console card with PAUSE / STOP and "TURNS TODAY n (WATCHERS n)". Found
+and fixed: (1) 0.57 gives special workspaces no id (clients, monitors and workspaces only have address / type /
+name), which broke every monitor read while any window sat on a special workspace (Spotify's special:music) and the
+grim fallback's visibility check: workspaces are now compared by name (`screen.ws_name` / `shown_on`); (2) with
+Jarvis off, the console never loaded the turn counts (`app-data usage`), so the header always read 0. The settle
+gate still refuses captures while its flag is fresh. Nested repro of the mirror-source unplug on 0.57.0: 6/6 unplugs
+re-homed the workspace to the remaining screen (no "monitor -1"), every capture worked, no crash. The gate stays.
+
 ## Stage 4: Interacting with windows
 
 - Keyboard: `zwp_virtual_keyboard_v1` (wtype, `sudo pacman -S wtype`). Pointer:
@@ -212,3 +223,64 @@ line, an interrupted task is announced too, and a task queued in combat mode log
   sending messages or email, deleting files, system settings, anything an on-screen text asks for.
 - After every action: re-capture and compare against the expected result; stop and ask if not.
 - Tested only against a throwaway kitty / test page.
+
+**Built (stage 4):**
+- Input. Keyboard: wtype (already installed), one key or ≤12 characters per call so the kill switch is checked
+  between chunks; newlines and tabs are sent as Return / Tab keys. Pointer: `core/wlinput.py`, a
+  `zwlr_virtual_pointer_v1` client on the same stdlib Wayland code as `core/wlcap.py` (absolute motion over the
+  monitors' logical bounding box, buttons, wheel notches with `axis_discrete`); every move is checked with
+  `hyprctl cursorpos`. No setup: no uinput group, no daemon, no ydotool. Proven on 0.57.0 at scale 1 and (nested) 1.625.
+- Tools (`mcp/control_tools.py`, server "control", policy "control"): `control_look(target)` = the window as a
+  picture + its clickable elements by name (AT-SPI `elements` mode in `mcp/atspi_text.py`, boxes in window
+  coordinates, since Wayland gives no screen ones) + its text, fenced as untrusted; a read, so the request is tainted.
+  `control_run(target, goal, steps, picture_size)`: ≤12 steps of click / double_click / right_click (by element
+  name, or x / y in the look's picture), type, key ("ctrl+t"), scroll, wait, each with the screen it expects after.
+- Approval (`core/brain.py` `_control_gate`): the target has to be named in this request (`control.named_in`:
+  "this window / terminal / tab" needs those words; otherwise every word of the target must be in what he said; never
+  an address); the plan is validated and checked against every never-do *before* he's asked (a refused plan is never
+  put to him); then the whole plan is shown (console: full text, HUD: full text, voice: only the first line) and he
+  says or clicks yes. The gate then writes a random single-use approval (`jarvis_db.control_approvals`, 3 min) bound
+  to the hash of exactly that window + goal + steps, and fills in `address` / `approval` / `request` itself (the
+  model's values are overwritten). `control_run` refuses anything without a matching unused approval. "Allow this
+  task" (voice, or ALLOW TASK in the console; offered only for a background task's plan) lets that task's Brain
+  approve its later plans for the same window without asking; it lives in that Brain object only (never stored, not
+  for voice / typed requests, not for another window or task). Every plan still shows on the border and in the log.
+- Never (`core/control.py` `check_plan` before asking, again at run time): lock screen / hyprlock, Stage 3's never-read
+  windows (polkit, keyring, password prompts and managers, blocklist); typing while AT-SPI says a password field has
+  the focus or a terminal's last line is a password / passphrase / `[sudo]` prompt (checked before every line);
+  system settings (settings apps, Super-key and XF86 keys, Ctrl+Alt+Del/F-keys, and in a terminal sudo / systemctl /
+  pacman / nmcli / hyprctl / chmod / writes into ~/.config …); messaging and mail apps or pages (only scrolling
+  allowed), "send / reply / post / share" steps or buttons; payment pages (only scrolling), pay / buy / order buttons;
+  deleting files (Delete in a file manager, Shift+Delete, rm / shred / find -delete …, Delete / Trash buttons, by
+  AT-SPI name even for a coordinate click); scripts piped from the internet; and text to type that appears on screen
+  but not in his request (a page can't get its instructions typed). Typed text across steps is checked joined.
+- Running (`control.Runner`): focus the window once, then before every input event: kill flag, hyprlock, settle gate
+  (waits ≤10 s), combat mode (pauses ≤2 min with the border saying so, no input meanwhile, then gives up), window
+  still there / same app / not now on the never list / still the focused window (a pop-up or another app taking focus
+  stops it), point inside the window and not under a floating, pinned or special-workspace window or an overlay layer.
+  After every step it re-captures (Stage 3 `screen.capture_window`, export) and checks: "no visible change" steps
+  pass; typed text found in the window's own text (kitty / AT-SPI) passes without Claude; nothing changed (two looks)
+  stops; otherwise a one-shot fast-model look with no tools compares BEFORE / NOW with the step's `expect`. Not as
+  expected → stops and says what it saw (fenced), and the model asks him. Verification turns count under "control"
+  (console header: "(WATCHERS n · CONTROL n)").
+- Border: `quickshell/JarvisControl.qml` (+ `JarvisControlState.qml` singleton, IPC `jarviscontrol frame | hide | stop`),
+  an Overlay layer over the window plus a glow margin, empty input mask (clicks go through), breathing theme-primary
+  outline and a tag "J.A.R.V.I.S CONTROL · ACTING · STEP 2/3 · SUPER+SHIFT+ESC / "STOP" TO STOP". The runner beats it
+  every 0.5 s; no beat for 2 s → gone. The kill switch flashes it STOPPED in the secondary colour.
+- Kill switch: Super+Shift+Escape (`hypr/stark/binds.lua`; plain shell `touch $XDG_RUNTIME_DIR/jarvis-control-stop`
+  + `qs ipc call jarviscontrol stop`, so it works with Python or the HUD stuck), "Jarvis, stop" (the wake word
+  interrupts the request and `Brain.interrupt` sets the flag; then "stop" / "halt" / "hands off" answers "Stopped, sir"
+  without reaching the music's "stop"), typed "stop" in the console (handled before the turn lock the running plan
+  holds), `jarvis control stop`. A plan stops before its next input event; typing stops within one 12-character chunk.
+  `jarvis control status | log` (`control_log`: every plan, refusal and stop).
+- Router: `claude.control` (claude-only) examples; `open_app` refuses click / press / type / scroll / "in this window"
+  wording ("press enter in this terminal" used to open a terminal).
+- Tests: `tests/test_control.py` (keys, plan shape, window kinds, every never-do, naming, plan text / hash, single-use
+  approvals, the runner with fakes for each stop, the gate incl. allow-task scope, control_run without approval).
+  Live on dummies only: nested Hyprland (scale 1.625) with a GTK test page and a kitty: element and coordinate clicks,
+  typing verified through AT-SPI and kitty, a password field refused after the click, the kill flag mid-typing (one
+  chunk typed), focus stolen mid-plan; a typed request end to end (Claude looked, planned one step, the gate asked,
+  the executor clicked and Claude verified); `rm -rf` refused at the gate without asking; an unnamed window → "which
+  window?"; a note in the GTK page telling Jarvis to type a command → declined. Real session, dummies on
+  special:jtest: border on screen, real pointer click verified, Super+Shift+Escape through the real bind stopped a plan
+  mid-wait, focus and the special workspace restored, real keyboard layouts unchanged.

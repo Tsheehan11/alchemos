@@ -80,7 +80,9 @@ PanelWindow {
         detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
                                     : "OFFLINE · HISTORY ONLY · RUNS WHILE DOCKED")
                 + "   ·   CLAUDE TURNS TODAY " + (link.usage.turns ?? 0)
-                + ((link.usage.watch ?? 0) > 0 ? " (WATCHERS " + link.usage.watch + ")" : "")
+                + ((link.usage.watch ?? 0) > 0 || (link.usage.control ?? 0) > 0
+                   ? " (" + [(link.usage.watch ?? 0) > 0 ? "WATCHERS " + link.usage.watch : "",
+                             (link.usage.control ?? 0) > 0 ? "CONTROL " + link.usage.control : ""].filter(x => x).join(" · ") + ")" : "")
                 + (link.usage.five_hour !== undefined ? "   ·   5H " + link.usage.five_hour + "%" : "")
                 + (link.usage.seven_day !== undefined ? "   ·   WEEK " + link.usage.seven_day + "%" : "")
         MouseArea { anchors.fill: parent; onClicked: {} }   // clicks inside don't close
@@ -212,24 +214,40 @@ PanelWindow {
                     }
                 }
 
-                // Jarvis is waiting for a yes
-                Repeater {
-                    model: link.confirms
-                    delegate: Rectangle {
-                        required property var modelData
-                        width: mid.width; height: 44
-                        color: Theme.s(0.14); border.color: Theme.secondary
-                        Text {
-                            anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 170; elide: Text.ElideRight
-                            text: (modelData.title ? modelData.title.toUpperCase() + " · " : "") + modelData.prompt
-                            color: Theme.text; font.family: app.mono; font.pixelSize: 12
-                        }
-                        Row {
-                            anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter
-                            spacing: 6
-                            SmallButton { text: "YES"; active: true; onClicked: JarvisLink.answer(modelData.id, true) }
-                            SmallButton { text: "NO"; onClicked: JarvisLink.answer(modelData.id, false) }
+                // Jarvis is waiting for a yes. A window-control plan (core/control.plan_text) shows in full; a background
+                // task's plan can also be answered ALLOW TASK (its later plans for that window, for that task only).
+                Column {
+                    id: confirmCol
+                    visible: link.confirms.length > 0
+                    width: mid.width; spacing: 8
+                    Repeater {
+                        model: link.confirms
+                        delegate: Rectangle {
+                            id: cf
+                            required property var modelData
+                            readonly property bool plan: modelData.prompt.indexOf("\nPLAN · ") >= 0
+                            width: mid.width; height: plan ? planText.implicitHeight + 20 : 44
+                            color: Theme.s(0.14); border.color: Theme.secondary
+                            Text {
+                                id: planText
+                                anchors.left: parent.left; anchors.leftMargin: 10
+                                anchors.top: cf.plan ? parent.top : undefined; anchors.topMargin: 10
+                                anchors.verticalCenter: cf.plan ? undefined : parent.verticalCenter
+                                width: parent.width - (cf.modelData.allow_task ? 270 : 170)
+                                elide: cf.plan ? Text.ElideNone : Text.ElideRight
+                                wrapMode: cf.plan ? Text.Wrap : Text.NoWrap
+                                text: (cf.modelData.title ? cf.modelData.title.toUpperCase() + " · " : "") + cf.modelData.prompt
+                                color: Theme.text; font.family: app.mono; font.pixelSize: 12; lineHeight: 1.15
+                            }
+                            Row {
+                                anchors.right: parent.right; anchors.rightMargin: 6
+                                anchors.top: cf.plan ? parent.top : undefined; anchors.topMargin: 8
+                                anchors.verticalCenter: cf.plan ? undefined : parent.verticalCenter
+                                spacing: 6
+                                SmallButton { text: "YES"; active: true; onClicked: JarvisLink.answer(cf.modelData.id, true) }
+                                SmallButton { visible: cf.modelData.allow_task === true; text: "ALLOW TASK"; onClicked: JarvisLink.answer(cf.modelData.id, "task") }
+                                SmallButton { text: "NO"; onClicked: JarvisLink.answer(cf.modelData.id, false) }
+                            }
                         }
                     }
                 }
@@ -237,7 +255,7 @@ PanelWindow {
                 ListView {
                     id: msgList
                     width: parent.width
-                    height: parent.height - 28 - 8 - link.confirms.length * 52 - liveLine.height - 8 - inputRow.height - 16
+                    height: parent.height - 28 - 8 - (link.confirms.length ? confirmCol.height + 8 : 0) - liveLine.height - 8 - inputRow.height - 16
                     clip: true; spacing: 12
                     model: link.messages
                     boundsBehavior: Flickable.StopAtBounds
@@ -540,7 +558,7 @@ PanelWindow {
                                 text: {
                                     const t = card.t, steps = t.steps + (t.steps === 1 ? " step" : " steps");
                                     switch (card.state_) {
-                                    case "waiting": return "Waiting for you: " + ((card.ask && card.ask.prompt) || t.waiting) + "  ·  " + app.span(card.elapsed);
+                                    case "waiting": return "Waiting for you: " + ((card.ask && card.ask.prompt) || t.waiting).split("\n")[0] + "  ·  " + app.span(card.elapsed);
                                     case "running": return (t.now ? "Now: " + app.plain(t.now) : "Starting…") + "  ·  " + steps + "  ·  " + app.span(card.elapsed);
                                     case "queued": return "Waiting for a free slot (" + (t.slots || 2) + " run at once)";
                                     case "done": return "Done in " + app.span(card.elapsed) + "  ·  " + steps + "  ·  " + app.when(t.finished);
@@ -555,6 +573,7 @@ PanelWindow {
                                 visible: card.ask !== null
                                 spacing: 6
                                 SmallButton { text: "YES"; active: true; onClicked: JarvisLink.answer(card.ask.id, true) }
+                                SmallButton { visible: card.ask !== null && card.ask.allow_task === true; text: "ALLOW TASK"; onClicked: JarvisLink.answer(card.ask.id, "task") }
                                 SmallButton { text: "NO"; onClicked: JarvisLink.answer(card.ask.id, false) }
                             }
                         }

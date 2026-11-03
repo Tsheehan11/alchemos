@@ -27,6 +27,9 @@ bind("L",      exec("qs ipc call stark lock || ~/.config/hypr/stark-lock.sh"))
 bind("Tab",    exec("qs ipc call overview toggle"))
 bind("Escape", exec("qs ipc call stark menu"))
 bind("J",      exec("qs ipc call jarvisapp toggle"))  -- JARVIS console (conversations, typed requests, tasks)
+-- Kill switch: Jarvis lets go of any window it's working (jarvis/core/control.py checks this flag before
+-- every input event). Plain shell, so it works even if Python or the HUD is stuck.
+bind("SHIFT + Escape", exec("touch \"$XDG_RUNTIME_DIR/jarvis-control-stop\"; qs ipc call jarviscontrol stop"))
 bind("SHIFT + M", hl.dsp.exit())
 -- Peek: hide / bring back every window on this workspace (stark/peek.lua). Loaded on its
 -- own, so a mistake in it costs only this bind.
