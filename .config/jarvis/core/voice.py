@@ -270,10 +270,22 @@ class Speaker:
             return ""
 
     def wanted(self):
-        """Speaker set and not on headphones (checked at most every 3 s)."""
+        """Speaker set, not on headphones, and he hasn't picked an output himself since the last
+        device change (mcp/audio_devices.py explicit_output: then Jarvis follows the default output).
+        Checked at most every 3 s, and at once after a new choice (so the confirmation of a switch
+        is spoken on the new output)."""
+        try:
+            import audio_devices as AD
+        except ImportError:         # run without mcp/ on the path (jarvis-voices): no explicit choices
+            AD = None
         at, val = self._wanted
-        if time.monotonic() - at > 3:
-            val = bool(self.mac) and not C.LAPTOP and not effects.on_headphones()     # laptop mode: the room speaker isn't there
+        chose = AD.choice_mtime() if AD else 0.0
+        if time.monotonic() - at > 3 or chose != getattr(self, "_chose", None):
+            self._chose = chose
+            if chose:
+                effects.forget_auto()
+            val = (bool(self.mac) and not C.LAPTOP and not effects.on_headphones()     # laptop mode: the room speaker isn't there
+                   and (AD is None or AD.explicit_output() is None))
             self._wanted = (time.monotonic(), val)
         return val
 

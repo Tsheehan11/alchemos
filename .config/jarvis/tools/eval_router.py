@@ -110,6 +110,15 @@ CASES = [
     ("When is CS 137 assignment 6 due?", CLAUDE),
     ("Has my midterm been graded yet?", CLAUDE),
     ("Find the lab report in my Drive.", CLAUDE),
+    # ── audio devices ──
+    ("Could you put the sound through my headphones?", ("set_audio_output", {"device": "headphones"})),
+    ("Play the music on the Google Home.", ("set_audio_output", {"device": "google home"})),
+    ("I'd like the audio back on the laptop.", ("set_audio_output", {"device": "laptop"})),
+    ("Make my headset the microphone.", ("set_audio_input", {"device": "headset"})),
+    ("Swap the mic over to the laptop one.", ("set_audio_input", {"device": "laptop"})),
+    ("Turn the music up on the speaker.", CLAUDE),
+    ("Connect my headphones.", CLAUDE),
+    ("Mute my microphone.", CLAUDE),
 ]
 
 

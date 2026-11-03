@@ -60,7 +60,8 @@ Singleton {
             property bool jarvisDuck: true            // lower the music while Jarvis talks
             property int jarvisFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)
             property string jarvisSpeaker: ""         // Bluetooth MAC: speaker for Jarvis when not on headphones ("" = off)
-            property string jarvisMic: ""             // PipeWire source node.name for the wake word ("" = default input)
+            property string jarvisMic: "auto"         // wake-word mic: auto (headset mic if plugged in, else the laptop DMIC) | default | a PipeWire source node.name
+            property bool jarvisMicBluetooth: false   // AUTO may pick a Bluetooth headset mic (the headphones drop to call quality while Jarvis listens)
             property string jarvisPlace: "Waterloo, Ontario"   // home town for "what's the weather"
             property bool jarvisAutoAddAssignments: false   // LEARN sync writes to the "STARK – Assignments" calendar without asking (that calendar only)
             property bool jarvisAutoUpdateTracker: false    // grade notices / new LEARN work / moved deadlines write to the SE tracker sheet without asking

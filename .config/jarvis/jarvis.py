@@ -88,6 +88,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["calendar"]:
 if __name__ == "__main__" and sys.argv[1:2] == ["feed"]:
     from core import feed                  # calendar / due / weather data for the HUD widgets (no Claude)
     sys.exit(feed.main(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["audio"]:
+    import audio_devices                   # list / output / input: Settings → AUDIO picks go through here
+    sys.exit(audio_devices.cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -471,34 +474,144 @@ def text_mode(args):
 
 # ── Voice mode ─────────────────────────────────
 class Mic:
-    """pw-record → 80 ms chunks on a queue (a reader thread keeps the pipe drained)."""
+    """pw-record → 80 ms chunks on a queue (a reader thread keeps the pipe drained).
+
+    Which microphone: Settings → JARVIS → INPUT DEVICE (jarvisMic):
+      "auto"     a wired / USB headset mic while one is plugged in, else the laptop's digital mic
+                 (a Bluetooth headset mic only with jarvisMicBluetooth on: holding it open switches
+                 the headphones from A2DP to call quality for as long as Jarvis listens)
+      "default"  (or "") the system default input
+      a node     that PipeWire source, while it exists (else AUTO's pick)
+    A watcher (pactl subscribe, no polling) re-picks on any source / card change and every few
+    seconds for a settings change; a new pick restarts pw-record in place. The queue isn't flushed,
+    and the voice loop's 2 s pre-wake buffer lives in VoiceLoop, so neither is lost."""
 
     def __init__(self, cfg):
         self.cfg = cfg
         self.proc = None
+        self.target = None            # node pw-record is on ("" = default input)
+        self.on = False               # wanted running (False while paused for combat mode)
         self.q = queue.Queue(maxsize=400)
+        self._lock = threading.RLock()
+        self._kick = threading.Event()
+        self._deaths = []
+        self.status_cb = None         # called with (setting, node, label) after each (re)start
+        self._watching = False
+
+    # ── which source ──
+    def pick(self):
+        """→ (node name or "" for the default input, label)."""
+        import audio_devices as AD
+        want = str(self.cfg["jarvisMic"] or "").strip()
+        if want.lower() in ("", "default"):
+            return "", "system default"
+        devs = [d for d in AD.devices("in") if d["available"]]
+        if want.lower() != "auto":
+            hit = next((d for d in devs if d["name"] == want), None)
+            if hit:
+                return hit["name"], hit["label"]
+        bt_ok = bool(self.cfg["jarvisMicBluetooth"])
+        heads = [d for d in devs if d["kind"] == "headphones" and (bt_ok or not d["bluetooth"])]
+        heads.sort(key=lambda d: d["bluetooth"])          # a wired / USB headset before Bluetooth
+        if heads:
+            return heads[0]["name"], heads[0]["label"]
+        dmic = [d for d in devs if d["kind"] == "laptop"]
+        dmic.sort(key=lambda d: not re.search(r"digital|mic1", d["name"] + d["label"], re.I))
+        if dmic:
+            return dmic[0]["name"], dmic[0]["label"]
+        return "", "system default"
 
     def start(self):
-        if self.proc:
-            return
+        with self._lock:
+            self.on = True
+            if not self._watching:
+                self._watching = True
+                threading.Thread(target=self._watch, daemon=True).start()
+            if self.proc:
+                return
+            self._spawn()
+
+    def _spawn(self):
+        try:
+            target, label = self.pick()
+        except Exception as e:
+            log(f"JARVIS: mic pick failed ({type(e).__name__}: {e}); using the default input")
+            target, label = "", "system default"
         # --raw: without it pw-record ≥ 1.6.10 writes an AU stream to stdout (header + big-endian)
         cmd = ["pw-record", "--raw", "--rate", str(RATE), "--channels", "1", "--format", "s16",
                "-P", "media.name=Jarvis wake word"]
-        if self.cfg["jarvisMic"]:
-            cmd += ["--target", self.cfg["jarvisMic"]]
+        if target:
+            cmd += ["--target", target]
+        self.target = target
         self.proc = subprocess.Popen(cmd + ["-"], stdout=subprocess.PIPE)
         threading.Thread(target=self._reader, args=(self.proc,), daemon=True).start()
+        log(f"JARVIS: microphone → {label}")
+        trace.t("mic", node=target or "default", label=label)
+        if self.status_cb:
+            try:
+                self.status_cb(str(self.cfg["jarvisMic"] or "auto"), target, label)
+            except Exception:
+                pass
 
-    def stop(self):
+    def _kill(self):
         p, self.proc = self.proc, None
         if p:
             p.terminate()
-            p.wait()
+            try:
+                p.wait(3)
+            except subprocess.TimeoutExpired:
+                p.kill()
+
+    def stop(self):
+        with self._lock:
+            self.on = False
+            self._kill()
         self.flush()
+
+    def restart(self, why=""):
+        """Switch pw-record to the current pick (nothing happens if it's the same source)."""
+        with self._lock:
+            if not self.on:
+                return
+            try:
+                target, _ = self.pick()
+            except Exception:
+                return
+            if self.proc and self.proc.poll() is None and target == self.target:
+                return
+            log(f"JARVIS: microphone change ({why or 'device change'})")
+            self._kill()
+            self._spawn()
 
     def flush(self):
         while not self.q.empty():
             self.q.get_nowait()
+
+    def _watch(self):
+        """Device events from `pactl subscribe` → debounce → restart(); settings checked every 3 s."""
+        def events():
+            while True:
+                try:
+                    p = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                    for line in p.stdout:
+                        if re.search(r"'(?:new|remove|change)' on (?:source|card|server)", line) and "source-output" not in line:
+                            self._kick.set()
+                    p.wait()
+                except OSError:
+                    pass
+                time.sleep(5)            # PipeWire restarting: subscribe again
+        threading.Thread(target=events, daemon=True).start()
+        last_setting = None
+        while True:
+            fired = self._kick.wait(3.0)
+            setting = (self.cfg["jarvisMic"], self.cfg["jarvisMicBluetooth"])
+            if fired:
+                time.sleep(1.0)          # a dock / headset brings several events: settle first
+                self._kick.clear()
+                self.restart("device plugged / unplugged")
+            elif last_setting is not None and setting != last_setting:
+                self.restart("Settings → INPUT DEVICE")
+            last_setting = setting
 
     def _reader(self, proc):
         import numpy as np
@@ -506,14 +619,26 @@ class Mic:
         while True:
             data = proc.stdout.read(n)
             if not data or len(data) < n:
-                if self.proc is proc:     # not a deliberate stop
-                    log("JARVIS: microphone stream ended")
-                    os._exit(1)
+                if self.proc is proc and self.on:     # not a deliberate stop: the source went away?
+                    now = time.monotonic()
+                    self._deaths = [t for t in self._deaths if now - t < 30] + [now]
+                    if len(self._deaths) > 3:
+                        log("JARVIS: microphone stream keeps ending")
+                        os._exit(1)                   # the HUD restarts Jarvis
+                    log("JARVIS: microphone stream ended, picking again")
+                    threading.Thread(target=self._respawn, args=(proc,), daemon=True).start()
                 return
             try:
                 self.q.put(np.frombuffer(data, dtype=np.int16), timeout=1)
             except queue.Full:
                 pass
+
+    def _respawn(self, dead):
+        time.sleep(0.5)
+        with self._lock:
+            if self.proc is dead and self.on:
+                self.proc = None
+                self._spawn()
 
     def read(self, timeout=1.0):
         try:
@@ -567,6 +692,7 @@ class VoiceLoop:
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)
         from core.status import Status
         self.status = self.j.status = Status(log=log)
+        self.mic.status_cb = self.status.mic
         atexit.register(self.status.close)
         try:
             self.status.usage(self.j.brain)

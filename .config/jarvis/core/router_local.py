@@ -365,11 +365,26 @@ def slot_uwcs_host(t):
     return ""
 
 
+AUDIO_DEV = (r"head ?phones?|head ?sets?|ear ?buds?|ear ?phones?|air ?pods?|google home|nest|"
+             r"(?:room |bluetooth |laptop |built in |computer |monitor |tv )?speakers?|laptop|built in|usb|tv|television|hdmi|bluetooth")
+
+
+def slot_audio_out(t):
+    m = re.search(rf"\b({AUDIO_DEV})\b", t)
+    return m.group(1) if m else None
+
+
+def slot_audio_in(t):
+    m = re.search(r"\b(head ?sets?|head ?phones?|laptop|built in|internal|usb|bluetooth|ear ?buds?)\b", t)
+    return m.group(1) if m else None
+
+
 SLOTS = {"app": slot_app, "theme": slot_theme, "percent": slot_percent, "workspace": slot_workspace,
          "minutes": slot_minutes, "timer_label": slot_timer_label, "screen": slot_screen, "position": slot_position,
          "tz": slot_tz, "place": slot_place, "onoff": slot_onoff, "light_mode": slot_light_mode, "mute": slot_mute,
          "vpn": slot_vpn, "power": slot_power, "uwcs_host": slot_uwcs_host,
-         "role_screen": slot_role_screen, "screen_role": slot_screen_role}
+         "role_screen": slot_role_screen, "screen_role": slot_screen_role,
+         "audio_out": slot_audio_out, "audio_in": slot_audio_in}
 # Slot types whose values are a closed set (used to map Claude's calls back to an intent)
 DOMAINS = {"screen_role": set(A.SCREEN_ROLES), "onoff": {"on", "off"}, "light_mode": {"music", "theme", "auto"}, "mute": {"mute", "unmute"},
            "vpn": {"disconnect", "connect_proton", "open_school_login"},
@@ -412,6 +427,8 @@ RESULT_SAY = {   # "@name" in intents.json: replies built from the tool's result
                                               "Speaking at {p} percent, sir."]).format(p=r["percent"])
                                if r.get("percent") != r.get("was") or r.get("dry_run") else
                                f"I'm already at {r['percent']} percent, sir."),
+    "audio_out": lambda r: A.audio_said(r),
+    "audio_in": lambda r: A.audio_said(r, mic=True),
     "widgets": lambda r: (f"{len(r.get('widgets') or [])} widget{'s' if len(r.get('widgets') or []) != 1 else ''} up, sir."
                           if r.get("widgets") else "No widgets up, sir."),
 }

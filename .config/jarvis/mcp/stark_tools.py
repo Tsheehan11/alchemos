@@ -188,6 +188,27 @@ def jarvis_volume(action: Literal["up", "down", "set"], percent: int = 0) -> str
 
 
 @mcp.tool(structured_output=False)
+def set_audio_output(device: str) -> str:
+    """Switch the sound output, moving whatever is playing: "headphones" / "headset", "speaker" (the Google Home room
+    speaker; connects it), "TV", "laptop", or an exact name from list_audio_devices. If the result is ambiguous it
+    carries a "say" question: ask it, don't pick. Your next words play on the new output."""
+    return out(A.set_audio_output(device))
+
+
+@mcp.tool(structured_output=False)
+def set_audio_input(device: str) -> str:
+    """Switch the default microphone: "headset" (mic), "laptop" (built-in), "USB", or a name from list_audio_devices.
+    Ambiguous → ask the "say" question. Your own wake-word mic follows its Settings → JARVIS pick (AUTO follows headsets)."""
+    return out(A.set_audio_input(device))
+
+
+@mcp.tool(structured_output=False)
+def list_audio_devices() -> str:
+    """Sound outputs and microphones with kind (headphones / speaker / laptop / tv / usb), which is default, which are unplugged."""
+    return out(A.list_audio_devices())
+
+
+@mcp.tool(structured_output=False)
 def weather(place: str = "") -> str:
     """Current weather and today's/tomorrow's forecast (°C). place: a town or city; empty = home."""
     return out(A.weather(place))

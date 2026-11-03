@@ -1210,6 +1210,83 @@ def jarvis_volume(action, percent=0):
             **({"note": "already at the limit"} if new == now and action != "set" else {})}
 
 
+# ── audio devices (mcp/audio_devices.py: kinds, spoken names, stream moves, his explicit choice) ──
+def _audio_pick(direction, device):
+    import audio_devices as AD
+    what = "output" if direction == "out" else "microphone"
+    state, hit = AD.resolve(device, direction)
+    if state == "ask":
+        names = [d["label"] for d in hit]
+        return None, {"ok": True, "ambiguous": True, "choices": [d["name"] for d in hit],
+                      "say": f"Which one, sir: {', '.join(names[:-1])} or {names[-1]}?"}
+    if state == "none":
+        raise Invalid(f"{hit}" if hit.startswith("no ") or hit.startswith("that") else hit)
+    if state == "connect":
+        if DRY_RUN:
+            return None, {"ok": True, "dry_run": True, "would": f"connect the room speaker {hit} and switch the {what} to it"}
+        sink = AD._connect_bt(hit)
+        if not sink:
+            raise Invalid("the room speaker didn't answer over Bluetooth")
+        return {"name": sink, "label": "room speaker", "kind": "speaker"}, None
+    return hit, None
+
+
+@safe
+def set_audio_output(device):
+    """Switch the sound output (and everything playing) to a device: headphones / headset, speaker (the Google Home),
+    TV, laptop, or a name from list_audio_devices. Ambiguous names ask instead of guessing."""
+    import audio_devices as AD
+    d, early = _audio_pick("out", device)
+    if early:
+        return early
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"output → {d['name']}"}
+    r = AD.switch("out", d["name"])
+    if r.get("ok"):
+        r.update(label=d["label"], kind=d["kind"])
+    return r
+
+
+@safe
+def set_audio_input(device):
+    """Switch the default microphone: headset (mic), laptop (built-in), USB, or a name from list_audio_devices.
+    Jarvis's own wake-word mic follows Settings → JARVIS → INPUT DEVICE (AUTO picks a headset mic itself)."""
+    import audio_devices as AD
+    d, early = _audio_pick("in", device)
+    if early:
+        return early
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"input → {d['name']}"}
+    r = AD.switch("in", d["name"])
+    if r.get("ok"):
+        r.update(label=d["label"], kind=d["kind"])
+        if d["bluetooth"]:
+            r["note"] = "a Bluetooth headset mic switches the headphones to call quality while it's in use"
+    return r
+
+
+@safe
+def list_audio_devices():
+    """Sound outputs and microphones: name, label, kind (headphones | speaker | laptop | tv | usb), default, unplugged."""
+    import audio_devices as AD
+    return {"ok": True, "outputs": AD.devices("out"), "inputs": AD.devices("in"),
+            "room_speaker_paired": bool(AD.room_speaker_mac())}
+
+
+AUDIO_SAY = {"headphones": "your headphones", "speaker": "the room speaker", "laptop": "the laptop", "tv": "the TV",
+             "usb": "the USB audio"}
+
+
+def audio_said(r, mic=False):
+    """Fast-path reply for a switch result (spoken on the new output)."""
+    if r.get("ambiguous"):
+        return r["say"]
+    if mic:
+        m = {"headphones": "your headset mic", "laptop": "the laptop mic", "usb": "the USB mic"}.get(r.get("kind"))
+        return f"Using {m}, sir." if m else f"Microphone set to {r.get('label') or 'that'}, sir."
+    return f"Audio's on {AUDIO_SAY.get(r.get('kind'), r.get('label') or 'that')}, sir."
+
+
 # ── background tasks (run by the voice process, core/tasks.py) ──
 MAX_QUEUED_TASKS = 4
 
@@ -1235,6 +1312,7 @@ TOOLS = {f.__name__: f for f in [
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
     widget_add, widget_remove, widget_move, widget_list, set_screen_role, jarvis_volume, start_task, screenshot,
+    set_audio_output, set_audio_input, list_audio_devices,
 ]}
 
 
@@ -1301,6 +1379,9 @@ def tool_label(tool, args):
         "set_screen_role": lambda: f"SCREEN → {(norm_role_screen(a.get('screen')) or v('screen')).upper()} ⇢ {(norm_role(a.get('role')) or v('role')).upper()}",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
         "start_task": lambda: f"TASK → {v('title')}",
+        "set_audio_output": lambda: f"AUDIO OUT → {v('device')}",
+        "set_audio_input": lambda: f"MIC → {v('device')}",
+        "list_audio_devices": lambda: "AUDIO → DEVICES",
     }
     try:
         return labels[tool]()

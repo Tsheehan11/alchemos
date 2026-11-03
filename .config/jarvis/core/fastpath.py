@@ -177,6 +177,10 @@ def _clause(t, last_query):
         return [step("media", "Unmuted.", action="unmute")]
     if M(r"what(?:'s| is) (?:playing|this song|the song|this track|this)|what song is (?:this|playing)"):
         return [step("what_is_playing", _now_playing)]
+    # ── audio devices (mcp/audio_devices.py): "switch audio to my headphones", "use my headset mic" ──
+    a = _audio(t)
+    if a is not None:
+        return a
     # ── lock / power / windows ──
     if M(rf"lock{SCREEN}|lock (?:it|up)"):
         return [step("lock_screen", "Locking.")]
@@ -436,6 +440,52 @@ def _widget(t):
     if m:
         return [step("widget_remove", "Cleared.", target="all", screen=m.group(1))]
     return None
+
+
+# Audio routing. Device words are a closed list, so "put music on the TV" (a screen role) and
+# "connect my headphones" (Bluetooth) never land here; "the TV" needs an audio word in front.
+ADEV = (r"(?:the |my |our )?(head ?phones?|head ?sets?|ear ?buds?|ear ?phones?|air ?pods?|sonys?|"
+        r"(?:room |bluetooth |google |nest |laptop |built in |computer |monitor |tv )?speakers?|google home|nest|"
+        r"laptop|built in|bluetooth|usb(?: audio| dongle)?|tv|television|hdmi|monitor)")
+ASOUND = r"(?:the |my )?(?:audio|sound|output|music|playback|everything|it)"
+AMIC = r"(?:mic|microphone|input|mike)"
+
+
+def _audio(t):
+    m = None
+
+    def M(p):
+        nonlocal m
+        m = re.fullmatch(p, t)
+        return m
+    # microphone first: "use my headset mic", "switch the mic to the laptop", "headset mic"
+    if (M(rf"(?:use|switch to|change to|go to|set) (?:the |my )?(head ?sets?|head ?phones?|laptop|built in|usb|bluetooth|computer|internal) {AMIC}") or
+            M(rf"(?:switch|change|set|move|put) (?:the |my )?{AMIC} (?:to|on|over to) {ADEV}(?: {AMIC})?") or
+            M(rf"(?:back to |use )?(?:the |my )?(laptop|built in|internal) {AMIC}(?: again)?")):
+        return [step("set_audio_input", lambda r: A.audio_said(r, mic=True), device=m.group(1))]
+    # output
+    if (M(rf"(?:switch|change|move|send|put|route|set|play|output) {ASOUND} (?:to|on|onto|through|over to|out of|out through) {ADEV}") or
+            M(rf"(?:switch|change|go|move) (?:back )?(?:the audio |the sound |audio |sound )?(?:over )?to {ADEV}(?: audio| output| sound)?") or
+            M(rf"(?:back to|use|play (?:it |audio |sound |music )?(?:on|through)|audio (?:to|on)|sound (?:to|on)|output to) {ADEV}(?: audio| output| sound| instead| again)?")):
+        dev = m.group(1)
+        if re.fullmatch(r"(?:tv|television|hdmi|monitor)", dev) and not re.search(r"audio|sound|output|playback|speaker", t):
+            return None                     # "switch to the TV" alone could be a screen role: Claude decides
+        return [step("set_audio_output", lambda r: A.audio_said(r), device=dev)]
+    if M(r"(?:what|which) (?:audio |sound )?(?:devices?|outputs?|mics?|microphones?) (?:do i have|are there|are connected|is (?:it|that) (?:using|on))|"
+         r"list (?:the |my )?(?:audio|sound) (?:devices|outputs)|where(?:'s| is) (?:the )?(?:audio|sound) (?:going|playing)"):
+        return [step("list_audio_devices", _audio_list)]
+    return None
+
+
+def _audio_list(r):
+    outs = [d for d in r.get("outputs", []) if d["available"]]
+    cur = next((d for d in outs if d["default"]), None)
+    mic = next((d for d in r.get("inputs", []) if d["default"]), None)
+    line = f"Sound is on {cur['label']}" if cur else "No output is set"
+    if mic:
+        line += f", microphone {mic['label']}"
+    others = [d["label"] for d in outs if not d["default"]]
+    return line + (". Also available: " + ", ".join(others) + "." if others else ".")
 
 
 SHOT = r"(?:screen ?shots?|screen ?caps?|screen (?:capture|grab)|screengrab|print ?screen)"

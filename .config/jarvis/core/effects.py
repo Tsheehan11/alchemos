@@ -66,6 +66,11 @@ def on_headphones():
     return False
 
 
+def forget_auto():
+    """The output just changed (his explicit switch): work AUTO out again on the next sentence."""
+    _auto["at"] = 0.0
+
+
 def resolve(name):
     """AUTO → SUIT on headphones, HOLOGRAM on speakers (checked at most every 3 s)."""
     if name != "AUTO":

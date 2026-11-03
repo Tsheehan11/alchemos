@@ -381,7 +381,8 @@
         "mute audio",
         "unmute please"
       ],
-      "must": "\\b(?:un ?mute|mute|silence|sound)\\b"
+      "must": "\\b(?:un ?mute|mute|silence|sound)\\b",
+      "must_not": "\\b(?:mic|microphone|mike|input)\\b"
     },
     "voice.volume_down": {
       "tool": "jarvis_volume",
@@ -1147,6 +1148,53 @@
         "any grades on learn",
         "has the exam been graded"
       ]
+    },
+    "set_audio_output": {
+      "tool": "set_audio_output",
+      "slots": {
+        "device": "audio_out"
+      },
+      "say": "@audio_out",
+      "examples": [
+        "switch audio to my headphones",
+        "put the sound on my headset",
+        "move the music to the speakers",
+        "play audio through the google home",
+        "back to the speakers",
+        "switch the output to the laptop",
+        "use my headphones for sound",
+        "send the audio to my earbuds",
+        "audio on the tv please",
+        "change the sound output to the laptop speakers",
+        "play it on the room speaker",
+        "route the sound to my headphones",
+        "switch sound over to the speaker",
+        "make the music come out of the laptop",
+        "i want the audio on my headset"
+      ],
+      "must": "\\b(?:audio|sound|music|output|play|playback|speakers?|head ?phones?|head ?sets?|ear ?buds?|google home)\\b",
+      "must_not": "\\b(?:mic|microphone|input|louder|quieter|volume|connect|pair|disconnect|turn (?:on|off)|panel|widget|screen role|visuali[sz]er|deck)\\b"
+    },
+    "set_audio_input": {
+      "tool": "set_audio_input",
+      "slots": {
+        "device": "audio_in"
+      },
+      "say": "@audio_in",
+      "examples": [
+        "use my headset mic",
+        "switch the microphone to the laptop",
+        "use the laptop mic",
+        "change the input to my headset",
+        "switch to the built in microphone",
+        "use the usb mic",
+        "back to the laptop microphone",
+        "make my headset the microphone",
+        "set the mic to my headphones",
+        "use my headphones as the mic"
+      ],
+      "must": "\\b(?:mic|microphone|input|mike)\\b",
+      "must_not": "\\b(?:mute|unmute|volume|louder|quieter)\\b"
     }
   }
 }

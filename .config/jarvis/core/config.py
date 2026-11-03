@@ -38,7 +38,9 @@ DEFAULTS = {
     "jarvisFollowup": 8,                # seconds to listen for a follow-up (0 = off)
     "gameJarvis": True,                 # pause the wake word in combat mode
     "jarvisSpeaker": "",                # Bluetooth MAC of a speaker to use when not on headphones; "" = off
-    "jarvisMic": "",                    # PipeWire source node.name; "" = system default input
+    "jarvisMic": "auto",                # auto = headset mic while one is plugged in, else the laptop DMIC |
+                                        # "default" (or "") = system default input | a PipeWire source node.name
+    "jarvisMicBluetooth": False,        # AUTO may use a Bluetooth headset mic (switches it to call quality)
     "jarvisPlace": "Waterloo, Ontario", # home town for the weather (read by stark_actions.weather)
     "jarvisAutoAddAssignments": False,  # LEARN sync may write to the dedicated assignments calendar without asking
     "jarvisAssignmentsAccount": "google",   # where "STARK – Assignments" lives: google | microsoft

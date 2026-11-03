@@ -314,8 +314,10 @@ the DreamView "razer" stream):
 
 Settings → JARVIS: Claude model (`auto` = Haiku, Sonnet when needed · or haiku / sonnet / opus),
 voice (Kokoro `bm_*`, or a piper model; `jarvis-voices` auditions them all), volume, speech rate,
-pitch, voice effect, Bluetooth speaker, follow-up window, spoken replies, music ducking, pause in
-combat mode, plus **TEST VOICE** and **MISSED COMMANDS**.
+pitch, voice effect, Bluetooth speaker, **INPUT DEVICE** (the wake-word mic: AUTO = a wired / USB
+headset mic while one is plugged in, else the laptop mic; Bluetooth headset mics only if you allow
+them, since they drop the headphones to call quality), follow-up window, spoken replies, music
+ducking, pause in combat mode, plus **TEST VOICE** and **MISSED COMMANDS**.
 
 Voice effects are presets in `~/.config/jarvis/effects.json`, an effect chain run through pedalboard:
 
@@ -477,6 +479,15 @@ The same server works in the Claude Code CLI too:
 claude mcp add stark -- ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/mcp/stark_tools.py
 ```
 
+### Audio devices
+
+"Switch audio to my headphones", "back to the speakers", "use my headset mic", "audio on the TV":
+fast-path commands (`mcp/audio_devices.py`, also `jarvis audio list|output|input`) that move whatever
+is playing with the output and ask "which one?" instead of guessing. "Speaker" means the Google Home
+(connected on demand), "laptop" the built-in speakers / mic. A pick in Settings → AUDIO goes through
+the same code. Your explicit choice wins over the Bluetooth-speaker rule below until a device is
+plugged in or unplugged, and Jarvis confirms on the new output.
+
 ### Bluetooth speaker
 
 Set **Speaker without headphones** in Settings → JARVIS (stored as a MAC in `jarvisSpeaker`). When
@@ -562,7 +573,8 @@ to his voice on the fast path, 2–3 s through Claude.
   the browser only when you ask for it, and a spoken yes before power actions, closing windows,
   deleting anything, the VPN kill switch, or sending a message. Tool output is data, never
   instructions. No network listeners. Started by the HUD under `setpriv --no-new-privs`.
-- **Hearing:** `jarvisMic` picks the PipeWire source; pre-roll keeps "hey Jarvis dim the lights"
+- **Hearing:** `jarvisMic` picks the PipeWire source (AUTO follows headsets; a plug / unplug or a
+  Settings change restarts capture in place, without losing the pre-wake buffer); pre-roll keeps "hey Jarvis dim the lights"
   in one breath intact; Silero VAD ends the command; music ducks while listening. Barge in with
   "Hey Jarvis"; follow-ups need no wake word for 8 s.
 - **Speech:** text is normalised first (`core/speech.py`: times, dates, units), the first sentence
