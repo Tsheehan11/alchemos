@@ -63,13 +63,18 @@ PanelWindow {
         onTriggered: media.player.positionChanged()
     }
 
-    // ── Visualizer feed from the shared cava ── (off in combat mode: the bars freeze where they were)
+    // ── Visualizer feed from the shared cava ──
+    // Combat mode (Perf.lite) stops cava; the bars then fall to flat in ~0.35 s (vizGain → 0) and stay
+    // blank until combat ends, when they rise back with the first new frames.
     readonly property bool vizOn: media.visible && !media.covered && !Perf.lite
     onVizOnChanged: Cava.want(modelData.name, vizOn)
     Component.onCompleted: Cava.want(modelData.name, vizOn)
     Component.onDestruction: Cava.want(modelData.name, false)
     property var bars: []
     Binding on bars { when: media.vizOn; value: Cava.bars; restoreMode: Binding.RestoreNone }
+    property real vizGain: Perf.lite ? 0 : 1
+    Behavior on vizGain { NumberAnimation { duration: Perf.lite ? 350 : 250; easing.type: Easing.OutCubic } }
+    onVizGainChanged: if (vizGain === 0 && Perf.lite) media.bars = []      // decayed: drop the frame for good
 
     // Scroll anywhere on the deck to change volume
     MouseArea {
@@ -272,7 +277,7 @@ PanelWindow {
                 model: 48
                 delegate: Item {
                     required property int index
-                    readonly property real level: (media.bars[index] || 0) / 100
+                    readonly property real level: (media.bars[index] || 0) / 100 * media.vizGain
                     width: (viz.width - 47 * 4) / 48
                     height: viz.height
 
