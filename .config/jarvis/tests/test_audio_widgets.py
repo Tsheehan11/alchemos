@@ -134,6 +134,33 @@ check("fp usage widget", fp("show a claude usage widget")[0][1]["type"], "usage"
 check("fp remove due widget", fp("remove the due widget"), [("widget_remove", {"target": "due", "screen": ""})])
 check("fp integration intent still guarded", F.is_integration_intent("what's on my calendar"), True)
 check("fp widget phrase not integration", F.is_integration_intent("move the agenda widget to the left"), False)
+# free widget placement: voice moves / reset stay on the fast path
+check("fp move to a corner of a monitor", fp("move the calendar widget to the top right of monitor 2"),
+      [("widget_move", {"target": "calendar", "screen": "monitor 2", "position": "the top right"})])
+import stark_actions as SA  # noqa: E402
+_ws = SA.widget_showing
+SA.widget_showing = lambda kind: kind == "weather"          # a weather card is up, no media card
+check("fp put without an article", fp("put weather in the centre of the laptop screen"),
+      [("widget_move", {"target": "weather", "screen": "the laptop screen", "position": "the centre"})])
+check("fp put without an article, none up → add", fp("put music on the laptop screen")[0][0] != "widget_move", True)
+check("fp reset widget layout", fp("reset widget layout"), [("widget_reset", {})])
+check("fp reset the widgets", fp("reset the widgets"), [("widget_reset", {})])
+check("fp widgets back", fp("put the widgets back"), [("widget_reset", {})])
+check("fp reset with a screen isn't a reset", (fp("reset the widgets on monitor 2") or [("", {})])[0][0] != "widget_reset", True)
+check("fp put music on a monitor still asks", fp("put music on monitor 2"), [(None, {})])
+SA.widget_showing = _ws
+
+# widget_move → `qs ipc call widgets move <id> <screen> <x> <y>` (four args since free placement)
+_calls = []
+_orig = (SA._ipc_widgets, SA._widget_list, SA.DRY_RUN)
+SA._widget_list = lambda: [{"id": "weather9", "type": "weather", "screen": "diag"}]
+SA._ipc_widgets = lambda *a: (_calls.append(a), {"ok": True, "id": "weather9"})[1]
+SA.DRY_RUN = False
+SA.widget_move("weather", "laptop screen", "the centre")
+SA.widget_reset()
+SA._ipc_widgets, SA._widget_list, SA.DRY_RUN = _orig
+check("widget_move ipc shape", _calls[0], ("move", "weather9", "media", "center", "-"))
+check("widget_reset ipc", _calls[1], ("reset",))
 
 import stark_actions as A  # noqa: E402
 check("say ambiguous", A.audio_said({"ok": True, "ambiguous": True, "say": "Which one, sir: A or B?"}), "Which one, sir: A or B?")

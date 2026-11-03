@@ -17,6 +17,7 @@ from core import config as C  # noqa: E402
 from core import fastpath as F  # noqa: E402
 from core import router_local as R  # noqa: E402
 import stark_actions as A  # noqa: E402
+A.widget_showing = lambda kind: False          # no live HUD lookups: "put music …" adds a card
 
 FAILS = []
 

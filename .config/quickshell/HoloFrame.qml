@@ -10,6 +10,12 @@
 //            edges, one sweep passes over it); 1 → 0 takes it away again (dismiss)
 //   accent   stroke colour (WidgetCard passes the secondary colour when a widget wants attention)
 //   strong   brighter strokes (hover / drag)
+//   lift     0 → 1 while a widget is held (drag / resize): a wider glow around the brackets
+//   pulse    0 → 1 once when it's dropped: a scan line passes over it and the brackets flare
+//
+// The fill is light, not glass: a faint accent tint plus a very light shade, both fading out
+// to the edges, so the window or wallpaper behind shows through (tinted) instead of a dark
+// slab over bright windows. Text legibility comes from the card's halo (WidgetCard).
 import QtQuick
 import QtQuick.Shapes
 import QtQuick.Effects
@@ -22,12 +28,16 @@ Item {
     property color accent: Theme.primary
     property bool strong: false
     property bool reticle: true
-    property real fillAlpha: 0.62          // darkest point of the fill (centre); edges fade to nothing
+    property real lift: 0
+    property real pulse: 0
+    property real shade: 0.16              // background-colour shade at the centre (edges fade to nothing)
+    property real tint: 0.10               // accent tint at the centre
 
     readonly property real arm: 14 * Math.min(1, f.boot * 1.6)                      // bracket arm
     readonly property real draw: Math.max(0, Math.min(1, (f.boot - 0.25) / 0.75))  // edge strokes, after the brackets
-    readonly property real glowA: f.strong ? 0.34 : 0.2
-    readonly property real lineA: f.strong ? 1.0 : 0.85
+    readonly property real flare: f.pulse > 0 && f.pulse < 1 ? Math.sin(Math.PI * f.pulse) : 0
+    readonly property real glowA: (f.strong ? 0.34 : 0.2) + 0.25 * f.flare
+    readonly property real lineA: f.strong || f.flare > 0 ? 1.0 : 0.85
     function a(c, al) { return Qt.rgba(c.r, c.g, c.b, al); }
 
     // micro-flicker: ~1.5 % of 1/12 s slots dip briefly (deterministic hash of the slot)
@@ -53,10 +63,9 @@ Item {
                 fillGradient: RadialGradient {
                     centerX: fillBox.width / 2; centerY: fillBox.height / 2; centerRadius: fillBox.width * 0.6
                     focalX: centerX; focalY: centerY
-                    GradientStop { position: 0.0; color: Theme.back(f.fillAlpha) }
-                    GradientStop { position: 0.62; color: Theme.back(f.fillAlpha * 0.94) }
-                    GradientStop { position: 0.8; color: Theme.back(f.fillAlpha * 0.6) }
-                    GradientStop { position: 0.92; color: Theme.back(f.fillAlpha * 0.18) }
+                    GradientStop { position: 0.0; color: Theme.back(f.shade) }
+                    GradientStop { position: 0.6; color: Theme.back(f.shade * 0.8) }
+                    GradientStop { position: 0.85; color: Theme.back(f.shade * 0.3) }
                     GradientStop { position: 1.0; color: Theme.back(0) }
                 }
                 PathRectangle { x: 0; y: 0; width: fillBox.width; height: fillBox.height }
@@ -64,9 +73,10 @@ Item {
             ShapePath {
                 strokeColor: "transparent"
                 fillGradient: RadialGradient {
-                    centerX: fillBox.width / 2; centerY: fillBox.height * 0.2; centerRadius: fillBox.width * 0.7
+                    centerX: fillBox.width / 2; centerY: fillBox.height / 2; centerRadius: fillBox.width * 0.6
                     focalX: centerX; focalY: centerY
-                    GradientStop { position: 0.0; color: f.a(f.accent, 0.09) }
+                    GradientStop { position: 0.0; color: f.a(f.accent, f.tint * (1 + 0.6 * f.lift)) }
+                    GradientStop { position: 0.7; color: f.a(f.accent, f.tint * 0.7 * (1 + 0.6 * f.lift)) }
                     GradientStop { position: 1.0; color: f.a(f.accent, 0) }
                 }
                 PathRectangle { x: 0; y: 0; width: fillBox.width; height: fillBox.height }
@@ -74,7 +84,8 @@ Item {
         }
     }
 
-    // ── scanlines, faded out towards the edges with the same ellipse as the fill (so no box edge) ──
+    // ── scanlines: light lines in the accent colour (dark ones read as a grey slab over bright
+    //    windows), faded out towards the edges with the same ellipse as the fill (so no box edge) ──
     Image {
         id: lines
         anchors.fill: parent
@@ -82,7 +93,7 @@ Item {
         smooth: false
         visible: false
         layer.enabled: true
-        source: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAADElEQVR4nGNgQAZRAABpAFvrZBgXAAAAAElFTkSuQmCC"
+        source: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAAEElEQVR4nGNggIP////nAQAJdANsWx7rxQAAAABJRU5ErkJggg=="
     }
     Image {         // alpha mask: solid in the middle, fading to nothing at the edges (stretched to the card)
         id: fade
@@ -96,7 +107,9 @@ Item {
         source: lines
         maskEnabled: true
         maskSource: fade
-        opacity: 0.38 * Math.min(1, f.boot * 1.4)
+        colorization: 1
+        colorizationColor: f.accent
+        opacity: 0.22 * Math.min(1, f.boot * 1.4)
     }
 
     // ── sweep: one pass while booting, then a slow faint one while effects run ──
@@ -105,10 +118,12 @@ Item {
         clip: true
         Rectangle {
             id: sweep
-            readonly property bool booting: f.boot < 1
+            readonly property bool pulsing: f.pulse > 0 && f.pulse < 1
+            readonly property bool booting: f.boot < 1 || pulsing
+            readonly property real k: f.boot < 1 ? f.boot : f.pulse
             visible: booting || !f.still
             width: parent.width; height: booting ? 3 : 36
-            y: booting ? f.boot * (parent.height + 6) - 3 : ((f.t * 0.12) % 1) * (parent.height + 72) - 36
+            y: booting ? k * (parent.height + 6) - 3 : ((f.t * 0.12) % 1) * (parent.height + 72) - 36
             opacity: booting ? 0.9 : 1
             gradient: Gradient {
                 GradientStop { position: 0.0; color: "transparent" }
@@ -155,6 +170,7 @@ Item {
             PathLine { x: -3; y: f.height * (0.5 + 0.22 * f.draw) }
         }
     }
+    Strokes { visible: f.lift > 0; w: 12; c: f.a(f.accent, 0.12 * f.lift) }
     Strokes { w: 4; c: f.a(f.accent, f.glowA) }
     Strokes { w: 1.4; c: f.a(f.accent, f.lineA) }
     Edges { w: 3; c: f.a(f.accent, f.glowA * 0.6) }

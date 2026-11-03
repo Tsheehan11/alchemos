@@ -601,7 +601,9 @@ PanelWindow {
                         spacing: 10
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
                         SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/quickshell")); LauncherState.closeAll(); } }
+                        ConfirmButton { label: "RESET LAYOUT"; onConfirmed: Widgets.reset() }
                     }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "RESET LAYOUT puts the widgets on connected monitors back in their default spots (sizes kept) · drag a widget anywhere, Shift = no snap, corner handle = size"; color: Theme.faint; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
                 }
 
                 // ════════ WIDGETS ════════

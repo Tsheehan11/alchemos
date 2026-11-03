@@ -1,5 +1,5 @@
-// Widget maker: right-click the empty desktop (DesktopMenuArea) and pick a widget. It lands in
-// the slot nearest the click, on that screen. Timer, clock and note ask one quick question
+// Widget maker: right-click the empty desktop (DesktopMenuArea) and pick a widget. It lands
+// centred where you clicked (nudged off other widgets), on that screen. Timer, clock and note ask one quick question
 // first; the rest are added straight away. Esc or a click outside closes it.
 import QtQuick
 import Quickshell
@@ -23,7 +23,6 @@ PanelWindow {
     readonly property string mono: "JetBrainsMono Nerd Font"
     property string step: ""                 // "" (pick a type) | timer | clock | note
     onVisibleChanged: { step = ""; if (visible) keys.forceActiveFocus(); }
-    readonly property string slot: m ? Widgets.slotAt(modelData, m.x, m.y) : ""
 
     function add(type, params) { Widgets.addAt(type, params); }
 
@@ -59,7 +58,7 @@ PanelWindow {
         x: mk.m ? Math.max(12, Math.min(mk.width - width - 12, mk.m.x + 4)) : 0
         y: mk.m ? Math.max(46, Math.min(mk.height - height - 12, mk.m.y + 4)) : 0
         title: mk.step === "" ? "NEW WIDGET" : "NEW " + mk.step.toUpperCase()
-        detail: "→ " + mk.slot.toUpperCase().replace("-", " ")
+        detail: "→ HERE"
         fill: Math.max(0.92, Theme.panelAlpha)
         opacity: mk.visible ? 1 : 0
         scale: mk.visible ? 1 : 0.96

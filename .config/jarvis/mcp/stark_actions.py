@@ -872,6 +872,11 @@ def _widget_list():
         return []
 
 
+def widget_showing(kind):
+    """Is a widget of this type up (fast path: "put weather top right" moves it rather than adding one)?"""
+    return any(w.get("type") == kind for w in _widget_list())
+
+
 def _check_screen(screen):
     role = norm_screen(screen)
     if role is None:
@@ -969,7 +974,9 @@ def widget_remove(target, screen=""):
 @safe
 def widget_move(target, screen="", position="", pinned=None, size=""):
     """Move a desktop widget (the newest match) to another screen and/or position; pinned true/false
-    puts it above windows or back behind them; size small | normal | large | huge | bigger | smaller."""
+    puts it above windows or back behind them; size small | normal | large | huge | bigger | smaller.
+    Widgets sit anywhere (the HUD saves fractions per monitor): a named position puts it there, kept
+    off the edges and nudged clear of other widgets; a new screen alone keeps its relative spot."""
     hits = _widget_targets(target)
     if not hits:
         raise Invalid(f"no {target} widget is showing")
@@ -981,7 +988,7 @@ def widget_move(target, screen="", position="", pinned=None, size=""):
         raise Invalid(f'unknown size "{size}" (small, normal, large, huge, bigger, smaller)')
     if DRY_RUN:
         return {"ok": True, "dry_run": True, "would": f"move {w['id']} to {role} {pos} pinned={pinned} size={sz}"}
-    r = _ipc_widgets("move", w["id"], role, pos) if (role != "-" or pos != "-") else {"ok": True, "id": w["id"]}
+    r = _ipc_widgets("move", w["id"], role, pos, "-") if (role != "-" or pos != "-") else {"ok": True, "id": w["id"]}
     if r.get("ok") and pinned is not None:
         _ipc_widgets("pin", w["id"], "true" if pinned else "false")
         r["pinned"] = bool(pinned)
@@ -991,6 +998,14 @@ def widget_move(target, screen="", position="", pinned=None, size=""):
             return rs
         r["size"] = rs.get("size")
     return r
+
+
+@safe
+def widget_reset():
+    """Put every widget on the connected monitors back in its type's default spot (sizes kept)."""
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": "reset the widget layout"}
+    return _ipc_widgets("reset")
 
 
 @safe
@@ -1538,7 +1553,7 @@ TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_list, set_screen_role, jarvis_volume, start_task, screenshot,
+    widget_add, widget_remove, widget_move, widget_reset, widget_list, set_screen_role, jarvis_volume, start_task, screenshot,
     set_audio_output, set_audio_input, list_audio_devices,
     spotify_player, spotify_play, spotify_queue, spotify_like, spotify_now_playing, spotify_devices, spotify_transfer,
     dj_start, dj_stop, dj_adjust, dj_keep, dj_chatter, dj_status, dj_save_mood,
@@ -1605,6 +1620,7 @@ def tool_label(tool, args):
         "widget_remove": lambda: f"WIDGET ✕ {v('target') or 'ALL'}" + (f" @ {v('screen')}" if a.get("screen") else ""),
         "widget_move": lambda: f"WIDGET → {v('target')} ⇢ {v('position') or v('screen') or v('size') or ('PIN' if a.get('pinned') else 'UNPIN' if a.get('pinned') is False else '')}".rstrip(" ⇢"),
         "widget_list": lambda: "WIDGETS → LIST",
+        "widget_reset": lambda: "WIDGETS → RESET LAYOUT",
         "set_screen_role": lambda: f"SCREEN → {(norm_role_screen(a.get('screen')) or v('screen')).upper()} ⇢ {(norm_role(a.get('role')) or v('role')).upper()}",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
         "start_task": lambda: f"TASK → {v('title')}",

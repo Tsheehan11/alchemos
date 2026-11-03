@@ -34,7 +34,7 @@ Column {
         if (type === "note") p.text = noteText.text;
         if (label.text.trim()) p.label = label.text.trim();
         const r = Widgets.add(type, screen, position, p);
-        page.result = r.ok ? "✓ Added " + type + " to the " + screenNames[r.screen].toLowerCase() : "✕ " + r.error;
+        page.result = r.ok ? "✓ Added " + type + " to the " + (screenNames[r.screen] || r.monitor).toLowerCase() : "✕ " + r.error;
         if (r.ok) { noteText.text = ""; label.text = ""; }
     }
 
@@ -42,8 +42,8 @@ Column {
 
     Text { text: "ADD A WIDGET"; color: Theme.dim; font.family: page.mono; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 6 }
     Stepper { width: parent.width; label: "Type"; valueText: page.type.toUpperCase(); onDec: page.type = page.cycle(Widgets.types, page.type, -1); onInc: page.type = page.cycle(Widgets.types, page.type, 1) }
-    Stepper { width: parent.width; label: "Screen"; hint: Roles.docked ? "" : "Undocked: everything shows on the laptop until you dock"; valueText: page.screenNames[page.screen]; onDec: page.screen = page.cycle(Widgets.roles, page.screen, -1); onInc: page.screen = page.cycle(Widgets.roles, page.screen, 1) }
-    Stepper { width: parent.width; label: "Position"; hint: "Or drag it there; it snaps to the nearest slot"; valueText: page.position.toUpperCase().replace("-", " "); onDec: page.position = page.cycle(Widgets.positions, page.position, -1); onInc: page.position = page.cycle(Widgets.positions, page.position, 1) }
+    Stepper { width: parent.width; label: "Screen"; hint: Roles.docked ? "" : "Undocked: the laptop has its own layout; widgets on the monitors come back when you dock"; valueText: page.screenNames[page.screen]; onDec: page.screen = page.cycle(Widgets.roles, page.screen, -1); onInc: page.screen = page.cycle(Widgets.roles, page.screen, 1) }
+    Stepper { width: parent.width; label: "Position"; hint: "Where it starts; drag it anywhere after"; valueText: page.position.toUpperCase().replace("-", " "); onDec: page.position = page.cycle(Widgets.positions, page.position, -1); onInc: page.position = page.cycle(Widgets.positions, page.position, 1) }
     Stepper { visible: page.type === "clock"; width: parent.width; label: "Time zone"; valueText: page.zones[page.zone][1]; onDec: page.zone = (page.zone + page.zones.length - 1) % page.zones.length; onInc: page.zone = (page.zone + 1) % page.zones.length }
     Toggle { visible: page.type === "clock"; width: parent.width; label: "Analog"; checked: page.analog; onToggled: page.analog = !page.analog }
     Stepper { visible: page.type === "timer"; width: parent.width; label: "Minutes"; valueText: page.minutes + " MIN"; onDec: page.minutes = page.cycle(page.minuteSteps, page.minutes, -1); onInc: page.minutes = page.cycle(page.minuteSteps, page.minutes, 1) }
@@ -76,14 +76,16 @@ Column {
             }
             Text {
                 anchors.right: btns.left; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
-                text: page.screenNames[modelData.screen].split(" ")[0] + " · " + modelData.position.toUpperCase().replace("-", " ")
+                readonly property var sc: Widgets.screenOfItem(modelData)
+                text: sc ? (page.screenNames[Widgets.roleOf(sc)] || sc.name).split(" ")[0] + " · " + Widgets.slotOf(modelData).toUpperCase().replace("-", " ")
+                         : "HIDDEN · MONITOR UNPLUGGED"
                 color: Theme.dim; font.family: page.mono; font.pixelSize: 11
             }
             Row {
                 id: btns
                 anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
-                SmallButton { text: "⤢ " + (modelData.size || "normal").toUpperCase(); onClicked: Widgets.resize(modelData.id, page.cycle(page.sizeList, modelData.size || "normal", 1)) }
+                SmallButton { readonly property string sz: Widgets.sizeName(Widgets.scaleOf(modelData)); text: "⤢ " + sz.toUpperCase(); onClicked: Widgets.resize(modelData.id, page.cycle(page.sizeList, sz, 1)) }
                 SmallButton { text: modelData.pinned ? "◆ PINNED" : "◇ PIN"; active: modelData.pinned; onClicked: Widgets.pin(modelData.id, !modelData.pinned) }
                 SmallButton { text: "×"; onClicked: Widgets.remove(modelData.id) }
             }
@@ -92,7 +94,8 @@ Column {
     Row {
         spacing: 10
         topPadding: 4
-        ConfirmButton { label: "RESET ALL WIDGETS"; onConfirmed: { Widgets.clear("all"); page.result = "✓ All widgets closed"; } }
+        ConfirmButton { label: "RESET LAYOUT"; onConfirmed: { Widgets.reset(); page.result = "✓ Widgets back in their default spots"; } }
+        ConfirmButton { label: "CLOSE ALL WIDGETS"; onConfirmed: { Widgets.clear("all"); page.result = "✓ All widgets closed"; } }
         SmallButton { text: "EDIT WIDGET TYPES"; onClicked: { Quickshell.execDetached(["kate", Quickshell.env("HOME") + "/.config/quickshell/widgets"]); LauncherState.closeAll(); } }
     }
     Text { width: parent.width; wrapMode: Text.Wrap; text: "Saved in ~/.config/quickshell/widgets.json · a new type is one QML file in quickshell/widgets/"; color: Theme.faint; font.family: page.mono; font.pixelSize: 11 }

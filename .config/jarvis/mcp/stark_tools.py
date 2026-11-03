@@ -161,8 +161,15 @@ def widget_remove(target: str, screen: str = "") -> str:
 @mcp.tool(structured_output=False)
 def widget_move(target: str, screen: str = "", position: Position = "", pinned: bool | None = None,
                 size: Literal["", "small", "normal", "large", "huge", "bigger", "smaller"] = "") -> str:
-    """Move or resize a widget (id or type; the newest match): screen and/or position, pinned true/false, size."""
+    """Move or resize a widget (id or type; the newest match): screen and/or position (nudged clear of other
+    widgets), pinned true/false, size. Trevor can also drag widgets anywhere himself."""
     return out(A.widget_move(target, screen, position, pinned, size))
+
+
+@mcp.tool(structured_output=False)
+def widget_reset() -> str:
+    """Reset the widget layout: every widget on the connected monitors back in its default spot (sizes kept)."""
+    return out(A.widget_reset())
 
 
 @mcp.tool(structured_output=False)

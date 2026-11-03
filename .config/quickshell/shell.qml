@@ -111,9 +111,11 @@ ShellRoot {
 
     //   qs ipc call widgets add clock diag top-right '{"tz":"America/New_York","label":"New York"}'
     //   qs ipc call widgets add timer current - '{"minutes":10,"label":"tea"}'
-    //   qs ipc call widgets remove clock3 | clock | clock:diag      move timer - top-right
-    //   qs ipc call widgets list | clear diag | clear all | pin clock true | resize stats huge | types
-    // Screens: main | diag | media (= laptop) | current; "-" keeps / picks the default.
+    //   qs ipc call widgets remove clock3 | clock | clock:diag
+    //   qs ipc call widgets move weather "monitor 2" top-right -  |  move weather laptop 0.5 0.5  |  move clock - 1200 300
+    //   qs ipc call widgets list | clear diag | clear all | pin clock true | resize stats huge | reset | types
+    // Screens: main | diag | media / laptop | monitor N | a port or description | current; "-" keeps it.
+    // move x y: a named position (y "-"), fractions 0–1 of the room on that screen, or pixels.
     IpcHandler {
         target: "widgets"
         function add(type: string, screen: string, position: string, params: string): string {
@@ -122,9 +124,10 @@ ShellRoot {
             return JSON.stringify(Widgets.add(type, screen, position, p));
         }
         function remove(query: string): string { return JSON.stringify(Widgets.remove(query)) }
-        function move(query: string, screen: string, position: string): string { return JSON.stringify(Widgets.move(query, screen, position)) }
+        function move(query: string, screen: string, x: string, y: string): string { return JSON.stringify(Widgets.move(query, screen, x, y)) }
+        function reset(): string { return JSON.stringify(Widgets.reset()) }
         function pin(query: string, on: string): string { return JSON.stringify(Widgets.pin(query, on === "true" || on === "on" || on === "1")) }
-        function resize(query: string, size: string): string { return JSON.stringify(Widgets.resize(query, size)) }   // small | normal | large | huge | bigger | smaller
+        function resize(query: string, size: string): string { return JSON.stringify(Widgets.resize(query, size)) }   // small | normal | large | huge | bigger | smaller | 1.3
         function clear(screen: string): string { return JSON.stringify(Widgets.clear(screen)) }
         function list(): string { return JSON.stringify({ ok: true, docked: Roles.docked, current: Widgets.currentRole(), widgets: Widgets.list() }) }
         function types(): string { return JSON.stringify({ types: Widgets.types, positions: Widgets.positions, screens: Widgets.roles }) }

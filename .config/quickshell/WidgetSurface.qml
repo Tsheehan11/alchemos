@@ -2,9 +2,9 @@
 // windows, the rest below them). Only the cards take input (the mask), except while one is
 // dragged: then the whole screen does, so the pointer never leaves the surface it pressed on
 // and the drag can't be lost however fast it moves (Hyprland doesn't always keep a pointer
-// grab on layer surfaces). The drop slots light up during the drag. Dragged on to another
-// monitor, the press ends at this screen's edge; Widgets.drop asks Hyprland where the cursor
-// really is and puts the widget there.
+// grab on layer surfaces). Faint guide lines show what the dragged card snapped to. Dragged on
+// to another monitor, the press ends at this screen's edge; Widgets.drop asks Hyprland where the
+// cursor really is and puts the widget there.
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -60,36 +60,45 @@ PanelWindow {
         editing = ed;
     }
     function grab(card) { dragged = card; }
-    function release(card) { if (dragged === card) dragged = null; point = Qt.point(-1, -1); }
+    function release(card) { if (dragged === card) dragged = null; point = Qt.point(-1, -1); guides = ({ v: [], h: [] }); }
+    property var guides: ({ v: [], h: [] })      // snap lines of the dragged card (x's, y's)
     Item { id: whole; anchors.fill: parent }
     property Region wholeRegion: Region { item: whole }
     mask: Region { regions: surf.dragged ? [surf.wholeRegion] : surf.regions }
 
-    // ── drop slots, while dragging ──
-    readonly property string target: dragged && point.x >= 0
-        ? Widgets.slotAt(scr, dragged.dragX + dragged.width / 2, dragged.dragY + dragged.height / 2) : ""
+    // ── snap guides, while dragging: faint holographic lines fading out along their length ──
     Repeater {
-        model: surf.dragged ? Widgets.positions : []
+        model: surf.dragged ? surf.guides.v : []
         delegate: Rectangle {
-            required property string modelData
-            readonly property int c: modelData.endsWith("left") ? 0 : modelData.endsWith("right") ? 2 : 1
-            readonly property int r: modelData.startsWith("top") ? 0 : modelData.startsWith("bottom") ? 2 : 1
-            readonly property bool lit: surf.target === modelData
-            width: Math.min(surf.dragged ? surf.dragged.width : 200, surf.width / 3 - 40)
-            height: Math.min(surf.dragged ? surf.dragged.height : 100, surf.height / 3 - 40)
-            x: c === 0 ? 28 : c === 2 ? surf.width - width - 28 : (surf.width - width) / 2
-            y: r === 0 ? 54 : r === 2 ? surf.height - height - 28 : (surf.height - height) / 2
-            color: lit ? Theme.p(0.12) : "transparent"
-            border.color: lit ? Theme.primary : Theme.p(0.22)
-            border.width: lit ? 2 : 1
+            required property int modelData
+            x: modelData; y: 0; width: 1; height: surf.height
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: Theme.p(0.55) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+    }
+    Repeater {
+        model: surf.dragged ? surf.guides.h : []
+        delegate: Rectangle {
+            required property int modelData
+            x: 0; y: modelData; width: surf.width; height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: Theme.p(0.55) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
         }
     }
     Text {
         visible: surf.dragged !== null && surf.point.x >= 0
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 90
-        text: "RELEASE TO PLACE  ·  DRAG OFF THE EDGE FOR THE NEXT MONITOR"
+        text: "SHIFT · NO SNAP  ·  DRAG OFF THE EDGE FOR THE NEXT MONITOR"
         color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.letterSpacing: 3
+        style: Text.Outline; styleColor: Theme.back(0.5)
     }
 
     Repeater {

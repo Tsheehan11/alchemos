@@ -398,6 +398,12 @@ def _widget(t):
         kind = m.group(1) or m.group(2)
         target = WTARGET.get(kind, kind)
         return [step("widget_move", "Moved.", target=target, **where)]
+    # Whisper drops articles: "put weather in the centre of the laptop screen" moves it if one is up;
+    # with none showing it's an add ("put music on monitor 2" → a now-playing card), below
+    if (scr or pos) and W(rf"(?:put|bring) {WTYPE}"):
+        target = WTARGET.get(m.group(1), m.group(1))
+        if target != "all" and A.widget_showing(target):
+            return [step("widget_move", "Moved.", target=target, **where)]
     if W(rf"(?:make|set) (?:the |my |that |this )?{WTYPE} (bigger|larger|smaller|big|large|huge|giant|small|tiny|normal|normal size|full size|full screen)|"
          rf"(enlarge|grow|expand|maximi[sz]e|shrink|minimi[sz]e) (?:the |my |that |this )?{WTYPE}"):
         kind = m.group(1) or m.group(4)
@@ -435,6 +441,10 @@ def _widget(t):
     if W(r"(?:add|make|put up|create|leave|show|pin up|write)(?: me)? (?:a )?(?:sticky )?note(?: saying| that says| reading| with| to)? (.+)"):
         text = m.group(1).strip()
         return [step("widget_add", f"Noted{_on(scr)}.", type="note", text=text[:1].upper() + text[1:], **where)]
+    # reset the layout (positions only: nothing is closed)
+    if not scr and not pos and W(r"(?:reset|restore|tidy(?: up)?|re ?arrange|clean up) (?:the |my |all (?:the |my )?)?(?:widgets?|widget (?:layout|positions?)|"
+                                 r"layout of (?:the |my )?widgets|widgets? layout)|(?:put|move) (?:the |my |all (?:the |my )?)?widgets back(?: where they (?:were|belong)| to (?:their )?defaults?)?"):
+        return [step("widget_reset", "Widgets back in their places, sir.")]
     # remove / clear
     if W(rf"(?:remove|close|hide|get rid of|dismiss|delete|cancel|kill|clear|take down) (?:the |my |that |this |all (?:the |my )?)?{WTYPE}"):
         target = WTARGET.get(m.group(1), m.group(1))
