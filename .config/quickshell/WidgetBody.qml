@@ -18,6 +18,7 @@ Item {
     readonly property var params: widget ? widget.params : ({})
     readonly property bool saver: PowerMode.saver
     readonly property string mono: "JetBrainsMono Nerd Font"
+    function clicked() {}                // a click on the card that wasn't a drag
     function doubleClicked() {}
     function setParams(fields) { if (widget) Widgets.setParams(widget.id, fields); }
 }

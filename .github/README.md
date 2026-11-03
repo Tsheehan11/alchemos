@@ -332,10 +332,25 @@ Add your own by copying a block in `effects.json` (keys: `highpass_hz`, `lowpass
 
 ### Desktop widgets
 
-Holographic cards on any screen, in one of nine slots: clock (any time zone, analog or digital),
-timer (rings and flashes the lights), stopwatch, now playing, system stats, sticky note. Drag to
-snap, ◇ to pin above windows, × to close, right-click the empty desktop to make one. A new type is
-one QML file in `quickshell/widgets/`.
+Projected holograms on any screen, in one of nine slots: no solid cards, just corner brackets,
+thin glowing strokes, a fill that fades out at the edges and faint scanlines (`HoloFrame.qml`).
+They draw on when they appear and retract when closed; while effects run, a glint travels the edges,
+the reticle's ticks turn and the odd micro-flicker passes over them, all from the shared Perf clock.
+On battery saver, or wherever effects are paused, they stand still.
+
+Types: clock (any time zone, analog or digital), timer (rings and flashes the lights), stopwatch,
+now playing, system stats, sticky note, **agenda** (your main Google Calendar + the Outlook ICS
+feed + SE tracker due dates, ◆ Google ◇ Outlook ▲ due, live countdowns), **due** (open tracker rows),
+**jarvis** (listening / thinking / speaking, the request in hand, background tasks, the last command;
+click for the console), **claude usage** (tokens today / this session, Haiku vs Sonnet; Pro plan
+limits only when the Claude CLI itself reported them), **weather** and **network** (VPN, Wi-Fi,
+throughput). Drag to snap, ◇ to pin above windows, × to close, right-click the empty desktop to
+make one. A new type is one QML file in `quickshell/widgets/`.
+
+Data comes to them, never polled: Jarvis writes `$XDG_RUNTIME_DIR/jarvis/status.json` when
+something changes, and `jarvis feed` (only while an agenda / due / weather widget is up) writes
+`~/.local/share/jarvis/feed/{agenda,weather}.json`: calendars every 3 min, the tracker every 15,
+weather every 30, and at once after Jarvis edits the calendar or tracker. No Claude calls.
 
 ---
 

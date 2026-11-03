@@ -1,5 +1,6 @@
 pragma Singleton
-// Desktop widgets: clocks, timers, stopwatches, now playing, system stats, notes.
+// Desktop widgets: clocks, timers, stopwatches, now playing, system stats, notes, agenda, due dates,
+// Jarvis status, Claude usage, weather, network (data for the last six: JarvisFeed.qml).
 //
 // Each widget is { id, type, screen, position, pinned, params }:
 //   screen   — a Roles role: "main" | "diag" | "media" (not a port name, so a dock that
@@ -27,7 +28,8 @@ Singleton {
 
     readonly property var positions: ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
     readonly property var roles: ["main", "diag", "media"]
-    readonly property var defaultPosition: ({ clock: "top-right", timer: "top-right", stopwatch: "top-right", media: "bottom-right", stats: "right", note: "left" })
+    readonly property var defaultPosition: ({ clock: "top-right", timer: "top-right", stopwatch: "top-right", media: "bottom-right", stats: "right", note: "left",
+                                              calendar: "top-left", due: "left", jarvis: "bottom-left", usage: "bottom-left", weather: "top-right", network: "bottom-right" })
     readonly property string home: Quickshell.env("HOME")
     readonly property int gap: 14
     readonly property var sizes: ({ small: 0.8, normal: 1.0, large: 1.5, huge: 2.0 })
@@ -99,15 +101,16 @@ Singleton {
     // "clock3" | "clock" | "clock:diag" | "diag" | "all" → matching widgets, oldest first
     function match(query) {
         query = String(query || "").toLowerCase().trim();
-        const exact = root.items.filter(i => i.id === query);
+        const items = root.items.filter(i => root.closing[i.id] !== true);
+        const exact = items.filter(i => i.id === query);
         if (exact.length) return exact;
         const [what, where] = query.split(/[:\s]+/);
         const role = where ? normScreen(where) : "";
         if (where && role === "") return [];
-        if (what === "all" || what === "*") return root.items.filter(i => !role || i.screen === role);
-        if (root.types.indexOf(what) >= 0) return root.items.filter(i => i.type === what && (!role || i.screen === role));
+        if (what === "all" || what === "*") return items.filter(i => !role || i.screen === role);
+        if (root.types.indexOf(what) >= 0) return items.filter(i => i.type === what && (!role || i.screen === role));
         const asScreen = normScreen(what);
-        if (what && asScreen && !where && what !== "current") return root.items.filter(i => i.screen === asScreen);
+        if (what && asScreen && !where && what !== "current") return items.filter(i => i.screen === asScreen);
         return [];
     }
     // Pixels from the slot's edge for a stacked widget: the cards before it in the same slot
@@ -238,6 +241,7 @@ Singleton {
             out.end = Date.now() + secs * 1000;
             out.done = false;
         }
+        if (type === "calendar" && p.due === false) out.due = false;     // agenda without the tracker's due dates
         if (type === "stopwatch") { out.running = p.running !== false; out.start = Date.now(); out.acc = 0; }
         return out;
     }
@@ -264,9 +268,27 @@ Singleton {
     function remove(query) {
         const hit = match(query).map(i => i.id);
         if (!hit.length) return { ok: false, error: "no widget matches " + query };
-        root.items = root.items.filter(i => hit.indexOf(i.id) < 0);
-        save();
+        dismiss(hit);
         return { ok: true, removed: hit };
+    }
+    // Closing plays the card's dismiss (WidgetCard: the hologram retracts), then the widget goes.
+    // A closing widget no longer matches anything (Jarvis / IPC see it gone at once).
+    property var closing: ({})          // id → true while its card animates out
+    function dismiss(ids) {
+        const c = Object.assign({}, root.closing);
+        for (const id of ids) c[id] = true;
+        root.closing = c;
+        reaper.restart();
+    }
+    Timer {
+        id: reaper
+        interval: 300
+        onTriggered: {
+            const gone = Object.keys(root.closing);
+            root.items = root.items.filter(i => gone.indexOf(i.id) < 0);
+            root.closing = ({});
+            root.save();
+        }
     }
     function move(query, screen, position) {
         const hits = match(query);
@@ -304,14 +326,13 @@ Singleton {
         const all = String(screen || "").toLowerCase() === "all";
         const role = all ? "" : normScreen(screen);
         if (!all && !role) return { ok: false, error: "unknown screen " + screen };
-        const gone = root.items.filter(i => all || i.screen === role).map(i => i.id);
-        root.items = root.items.filter(i => gone.indexOf(i.id) < 0);
-        save();
+        const gone = root.items.filter(i => (all || i.screen === role) && root.closing[i.id] !== true).map(i => i.id);
+        dismiss(gone);
         return { ok: true, removed: gone };
     }
     function list() {
         const now = Date.now();
-        return root.items.map(i => {
+        return root.items.filter(i => root.closing[i.id] !== true).map(i => {
             const o = { id: i.id, type: i.type, screen: i.screen, position: i.position, pinned: i.pinned, size: i.size || "normal", shown_on: screenFor(i.screen)?.name || "" };
             if (i.params.label) o.label = i.params.label;
             if (i.type === "timer") { o.seconds_left = Math.max(0, Math.round((i.params.end - now) / 1000)); o.done = i.params.done; }

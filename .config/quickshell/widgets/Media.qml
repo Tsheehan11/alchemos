@@ -23,16 +23,30 @@ WidgetBody {
     implicitWidth: 320
     implicitHeight: 96
 
-    Rectangle {
+    Item {
         width: 64; height: 64
-        color: Theme.p(0.08); border.color: Theme.p(0.35)
         Image {
             id: art
             anchors.fill: parent; anchors.margins: 1
             source: w.has ? (w.player.trackArtUrl || "") : ""
+            opacity: 0.92
             fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 128; sourceSize.height: 128
         }
         Text { visible: art.status !== Image.Ready; anchors.centerIn: parent; text: "♪"; color: Theme.p(0.6); font.pixelSize: 26 }
+        Repeater {     // projected frame: corner ticks only
+            model: 4
+            delegate: Item {
+                required property int index
+                width: 8; height: 8
+                x: index % 2 === 0 ? -2 : 58; y: index < 2 ? -2 : 58
+                Rectangle { width: 8; height: 1.5; color: Theme.primary; y: index < 2 ? 0 : 6.5 }
+                Rectangle { width: 1.5; height: 8; color: Theme.primary; x: index % 2 === 0 ? 0 : 6.5 }
+            }
+        }
+        Image {        // scanlines over the art, so it reads as projected
+            anchors.fill: art; fillMode: Image.Tile; smooth: false; opacity: 0.7
+            source: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAADElEQVR4nGNgQAZRAABpAFvrZBgXAAAAAElFTkSuQmCC"
+        }
     }
     Column {
         x: 76; width: 244
@@ -44,16 +58,12 @@ WidgetBody {
             topPadding: 6
             Repeater {
                 model: [{ g: "⏮", a: "prev" }, { g: w.has && w.player.isPlaying ? "⏸" : "▶", a: "play" }, { g: "⏭", a: "next" }]
-                delegate: Rectangle {
+                delegate: HoloButton {
                     required property var modelData
-                    width: 30; height: 26
-                    color: ma.containsMouse ? Theme.p(0.2) : Theme.p(0.06); border.color: Theme.p(0.35)
-                    Text { anchors.centerIn: parent; text: modelData.g; color: Theme.primary; font.family: w.mono; font.pixelSize: 12 }
-                    MouseArea {
-                        id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        enabled: w.has
-                        onClicked: modelData.a === "play" ? w.player.togglePlaying() : modelData.a === "next" ? w.player.next() : w.player.previous()
-                    }
+                    text: modelData.g
+                    pixelSize: 12
+                    usable: w.has
+                    onClicked: modelData.a === "play" ? w.player.togglePlaying() : modelData.a === "next" ? w.player.next() : w.player.previous()
                 }
             }
             Text {
@@ -63,8 +73,8 @@ WidgetBody {
             }
         }
     }
-    Rectangle {
-        y: 76; width: 320; height: 3; color: Theme.p(0.12)
-        Rectangle { height: parent.height; color: Theme.primary; width: parent.width * (w.has && w.player.length > 0 ? Math.min(1, w.player.position / w.player.length) : 0) }
+    HoloBar {
+        y: 74; width: 320; height: 6; ticks: 20
+        value: w.has && w.player.length > 0 ? Math.min(1, w.player.position / w.player.length) : 0
     }
 }

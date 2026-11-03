@@ -41,8 +41,14 @@ INTEGRATION_INTENT = re.compile(
     r"grades?|graded|crowdmark|learn|d2l|quiz(?:zes)?|midterms?|exams?)\b")
 
 
+# Placing a widget isn't reading the calendar: "put the calendar widget on monitor 2" may stay local
+# (the widget shows data the HUD fetches itself, no model reads it). Only with the word "widget" / "card".
+WIDGET_WORD = re.compile(r"\b(?:widgets?|card)\b")
+
+
 def is_integration_intent(text):
-    return bool(INTEGRATION_INTENT.search(norm(text)))
+    t = norm(text)
+    return bool(INTEGRATION_INTENT.search(t)) and not WIDGET_WORD.search(t)
 
 
 def norm(s):
@@ -112,12 +118,19 @@ WSCREEN = (r"(?:the |my )?(?:(?:main|primary|first|left|second|middle|diagnostic
 WPOS = (r"(?:the )?(?:(?:top|bottom|upper|lower)(?: (?:left|right|center|centre|middle))?|(?:left|right|center|centre|middle)"
         r"(?: (?:top|bottom))?)(?: corner| side| of the screen)?")
 WTYPE = (r"(clock|timer|countdown|stopwatch|sticky note|note|now playing|music|media|player|system stats|stats|"
-         r"widget|everything)s?(?: widgets?| card| player)?")
+         r"calendar|agenda|schedule|due dates|deadlines|due|jarvis status|jarvis|claude usage|token usage|usage|weather|"
+         r"network|vpn|wi ?fi|widget|everything)s?(?: widgets?| card| player)?")
 WSIZE = r"(?:(big|large|huge|giant|massive|full|small|tiny|little|full size|full screen) )?"
 WSIZES = {"big": "large", "large": "large", "huge": "huge", "giant": "huge", "massive": "huge", "full": "huge",
           "full size": "huge", "full screen": "huge", "small": "small", "tiny": "small", "little": "small"}
 WTARGET = {"countdown": "timer", "sticky note": "note", "now playing": "media", "music": "media", "player": "media",
-           "system stats": "stats", "widget": "all", "everything": "all"}
+           "system stats": "stats", "widget": "all", "everything": "all", "agenda": "calendar", "schedule": "calendar",
+           "due dates": "due", "deadlines": "due", "jarvis status": "jarvis", "claude usage": "usage", "token usage": "usage",
+           "vpn": "network", "wifi": "network", "wi fi": "network"}
+# The widgets added with the agenda: shown only when called a widget / card (else "show the weather" is a question)
+NEW_WIDGETS = [(r"calendar|agenda|schedule", "calendar", "Agenda"), (r"due dates?|deadlines?|what's due|due|tracker|assignments?", "due", "Due dates"),
+               (r"jarvis(?: status)?|status|assistant", "jarvis", "Status"), (r"claude(?: usage)?|token usage|tokens?|usage", "usage", "Usage"),
+               (r"weather|forecast", "weather", "Weather"), (r"network|vpn|wi ?fi|internet", "network", "Network")]
 LIGHTS = r"(?:the |my )?(?:lights?|strip|led strip|leds)"
 
 
@@ -407,6 +420,9 @@ def _widget(t):
     if W(rf"{show} (?:the |my |a )?{WSIZE}(?:system |computer |pc )?(?:stats|statistics|system monitor|system info|system status|cpu and ram|dashboard|diagnostics)(?: widget| card| dashboard)?"):
         size = WSIZES.get(m.group(1) or "", "") or ("huge" if re.search(r"dashboard|diagnostics", rest) else "")
         return [step("widget_add", f"{'Diagnostics dashboard' if size == 'huge' else 'System stats'}{_on(scr)}.", type="stats", size=size, **where)]
+    for words, kind, name in NEW_WIDGETS:
+        if W(rf"{show} (?:the |a |an |my )?{WSIZE}(?:{words}) (?:widget|card)"):
+            return [step("widget_add", f"{name}{_on(scr)}.", type=kind, size=WSIZES.get(m.group(1) or "", ""), **where)]
     if W(r"(?:add|make|put up|create|leave|show|pin up|write)(?: me)? (?:a )?(?:sticky )?note(?: saying| that says| reading| with| to)? (.+)"):
         text = m.group(1).strip()
         return [step("widget_add", f"Noted{_on(scr)}.", type="note", text=text[:1].upper() + text[1:], **where)]
@@ -513,7 +529,7 @@ def _spoken_minutes(m):
 
 def match(text, last_query=""):
     t = norm(text)
-    if not t or INTEGRATION_INTENT.search(t):
+    if not t or (INTEGRATION_INTENT.search(t) and not WIDGET_WORD.search(t)):
         return None
     whole = _clause(t, last_query)
     if whole:

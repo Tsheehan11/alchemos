@@ -175,6 +175,17 @@ CREATE TABLE IF NOT EXISTS claude_turns (
     turns INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS claude_turns_ts ON claude_turns(ts);
+CREATE TABLE IF NOT EXISTS claude_usage (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    source TEXT NOT NULL,        -- voice | typed | task | watch | control | usage
+    model TEXT NOT NULL,         -- haiku | sonnet | opus | the full id if none of those
+    input INTEGER NOT NULL DEFAULT 0,
+    output INTEGER NOT NULL DEFAULT 0,
+    cache_read INTEGER NOT NULL DEFAULT 0,
+    cache_write INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS claude_usage_ts ON claude_usage(ts);
 CREATE TABLE IF NOT EXISTS control_approvals (
     token TEXT PRIMARY KEY,      -- random, made by core/brain.py's gate after his yes; the model never sees it
     plan TEXT NOT NULL,          -- core/control.plan_hash of the exact plan he approved (window + steps)
@@ -580,6 +591,51 @@ def add_turns(source, turns):
     if turns:
         with _db() as db:
             db.execute("INSERT INTO claude_turns(ts, source, turns) VALUES (?,?,?)", (time.time(), source, int(turns)))
+
+
+def _family(model):
+    m = str(model or "").lower()
+    return next((f for f in ("haiku", "sonnet", "opus") if f in m), m or "unknown")
+
+
+def add_usage(source, msg):
+    """Tokens from an Agent SDK ResultMessage (model_usage per model, else its usage block). Never raises."""
+    try:
+        rows = []
+        mu = getattr(msg, "model_usage", None) or {}
+        for model, u in mu.items():
+            if isinstance(u, dict):
+                rows.append((_family(model), int(u.get("inputTokens") or 0), int(u.get("outputTokens") or 0),
+                             int(u.get("cacheReadInputTokens") or 0), int(u.get("cacheCreationInputTokens") or 0)))
+        if not rows and isinstance(getattr(msg, "usage", None), dict):
+            u = msg.usage
+            rows.append((_family(getattr(msg, "model", "") or u.get("model", "")), int(u.get("input_tokens") or 0),
+                         int(u.get("output_tokens") or 0), int(u.get("cache_read_input_tokens") or 0),
+                         int(u.get("cache_creation_input_tokens") or 0)))
+        rows = [r for r in rows if any(r[1:])]
+        if rows:
+            now = time.time()
+            with _db() as db:
+                db.executemany("INSERT INTO claude_usage(ts, source, model, input, output, cache_read, cache_write) "
+                               "VALUES (?,?,?,?,?,?,?)", [(now, str(source or "?"), *r) for r in rows])
+    except Exception:
+        pass
+
+
+def usage_since(ts):
+    """Tokens since ts: {"total": {...}, "models": {family: {...}}, "requests": n}. input counts fresh input only;
+    cache_read / cache_write are kept apart (the CLI's own system prompt mostly comes from the cache)."""
+    with _db() as db:
+        rows = db.execute("SELECT model, COUNT(*) AS n, SUM(input) AS i, SUM(output) AS o, SUM(cache_read) AS cr, "
+                          "SUM(cache_write) AS cw FROM claude_usage WHERE ts >= ? GROUP BY model", (ts,)).fetchall()
+    models, total = {}, {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "requests": 0}
+    for r in rows:
+        d = {"input": r["i"] or 0, "output": r["o"] or 0, "cache_read": r["cr"] or 0, "cache_write": r["cw"] or 0,
+             "requests": r["n"]}
+        models[r["model"]] = d
+        for k in total:
+            total[k] += d[k]
+    return {"total": total, "models": models}
 
 
 def turns_today():

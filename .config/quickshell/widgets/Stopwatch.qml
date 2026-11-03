@@ -41,13 +41,11 @@ WidgetBody {
         spacing: 6
         Repeater {
             model: [{ g: w.running ? "⏸" : "▶", f: () => w.toggle() }, { g: "↺", f: () => w.reset() }]
-            delegate: Rectangle {
+            delegate: HoloButton {
                 required property var modelData
                 width: 30; height: 30
-                color: ma.containsMouse ? Theme.p(0.2) : Theme.p(0.06)
-                border.color: Theme.p(0.4)
-                Text { anchors.centerIn: parent; text: modelData.g; color: Theme.primary; font.family: w.mono; font.pixelSize: 13 }
-                MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: modelData.f() }
+                text: modelData.g
+                onClicked: modelData.f()
             }
         }
     }

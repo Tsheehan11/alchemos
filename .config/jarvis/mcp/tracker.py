@@ -418,6 +418,13 @@ class Tracker:
             raise TrackerError("I won't write a formula into your tracker, sir.", f"formula-like value {v!r}")
 
     def apply(self, changes, source, calendar=False):
+        """See _apply. The HUD's due widget refreshes right after (core/feed.py kick)."""
+        try:
+            return self._apply(changes, source, calendar)
+        finally:
+            self.G._kick_feed()
+
+    def _apply(self, changes, source, calendar=False):
         """Make the changes, each re-checked against the sheet as it is now. → [{"ok", "change", ...}].
         A change that doesn't fit any more (row moved and not found again, formula in the cell, value
         not allowed) is skipped with its reason; the others still go through.

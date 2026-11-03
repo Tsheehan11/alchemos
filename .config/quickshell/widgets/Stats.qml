@@ -51,10 +51,10 @@ WidgetBody {
                     required property var modelData
                     width: 270; height: 18
                     Text { text: modelData.k; color: Theme.dim; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
-                    Rectangle {
-                        x: 52; width: 140; height: 4; anchors.verticalCenter: parent.verticalCenter; color: Theme.p(0.12)
-                        Rectangle { height: parent.height; width: parent.width * Math.max(0, Math.min(1, modelData.v)); color: modelData.hot ? Theme.secondary : Theme.primary
-                            Behavior on width { enabled: w.live; NumberAnimation { duration: 500; easing.type: Easing.OutCubic } } }
+                    HoloBar {
+                        x: 52; width: 140; height: 8; anchors.verticalCenter: parent.verticalCenter
+                        value: modelData.v; animated: w.live
+                        color: modelData.hot ? Theme.secondary : Theme.primary
                     }
                     Text { anchors.right: parent.right; text: modelData.t; color: modelData.hot ? Theme.secondary : Theme.text; font.family: w.mono; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
                 }

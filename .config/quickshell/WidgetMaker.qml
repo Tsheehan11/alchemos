@@ -35,6 +35,12 @@ PanelWindow {
         { t: "stats", g: "", n: "SYSTEM STATS" },
         { t: "stats", g: "\u{f056e}", n: "DASHBOARD", p: { size: "huge" } },
         { t: "note", g: "", n: "NOTE", next: "note" },
+        { t: "calendar", g: "\uf073", n: "AGENDA" },
+        { t: "due", g: "\uf0ae", n: "DUE" },
+        { t: "jarvis", g: "\uf2db", n: "JARVIS" },
+        { t: "usage", g: "\uf080", n: "CLAUDE USAGE" },
+        { t: "weather", g: "\ue30d", n: "WEATHER" },
+        { t: "network", g: "\uf1eb", n: "NETWORK" },
         { t: "", g: "", n: "MORE…", settings: true }
     ]
     readonly property var minutes: [1, 3, 5, 10, 15, 20, 25, 30, 45, 60, 90, 120]

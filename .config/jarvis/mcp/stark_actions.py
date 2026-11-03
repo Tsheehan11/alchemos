@@ -765,6 +765,16 @@ def open_in_browser(query):
 
 
 # ── desktop widgets (quickshell/Widgets.qml, through `qs ipc call widgets …`) ──
+WIDGET_TYPES = ["clock", "timer", "stopwatch", "media", "stats", "note", "calendar", "due", "jarvis", "usage", "weather", "network"]
+# spoken names → widget types (also used for move / remove targets)
+WIDGET_ALIASES = {"music": "media", "now playing": "media", "player": "media", "system": "stats", "stat": "stats",
+                  "countdown": "timer", "timers": "timer", "clocks": "clock", "notes": "note", "sticky note": "note",
+                  "agenda": "calendar", "schedule": "calendar", "calendars": "calendar", "events": "calendar",
+                  "deadlines": "due", "due dates": "due", "assignments": "due", "homework": "due", "tracker": "due", "what's due": "due",
+                  "jarvis status": "jarvis", "status": "jarvis", "assistant": "jarvis", "tasks": "jarvis",
+                  "claude": "usage", "claude usage": "usage", "tokens": "usage", "token usage": "usage",
+                  "forecast": "weather", "vpn": "network", "wifi": "network", "wi fi": "network", "internet": "network",
+                  "everything": "all"}
 WIDGET_POSITIONS = ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
 WIDGET_ROLES = {"main": "main monitor", "diag": "second monitor", "media": "laptop screen"}
 WIDGET_SIZES = {"small": "small", "smaller": "smaller", "tiny": "small", "little": "small", "normal": "normal",
@@ -880,13 +890,16 @@ def _check_position(position):
 @safe
 def widget_add(type, screen="", position="", label="", minutes=0, seconds=0, tz="", analog=False, text="", pinned=False,
                size=""):
-    """Show a desktop widget. type: clock | timer | stopwatch | media | stats | note (see widget_types()).
+    """Show a desktop widget. type: clock | timer | stopwatch | media | stats | note | calendar (agenda: main Google
+    Calendar + Outlook + tracker due dates) | due (tracker) | jarvis (your status + tasks) | usage (Claude tokens) |
+    weather | network (VPN + Wi-Fi) (see widget_types()).
     screen: main monitor / second monitor / laptop screen, empty = the one in use. position: top-left …
     bottom-right, empty = the type's default. clock: tz (city or IANA zone), analog. timer: minutes/seconds.
     note: text. pinned: stays above windows. size: small | normal | large | huge (stats becomes a dashboard)."""
     t = str(type or "").lower().strip()
     types = widget_types()
-    if t not in (types or ["clock", "timer", "stopwatch", "media", "stats", "note"]):
+    t = WIDGET_ALIASES.get(t, t)
+    if t not in (types or WIDGET_TYPES):
         raise Invalid(f'unknown widget type "{type}" ({", ".join(types)})')
     role, pos = _check_screen(screen), _check_position(position)
     params = {}
@@ -926,9 +939,7 @@ def widget_add(type, screen="", position="", label="", minutes=0, seconds=0, tz=
 def _widget_targets(target, screen=""):
     """'clock' / 'timer4' / 'all' (+ screen) → the matching widgets."""
     t = _norm(target or "").replace("widgets", "all").replace("widget", "").strip() or "all"
-    t = {"music": "media", "now playing": "media", "player": "media", "system": "stats", "stat": "stats",
-         "countdown": "timer", "timers": "timer", "clocks": "clock", "notes": "note", "sticky note": "note",
-         "everything": "all"}.get(t, t)
+    t = WIDGET_ALIASES.get(t, t)
     role = _check_screen(screen) if screen else ""
     items = _widget_list()
     if role == "current":

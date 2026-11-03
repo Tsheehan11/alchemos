@@ -137,13 +137,17 @@ Position = Literal["", "top-left", "top", "top-right", "left", "center", "right"
 
 
 @mcp.tool(structured_output=False)
-def widget_add(type: Literal["clock", "timer", "stopwatch", "media", "stats", "note"], screen: str = "",
+def widget_add(type: Literal["clock", "timer", "stopwatch", "media", "stats", "note", "calendar", "due", "jarvis",
+                             "usage", "weather", "network"], screen: str = "",
                position: Position = "", label: str = "", minutes: float = 0, seconds: float = 0, tz: str = "",
                analog: bool = False, text: str = "", pinned: bool = False,
                size: Literal["", "small", "normal", "large", "huge"] = "") -> str:
     """Show a desktop widget. screen: "main monitor" | "second monitor" | "laptop screen" | "" (the one in use).
     clock: tz = city or IANA zone ("New York"), analog. timer: minutes / seconds (prefer set_timer). media = now
-    playing. stats = CPU/RAM/temp/battery (large / huge = full dashboard). note: text. pinned = stays above windows."""
+    playing. stats = CPU/RAM/temp/battery (large / huge = full dashboard). note: text. calendar = agenda (main Google
+    Calendar + Outlook + tracker due dates, live countdowns). due = tracker deadlines. jarvis = your own status, tasks and
+    last command. usage = Claude tokens today / this session. weather = home weather. network = VPN + Wi-Fi.
+    pinned = stays above windows. Placing one of these needs no calendar or email read: it's just a widget."""
     return out(A.widget_add(type, screen, position, label, minutes, seconds, tz, analog, text, pinned, size))
 
 

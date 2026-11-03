@@ -533,6 +533,7 @@ class Brain:
                         reply.error = "limit"
                 elif isinstance(msg, ResultMessage):
                     reply.turns = msg.num_turns or 0
+                    db.add_usage(source or self.source, msg)
                     try:
                         db.add_turns(source or self.source, reply.turns)
                     except Exception as e:
@@ -614,6 +615,7 @@ class Brain:
             if isinstance(msg, RateLimitEvent):
                 self._note_usage(msg)
             elif isinstance(msg, ResultMessage):
+                db.add_usage("usage", msg)
                 db.add_turns("usage", msg.num_turns or 0)
 
     def usage_brief(self):

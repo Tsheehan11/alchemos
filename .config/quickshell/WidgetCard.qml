@@ -1,4 +1,4 @@
-// One desktop widget on a WidgetSurface: hologram card (HudFrame look) around a
+// One desktop widget on a WidgetSurface: a projected hologram (HoloFrame, no solid card) around a
 // widgets/<Type>.qml body, placed in its slot (stacked with others in the same slot).
 //   • Drag it: the surface takes the whole screen for the drag, the card follows the pointer
 //     and snaps to the nearest slot on release; carry it on to another monitor and it lands
@@ -59,40 +59,24 @@ Item {
         transform: Scale { xScale: wc.k; yScale: wc.k }
         width: Math.max(160, (body.item ? body.item.implicitWidth : 200) + 28)
         height: (body.item ? body.item.implicitHeight : 80) + 34 + 14
-        opacity: 0
-        Component.onCompleted: opacity = 1
-        Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        // ── hologram: draws on when the card appears, retracts when it's closed (Widgets.closing) ──
+        property real boot: 0
+        readonly property bool closing: Widgets.closing[wc.wid] === true
+        Component.onCompleted: bootIn.start()
+        onClosingChanged: if (closing) { bootIn.stop(); bootOut.start(); }
+        NumberAnimation { id: bootIn; target: card; property: "boot"; from: 0; to: 1; duration: PowerMode.saver ? 200 : 520; easing.type: Easing.OutCubic }
+        NumberAnimation { id: bootOut; target: card; property: "boot"; to: 0; duration: 260; easing.type: Easing.InCubic }
 
-        // ── hologram glass ──
-        Rectangle {
-            id: glass
+        HoloFrame {
             anchors.fill: parent
-            color: Theme.d(Math.max(0.9, Theme.panelAlpha))      // solid enough that a HUD panel behind can't show through
-            border.color: Qt.rgba(wc.accent.r, wc.accent.g, wc.accent.b, wc.dragging ? 0.85 : 0.4)
-            border.width: 1
-            clip: true
-            Rectangle {     // sweeping scan band, only while effects run on this screen
-                visible: wc.live
-                width: parent.width; height: 38
-                y: ((wc.surface.t * 0.35) % 1) * (glass.height + 76) - 38
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.5; color: Qt.rgba(wc.accent.r, wc.accent.g, wc.accent.b, 0.07) }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-            }
-            Rectangle { width: 2; height: parent.height; color: wc.accent; opacity: wc.done ? 0.5 + 0.5 * Math.abs(Math.sin(wc.surface.t * 4)) : 0.75 }
-        }
-        Repeater {      // corner brackets
-            model: 4
-            delegate: Item {
-                required property int index
-                width: 12; height: 12
-                x: index % 2 === 0 ? -3 : card.width - 9
-                y: index < 2 ? -3 : card.height - 9
-                Rectangle { width: 12; height: 2; color: wc.accent; y: index < 2 ? 0 : 10 }
-                Rectangle { width: 2; height: 12; color: wc.accent; x: index % 2 === 0 ? 0 : 10 }
-            }
+            t: wc.surface.t
+            still: !wc.live || PowerMode.saver
+            boot: card.boot
+            accent: wc.accent
+            strong: wc.dragging || dragArea.containsMouse
+            fillAlpha: wc.pinned ? 0.8 : 0.66          // pinned ones sit over windows: a little more glass behind the text
+            // an alert (timer done) pulses the strokes with the effects clock, else they stay lit
+            opacity: wc.done && wc.live ? 0.55 + 0.45 * Math.abs(Math.sin(wc.surface.t * 4)) : 1
         }
 
         // ── drag (under the body, so its own buttons still work) ──
@@ -123,7 +107,11 @@ Item {
                 wc.dragY = Math.max(0, Math.min(wc.sh - wc.height / 2, sy + p.y - py));
                 wc.surface.point = p;
             }
-            onReleased: m => finish(mapToItem(null, m.x, m.y))
+            onReleased: m => {
+                const wasDrag = moved;
+                finish(mapToItem(null, m.x, m.y));
+                if (!wasDrag && body.item && body.item.clicked) body.item.clicked();   // a plain click, not a drag
+            }
             onCanceled: finish(null)
             function finish(p) {
                 const was = moved;
@@ -140,8 +128,9 @@ Item {
 
         // ── header ──
         Text {
-            x: 14; y: 10
-            width: card.width - 28 - (buttons.visible ? buttons.width : 0)
+            x: 26; y: 10
+            opacity: Math.max(0, card.boot * 2 - 1)
+            width: card.width - 40 - (buttons.visible ? buttons.width : 0)
             elide: Text.ElideRight
             text: (body.item ? body.item.title : (wc.it ? wc.it.type.toUpperCase() : ""))
             color: wc.accent
@@ -149,6 +138,7 @@ Item {
         }
         Text {
             visible: !buttons.visible
+            opacity: Math.max(0, card.boot * 2 - 1)
             anchors.right: parent.right; anchors.rightMargin: 14; y: 10
             text: (wc.pinned ? "◆ " : "") + (body.item ? body.item.detail : "")
             color: Theme.dim
@@ -160,7 +150,7 @@ Item {
             anchors.right: parent.right; anchors.rightMargin: 8; y: 5
             spacing: 2
             Rectangle {     // size: small → normal → large → huge
-                width: 22; height: 20; color: sizeMa.containsMouse ? Theme.p(0.18) : "transparent"
+                width: 22; height: 20; color: "transparent"; border.width: sizeMa.containsMouse ? 1 : 0; border.color: Theme.p(0.5)
                 Text { anchors.centerIn: parent; text: "⤢"; color: Theme.dim; font.family: wc.mono; font.pixelSize: 12 }
                 MouseArea {
                     id: sizeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -171,12 +161,12 @@ Item {
                 }
             }
             Rectangle {
-                width: 22; height: 20; color: pinMa.containsMouse ? Theme.p(0.18) : "transparent"
+                width: 22; height: 20; color: "transparent"; border.width: pinMa.containsMouse ? 1 : 0; border.color: Theme.p(0.5)
                 Text { anchors.centerIn: parent; text: wc.pinned ? "◆" : "◇"; color: wc.pinned ? Theme.secondary : Theme.dim; font.family: wc.mono; font.pixelSize: 12 }
                 MouseArea { id: pinMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.pin(wc.wid, !wc.pinned) }
             }
             Rectangle {
-                width: 22; height: 20; color: closeMa.containsMouse ? Theme.s(0.25) : "transparent"
+                width: 22; height: 20; color: "transparent"; border.width: closeMa.containsMouse ? 1 : 0; border.color: Theme.s(0.7)
                 Text { anchors.centerIn: parent; text: "×"; color: closeMa.containsMouse ? Theme.text : Theme.dim; font.family: wc.mono; font.pixelSize: 15 }
                 MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.remove(wc.wid) }
             }
@@ -186,6 +176,7 @@ Item {
         Loader {
             id: body
             x: 14; y: 34
+            opacity: Math.max(0, card.boot * 1.6 - 0.6)
             source: wc.it ? Widgets.source(wc.it.type) : ""
         }
         Binding { target: body.item; property: "widget"; value: wc.it; when: body.item !== null }

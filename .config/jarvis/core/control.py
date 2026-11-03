@@ -532,6 +532,8 @@ class Judge:
                 text += " ".join(b.text for b in m.content if isinstance(b, TextBlock))
             elif isinstance(m, ResultMessage):
                 turns = m.num_turns or 1
+                import jarvis_db as db
+                db.add_usage("control", m)
         m = re.search(r"\{.*\}", text, re.S)
         try:
             d = json.loads(m.group(0)) if m else {}

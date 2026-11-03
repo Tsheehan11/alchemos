@@ -85,6 +85,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["calendar"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     import google_api                      # log / undo of Jarvis's calendar writes
     sys.exit(google_api.calendar_cli(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["feed"]:
+    from core import feed                  # calendar / due / weather data for the HUD widgets (no Claude)
+    sys.exit(feed.main(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -193,6 +196,7 @@ class Jarvis:
         # one brain, every exchange is recorded in a thread, and tool labels / confirmations reach the app.
         from core.conversations import Confirmations, Conversations
         self.notify = lambda ev: None          # set by AppBridge once the socket is up
+        self.status = None                     # core.status.Status (voice mode): the widgets' state file
         self.turn_lock = threading.RLock()
         self.surface = "voice"                 # who's asking right now: voice (HUD toast) | typed (app only)
         self.busy = False
@@ -292,6 +296,12 @@ class Jarvis:
                                      self._last_tools, self._last_tier)
                 except Exception as e:
                     log(f"JARVIS: thread record failed: {e}")
+                if self.status:
+                    try:
+                        self.status.last(text, reply, self._last_tier, source)
+                        self.status.usage(self.brain)
+                    except Exception as e:
+                        log(f"JARVIS: status: {e}")
                 self.busy = False
                 self.notify({"ev": "busy", "on": False})
                 self.surface = "voice"
@@ -555,6 +565,13 @@ class VoiceLoop:
         self.voice.warm()
         A.apps()
         self.j = Jarvis(self.cfg, confirm_sync=self.confirm)
+        from core.status import Status
+        self.status = self.j.status = Status(log=log)
+        atexit.register(self.status.close)
+        try:
+            self.status.usage(self.j.brain)
+        except Exception as e:
+            log(f"JARVIS: status: {e}")
         self.j.warm()
         try:
             self.app = AppBridge(self)
@@ -1103,9 +1120,21 @@ class AppBridge:
                                   paused=lambda: vl.paused, log=log, laptop=C.LAPTOP)
         asyncio.run_coroutine_threadsafe(self.watch.run_forever(), self.j.loop)
         log(f"JARVIS: app socket at {self.server.path}")
+        try:
+            self.vl.status.tasks([self.tasks.item(t) for t in db.list_tasks(limit=12)])
+        except Exception as e:
+            log(f"JARVIS: status: {e}")
 
     def notify(self, ev):
         self.server.broadcast(ev)
+        try:
+            k = ev.get("ev")
+            if k in ("task", "task_line"):
+                self.vl.status.tasks([self.tasks.item(t) for t in db.list_tasks(limit=12)])
+            if k == "usage" or (k == "task" and ev["item"]["status"] != "running"):
+                self.vl.status.usage(self.j.brain)
+        except Exception as e:
+            log(f"JARVIS: status: {e}")
         if ev.get("ev") == "busy" and not ev.get("on") or ev.get("ev") == "task" and ev["item"]["status"] != "running":
             self.server.broadcast(self.usage())
 

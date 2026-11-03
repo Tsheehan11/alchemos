@@ -35,13 +35,11 @@ WidgetBody {
         opacity: w.alert ? w.flash : 1
         font.family: w.mono; font.pixelSize: w.alert ? 34 : 44; font.weight: Font.Light
     }
-    Rectangle {     // time left
-        y: 62; width: 250; height: 4; color: Theme.p(0.12)
-        Rectangle {
-            width: parent.width * (w.alert ? 1 : Math.min(1, w.remaining / w.duration)); height: parent.height
-            color: w.alert ? Theme.secondary : Theme.primary
-            opacity: w.alert ? w.flash : 1
-        }
+    HoloBar {       // time left
+        y: 59; width: 250; height: 8; ticks: 10
+        value: w.alert ? 1 : Math.min(1, w.remaining / w.duration)
+        color: w.alert ? Theme.secondary : Theme.primary
+        opacity: w.alert ? w.flash : 1
     }
     Text {
         y: 70; text: w.alert ? "CLOSE WITH ×" : Math.round(w.duration / 60) + " MIN"

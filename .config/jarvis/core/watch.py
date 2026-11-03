@@ -74,6 +74,7 @@ class Judge:
                 text += " ".join(b.text for b in m.content if isinstance(b, TextBlock))
             elif isinstance(m, ResultMessage):
                 turns = m.num_turns or 1
+                db.add_usage("watch", m)
         return parse_verdict(text) + (turns,)
 
 

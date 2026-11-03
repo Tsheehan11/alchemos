@@ -36,6 +36,6 @@ WidgetBody {
         Keys.onEnterPressed: w.save()
         Keys.onEscapePressed: w.editing = false
         onActiveFocusChanged: if (!activeFocus && w.editing) w.save()
-        Rectangle { anchors.fill: parent; anchors.margins: -4; color: "transparent"; border.color: Theme.p(0.4); z: -1 }
+        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.bottom; anchors.topMargin: 3; height: 1; color: Theme.p(0.6) }   // editing: a glowing underline, not a box
     }
 }

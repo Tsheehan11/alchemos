@@ -221,10 +221,11 @@ def calendars():
             for c in items if not c.get("hidden")]
 
 
-def events(start, end, per_calendar=50):
-    """All events overlapping [start, end) across his calendars, declined ones dropped, sorted."""
+def events(start, end, per_calendar=50, primary_only=False):
+    """All events overlapping [start, end) across his calendars (or just his main one), declined ones dropped, sorted."""
     svc, out = service("calendar"), []
-    for cid, cname, primary in calendars():
+    cals = [("primary", "", True)] if primary_only else calendars()
+    for cid, cname, primary in cals:
         items = call("calendar", svc.events().list(
             calendarId=cid, timeMin=start.isoformat(), timeMax=end.isoformat(), singleEvents=True,
             orderBy="startTime", maxResults=per_calendar, timeZone=local_tz(),
@@ -539,6 +540,31 @@ class CalendarWriter:
                 done.append(f"restored {w['summary']}")
         self.db.mark_calendar_undone(writes[0]["batch"])
         return True, "Undid on the calendar: " + "; ".join(done)
+
+
+def _kick_feed():
+    """A calendar write: the HUD's calendar widget refreshes now (core/feed.py), not at its next sync."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)      # same as core/feed.kick (MCP servers may lack core/)
+        s.sendto(b"kick", os.path.join(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}", "jarvis", "feed.sock"))
+        s.close()
+    except OSError:
+        pass
+
+
+for _name in ("create", "update", "delete", "undo"):
+    def _wrap(fn):
+        def w(self, *a, **k):
+            try:
+                return fn(self, *a, **k)
+            finally:
+                _kick_feed()
+        w.__name__, w.__doc__ = fn.__name__, fn.__doc__
+        return w
+    setattr(CalendarWriter, _name, _wrap(getattr(CalendarWriter, _name)))
+for _name in ("upsert", "mark_graded"):
+    setattr(AssignmentsCalendar, _name, (lambda fn: (lambda self, *a, **k: (fn(self, *a, **k), _kick_feed())[0]))(getattr(AssignmentsCalendar, _name)))
 
 
 def calendar_cli(argv):
