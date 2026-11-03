@@ -467,8 +467,38 @@ def ensure_device(device_id=None):
     return d["id"]
 
 
+def _playing(want_uri=None, want_context=None, before=None, timeout=3.5):
+    """Wait until Spotify reports the wanted track / context playing (or at least a new track). → bool.
+    Needed because a 204 from PUT /me/player/play doesn't mean anything plays: see play()."""
+    end = time.time() + timeout
+    while time.time() < end:
+        time.sleep(0.5)
+        try:
+            st = state() or {}
+        except SpotifyError:
+            continue
+        item = (st.get("item") or {}).get("uri")
+        ctx = (st.get("context") or {}).get("uri")
+        if st.get("is_playing") and item and (item == want_uri or (want_context and ctx == want_context)
+                                              or (item != before and not want_uri)):
+            return True
+        tid, status = mpris_track()               # the desktop app may know before the Web API does
+        if status == "Playing" and tid and want_uri and want_uri.endswith(tid):
+            return True
+    return False
+
+
 def play(uris=None, context_uri=None, offset=None, device_id=None, position_ms=None):
+    """Start playback and make sure it started. The desktop app, freshly launched with nothing loaded,
+    answers PUT /me/player/play with 204 and then ignores it (seen 2026-11-03: "active" device, no item,
+    queue adds dropped too). Once a track is loaded, Web API commands work. So: check it plays; if not and
+    the device is this computer, open the URI through the app's own MPRIS (OpenUri) and check again.
+    Raises SpotifyError if nothing started."""
     dev = ensure_device(device_id)
+    try:
+        before = ((state() or {}).get("item") or {}).get("uri")
+    except SpotifyError:
+        before = None
     body = {}
     if uris:
         body["uris"] = list(uris)
@@ -480,7 +510,15 @@ def play(uris=None, context_uri=None, offset=None, device_id=None, position_ms=N
         body["position_ms"] = int(position_ms)
     api("PUT", "/me/player/play", {"device_id": dev}, body or None)
     _premium_ok()
-    return dev
+    want = uris[0] if uris and offset in (None, 0) else (offset if isinstance(offset, str) else None)
+    if not body or _playing(want, context_uri, before):
+        return dev
+    local = local_device()
+    target = (uris or [None])[0] if not context_uri else context_uri
+    if local and local["id"] == dev and target and mpris_open(target):
+        if _playing(want, context_uri, before, timeout=4):
+            return dev
+    raise SpotifyError("playback didn't start", say="Spotify took the request but didn't start playing, sir. Try opening it once with Super M.")
 
 
 def transfer(device_id, start=True):

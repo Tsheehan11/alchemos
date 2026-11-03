@@ -120,6 +120,53 @@ check("shuffle needs premium", (r["ok"], "Premium" in r.get("say", "")), (False,
 check("next goes straight to mpris now", (A.spotify_player("pause")["ok"], mpris_calls), (True, ["next", "pause"]))
 VAULT[("spotify", "account")] = json.dumps({"id": "trev", "name": "Trevor", "premium": True})
 
+# ── play() checks it really started: a freshly launched desktop app takes the 204 and plays nothing ──
+real_time, clock = S.time, [0.0]
+S.time = types.SimpleNamespace(time=lambda: clock[0], sleep=lambda s: clock.__setitem__(0, clock[0] + s))
+saved_fns = {k: getattr(S, k) for k in ("ensure_device", "state", "api", "local_device", "mpris_open", "mpris_track")}
+PLAYER = {"st": None, "opened": [], "api_works": True}
+
+
+def fake_api(method, path, params=None, body=None, _retry=True):
+    if path == "/me/player/play" and PLAYER["api_works"]:
+        PLAYER["st"] = {"is_playing": True, "item": {"uri": body["uris"][0]}}
+
+
+def fake_open(uri):
+    PLAYER["opened"].append(uri)
+    if PLAYER.get("mpris_works"):
+        PLAYER["st"] = {"is_playing": True, "item": {"uri": uri}}
+    return True
+
+
+S.ensure_device = lambda device_id=None: "a"
+S.state = lambda: PLAYER["st"]
+S.api = fake_api
+S.local_device = lambda devs=None: {"id": "a", "name": "Dell-Linux"}
+S.mpris_open = fake_open
+S.mpris_track = lambda: (None, None)
+check("play via api", (S.play(uris=["spotify:track:x1"]), PLAYER["opened"]), ("a", []))
+PLAYER.update(st=None, api_works=False, mpris_works=True)
+check("ignored 204 → mpris open", (S.play(uris=["spotify:track:x2"]), PLAYER["opened"]), ("a", ["spotify:track:x2"]))
+PLAYER.update(st=None, opened=[], mpris_works=False)
+try:
+    S.play(uris=["spotify:track:x3"])
+    check("nothing started raises", False, True)
+except S.SpotifyError as e:
+    check("nothing started say", "didn't start" in e.say, True)
+S.local_device = lambda devs=None: {"id": "other"}
+PLAYER.update(st=None, opened=[], mpris_works=True)
+try:
+    S.play(uris=["spotify:track:x4"])
+except S.SpotifyError:
+    pass
+check("remote device: no mpris", PLAYER["opened"], [])
+for k, v in saved_fns.items():
+    setattr(S, k, v)
+S.time = real_time
+S.ensure_device = lambda device_id=None: "a"
+S._http = lambda *a, **k: (403, {}, {"error": {"message": "Player command failed: Premium required", "reason": "PREMIUM_REQUIRED"}})
+
 # ── not connected ──
 tok = VAULT.pop(("spotify", "token"))
 r = A.spotify_play("daft punk")
