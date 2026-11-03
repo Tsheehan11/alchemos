@@ -267,6 +267,36 @@ def switch(direction, name, mark=True):
     return {"ok": True, "device": name, "moved": moved}
 
 
+# ── calls and music streams (DJ mode, core/dj.py + jarvis.py check_dj) ──
+CALL_APPS = re.compile(r"discord|vesktop|webcord|legcord|armcord|equibop|webrtc ?voiceengine|zoom|teams|skype|slack|signal|telegram",
+                       re.I)
+
+
+def _app(si):
+    p = si.get("properties", {})
+    return " ".join(str(p.get(k, "")) for k in ("application.name", "application.process.binary", "node.name", "media.name"))
+
+
+def voice_call(outputs=None):
+    """True while a call app (Discord first of all) has the microphone open. Discord only opens its
+    capture stream while you're in a voice channel or call, so an idle Discord doesn't count. A
+    stream that's corked (muted by the app) still counts: he's in the call."""
+    outputs = outputs if outputs is not None else _json("list", "source-outputs")
+    return any(CALL_APPS.search(_app(so)) for so in outputs
+               if so.get("properties", {}).get("media.name") != JARVIS_STREAM)
+
+
+def music_stream(inputs=None, app="spotify"):
+    """(sink-input index, sink name) of Spotify's playback stream here, or (None, None) when it isn't
+    playing on this computer (another Spotify Connect device, or nothing)."""
+    inputs = inputs if inputs is not None else _json("list", "sink-inputs")
+    sinks = {s.get("index"): s.get("name") for s in _json("list", "sinks")} if inputs else {}
+    for si in inputs:
+        if app in _app(si).lower() and not si.get("corked"):
+            return si.get("index"), sinks.get(si.get("sink"))
+    return None, None
+
+
 def cli(argv):
     """jarvis audio list [--json] | output NAME | input NAME   (the HUD's Settings → AUDIO calls output / input)."""
     if not argv or argv[0] == "list":

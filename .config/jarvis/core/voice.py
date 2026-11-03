@@ -51,6 +51,8 @@ COMMON = ["Right away, sir.", "Done, sir.", "Very well, sir.", "Very good, sir."
 RATE = 24000               # the output stream's rate (Kokoro's); piper audio is resampled to it
 DUCK_SPEAK = 0.3           # other audio while Jarvis talks (fraction of its volume)
 DUCK_LISTEN = 0.2          # ...and while it listens, so a song isn't taken for a command
+DUCK_DJ = 0.3              # the music under a DJ line (core/dj.py)
+DJ_RAMP_S = 0.3            # DJ lines fade the music down and back up instead of stepping
 SPEAKER_WAIT_S = 1.5       # Bluetooth speaker not ready by then → laptop speakers for this reply
 COMMA_GAP_S = 0.06         # pause where a long first sentence was split at its comma
 JARVIS_STREAMS = ("Jarvis", "Jarvis chime")
@@ -149,8 +151,8 @@ class Ducker:
     def held(self):
         return bool(self.saved)
 
-    def duck(self, level):
-        """False if already ducked (someone else will restore)."""
+    def duck(self, level, ramp_s=0.0):
+        """False if already ducked (someone else will restore). ramp_s > 0 fades down in steps."""
         with self._lock:
             if self.saved:
                 return False
@@ -167,16 +169,29 @@ class Ducker:
                 if not vols:
                     continue
                 self.saved[si["index"]] = vols
-                subprocess.run(["pactl", "set-sink-input-volume", str(si["index"])] + [str(int(v * level)) for v in vols],
-                               capture_output=True, timeout=2)
             self._write()
+            self._fade(1.0, level, ramp_s)
             return True
 
-    def restore(self):
-        with self._lock:
+    def _fade(self, start, end, ramp_s):
+        steps = max(1, int(ramp_s / 0.06)) if ramp_s > 0 else 1
+        for i in range(1, steps + 1):
+            f = start + (end - start) * i / steps
             for idx, vols in self.saved.items():
-                subprocess.run(["pactl", "set-sink-input-volume", str(idx)] + [str(v) for v in vols],
+                subprocess.run(["pactl", "set-sink-input-volume", str(idx)] + [str(int(v * f)) for v in vols],
                                capture_output=True, timeout=2)
+            if i < steps:
+                time.sleep(ramp_s / steps)
+
+    def restore(self, ramp_s=0.0, level=None):
+        """Back to the saved volumes; ramp_s > 0 fades up from `level` (what duck() used)."""
+        with self._lock:
+            if ramp_s > 0 and level is not None and self.saved:
+                self._fade(level, 1.0, ramp_s)
+            else:
+                for idx, vols in self.saved.items():
+                    subprocess.run(["pactl", "set-sink-input-volume", str(idx)] + [str(v) for v in vols],
+                                   capture_output=True, timeout=2)
             self.saved = {}
             self._write()
 
@@ -351,8 +366,9 @@ class Utterance:
     """One spoken reply. add() sentences any time (even while it's talking), finish()
     when there's no more, wait() until it's done. Opens the output stream right away."""
 
-    def __init__(self, voice):
+    def __init__(self, voice, target=None):
         self.v = voice
+        self.target = target          # a sink to play on instead of the usual pick (DJ lines: where the music is)
         self.texts = queue.Queue()
         self.audio = queue.Queue()
         self.stopped = threading.Event()
@@ -411,7 +427,10 @@ class Utterance:
     def _play(self):
         ducked = False
         try:
-            target, self.fell_back = self.v.speaker.target()
+            if self.target:
+                target, self.fell_back = self.target, False
+            else:
+                target, self.fell_back = self.v.speaker.target()
             if self.fell_back:
                 trace.t("speaker.fallback", sink=target or "default")
             if self.stopped.is_set():
@@ -573,9 +592,10 @@ class Voice:
             + (["--target", target] if target else []) + ["-"],
             stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def utterance(self):
-        """Start a reply now (opens the output); add sentences to it as they come."""
-        u = Utterance(self)
+    def utterance(self, target=None):
+        """Start a reply now (opens the output); add sentences to it as they come. target: a sink name
+        to play on instead of the usual pick (DJ lines go where Spotify is playing)."""
+        u = Utterance(self, target)
         with self._lock:
             self._current = u
         return u

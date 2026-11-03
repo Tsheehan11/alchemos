@@ -41,6 +41,7 @@ PanelWindow {
         { t: "usage", g: "\uf080", n: "CLAUDE USAGE" },
         { t: "weather", g: "\ue30d", n: "WEATHER" },
         { t: "network", g: "\uf1eb", n: "NETWORK" },
+        { t: "dj", g: "\uf001", n: "DJ DECK" },
         { t: "", g: "", n: "MORE…", settings: true }
     ]
     readonly property var minutes: [1, 3, 5, 10, 15, 20, 25, 30, 45, 60, 90, 120]

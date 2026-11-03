@@ -1,0 +1,15 @@
+{
+    "_doc": "DJ mode mood presets (core/dj.py). desc is what the set is built for (it goes into the one Claude call per set); aliases are other words that pick it (\"play something for the gym\", \"put on some coding music\"). Moods you save by voice (\"save this vibe as late night\") go to ~/.local/share/jarvis/dj/moods.json, untracked, and are merged with these.",
+    "moods": {
+        "studying": {"desc": "music for studying: steady and unobtrusive, mostly instrumental or soft vocals, no sudden drops or shouting, energy low to medium and even", "aliases": ["study", "homework", "reading", "work", "working"]},
+        "focus": {"desc": "deep focus for coding or writing: instrumental, driving but not distracting, electronic / lo-fi / post-rock / ambient leaning, medium energy that holds", "aliases": ["coding", "code", "programming", "deep work", "concentration", "concentrate"]},
+        "gym": {"desc": "gym workout: high energy, hard-hitting, big beats and drops, keep the tempo up the whole way, peak in the middle", "aliases": ["workout", "lifting", "running", "exercise", "training", "cardio"]},
+        "gaming": {"desc": "gaming session: energetic and immersive, electronic, rock, hip hop and soundtracks, steady high energy without lyrics that pull focus", "aliases": ["games", "game", "gaming session", "ranked"]},
+        "chill": {"desc": "relaxed and mellow, easy listening, warm and unhurried, low energy", "aliases": ["relax", "relaxing", "chilling", "unwind", "calm", "mellow", "laid back"]},
+        "party": {"desc": "party: upbeat crowd-pleasers, danceable, energy building through the set", "aliases": ["hype", "dance", "dancing", "pregame", "friends over"]},
+        "late night": {"desc": "late night: moody, atmospheric, slower, a bit dark and intimate", "aliases": ["night", "midnight", "late", "night drive"]},
+        "driving": {"desc": "driving: open-road feel, upbeat, sing-along friendly, steady groove", "aliases": ["drive", "road trip", "car"]},
+        "sleep": {"desc": "winding down to sleep: very calm, soft, slow, ambient or acoustic, getting quieter through the set", "aliases": ["bed", "bedtime", "falling asleep", "wind down"]},
+        "morning": {"desc": "morning: bright, optimistic, gently building energy", "aliases": ["wake up", "breakfast", "getting ready"]}
+    }
+}

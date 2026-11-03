@@ -346,8 +346,8 @@ now playing, system stats, sticky note, **agenda** (your main Google Calendar + 
 feed + SE tracker due dates, ◆ Google ◇ Outlook ▲ due, live countdowns), **due** (open tracker rows),
 **jarvis** (listening / thinking / speaking, the request in hand, background tasks, the last command;
 click for the console), **claude usage** (tokens today / this session, Haiku vs Sonnet; Pro plan
-limits only when the Claude CLI itself reported them), **weather** and **network** (VPN, Wi-Fi,
-throughput). Drag to snap, ◇ to pin above windows, × to close, right-click the empty desktop to
+limits only when the Claude CLI itself reported them), **weather**, **network** (VPN, Wi-Fi,
+throughput) and **dj deck** (now playing, the DJ set, its mood and next three, MORE / LESS / START). Drag to snap, ◇ to pin above windows, × to close, right-click the empty desktop to
 make one. A new type is one QML file in `quickshell/widgets/`.
 
 Data comes to them, never polled: Jarvis writes `$XDG_RUNTIME_DIR/jarvis/status.json` when
@@ -496,6 +496,36 @@ the output isn't headphones, Jarvis connects the speaker as soon as it hears the
 isn't up within 1.5 s, that reply plays on the laptop instead. Headphones, headsets and USB audio
 always keep Jarvis on them.
 
+### Spotify and DJ mode
+
+Your own Spotify developer app (Development Mode: the app owner needs Premium) with PKCE sign-in, no
+client secret: `jarvis spotify connect` (or Settings → JARVIS → SPOTIFY → CONNECT) walks you through
+creating it. The redirect is `http://127.0.0.1:8898/callback`, open only while you sign in, because
+Spotify refuses `localhost`. Tokens go to the system keyring (`jarvis:spotify`), refreshed on demand
+under a lock (the voice loop, the MCP server and the CLI share them). `jarvis spotify status|devices|now|disconnect`.
+
+- **Control** (`mcp/spotify_api.py`, stark tools `spotify_*`): play a track / album / artist / your
+  playlist / Liked Songs by name, queue, like, shuffle, repeat, seek, Spotify's own volume, and move
+  playback to a Connect device ("play Spotify on the Google Home"). "Next song", "pause" and the like stay
+  on MPRIS. Without Premium, play / pause / skip fall back to MPRIS and Jarvis says the rest needs Premium.
+  "Play it on the speaker" still means the Bluetooth audio route (above), not Spotify Connect.
+- **DJ mode** (`core/dj.py`, in the voice process): *"DJ for me"*, *"play something for studying"*,
+  *"put on some gym music"*. One Haiku call per set builds 20–30 tracks from your top tracks, recently
+  played and liked songs (plus a few Spotify searches), ordered for genre, energy and era. Recommendations
+  and audio-features aren't open to Development Mode apps, so Jarvis doesn't use them. Tracks are queued
+  three ahead, nothing repeats within 48 h, and the set refills itself when it runs low. *"More / less like
+  this"* reshapes the rest with one more call; *"keep this vibe"* holds it; *"save this vibe as late night"*
+  makes a preset. Presets are in `jarvis/dj_moods.json`, your saved ones in `~/.local/share/jarvis/dj/`. Put
+  something else on and DJ mode bows out.
+- **DJ chatter** (Settings → JARVIS → SPOTIFY, `jarvisDjChatter`): off · **rare** (default, a line every
+  4–5 tracks) · normal (every 2–3). Lines are under ten seconds, said as a track starts on the output
+  Spotify plays on, with the music faded to 30 % and back. On a Connect device, Jarvis lowers that device's
+  Spotify volume instead. Silent in combat mode and while Discord (or any call app) has the mic open.
+- **Crossfade:** Spotify's API can't set it. Use Spotify → Settings → Playback → Crossfade songs
+  (6–8 s suits DJ mode).
+- **HUD:** MediaPanel shows DJ MODE, the set name and the next three; add the **dj deck** widget for
+  the same on any screen.
+
 ---
 
 ## Extend it
@@ -585,7 +615,8 @@ to his voice on the fast path, 2–3 s through Claude.
   `--say "…"`, `--trace` (wake score, VAD, transcript, route, latency), `--record [MIN]`.
 
 Try: *"set the theme to Mark III and dim the lights"*, *"timer for 10 minutes on the second
-monitor"*, *"connect the VPN"*, *"what's playing"*, *"move the clock to the top right"*.
+monitor"*, *"connect the VPN"*, *"what's playing"*, *"move the clock to the top right"*,
+*"play Discovery by Daft Punk"*, *"DJ for me"*, *"like this song"*.
 
 ---
 

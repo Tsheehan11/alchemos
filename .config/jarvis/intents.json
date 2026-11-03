@@ -1195,6 +1195,138 @@
       ],
       "must": "\\b(?:mic|microphone|input|mike)\\b",
       "must_not": "\\b(?:mute|unmute|volume|louder|quieter)\\b"
+    },
+    "spotify.like": {
+      "tool": "spotify_like",
+      "say": "@say",
+      "must": "\\b(?:like|love|heart|save|liked|favou?rites?|library|keeper)\\b",
+      "must_not": "\\b(?:unlike|unsave|remove|don't|do not|hate|less|more like|playlist|queue|widget|note|screenshot|file|document)\\b",
+      "examples": [
+        "like this song",
+        "save this track",
+        "heart this song",
+        "add this to my liked songs",
+        "save this one to my library",
+        "i love this song save it",
+        "like the current song",
+        "put this in my liked songs",
+        "save the song that's playing",
+        "this one's a keeper, save it"
+      ]
+    },
+    "dj.start": {
+      "tool": "dj_start",
+      "args": {
+        "mood": ""
+      },
+      "say": "@say",
+      "must": "\\b(?:dj|deejay|disc jockey)\\b|\\b(?:a|the) (?:\\w+ )?(?:set|mix)\\b",
+      "must_not": "\\b(?:stop|end|off|quit|exit|cancel|chatter|talk|less|more like|keep|save|status|next|widget|panel|volume|timer|alarm|reminder|theme|lights?)\\b",
+      "examples": [
+        "dj for me",
+        "be my dj",
+        "start dj mode",
+        "turn on dj mode",
+        "can you dj",
+        "dj something for me",
+        "put together a set for me",
+        "run a dj set",
+        "start a mix for me",
+        "be the dj tonight"
+      ]
+    },
+    "dj.stop": {
+      "tool": "dj_stop",
+      "say": "@say",
+      "must": "\\b(?:dj|deejay)\\b|\\b(?:stop|end|quit|kill|cancel|finish) the (?:dj )?set\\b",
+      "examples": [
+        "stop dj mode",
+        "end the dj set",
+        "turn the dj off",
+        "that's enough dj",
+        "quit dj mode",
+        "cancel the dj",
+        "we're done with the dj",
+        "kill dj mode",
+        "dj mode off",
+        "stop the set"
+      ],
+      "must_not": "\\b(?:timer|alarm|reminder|chatter|talk(?:ing)?)\\b"
+    },
+    "dj.more": {
+      "tool": "dj_adjust",
+      "args": {
+        "direction": "more"
+      },
+      "say": "@say",
+      "must": "\\bmore\\b.*\\b(?:like|of)\\b",
+      "must_not": "\\b(?:less|louder|quieter|volume|light|bright|minutes?|time|info|information|detail|about)\\b",
+      "examples": [
+        "more like this",
+        "more songs like this one",
+        "give me more of this",
+        "more of this please",
+        "play more stuff like this",
+        "more tracks like this",
+        "i want more like this",
+        "more music like this song"
+      ]
+    },
+    "dj.less": {
+      "tool": "dj_adjust",
+      "args": {
+        "direction": "less"
+      },
+      "say": "@say",
+      "must": "\\b(?:less|not (?:this|feeling)|don't like|do not like|no more|not into|skip this kind|change (?:the|it) up|something else)\\b",
+      "must_not": "\\b(?:louder|quieter|volume|light|bright|dim|minutes?|later|window|tab|app)\\b",
+      "examples": [
+        "less of this",
+        "less like this",
+        "not this kind of music",
+        "i don't like this vibe",
+        "no more of this stuff",
+        "not feeling this",
+        "change it up",
+        "something else, not this",
+        "less of this genre",
+        "i'm not into this"
+      ]
+    },
+    "dj.keep": {
+      "tool": "dj_keep",
+      "say": "@say",
+      "must": "\\bkeep\\b|\\bstay\\b",
+      "must_not": "\\b(?:note|remember|window|open|lights?|screen|awake|volume)\\b",
+      "examples": [
+        "keep this vibe",
+        "keep the vibe going",
+        "keep it like this",
+        "stay with this mood",
+        "keep this energy",
+        "keep the mood like this",
+        "this vibe is perfect keep it"
+      ]
+    },
+    "spotify.shuffle": {
+      "tool": "spotify_player",
+      "slots": {
+        "action": "shuffle"
+      },
+      "say": [
+        "Done, sir."
+      ],
+      "must": "\\bshuffl",
+      "examples": [
+        "shuffle on",
+        "turn on shuffle",
+        "shuffle my music",
+        "turn shuffle off",
+        "stop shuffling",
+        "shuffle the playlist",
+        "put it on shuffle",
+        "no more shuffle"
+      ]
     }
   }
 }

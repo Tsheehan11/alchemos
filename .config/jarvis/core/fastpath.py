@@ -119,7 +119,7 @@ WPOS = (r"(?:the )?(?:(?:top|bottom|upper|lower)(?: (?:left|right|center|centre|
         r"(?: (?:top|bottom))?)(?: corner| side| of the screen)?")
 WTYPE = (r"(clock|timer|countdown|stopwatch|sticky note|note|now playing|music|media|player|system stats|stats|"
          r"calendar|agenda|schedule|due dates|deadlines|due|jarvis status|jarvis|claude usage|token usage|usage|weather|"
-         r"network|vpn|wi ?fi|widget|everything)s?(?: widgets?| card| player)?")
+         r"network|vpn|wi ?fi|dj|widget|everything)s?(?: widgets?| card| player)?")
 WSIZE = r"(?:(big|large|huge|giant|massive|full|small|tiny|little|full size|full screen) )?"
 WSIZES = {"big": "large", "large": "large", "huge": "huge", "giant": "huge", "massive": "huge", "full": "huge",
           "full size": "huge", "full screen": "huge", "small": "small", "tiny": "small", "little": "small"}
@@ -130,7 +130,8 @@ WTARGET = {"countdown": "timer", "sticky note": "note", "now playing": "media", 
 # The widgets added with the agenda: shown only when called a widget / card (else "show the weather" is a question)
 NEW_WIDGETS = [(r"calendar|agenda|schedule", "calendar", "Agenda"), (r"due dates?|deadlines?|what's due|due|tracker|assignments?", "due", "Due dates"),
                (r"jarvis(?: status)?|status|assistant", "jarvis", "Status"), (r"claude(?: usage)?|token usage|tokens?|usage", "usage", "Usage"),
-               (r"weather|forecast", "weather", "Weather"), (r"network|vpn|wi ?fi|internet", "network", "Network")]
+               (r"weather|forecast", "weather", "Weather"), (r"network|vpn|wi ?fi|internet", "network", "Network"),
+               (r"dj(?: mode| set)?|set ?list|deejay", "dj", "DJ deck")]
 LIGHTS = r"(?:the |my )?(?:lights?|strip|led strip|leds)"
 
 
@@ -181,6 +182,10 @@ def _clause(t, last_query):
     a = _audio(t)
     if a is not None:
         return a
+    # ── Spotify + DJ mode (mcp/spotify_api.py, core/dj.py): "like this song", "play discovery", "DJ for me" ──
+    sp = _spotify(t)
+    if sp is not None:
+        return sp
     # ── lock / power / windows ──
     if M(rf"lock{SCREEN}|lock (?:it|up)"):
         return [step("lock_screen", "Locking.")]
@@ -474,6 +479,120 @@ def _audio(t):
     if M(r"(?:what|which) (?:audio |sound )?(?:devices?|outputs?|mics?|microphones?) (?:do i have|are there|are connected|is (?:it|that) (?:using|on))|"
          r"list (?:the |my )?(?:audio|sound) (?:devices|outputs)|where(?:'s| is) (?:the )?(?:audio|sound) (?:going|playing)"):
         return [step("list_audio_devices", _audio_list)]
+    return None
+
+
+def _said(default):
+    """A step's spoken reply: the tool's own "say" line (Spotify / DJ results carry one), else default."""
+    return lambda r: r.get("say") or default
+
+
+def _dj_status(r):
+    if not r.get("active"):
+        return "DJ mode is off, sir." if not r.get("building") else "I'm still putting the set together, sir."
+    line = f"{r.get('set') or 'The set'}, sir." + (f" Now: {r['now']}." if r.get("now") else "")
+    if r.get("next"):
+        line += " Then " + ", then ".join(r["next"][:2]) + "."
+    return line
+
+
+DJ_MOOD_WORDS = (r"chill|upbeat|relaxing|relaxed|calm|energetic|sad|happy|mellow|dark|fun|loud|soft|heavy|old school|"
+                 r"fast|slow|moody|dreamy|groovy|funky|angry|romantic|nostalgic|summery|cosy|cozy|epic|hype")
+SP_DEVICE = r"laptop|computer|pc|google home|room speaker|speaker|nest|tv|phone"
+NOT_MUSIC = re.compile(r"\b(?:game|video|movie|film|episode|youtube|netflix|show|podcast|audiobook|trailer)\b")
+VAGUE = {"music", "something", "it", "this", "that", "the music", "spotify", "some music", "a song", "songs", "some songs",
+         "anything", "whatever", "tunes", "some tunes", "a playlist", "a mix", "something else", "the radio"}
+
+
+def _spotify(t):
+    m = None
+
+    def M(p):
+        nonlocal m
+        m = re.fullmatch(p, t)
+        return m
+    # DJ mode
+    if M(r"(?:be my dj|(?:start |turn on |begin |go into )?(?:the )?dj(?: mode)?(?: for me| on| please)?|"
+         r"dj (?:for me|something|it up|a set)|(?:start|turn on|do) (?:a )?dj set)"):
+        return [step("dj_start", _said("DJ mode, sir."), mood="")]
+    if M(r"(?:stop|end|turn off|exit|kill|quit|cancel|switch off) (?:the )?dj(?: mode| set)?|(?:no more|enough) dj|dj (?:mode )?off"):
+        return [step("dj_stop", _said("DJ mode off, sir."))]
+    if M(r"(?:more (?:like this|of this|songs like this|tracks like this|like that|of that)(?: one| song| track)?|"
+         r"(?:play|give me|find me) more (?:songs |music |tracks |stuff )?like this(?: one| song)?)"):
+        return [step("dj_adjust", _said("More like this, sir."), direction="more")]
+    if M(r"(?:less (?:of )?(?:this|that|like this)(?: kind of (?:music|stuff))?|(?:not|no more) (?:this|like this|of this)(?: kind of (?:music|stuff))?|"
+         r"(?:i )?(?:don't|do not) (?:like|want) this (?:kind of )?(?:music|stuff|vibe|genre))"):
+        return [step("dj_adjust", _said("Changing it up, sir."), direction="less")]
+    if M(r"keep (?:this|the) (?:vibe|mood|energy|feel)(?: going)?|keep it like this|stay with this (?:vibe|mood)"):
+        return [step("dj_keep", _said("Keeping this vibe, sir."))]
+    if M(r"save (?:this|the) (?:vibe|mood|set) as (?:a |my )?(.+?)(?: mood| vibe| preset)?"):
+        return [step("dj_save_mood", _said("Saved, sir."), name=m.group(1))]
+    if M(r"(?:set )?dj (?:chatter|talk(?:ing)?|commentary|voice) (?:to )?(off|rare|normal|on|less|more)"):
+        return [step("dj_chatter", _said("Very good, sir."), level=m.group(1))]
+    if M(r"(?:stop|quit|no more|don't keep) talking between (?:songs|tracks)|(?:be )?quiet between (?:songs|tracks)"):
+        return [step("dj_chatter", _said("Very good, sir."), level="off")]
+    if M(r"talk (more|less) between (?:songs|tracks)"):
+        return [step("dj_chatter", _said("Very good, sir."), level="normal" if m.group(1) == "more" else "rare")]
+    if M(r"what(?:'s| is) (?:playing |coming up |up )?next on the (?:set|dj)|what(?:'s| is) (?:the )?next (?:song|track)(?: on the (?:set|dj))?|"
+         r"what(?:'s| is) playing next|what(?:'s| is) (?:the )?dj (?:set|playing)|what(?:'s| is) (?:on )?the (?:dj )?set|what set is this"):
+        return [step("dj_status", _dj_status)]
+    if M(rf"(?:dj|play|put on|throw on|queue up|give me)(?: me)? (?:some ?thing|some music|music|some tunes|tunes|a mix|a set|a playlist|"
+         rf"some songs|songs)(?: (?:for|to|while(?: i'm| i am| i)?|when(?: i'm| i am| i)?) (?:me )?(?:to )?(.+?))?"):
+        return [step("dj_start", _said("Putting a set together, sir."), mood=m.group(1) or "")]
+    if M(rf"(?:dj|play|put on|throw on)(?: me)? (?:some ?thing|some music|music|a mix|a set) (?:a (?:bit|little) )?((?:{DJ_MOOD_WORDS})\b.*)"):
+        return [step("dj_start", _said("Putting a set together, sir."), mood=m.group(1))]
+    if M(r"(?:play|put on|throw on|queue up|dj)(?: me)? (?:some |a |my )?(\w+(?: \w+){0,2}) (music|mix|set|vibes|tunes)"):
+        try:
+            from core.dj import match_mood
+            key, _ = match_mood(m.group(1))
+        except Exception:
+            key = None
+        if key or m.group(2) != "mix":       # "some jazz music" is a vibe, not a search for a song called that
+            return [step("dj_start", _said("Putting a set together, sir."), mood=key or f"{m.group(1)} music")]
+    # library
+    if M(r"(?:like|heart|love|save) (?:this|that|the)(?: song| track| one)?(?: (?:to|in) (?:my )?(?:liked songs|library|favou?rites))?|"
+         r"add (?:this|the|that) (?:song|track) to (?:my )?(?:liked songs|library|favou?rites)|i (?:really )?like this (?:song|track), save it"):
+        return [step("spotify_like", _said("Saved, sir."))]
+    if M(r"(?:unlike|unsave|un like|un save) (?:this|that|the)(?: song| track)?|remove (?:this|that|the) (?:song|track) from (?:my )?(?:liked songs|library|favou?rites)"):
+        return [step("spotify_like", _said("Removed, sir."), remove=True)]
+    # playback modes
+    if M(r"(?:turn |switch |put )?shuffle (on|off)|turn (on|off) shuffle|shuffle(?: it| this| the music| my music| on)?|(?:stop|no more) shuffl(?:e|ing)"):
+        on = not (re.search(r"\boff\b|stop|no more", t))
+        return [step("spotify_player", "Shuffle on." if on else "Shuffle off.", action="shuffle_on" if on else "shuffle_off")]
+    if M(r"(?:repeat|loop) (?:this|the) (?:song|track|one)|(?:put )?(?:this|the) (?:song|track) on (?:repeat|loop)|(?:repeat|loop) it"):
+        return [step("spotify_player", "On repeat, sir.", action="repeat_track")]
+    if M(r"(?:repeat|loop) (?:this|the) (?:album|playlist)"):
+        return [step("spotify_player", "Repeating it, sir.", action="repeat_context")]
+    if M(r"(?:turn off|stop|no more|switch off) (?:repeat|repeating|looping|the loop)|repeat off"):
+        return [step("spotify_player", "Repeat off.", action="repeat_off")]
+    if M(rf"(?:skip|go|jump|fast forward)(?: ahead| forward)? {NUM} seconds?(?: ahead| forward)?"):
+        n = to_num(m.group(1))
+        return [step("spotify_player", "Forward.", action="forward", value=n)] if n else None
+    if M(rf"(?:rewind|go back|skip back|jump back)(?: by)? {NUM} seconds?"):
+        n = to_num(m.group(1))
+        return [step("spotify_player", "Back.", action="back", value=n)] if n else None
+    if M(r"restart (?:this|the) (?:song|track)|(?:play|start) (?:this|the) (?:song|track) (?:again|from the (?:start|beginning|top))|from the top"):
+        return [step("spotify_player", "From the top.", action="restart")]
+    if M(rf"(?:set )?(?:the )?spotify(?:'s)? volume (?:to |at )?{NUM}(?: ?%| percent)?"):
+        n = to_num(m.group(1))
+        return [step("spotify_player", f"Spotify at {n:g} percent.", action="volume", value=n)] if n is not None else None
+    # Spotify Connect: only when Spotify is named or it's a cast; "play it on the speaker" stays audio routing
+    if M(rf"(?:play|move|switch|send|transfer|put|cast) spotify (?:on|to|over to|onto) (?:the |my )?(.+)|spotify on (?:the |my )?(.+)|"
+         rf"cast (?:the music|music|it|this|the song) (?:to|on|onto) (?:the |my )?(.+)"):
+        dev = next(g for g in m.groups() if g)
+        return [step("spotify_transfer", _said("Moved, sir."), device=dev)]
+    # queue
+    if M(r"(?:add|queue|put) (.+?) (?:to|in|on|onto) (?:the |my )?queue|queue(?: up)? (?!up\b)(.+)|play (.+?) next"):
+        q = next(g for g in m.groups() if g)
+        if q in VAGUE or NOT_MUSIC.search(q) or q in ("the", "the song", "the track", "this song"):
+            return None
+        return [step("spotify_queue", _said("Queued, sir."), query=q)]
+    # play X
+    if M(rf"(?:play|put on|throw on|start playing|listen to)(?: me| us)? (.+?)(?: on spotify)?(?: (?:on|through) (?:the |my )?({SP_DEVICE}))?"):
+        q, dev = m.group(1), m.group(2) or ""
+        if q in VAGUE or NOT_MUSIC.search(q) or re.fullmatch(r"(?:the )?(?:next|previous|last) (?:song|track)|it again|again", q):
+            return None
+        return [step("spotify_play", _said("Playing, sir."), query=q, kind="any", device=dev)]
     return None
 
 

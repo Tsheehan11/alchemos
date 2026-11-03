@@ -1,6 +1,6 @@
 pragma Singleton
 // Desktop widgets: clocks, timers, stopwatches, now playing, system stats, notes, agenda, due dates,
-// Jarvis status, Claude usage, weather, network (data for the last six: JarvisFeed.qml).
+// Jarvis status, Claude usage, weather, network, DJ deck (data for the last seven: JarvisFeed.qml).
 //
 // Each widget is { id, type, screen, position, pinned, params }:
 //   screen   — a Roles role: "main" | "diag" | "media" (not a port name, so a dock that
@@ -29,7 +29,7 @@ Singleton {
     readonly property var positions: ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
     readonly property var roles: ["main", "diag", "media"]
     readonly property var defaultPosition: ({ clock: "top-right", timer: "top-right", stopwatch: "top-right", media: "bottom-right", stats: "right", note: "left",
-                                              calendar: "top-left", due: "left", jarvis: "bottom-left", usage: "bottom-left", weather: "top-right", network: "bottom-right" })
+                                              calendar: "top-left", due: "left", jarvis: "bottom-left", usage: "bottom-left", weather: "top-right", network: "bottom-right", dj: "right" })
     readonly property string home: Quickshell.env("HOME")
     readonly property int gap: 14
     readonly property var sizes: ({ small: 0.8, normal: 1.0, large: 1.5, huge: 2.0 })

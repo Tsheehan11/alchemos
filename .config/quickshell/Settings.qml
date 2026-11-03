@@ -625,6 +625,8 @@ PanelWindow {
                     property var effects: ["AUTO", "CLEAN", "HOLOGRAM", "SUIT"]
                     property var speakers: []          // [{mac, name}] paired Bluetooth speakers (not headphones)
                     property var integrations: []      // `jarvis integrations --json`: [{key, name, label, auth, connected, state, detail}]
+                    property var spotify: ({})         // `jarvis spotify status --json`: {connected, user, premium, client, missing, detail}
+                    property var djMoods: []           // preset names from ~/.config/jarvis/dj_moods.json + saved ones
                     function speakerName(mac) { const s = speakers.find(x => x.mac === mac); return mac === "" ? "OFF" : (s ? s.name : mac).toUpperCase(); }
                     function voiceName(v) {
                         if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
@@ -697,7 +699,7 @@ PanelWindow {
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "integrations", "--json"]
                         stdout: StdioCollector { onStreamFinished: { try { jarvisPage.integrations = JSON.parse(text); } catch (e) {} } }
                     }
-                    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: jarvisPage.visible; onTriggered: integrationList.running = true }
+                    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: jarvisPage.visible; onTriggered: { integrationList.running = true; spotifyStatus.running = true; } }
                     Repeater {
                         model: jarvisPage.integrations
                         delegate: Item {
@@ -731,6 +733,81 @@ PanelWindow {
                     Toggle { width: parent.width; label: "AUTO-UPDATE TRACKER"; hint: Theme.cfg.jarvisAutoUpdateTracker ? "Grades, new LEARN work and moved deadlines go into your SE tracker and are announced · \"jarvis tracker undo\" reverts the last write" : "Each tracker update is offered first, spoken and on the HUD · your own requests always ask"; checked: Theme.cfg.jarvisAutoUpdateTracker; onToggled: Theme.cfg.jarvisAutoUpdateTracker = !Theme.cfg.jarvisAutoUpdateTracker }
                     Toggle { width: parent.width; label: "AUTO-ADD ASSIGNMENTS"; hint: "Fallback while no tracker sheet is set up · LEARN due dates go into \"STARK – Assignments\" without asking · that calendar only, never your main one"; checked: Theme.cfg.jarvisAutoAddAssignments; onToggled: Theme.cfg.jarvisAutoAddAssignments = !Theme.cfg.jarvisAutoAddAssignments }
                     Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
+                    // Spotify: his own developer app, PKCE sign-in, tokens in the keyring (~/.config/jarvis/mcp/spotify_api.py);
+                    // DJ mode runs in the voice process (~/.config/jarvis/core/dj.py).
+                    Text { text: "SPOTIFY"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Process {
+                        id: spotifyStatus
+                        command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "spotify", "status", "--json"]
+                        stdout: StdioCollector { onStreamFinished: { try { jarvisPage.spotify = JSON.parse(text); } catch (e) {} } }
+                    }
+                    Item {
+                        width: jarvisPage.width; height: 52
+                        Column {
+                            anchors.left: parent.left; anchors.right: spotifyBtns.left; anchors.rightMargin: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 3
+                            Row {
+                                spacing: 10
+                                Text { text: "Spotify"; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                                Text {
+                                    text: jarvisPage.spotify.connected ? "CONNECTED" : "NOT CONNECTED"
+                                    color: jarvisPage.spotify.connected ? Theme.primary : Theme.dim
+                                    font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 2
+                                }
+                            }
+                            Text {
+                                width: parent.width; elide: Text.ElideRight
+                                text: (jarvisPage.spotify.user ? jarvisPage.spotify.user + " · " : "") + (jarvisPage.spotify.detail || "Your own developer app · CONNECT walks you through it")
+                                color: Theme.dim; font.family: st.mono; font.pixelSize: 11
+                            }
+                        }
+                        Row {
+                            id: spotifyBtns
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            spacing: 8
+                            ConfirmButton {
+                                visible: jarvisPage.spotify.connected === true
+                                label: "DISCONNECT"
+                                onConfirmed: { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "spotify", "disconnect"]); spotifyStatus.running = true; }
+                            }
+                            SmallButton {
+                                text: jarvisPage.spotify.connected ? "RECONNECT" : "CONNECT"
+                                active: jarvisPage.spotify.connected === true
+                                onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis spotify connect")); LauncherState.closeAll(); }
+                            }
+                        }
+                    }
+                    Stepper {
+                        width: parent.width; label: "DJ CHATTER"
+                        hint: ({ off: "DJ mode never talks between tracks", rare: "A short line every 4–5 tracks, music ducked under it", normal: "A short line every 2–3 tracks" })[Theme.cfg.jarvisDjChatter] || ""
+                        valueText: Theme.cfg.jarvisDjChatter.toUpperCase()
+                        onDec: Theme.cfg.jarvisDjChatter = jarvisPage.cycle(["off", "rare", "normal"], Theme.cfg.jarvisDjChatter, -1)
+                        onInc: Theme.cfg.jarvisDjChatter = jarvisPage.cycle(["off", "rare", "normal"], Theme.cfg.jarvisDjChatter, 1)
+                    }
+                    FileView {
+                        path: Quickshell.env("HOME") + "/.config/jarvis/dj_moods.json"
+                        watchChanges: true; onFileChanged: reload()
+                        onLoaded: { try { jarvisPage.djMoods = Object.keys(JSON.parse(text()).moods || {}); } catch (e) {} }
+                    }
+                    FileView {
+                        id: savedMoods
+                        property var names: []
+                        path: Quickshell.env("HOME") + "/.local/share/jarvis/dj/moods.json"
+                        watchChanges: true; onFileChanged: reload(); printErrors: false
+                        onLoaded: { try { names = Object.keys(JSON.parse(text())); } catch (e) {} }
+                    }
+                    Text {
+                        width: parent.width; wrapMode: Text.Wrap
+                        text: "MOODS · " + jarvisPage.djMoods.concat(savedMoods.names).join(" · ").toUpperCase()
+                              + "\nSay \"DJ for me\", \"play something for studying\", \"more / less like this\", \"save this vibe as …\""
+                        color: Theme.dim; font.family: st.mono; font.pixelSize: 11; lineHeight: 1.3
+                    }
+                    Text {
+                        width: parent.width; wrapMode: Text.Wrap
+                        text: "CROSSFADE · Spotify's API can't set it: Spotify → Settings → Playback → Crossfade songs (6–8 s suits DJ mode)"
+                        color: Theme.faint; font.family: st.mono; font.pixelSize: 11
+                    }
                     Text { text: "WINDOW READING"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Stepper { width: parent.width; label: "Watch every"; hint: "How often a watcher looks at its window · compared on this machine, Claude only looks when enough changed"; valueText: Theme.cfg.jarvisWatchInterval + " S"; onDec: Theme.cfg.jarvisWatchInterval = Math.max(3, Theme.cfg.jarvisWatchInterval - (Theme.cfg.jarvisWatchInterval > 30 ? 10 : Theme.cfg.jarvisWatchInterval > 10 ? 5 : 1)); onInc: Theme.cfg.jarvisWatchInterval = Math.min(300, Theme.cfg.jarvisWatchInterval + (Theme.cfg.jarvisWatchInterval >= 30 ? 10 : Theme.cfg.jarvisWatchInterval >= 10 ? 5 : 1)) }
                     Column {

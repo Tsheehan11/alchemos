@@ -5,6 +5,8 @@ pragma Singleton
 //   agenda.json   ~/.local/share/jarvis/feed/, from `jarvis feed` (core/feed.py): main Google Calendar +
 //   weather.json  Outlook ICS + SE tracker due dates, home-town weather. That process runs only while a
 //                 calendar / due / weather widget is up, and syncs on its own clock (no Claude, ever).
+//   dj.json       $XDG_RUNTIME_DIR/jarvis/dj.json, written by DJ mode in the voice process (core/dj.py):
+//                 set name, mood, chatter level, now playing, the next three (MediaPanel, the dj widget)
 // FileView watches each file (inotify). The one clock here ticks on the minute, only while a widget
 // that shows countdowns is up.
 import QtQuick
@@ -34,8 +36,22 @@ Singleton {
     // the file appears / goes with the Jarvis process
     Connections {
         target: JarvisState
-        function onOnlineChanged() { statusFile.reload(); }
+        function onOnlineChanged() { statusFile.reload(); djFile.reload(); }
         function onRunningChanged() { statusFile.reload(); }
+    }
+
+    // ── DJ mode ──
+    property var dj: ({})
+    readonly property bool djOn: online && dj.active === true
+    readonly property bool djBuilding: online && !!dj.building
+    FileView {
+        id: djFile
+        path: root.runtime + "/jarvis/dj.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { root.dj = JSON.parse(text()); } catch (e) {} }
+        onLoadFailed: root.dj = ({})
     }
 
     // ── agenda + weather ──

@@ -765,7 +765,7 @@ def open_in_browser(query):
 
 
 # ── desktop widgets (quickshell/Widgets.qml, through `qs ipc call widgets …`) ──
-WIDGET_TYPES = ["clock", "timer", "stopwatch", "media", "stats", "note", "calendar", "due", "jarvis", "usage", "weather", "network"]
+WIDGET_TYPES = ["clock", "timer", "stopwatch", "media", "stats", "note", "calendar", "due", "jarvis", "usage", "weather", "network", "dj"]
 # spoken names → widget types (also used for move / remove targets)
 WIDGET_ALIASES = {"music": "media", "now playing": "media", "player": "media", "system": "stats", "stat": "stats",
                   "countdown": "timer", "timers": "timer", "clocks": "clock", "notes": "note", "sticky note": "note",
@@ -774,6 +774,7 @@ WIDGET_ALIASES = {"music": "media", "now playing": "media", "player": "media", "
                   "jarvis status": "jarvis", "status": "jarvis", "assistant": "jarvis", "tasks": "jarvis",
                   "claude": "usage", "claude usage": "usage", "tokens": "usage", "token usage": "usage",
                   "forecast": "weather", "vpn": "network", "wifi": "network", "wi fi": "network", "internet": "network",
+                  "dj mode": "dj", "dj set": "dj", "set list": "dj", "setlist": "dj", "deejay": "dj",
                   "everything": "all"}
 WIDGET_POSITIONS = ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
 WIDGET_ROLES = {"main": "main monitor", "diag": "second monitor", "media": "laptop screen"}
@@ -1287,6 +1288,232 @@ def audio_said(r, mic=False):
     return f"Audio's on {AUDIO_SAY.get(r.get('kind'), r.get('label') or 'that')}, sir."
 
 
+# ── Spotify (mcp/spotify_api.py) and DJ mode (core/dj.py, in the voice process) ──
+SPOTIFY_ACTIONS = ["play", "pause", "next", "previous", "volume", "shuffle_on", "shuffle_off", "repeat_off", "repeat_track",
+                   "repeat_context", "seek", "forward", "back", "restart"]
+MPRIS_OK = {"play", "pause", "next", "previous"}
+
+
+def _sp():
+    import spotify_api
+    return spotify_api
+
+
+def _spotify(fn):
+    """Like safe(), and a SpotifyError becomes {"ok": False, "error", "say"} with its spoken line."""
+    def wrapper(*a, **kw):
+        S = _sp()
+        try:
+            return fn(*a, **kw)
+        except S.SpotifyError as e:
+            return {"ok": False, "error": str(e), "say": e.say}
+        except Invalid as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"[:300]}
+    wrapper.__name__, wrapper.__doc__ = fn.__name__, fn.__doc__
+    wrapper.__wrapped__ = fn
+    return wrapper
+
+
+@_spotify
+def spotify_player(action, value=0):
+    """Spotify playback. play / pause / next / previous fall back to MPRIS when the Web API can't
+    (not connected, or not Premium), and say so. volume: value 0-100 (Spotify's own volume, which
+    is the only one for a Connect device like the Google Home). seek: value = seconds into the track;
+    forward / back: value seconds (default 15); restart = from the top."""
+    S = _sp()
+    action = _choice(action, SPOTIFY_ACTIONS, "action")
+    if DRY_RUN:
+        return {"ok": True, "would": f"spotify {action} {value or ''}".strip()}
+    if action in MPRIS_OK and (not S.connected() or S.premium() is False):
+        r = S.mpris(action)
+        if r["ok"] and S.premium() is False:
+            r["note"] = "not Premium: MPRIS only"
+        return r
+    if not S.connected():
+        raise S.NotConnected()
+    try:
+        if action == "play":
+            S.api("PUT", "/me/player/play", {"device_id": S.ensure_device()})
+        elif action == "pause":
+            S.api("PUT", "/me/player/pause")
+        elif action in ("next", "previous"):
+            S.api("POST", f"/me/player/{action}")
+        elif action == "volume":
+            S.set_volume(_int(str(value).rstrip("%"), 0, 100, "volume"))
+        elif action.startswith("shuffle"):
+            S.api("PUT", "/me/player/shuffle", {"state": "true" if action == "shuffle_on" else "false"})
+        elif action.startswith("repeat"):
+            S.api("PUT", "/me/player/repeat", {"state": action.split("_", 1)[1]})
+        else:
+            st = S.state() or {}
+            pos = st.get("progress_ms") or 0
+            step = int(float(value or 15) * 1000)
+            ms = {"seek": int(float(value or 0) * 1000), "forward": pos + step, "back": max(0, pos - step), "restart": 0}[action]
+            S.api("PUT", "/me/player/seek", {"position_ms": max(0, ms)})
+    except S.PremiumRequired:
+        if action in MPRIS_OK:
+            r = S.mpris(action)
+            if r["ok"]:
+                return dict(r, note="not Premium: MPRIS only")
+        raise
+    except S.NoDevice:
+        if action in MPRIS_OK:
+            r = S.mpris(action)
+            if r["ok"]:
+                return r
+        raise
+    return {"ok": True, "action": action}
+
+
+@_spotify
+def spotify_play(query, kind="any", device=""):
+    """Find and play a track / album / artist / one of his playlists by name ("discovery by daft punk",
+    "my study playlist", "liked songs"). device: a Spotify Connect device to play on ("" = current)."""
+    S = _sp()
+    query = " ".join(str(query or "").split())[:120]
+    kind = _choice(kind or "any", ["any", "track", "album", "artist", "playlist"], "kind")
+    if not query:
+        raise Invalid("play what?")
+    if DRY_RUN:
+        return {"ok": True, "would": f"spotify play {kind} {query!r}" + (f" on {device}" if device else "")}
+    if not S.connected():
+        raise S.NotConnected()
+    r = S.play_query(query, kind, device)
+    if r.get("ok"):
+        r["say"] = f"Playing {S.describe(r)}" + (", sir." if r.get("via") != "mpris" else ", sir. Through the desktop app, as you're not on Premium.")
+    return r
+
+
+@_spotify
+def spotify_queue(query):
+    """Add a track to the Spotify queue by name ("one more time by daft punk")."""
+    S = _sp()
+    query = " ".join(str(query or "").split())[:120]
+    if not query:
+        raise Invalid("queue what?")
+    if DRY_RUN:
+        return {"ok": True, "would": f"spotify queue {query!r}"}
+    if not S.connected():
+        raise S.NotConnected()
+    hit = S.resolve(query, "track")
+    S.queue_add(hit["uri"])
+    return {"ok": True, **hit, "say": f"{S.describe(hit)} is in the queue, sir."}
+
+
+@_spotify
+def spotify_like(remove=False):
+    """Save the current song to his Liked Songs (remove=true takes it out)."""
+    S = _sp()
+    if DRY_RUN:
+        return {"ok": True, "would": "spotify " + ("unlike" if remove else "like") + " current track"}
+    if not S.connected():
+        raise S.NotConnected()
+    np = S.now_playing()
+    if not np.get("uri"):
+        return {"ok": False, "error": "nothing playing", "say": "Nothing's playing, sir."}
+    S.save_tracks([np["uri"]], remove=bool(remove))
+    name = f"{np['title']} by {np['artist']}" if np.get("artist") else np.get("title", "it")
+    return {"ok": True, "title": np.get("title"), "artist": np.get("artist"), "removed": bool(remove),
+            "say": (f"Removed {name} from your Liked Songs, sir." if remove else f"Saved {name} to your Liked Songs, sir.")}
+
+
+@_spotify
+def spotify_now_playing():
+    """What Spotify is playing, on which device, its volume, shuffle and repeat."""
+    S = _sp()
+    if not S.connected():
+        return what_is_playing()
+    return S.now_playing()
+
+
+@_spotify
+def spotify_devices():
+    """Spotify Connect devices (name, type, active, volume)."""
+    S = _sp()
+    if not S.connected():
+        raise S.NotConnected()
+    return {"ok": True, "devices": [{"name": d.get("name"), "type": d.get("type"), "active": d.get("is_active"),
+                                     "volume": d.get("volume_percent")} for d in S.devices()]}
+
+
+@_spotify
+def spotify_transfer(device):
+    """Move Spotify playback to a Connect device ("laptop", "google home", or a name from spotify_devices)."""
+    S = _sp()
+    if DRY_RUN:
+        return {"ok": True, "would": f"spotify transfer to {device}"}
+    if not S.connected():
+        raise S.NotConnected()
+    d, say = S.resolve_device(device)
+    if not d:
+        return {"ok": False, "error": say, "say": say}
+    S.transfer(d["id"], start=True)
+    return {"ok": True, "device": d.get("name"), "type": d.get("type"), "say": f"Playing on {d.get('name')}, sir."}
+
+
+DJ_SOCK = RUNTIME / "jarvis" / "dj.sock"
+
+
+def _dj(op, timeout=15, **kw):
+    """One op to DJ mode in the running voice process (core/dj.py)."""
+    import socket
+    if DRY_RUN:
+        return {"ok": True, "would": f"dj {op} {kw or ''}".strip()}
+    try:
+        c = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        c.settimeout(timeout)
+        c.connect(str(DJ_SOCK))
+        c.sendall((json.dumps({"op": op, **kw}) + "\n").encode())
+        buf = b""
+        while not buf.endswith(b"\n"):
+            chunk = c.recv(65536)
+            if not chunk:
+                break
+            buf += chunk
+        c.close()
+        return json.loads(buf.decode() or "{}")
+    except (OSError, ValueError):
+        return {"ok": False, "error": "Jarvis's voice loop isn't running",
+                "say": "DJ mode needs me running, sir. Switch me on in Settings, under Jarvis."}
+
+
+def dj_start(mood=""):
+    """DJ mode: build a set from his library for a vibe ("studying", "gym", "gaming", or any description)."""
+    return _dj("start", mood=" ".join(str(mood or "").split())[:200])
+
+
+def dj_stop():
+    """End DJ mode (the music keeps playing)."""
+    return _dj("stop")
+
+
+def dj_adjust(direction, note=""):
+    """Steer the running set: direction "more" (more like the current track) or "less" (away from it)."""
+    return _dj("adjust", direction=_choice(direction, ["more", "less"], "direction"), note=str(note or "")[:120])
+
+
+def dj_keep():
+    """Keep the current vibe for the rest of the set and its refills."""
+    return _dj("keep")
+
+
+def dj_chatter(level):
+    """How often DJ mode talks between tracks: off, rare (every 4-5) or normal (every 2-3)."""
+    return _dj("chatter", level=str(level or ""))
+
+
+def dj_status():
+    """DJ mode: on/off, set name, mood, now playing, next three."""
+    return _dj("status")
+
+
+def dj_save_mood(name):
+    """Save the running set's vibe as a mood preset under this name."""
+    return _dj("save_mood", name=str(name or "")[:30])
+
+
 # ── background tasks (run by the voice process, core/tasks.py) ──
 MAX_QUEUED_TASKS = 4
 
@@ -1313,6 +1540,8 @@ TOOLS = {f.__name__: f for f in [
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
     widget_add, widget_remove, widget_move, widget_list, set_screen_role, jarvis_volume, start_task, screenshot,
     set_audio_output, set_audio_input, list_audio_devices,
+    spotify_player, spotify_play, spotify_queue, spotify_like, spotify_now_playing, spotify_devices, spotify_transfer,
+    dj_start, dj_stop, dj_adjust, dj_keep, dj_chatter, dj_status, dj_save_mood,
 ]}
 
 
@@ -1382,6 +1611,20 @@ def tool_label(tool, args):
         "set_audio_output": lambda: f"AUDIO OUT → {v('device')}",
         "set_audio_input": lambda: f"MIC → {v('device')}",
         "list_audio_devices": lambda: "AUDIO → DEVICES",
+        "spotify_player": lambda: f"SPOTIFY → {v('action')} {v('value') if a.get('value') else ''}".strip(),
+        "spotify_play": lambda: f"SPOTIFY ▶ {v('query')}" + (f" @ {v('device')}" if a.get("device") else ""),
+        "spotify_queue": lambda: f"SPOTIFY + QUEUE {v('query')}",
+        "spotify_like": lambda: "SPOTIFY → UNLIKE" if a.get("remove") else "SPOTIFY → ♥ LIKE",
+        "spotify_now_playing": lambda: "SPOTIFY → NOW PLAYING",
+        "spotify_devices": lambda: "SPOTIFY → DEVICES",
+        "spotify_transfer": lambda: f"SPOTIFY → {v('device')}",
+        "dj_start": lambda: f"DJ → {v('mood') or 'MIX'}",
+        "dj_stop": lambda: "DJ → OFF",
+        "dj_adjust": lambda: f"DJ → {'MORE' if a.get('direction') == 'more' else 'LESS'} LIKE THIS",
+        "dj_keep": lambda: "DJ → KEEP VIBE",
+        "dj_chatter": lambda: f"DJ CHATTER → {v('level')}",
+        "dj_status": lambda: "DJ → STATUS",
+        "dj_save_mood": lambda: f"DJ → SAVE {v('name')}",
     }
     try:
         return labels[tool]()

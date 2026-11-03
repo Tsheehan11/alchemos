@@ -119,6 +119,19 @@ CASES = [
     ("Turn the music up on the speaker.", CLAUDE),
     ("Connect my headphones.", CLAUDE),
     ("Mute my microphone.", CLAUDE),
+    # ── Spotify / DJ mode ──
+    ("Could you save this song to my library?", ("spotify.like", {})),
+    ("Stick this track in my liked songs.", ("spotify.like", {})),
+    ("Can you be the DJ for a bit?", ("dj.start", {})),
+    ("Shut the DJ off.", ("dj.stop", {})),
+    ("Give me more stuff like this one.", ("dj.more", {})),
+    ("I'm not into this, change it up.", ("dj.less", {})),
+    ("Keep this vibe going.", ("dj.keep", {})),
+    ("Put shuffle on.", ("spotify.shuffle", {"action": "shuffle_on"})),
+    ("Set a timer for the pasta.", CLAUDE),                 # "set", but not a DJ set
+    ("Stop the timer I set.", CLAUDE),
+    ("Save this file.", CLAUDE),
+    ("Tell me more about this song.", CLAUDE),
 ]
 
 

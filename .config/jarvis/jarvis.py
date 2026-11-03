@@ -43,6 +43,10 @@ Calendar writes (mcp/google_api.CalendarWriter):
 Window reading (core/screen.py; ~/.config/kitty/jarvis-rc-*.{sh,py}):
   jarvis kitty-rc [status | setup | rotate]   kitty's get-text-only password in the keyring
 
+Spotify + DJ mode (mcp/spotify_api.py, core/dj.py, core/spotify_cli.py):
+  jarvis spotify connect | status [--json] | devices | now | disconnect
+  jarvis dj start [MOOD] | stop | status | more | less | keep | chatter off|rare|normal | save NAME | moods
+
 Local router (intents.json, tools/eval_router.py):
   jarvis intents [list | log [N] | review | remove N…]   learned examples, recent decisions
 """
@@ -91,6 +95,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["feed"]:
 if __name__ == "__main__" and sys.argv[1:2] == ["audio"]:
     import audio_devices                   # list / output / input: Settings → AUDIO picks go through here
     sys.exit(audio_devices.cli(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] in (["spotify"], ["dj"]):
+    from core import spotify_cli           # connect / status / disconnect / devices; dj start|stop|status (no models)
+    sys.exit(spotify_cli.main(sys.argv[1:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -260,7 +267,7 @@ class Jarvis:
             if self.dry_run:
                 log(f"  [dry-run] {r.get('would') or r.get('error') or r}")
             if not r.get("ok"):
-                said.append(f"I couldn't: {r.get('error', 'unknown error')}.")
+                said.append(r.get("say") or f"I couldn't: {r.get('error', 'unknown error')}.")
             elif callable(s["say"]):
                 said.append(s["say"](r))
             else:
@@ -703,6 +710,12 @@ class VoiceLoop:
             self.app = AppBridge(self)
         except Exception as e:                 # the console is optional: voice keeps working without it
             log(f"JARVIS: app socket unavailable: {type(e).__name__}: {e}")
+        try:
+            from core.dj import DJ
+            self.dj = DJ(self.cfg, log=log)    # DJ mode: follows Spotify, hands lines to check_dj
+        except Exception as e:
+            self.dj = None
+            log(f"JARVIS: DJ unavailable: {type(e).__name__}: {e}")
 
     # ── hearing ──
     def read(self, timeout):
@@ -891,6 +904,42 @@ class VoiceLoop:
                 self.mic.start()
                 self.wake.reset()
             hud.paused(want)
+
+    def check_dj(self):
+        """A DJ line (core/dj.py), said between conversations with the music faded to DUCK_DJ and back.
+        Never in combat mode, never while a Discord (or other) call has the mic, never with spoken
+        replies off. It plays on the sink Spotify is playing on; when Spotify is on another Connect
+        device (the Google Home), that device's volume is lowered through the Web API instead."""
+        dj = getattr(self, "dj", None)
+        if not dj:
+            return
+        item = dj.pop_line()
+        if not item:
+            return
+        import audio_devices as AD
+        why = ("combat" if self.paused or A.combat_mode() else "call" if AD.voice_call()
+               else "spoken replies off" if not self.cfg["jarvisSpeak"] else "")
+        if why:
+            trace.t("dj.quiet", why=why)
+            log(f"JARVIS: DJ line skipped ({why}): {item['text']}")
+            return
+        from core.voice import DJ_RAMP_S, DUCK_DJ
+        idx, sink = AD.music_stream()
+        remote = dj.duck_remote(DUCK_DJ) if idx is None else None
+        log(f"JARVIS: DJ: {item['text']}")
+        trace.t("dj.line", kind=item["kind"], sink=sink or "default", remote=bool(remote))
+        hud.reply(item["text"])
+        ducked = self.voice.ducker.duck(DUCK_DJ, ramp_s=DJ_RAMP_S) if idx is not None else False
+        try:
+            u = self.voice.utterance(target=sink)
+            u.add(item["text"])
+            u.finish()
+            self.play(u, where="dj")
+        finally:
+            if ducked:
+                self.voice.ducker.restore(ramp_s=DJ_RAMP_S, level=DUCK_DJ)
+            if remote:
+                remote()
 
     def check_reminders(self):
         now = time.time()
@@ -1180,6 +1229,7 @@ class VoiceLoop:
             self.check_academic()
             self.check_background()
             self.check_combat()
+            self.check_dj()
             if self.paused:
                 time.sleep(1)
                 continue

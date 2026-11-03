@@ -118,6 +118,9 @@ check("never needs a yes", A.confirmation_prompt("jarvis_volume", {"action": "se
 from core import config as CF, voice as VV  # noqa: E402
 spk = VV.Speaker({"jarvisSpeaker": "20:DF:B9:08:87:74"}, log=lambda *a: None)
 VV.effects.on_headphones = lambda: False
+import audio_devices as AD  # noqa: E402
+AD.explicit_output = lambda sig=None: None   # not the live $XDG_RUNTIME_DIR/jarvis/audio-choice.json: a real output pick
+AD.choice_mtime = lambda: 0.0                # (Settings → AUDIO, "switch to my headphones") made this check fail
 check("docked, not on headphones: speaker wanted", spk.wanted(), True)
 CF.LAPTOP, spk._wanted = True, (0.0, False)
 check("laptop mode: speaker not wanted", spk.wanted(), False)

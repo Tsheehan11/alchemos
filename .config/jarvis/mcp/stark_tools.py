@@ -138,7 +138,7 @@ Position = Literal["", "top-left", "top", "top-right", "left", "center", "right"
 
 @mcp.tool(structured_output=False)
 def widget_add(type: Literal["clock", "timer", "stopwatch", "media", "stats", "note", "calendar", "due", "jarvis",
-                             "usage", "weather", "network"], screen: str = "",
+                             "usage", "weather", "network", "dj"], screen: str = "",
                position: Position = "", label: str = "", minutes: float = 0, seconds: float = 0, tz: str = "",
                analog: bool = False, text: str = "", pinned: bool = False,
                size: Literal["", "small", "normal", "large", "huge"] = "") -> str:
@@ -146,7 +146,8 @@ def widget_add(type: Literal["clock", "timer", "stopwatch", "media", "stats", "n
     clock: tz = city or IANA zone ("New York"), analog. timer: minutes / seconds (prefer set_timer). media = now
     playing. stats = CPU/RAM/temp/battery (large / huge = full dashboard). note: text. calendar = agenda (main Google
     Calendar + Outlook + tracker due dates, live countdowns). due = tracker deadlines. jarvis = your own status, tasks and
-    last command. usage = Claude tokens today / this session. weather = home weather. network = VPN + Wi-Fi.
+    last command. usage = Claude tokens today / this session. weather = home weather. network = VPN + Wi-Fi. dj = now playing + DJ set (mood,
+    next three).
     pinned = stays above windows. Placing one of these needs no calendar or email read: it's just a widget."""
     return out(A.widget_add(type, screen, position, label, minutes, seconds, tz, analog, text, pinned, size))
 
@@ -206,6 +207,86 @@ def set_audio_input(device: str) -> str:
 def list_audio_devices() -> str:
     """Sound outputs and microphones with kind (headphones / speaker / laptop / tv / usb), which is default, which are unplugged."""
     return out(A.list_audio_devices())
+
+
+@mcp.tool(structured_output=False)
+def spotify_player(action: Literal["play", "pause", "next", "previous", "volume", "shuffle_on", "shuffle_off", "repeat_off",
+                                   "repeat_track", "repeat_context", "seek", "forward", "back", "restart"],
+                   value: float = 0) -> str:
+    """Spotify playback through its Web API. volume: value 0-100 (Spotify's own level; use this for a Connect device
+    like the Google Home, media for the computer's output). seek: value = seconds into the track. forward / back:
+    value seconds (default 15). restart = start of the track. Without Premium only play/pause/next/previous work."""
+    return out(A.spotify_player(action, value))
+
+
+@mcp.tool(structured_output=False)
+def spotify_play(query: str, kind: Literal["any", "track", "album", "artist", "playlist"] = "any", device: str = "") -> str:
+    """Play something by name: a track ("one more time by daft punk"), album, artist, one of his playlists, or
+    "liked songs". kind narrows it when he said "the album …" / "the playlist …". device: a Spotify Connect device
+    ("laptop", "google home") or "" for wherever it's playing. Reply with the result's say line."""
+    return out(A.spotify_play(query, kind, device))
+
+
+@mcp.tool(structured_output=False)
+def spotify_queue(query: str) -> str:
+    """Add one track to the Spotify queue by name."""
+    return out(A.spotify_queue(query))
+
+
+@mcp.tool(structured_output=False)
+def spotify_like(remove: bool = False) -> str:
+    """Save the song playing now to his Liked Songs (remove = take it out)."""
+    return out(A.spotify_like(remove))
+
+
+@mcp.tool(structured_output=False)
+def spotify_now_playing() -> str:
+    """What Spotify is playing, on which Connect device, volume, shuffle / repeat."""
+    return out(A.spotify_now_playing())
+
+
+@mcp.tool(structured_output=False)
+def spotify_devices() -> str:
+    """Spotify Connect devices he can play on."""
+    return out(A.spotify_devices())
+
+
+@mcp.tool(structured_output=False)
+def spotify_transfer(device: str) -> str:
+    """Move Spotify playback to a Connect device: "laptop", "google home" / "speaker", or a name from spotify_devices."""
+    return out(A.spotify_transfer(device))
+
+
+@mcp.tool(structured_output=False)
+def dj_start(mood: str = "") -> str:
+    """DJ mode: you build and run a whole set from his library (one planning step, then it runs by itself, queueing
+    as it goes). mood: a preset (studying, gym, gaming, chill, focus, party, late night, driving, sleep) or his own
+    words for the vibe ("upbeat 2000s indie", "something dark for coding"); "" = his usual mix. Use this for any
+    "play something for …" / taste request instead of picking songs yourself."""
+    return out(A.dj_start(mood))
+
+
+@mcp.tool(structured_output=False)
+def dj_adjust(direction: Literal["more", "less"], note: str = "") -> str:
+    """Steer the running DJ set: "more" = more like the current track, "less" = away from it. note: what he said
+    about it, if more specific ("less sad", "faster")."""
+    return out(A.dj_adjust(direction, note))
+
+
+@mcp.tool(structured_output=False)
+def dj_control(action: Literal["stop", "keep_vibe", "status", "chatter_off", "chatter_rare", "chatter_normal"],
+               save_as: str = "") -> str:
+    """DJ mode: stop (music keeps playing), keep_vibe (hold the current feel), status (set, mood, next three), chatter
+    level (how often you speak between tracks). save_as: also save the running vibe as a mood preset with this name."""
+    if save_as:
+        A.dj_save_mood(save_as)
+    if action == "stop":
+        return out(A.dj_stop())
+    if action == "keep_vibe":
+        return out(A.dj_keep())
+    if action == "status":
+        return out(A.dj_status())
+    return out(A.dj_chatter(action.split("_", 1)[1]))
 
 
 @mcp.tool(structured_output=False)
