@@ -121,16 +121,54 @@ Singleton {
     }
 
     // ── Auto on/off ──
-    // The toggle (control center, or Settings → HUD / JARVIS) only sets userWantsJarvis;
-    // plugging into the monitors only changes docked. Jarvis runs when both are
-    // true, and not on battery saver if that's set to stop it. Combat mode doesn't
-    // stop the process: Jarvis pauses its own wake word (frees the mic) so timers
+    // Docked: the toggle (control center, or Settings → HUD / JARVIS) sets userWantsJarvis (saved) and
+    // Jarvis runs while it's on, and not on battery saver if that's set to stop it.
+    // Undocked: off by default. The same toggle switches it on for now only (laptopOn, never saved): any
+    // dock or undock clears it, so the next undocked spell starts off again and docking goes back to the
+    // docked rule. Laptop mode is lighter (jarvis.py sees STARK_JARVIS_LAPTOP=1: no academic sync, no
+    // watchers, no Bluetooth room speaker) and stops itself on battery saver or under 20 % battery.
+    // Combat mode doesn't stop the process: Jarvis pauses its own wake word (frees the mic) so timers
     // still fire and the conversation survives (Theme.cfg.gameJarvis).
     readonly property bool userWantsJarvis: Theme.cfg.jarvisDocked   // saved in settings.json
     function setWanted(on) { Theme.cfg.jarvisDocked = on; }
     readonly property bool docked: Roles.docked
-    readonly property bool enabled: root.userWantsJarvis && root.docked
-                                    && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
+    property bool laptopOn: false
+    readonly property bool laptopMode: !root.docked && root.laptopOn
+    onDockedChanged: root.laptopOn = false          // any dock / undock event ends a laptop switch-on
+    readonly property bool lowBattery: SysStats.polled && SysStats.discharging && SysStats.battery < 0.20
+    readonly property bool enabled: root.docked ? root.userWantsJarvis && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
+                                                : root.laptopOn
+    // what the toggles show and do, docked or not
+    readonly property bool toggleOn: root.docked ? root.userWantsJarvis : root.laptopOn
+    readonly property string stateLabel: !root.toggleOn ? "OFF" : root.laptopMode ? "ON (laptop, until dock change)" : "ON"
+    function toggle() {
+        if (root.docked) root.setWanted(!root.userWantsJarvis);
+        else root.setLaptop(!root.laptopOn);
+    }
+    function setLaptop(on) {
+        if (on && root.docked) return;
+        if (on && root.powerReason() !== "") {
+            root.alert("JARVIS STAYS OFF", "Not on the laptop right now, sir: " + root.powerReason() + ".");
+            return;
+        }
+        root.laptopOn = on;
+    }
+    function powerReason() {
+        if (PowerMode.saver) return "battery saver is on";
+        if (root.lowBattery) return "the battery is under 20 percent";
+        return "";
+    }
+    // laptop mode keeps an eye on the battery and lets go by itself
+    Timer {
+        interval: 5000; running: root.laptopMode; repeat: true; triggeredOnStart: true
+        onTriggered: {
+            const why = root.powerReason();
+            if (why !== "") {
+                root.laptopOn = false;
+                root.alert("JARVIS OFF", "I've switched myself off to save power, sir: " + why + ".");
+            }
+        }
+    }
     readonly property bool running: proc.running
 
     readonly property string home: Quickshell.env("HOME")
@@ -140,12 +178,15 @@ Singleton {
         // no-new-privs: nothing Jarvis starts can gain privileges (no sudo / setuid helpers).
         command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs",
                   root.home + "/.config/jarvis/.venv/bin/python", root.home + "/.config/jarvis/jarvis.py"]
+        environment: ({ STARK_JARVIS_LAPTOP: root.laptopMode ? "1" : "0" })
         // If it dies on its own (e.g. the mic stream ends) while it should be on, start it again.
         onExited: { root.online = false; root.paused = false; if (root.enabled) restartTimer.restart(); }
     }
     Timer { id: restartTimer; interval: 5000; onTriggered: root.sync() }
 
     function sync() { proc.running = root.enabled; }
+    // docked ↔ laptop while running (dock with Jarvis on): restart it in the other mode (onExited restarts it)
+    onLaptopModeChanged: if (proc.running) proc.running = false
     onEnabledChanged: syncTimer.restart()
     Component.onCompleted: syncTimer.restart()
     // Short delay so a dock that briefly drops a monitor doesn't bounce Jarvis

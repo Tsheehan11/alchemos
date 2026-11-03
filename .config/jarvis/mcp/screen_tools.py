@@ -97,8 +97,10 @@ def watch_window(target: str, condition: str, every_seconds: int = 0, hours: flo
                          interval, hours, keep_watching)
     if wid is None:
         return out({"ok": False, "say": "I'm already watching three things, sir. Stop one first."})
-    return out({"ok": True, "id": wid, "watching": label, "every_s": interval, "hours": hours,
-                "say": f"Watching {label.split(':')[0] if kind == 'window' else label}, sir. I'll tell you when {condition.strip() or 'it changes'}."})
+    say = f"Watching {label.split(':')[0] if kind == 'window' else label}, sir. I'll tell you when {condition.strip() or 'it changes'}."
+    if C.LAPTOP:            # undocked, switched on by hand: watchers wait for the dock (battery)
+        say = f"Set, sir, but I'm on the laptop, so I'll start watching {label.split(':')[0] if kind == 'window' else label} once you dock."
+    return out({"ok": True, "id": wid, "watching": label, "every_s": interval, "hours": hours, "laptop": C.LAPTOP, "say": say})
 
 
 @mcp.tool(structured_output=False)

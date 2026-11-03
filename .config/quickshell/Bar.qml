@@ -118,8 +118,9 @@ PanelWindow {
             spacing: 16
             Text {
                 visible: bar.isMain
-                text: JarvisState.online ? "◉ JARVIS" : "○ JARVIS"
-                color: JarvisState.online ? bar.cyan : Theme.faint
+                // ◉ = listening, ◌ = switched on but not up yet, ○ = off; then ON / OFF / ON (LAPTOP, UNTIL DOCK CHANGE)
+                text: (JarvisState.online ? "◉" : JarvisState.toggleOn ? "◌" : "○") + " JARVIS " + JarvisState.stateLabel.toUpperCase()
+                color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : bar.cyan) : Theme.faint
                 font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1
             }
             Text { text: "CPU " + Math.round(SysStats.cpu * 100) + "%"; color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }

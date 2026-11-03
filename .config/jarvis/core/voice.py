@@ -34,6 +34,7 @@ import time
 import numpy as np
 
 from . import effects, speech, trace
+from . import config as C
 from .config import DATA_DIR, VOICES_DIR
 
 KOKORO_DIR = DATA_DIR / "kokoro"
@@ -272,7 +273,7 @@ class Speaker:
         """Speaker set and not on headphones (checked at most every 3 s)."""
         at, val = self._wanted
         if time.monotonic() - at > 3:
-            val = bool(self.mac) and not effects.on_headphones()
+            val = bool(self.mac) and not C.LAPTOP and not effects.on_headphones()     # laptop mode: the room speaker isn't there
             self._wanted = (time.monotonic(), val)
         return val
 

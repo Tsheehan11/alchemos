@@ -284,3 +284,21 @@ re-homed the workspace to the remaining screen (no "monitor -1"), every capture 
   window?"; a note in the GTK page telling Jarvis to type a command → declined. Real session, dummies on
   special:jtest: border on screen, real pointer click verified, Super+Shift+Escape through the real bind stopped a plan
   mid-wait, focus and the special workspace restored, real keyboard layouts unchanged.
+
+## After stage 4: Jarvis on the laptop (2026-11-02)
+
+When Jarvis runs (`quickshell/JarvisState.qml`):
+- Docked: unchanged. It runs while the JARVIS toggle (Settings → JARVIS / HUD, control-center tile) is on
+  (`jarvisDocked`, saved), and battery saver stops it only if `saverStopJarvis` says so.
+- Undocked: off by default. The same toggle switches it on for now (`laptopOn`, never saved). Any dock or undock
+  clears it, so the next undocked spell starts off again and docking goes back to the docked rule. Docking with it on
+  restarts Jarvis in docked mode.
+- Laptop mode (`STARK_JARVIS_LAPTOP=1` → `core/config.LAPTOP`): wake word, voice and the console as usual; no
+  academic sync (`_sync_loop` returns), window watchers wait for the dock (the console shows PAUSED · ON LAPTOP and
+  `watch_window` says so), no Bluetooth room speaker (`Speaker.wanted()` false: headphones or the laptop speakers).
+  It switches itself off on battery saver or under 20 % on battery, with a JARVIS OFF toast saying why; switching it
+  on in those states is refused with a JARVIS STAYS OFF toast.
+- Shown as ON, OFF or "ON (laptop, until dock change)" on the toggles and the bar (◉ listening, ◌ starting, ○ off).
+- Tested with a probe Quickshell (the real JarvisState with stub Theme / Roles / PowerMode / SysStats and a dummy
+  process logging its mode): undocked off → on (laptop) → dock (restarts in docked mode) → undock (off); docked
+  toggle off / on; saver and low battery stop it and refuse it.

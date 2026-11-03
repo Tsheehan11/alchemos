@@ -125,11 +125,11 @@ PanelWindow {
                           act: () => cc.run("bluetoothctl power " + (cc.btOn ? "off" : "on")) },
                         { label: "MUTE", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
                           act: () => { if (cc.sink && cc.sink.audio) cc.sink.audio.muted = !cc.muted; } },
-                        { label: "JARVIS", on: JarvisState.userWantsJarvis,
-                          sub: !JarvisState.userWantsJarvis ? "off"
-                             : !JarvisState.docked ? "waits for dock"
-                             : JarvisState.online ? "listening" : "starting…",
-                          act: () => JarvisState.setWanted(!JarvisState.userWantsJarvis) },
+                        { label: "JARVIS", on: JarvisState.toggleOn,
+                          sub: !JarvisState.toggleOn ? (JarvisState.docked ? "off" : "off · laptop")
+                             : JarvisState.laptopMode ? "on · laptop, until dock change"
+                             : JarvisState.online ? "on · listening" : "on · starting…",
+                          act: () => JarvisState.toggle() },
                         { label: "AMBIENT LIGHTS", on: Govee.mode !== "off", sub: Govee.mode,
                           act: () => Govee.setMode(Govee.mode === "off" ? "auto" : "off") },
                         { label: "COMBAT MODE", on: GameMode.active,

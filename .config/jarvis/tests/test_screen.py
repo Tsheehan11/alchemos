@@ -194,6 +194,19 @@ def run(n=1, step=10):
         asyncio.run(wm.tick())
 
 
+# laptop mode (switched on undocked): watchers wait for the dock; nothing is captured
+looked = []
+wl = W.WatchManager(cfg, pushed.append, lambda t, l: None, lambda: False, judge=judge,
+                    capture=lambda w: looked.append(w["id"]) or (_ for _ in ()).throw(W.WindowGone()),
+                    read_text=lambda w, obj: None, log=lambda *a: None, clock=lambda: clock["t"], laptop=True)
+lw = db.add_watcher("window", "0xa1", "kitty: x", "it changes", 10, 2)
+for _ in range(3):
+    clock["t"] += 10
+    asyncio.run(wl.tick())
+check("laptop mode: no captures", looked, [])
+check("laptop mode: still active, marked laptop", (db.get_watcher(lw)["status"], wl.item(db.get_watcher(lw))["laptop"]), ("active", True))
+db.update_watcher(lw, status="stopped")
+
 a = db.add_watcher("window", "0xa1", "kitty: cargo build", "the build finishes", 10, 2)
 tick = {"n": 0}
 

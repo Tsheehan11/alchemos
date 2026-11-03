@@ -78,7 +78,10 @@ PanelWindow {
         fill: 0.94
         title: "J.A.R.V.I.S  ·  CONSOLE"
         detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
-                                    : "OFFLINE · HISTORY ONLY · RUNS WHILE DOCKED")
+                                    : JarvisState.toggleOn ? "STARTING…"
+                                    : JarvisState.docked ? "OFFLINE · HISTORY ONLY · JARVIS IS OFF"
+                                    : "OFFLINE · HISTORY ONLY · OFF ON THE LAPTOP (TURN ON: JARVIS TOGGLE)")
+                + (JarvisState.laptopMode ? "   ·   LAPTOP MODE" : "")
                 + "   ·   CLAUDE TURNS TODAY " + (link.usage.turns ?? 0)
                 + ((link.usage.watch ?? 0) > 0 || (link.usage.control ?? 0) > 0
                    ? " (" + [(link.usage.watch ?? 0) > 0 ? "WATCHERS " + link.usage.watch : "",
@@ -389,9 +392,9 @@ PanelWindow {
                             required property var modelData
                             readonly property var w: modelData
                             readonly property bool live: w.status === "active" || w.status === "paused"
-                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : link.connected ? "WATCHING" : "PAUSED · JARVIS OFF")
+                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : w.laptop ? "PAUSED · ON LAPTOP" : link.connected ? "WATCHING" : "PAUSED · JARVIS OFF")
                                                             : w.status === "paused" ? "PAUSED" : w.status === "done" ? "SEEN" : w.status.toUpperCase()
-                            readonly property color tone: w.status === "active" && !w.combat && link.connected ? Theme.primary
+                            readonly property color tone: w.status === "active" && !w.combat && !w.laptop && link.connected ? Theme.primary
                                                         : w.status === "done" ? Theme.secondary : Theme.dim
                             width: watchBox.width
                             height: wcol.implicitHeight + 14

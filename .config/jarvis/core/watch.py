@@ -125,10 +125,13 @@ class _State:
 
 
 class WatchManager:
-    def __init__(self, cfg, notify, say, paused, judge=None, capture=None, read_text=None, log=print, clock=time.time):
+    def __init__(self, cfg, notify, say, paused, judge=None, capture=None, read_text=None, log=print, clock=time.time,
+                 laptop=False):
         """notify(ev): push to the app. say(title, line): toast + speech (voice loop, when free).
-        paused(): combat mode. judge / capture / read_text: injectable for tests."""
+        paused(): combat mode. laptop: Jarvis was switched on undocked, so watchers wait for the dock (battery).
+        judge / capture / read_text: injectable for tests."""
         self.cfg, self.notify, self.say, self.paused, self.log, self.clock = cfg, notify, say, paused, log, clock
+        self.laptop = laptop
         self.judge = judge or Judge(cfg, log)
         self.capture = capture or self._capture
         self.read_text = read_text if read_text is not None else self._read_text
@@ -169,6 +172,7 @@ class WatchManager:
     def item(self, w):
         w = dict(w)
         w["combat"] = bool(self.paused())
+        w["laptop"] = self.laptop
         w["left_s"] = max(0, int(w["expires"] - self.clock()))
         return w
 
@@ -196,7 +200,7 @@ class WatchManager:
             if now >= w["expires"]:
                 self._finish(w, "expired", f"Sir, I've stopped watching {short(w['label'])}: the time I was given is up.")
                 continue
-            if paused or w["status"] != "active":
+            if paused or self.laptop or w["status"] != "active":
                 continue
             st = self.state.setdefault(w["id"], _State(w))
             if now < st.next_check:

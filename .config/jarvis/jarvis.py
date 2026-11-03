@@ -542,6 +542,8 @@ class VoiceLoop:
         from openwakeword.model import Model
         from openwakeword.vad import VAD
         from core.voice import Voice
+        if C.LAPTOP:
+            log("JARVIS: laptop mode (switched on undocked): no academic sync, watchers or room speaker")
         log("JARVIS: loading models…")
         openwakeword.utils.download_models([WAKEWORD])
         self.wake = Model(wakeword_models=[WAKEWORD], inference_framework="onnx")
@@ -900,6 +902,9 @@ class VoiceLoop:
         """Every SYNC_S while docked (this process only runs docked): the Outlook calendar link, the LEARN
         feed, grade notices in Gmail, and with AUTO-ADD the "STARK – Assignments" calendar
         (mcp/academic_sync.py). Off the main thread, so the wake word never waits on the network."""
+        if C.LAPTOP:
+            log("JARVIS: laptop mode: academic sync paused until docked")
+            return
         time.sleep(30)
         while True:
             try:
@@ -1095,7 +1100,7 @@ class AppBridge:
         asyncio.run_coroutine_threadsafe(self.tasks.run_forever(), self.j.loop)
         from core.watch import WatchManager
         self.watch = WatchManager(vl.cfg, self.notify, say=lambda title, line: vl.bg.put(("say", title, line)),
-                                  paused=lambda: vl.paused, log=log)
+                                  paused=lambda: vl.paused, log=log, laptop=C.LAPTOP)
         asyncio.run_coroutine_threadsafe(self.watch.run_forever(), self.j.loop)
         log(f"JARVIS: app socket at {self.server.path}")
 

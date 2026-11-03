@@ -596,7 +596,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Audio deck"; hint: "MUSIC screens"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
                     Toggle { width: parent.width; label: "Hide panels behind windows"; hint: "Clock, diagnostics and audio deck only show on screens with no windows open"; checked: Theme.cfg.hideHudBehindWindows; onToggled: Theme.cfg.hideHudBehindWindows = !Theme.cfg.hideHudBehindWindows }
                     Toggle { width: parent.width; label: "Volume & brightness pop-up"; hint: "Shows on the screen you're using"; checked: Theme.cfg.osd; onToggled: Theme.cfg.osd = !Theme.cfg.osd }
-                    Toggle { width: parent.width; label: "Jarvis"; hint: "Runs while docked, stops on laptop only (same as the control center switch)"; checked: JarvisState.userWantsJarvis; onToggled: JarvisState.setWanted(!JarvisState.userWantsJarvis) }
+                    Toggle { width: parent.width; label: "Jarvis"; hint: (!JarvisState.toggleOn ? (JarvisState.docked ? "Off" : "Off on the laptop · switch on for now (until the next dock change)") : JarvisState.laptopMode ? "On (laptop, until dock change) · no academic sync, watchers or room speaker; stops on battery saver or under 20 %" : JarvisState.paused ? "On · paused for combat mode" : JarvisState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"); checked: JarvisState.toggleOn; onToggled: JarvisState.toggle() }
                     Row {
                         spacing: 10
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
@@ -648,7 +648,7 @@ PanelWindow {
                         }
                     }
 
-                    Toggle { width: parent.width; label: "Jarvis"; hint: !JarvisState.userWantsJarvis ? "Off" : !JarvisState.docked ? "On · waits for the dock" : JarvisState.paused ? "On · paused for combat mode" : JarvisState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"; checked: JarvisState.userWantsJarvis; onToggled: JarvisState.setWanted(!JarvisState.userWantsJarvis) }
+                    Toggle { width: parent.width; label: "Jarvis"; hint: (!JarvisState.toggleOn ? (JarvisState.docked ? "Off" : "Off on the laptop · switch on for now (until the next dock change)") : JarvisState.laptopMode ? "On (laptop, until dock change) · no academic sync, watchers or room speaker; stops on battery saver or under 20 %" : JarvisState.paused ? "On · paused for combat mode" : JarvisState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"); checked: JarvisState.toggleOn; onToggled: JarvisState.toggle() }
                     Stepper { width: parent.width; label: "Claude model"; hint: jarvisPage.modelHints[Theme.cfg.jarvisModel] || ""; valueText: Theme.cfg.jarvisModel.toUpperCase(); onDec: Theme.cfg.jarvisModel = jarvisPage.cycle(jarvisPage.models, Theme.cfg.jarvisModel, -1); onInc: Theme.cfg.jarvisModel = jarvisPage.cycle(jarvisPage.models, Theme.cfg.jarvisModel, 1) }
                     Stepper { width: parent.width; label: "Voice"; hint: "British voices · audition them all: jarvis-voices"; preview: true; onPlay: jarvisPage.preview(); valueText: jarvisPage.voiceName(Theme.cfg.jarvisVoice); onDec: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, -1); onInc: Theme.cfg.jarvisVoice = jarvisPage.cycle(jarvisPage.voices, Theme.cfg.jarvisVoice, 1) }
                     Slider {

@@ -19,6 +19,9 @@ GAME_STATE = RUNTIME / "stark-game/state.json"
 # (`claude --help`: "Provide an alias for the latest model"), so nothing here
 # goes stale when new versions ship.
 FAST_MODEL = "haiku"
+# Undocked and switched on by hand (quickshell JarvisState.laptopOn): lighter on the battery. No academic sync,
+# no window watchers, no Bluetooth room speaker (headphones or the laptop's own speakers).
+LAPTOP = os.environ.get("STARK_JARVIS_LAPTOP") == "1"
 STRONG_MODEL = "sonnet"
 MODELS = ["auto", "haiku", "sonnet", "opus"]
 
