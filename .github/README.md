@@ -69,6 +69,14 @@ stark config status.showUntrackedFiles no
 stark checkout            # move any conflicting files out of the way first
 ```
 
+Turn on the tracked git hooks (`~/.config/stark-hooks/`). The pre-commit hook refuses any commit that
+stages `.config/jarvis/` files unless every Jarvis test suite and the router eval pass
+(`~/.config/jarvis/tools/check_all.sh`, a few minutes; it needs the Jarvis venv from step 4):
+
+```sh
+stark config core.hooksPath "$HOME/.config/stark-hooks"
+```
+
 Then wire up the VS Code clean filter (tracked `settings.json` stays free of theme colours) and the
 local excludes for files the HUD generates:
 

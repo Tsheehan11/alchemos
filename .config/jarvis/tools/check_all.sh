@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Every Jarvis test suite + the router eval. Exits non-zero if anything is red, so nothing red gets
-# committed: the dotfiles repo's pre-commit hook (~/.stark-os/hooks/pre-commit) runs this whenever
+# committed: the dotfiles pre-commit hook (~/.config/stark-hooks/pre-commit, core.hooksPath) runs this whenever
 # .config/jarvis files are staged.
 #   tools/check_all.sh            all suites, then the router eval (0 wrong actions at 0.70 required)
 #   tools/check_all.sh -q         only the failures and the verdict

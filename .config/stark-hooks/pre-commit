@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# STARK dotfiles pre-commit hook (tracked; the repo's core.hooksPath points at ~/.config/stark-hooks).
+# A commit that stages Jarvis files must pass every Jarvis suite and the router eval
+# (~/.config/jarvis/tools/check_all.sh). Runs on the working tree. Bypass only on purpose: --no-verify.
+set -euo pipefail
+GIT=(git --git-dir="$HOME/.stark-os" --work-tree="$HOME")
+if "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/jarvis/'; then
+    if [ ! -x "$HOME/.config/jarvis/.venv/bin/python" ]; then
+        echo "pre-commit: Jarvis files staged but ~/.config/jarvis/.venv is missing, so the suites can't run." >&2
+        echo "pre-commit: set up the venv first (README → Suit-up → Jarvis); refusing the commit." >&2
+        exit 1
+    fi
+    echo "pre-commit: Jarvis files staged, running ~/.config/jarvis/tools/check_all.sh -q (a few minutes)…"
+    if ! "$HOME/.config/jarvis/tools/check_all.sh" -q; then
+        echo "pre-commit: refusing the commit, a suite is red." >&2
+        exit 1
+    fi
+fi
