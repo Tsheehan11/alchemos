@@ -126,7 +126,7 @@ Singleton {
     // Undocked: off by default. The same toggle switches it on for now only (laptopOn, never saved): any
     // dock or undock clears it, so the next undocked spell starts off again and docking goes back to the
     // docked rule. Laptop mode is lighter (jarvis.py sees STARK_JARVIS_LAPTOP=1: no academic sync, no
-    // watchers, no Bluetooth room speaker) and stops itself on battery saver or under 20 % battery.
+    // watchers, no Bluetooth room speaker) and stops itself under 20 % on battery (battery saver doesn't stop it).
     // Combat mode doesn't stop the process: Jarvis pauses its own wake word (frees the mic) so timers
     // still fire and the conversation survives (Theme.cfg.gameJarvis).
     readonly property bool userWantsJarvis: Theme.cfg.jarvisDocked   // saved in settings.json
@@ -153,10 +153,9 @@ Singleton {
         }
         root.laptopOn = on;
     }
+    // laptop mode ignores battery saver (it's on whenever he's on battery); only a low battery stops it
     function powerReason() {
-        if (PowerMode.saver) return "battery saver is on";
-        if (root.lowBattery) return "the battery is under 20 percent";
-        return "";
+        return root.lowBattery ? "the battery is under 20 percent" : "";
     }
     // laptop mode keeps an eye on the battery and lets go by itself
     Timer {

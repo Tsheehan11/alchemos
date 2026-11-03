@@ -296,9 +296,10 @@ When Jarvis runs (`quickshell/JarvisState.qml`):
 - Laptop mode (`STARK_JARVIS_LAPTOP=1` → `core/config.LAPTOP`): wake word, voice and the console as usual; no
   academic sync (`_sync_loop` returns), window watchers wait for the dock (the console shows PAUSED · ON LAPTOP and
   `watch_window` says so), no Bluetooth room speaker (`Speaker.wanted()` false: headphones or the laptop speakers).
-  It switches itself off on battery saver or under 20 % on battery, with a JARVIS OFF toast saying why; switching it
-  on in those states is refused with a JARVIS STAYS OFF toast.
+  It switches itself off under 20 % on battery, with a JARVIS OFF toast saying why; switching it on then is refused
+  with a JARVIS STAYS OFF toast. Battery saver doesn't affect laptop mode (autoSaver turns it on whenever he's on
+  battery, which would have meant AC only).
 - Shown as ON, OFF or "ON (laptop, until dock change)" on the toggles and the bar (◉ listening, ◌ starting, ○ off).
 - Tested with a probe Quickshell (the real JarvisState with stub Theme / Roles / PowerMode / SysStats and a dummy
   process logging its mode): undocked off → on (laptop) → dock (restarts in docked mode) → undock (off); docked
-  toggle off / on; saver and low battery stop it and refuse it.
+  toggle off / on; low battery stops it and refuses it, battery saver doesn't.
