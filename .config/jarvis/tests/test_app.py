@@ -184,6 +184,7 @@ ta = db.get_task(a)
 check("result + turns + steps stored", (ta["result"], ta["turns"], ta["steps"]), ("Three course emails, one tracker update.", 4, 1))
 check("task thread has prompt + result", [m["role"] for m in db.thread_messages(ta["thread"])], ["user", "jarvis"])
 check("task thread kind", db.get_thread(ta["thread"])["kind"], "task")
+wait_for(lambda: said)        # "done" is stored before the runner's last bookkeeping and its announce call
 check("announced", said[0][0], "TASK DONE")
 check("announced in plain words, not the raw title", said[0][1], "Sir, your inbox sweep is done. Three course emails, one tracker update.")
 check("live log lines pushed", any(e["ev"] == "task_line" and e["kind"] == "step" for e in pushed), True)
