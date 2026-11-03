@@ -21,6 +21,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
+    Binding { target: cc.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
@@ -230,6 +231,52 @@ PanelWindow {
                                 // Can't switch the pick away from a live tunnel; disconnect first
                                 onClicked: if (VPN.active === "") VPN.pick(modelData.id)
                             }
+                        }
+                    }
+                }
+            }
+
+            // SCREENSHOT (Shot.qml): tap = region, chips = this monitor / focused window / region → annotate.
+            // The panel closes itself first, so it's never in the shot.
+            Rectangle {
+                id: shotTile
+                width: body.width; height: 62
+                color: shotMa.containsMouse ? Theme.p(0.14) : Theme.d(0.9)
+                border.color: shotMa.containsMouse ? cc.cyan : Theme.p(0.3)
+                border.width: 1
+                Column {
+                    anchors.left: parent.left; anchors.leftMargin: 14
+                    anchors.right: shotChips.left; anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 3
+                    Text { text: "SCREENSHOT"; color: shotMa.containsMouse ? Theme.text : cc.dim; font.family: cc.mono; font.pixelSize: 13; font.letterSpacing: 2 }
+                    Text {
+                        width: parent.width; elide: Text.ElideRight
+                        text: Shot.last.ok ? "last · " + Shot.last.name.replace(/^stark-|\.png$/g, "") : "tap · select a region"
+                        color: Theme.faint; font.family: cc.mono; font.pixelSize: 11
+                    }
+                }
+                MouseArea { id: shotMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Shot.take("region") }
+                Row {
+                    id: shotChips
+                    anchors.right: parent.right; anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+                    Repeater {
+                        model: [["SCREEN", "screen"], ["WINDOW", "window"], ["✎ MARK", "annotate"]]
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: chipLabel.implicitWidth + 16; height: 24
+                            color: chipMa.containsMouse ? Theme.p(0.22) : "transparent"
+                            border.color: chipMa.containsMouse ? cc.cyan : Theme.p(0.3)
+                            Text {
+                                id: chipLabel
+                                anchors.centerIn: parent
+                                text: modelData[0]
+                                color: chipMa.containsMouse ? Theme.text : cc.dim
+                                font.family: cc.mono; font.pixelSize: 10; font.letterSpacing: 1
+                            }
+                            MouseArea { id: chipMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Shot.take(modelData[1]) }
                         }
                     }
                 }

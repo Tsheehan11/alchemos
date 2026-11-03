@@ -25,6 +25,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
+    Binding { target: ov.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property var ids: OverviewData.workspacesFor(modelData)

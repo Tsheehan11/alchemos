@@ -27,6 +27,7 @@ PanelWindow {
     implicitWidth: Math.max(1, JarvisControlState.ww + 2 * pad)
     implicitHeight: Math.max(1, JarvisControlState.wh + 2 * pad)
     color: "transparent"
+    Binding { target: frame.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
     mask: Region {}
 
     Item {

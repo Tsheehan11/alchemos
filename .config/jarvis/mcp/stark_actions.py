@@ -573,6 +573,48 @@ def lock_screen():
     return _do("lock screen", _qs("stark", "lock"), "locked")
 
 
+# ── screenshots ────────────────────────────────
+SHOT_MODES = ["region", "screen", "window", "annotate"]
+
+
+def _shot_status():
+    rc, out, _ = _run(_qs("shot", "status"), timeout=3)
+    try:
+        return json.loads(out) if rc == 0 else None
+    except ValueError:
+        return None
+
+
+@safe
+def screenshot(mode="region"):
+    """Screenshot, saved to ~/Pictures/Screenshots/stark-YYYYMMDD-HHMMSS.png and copied to the clipboard.
+    mode: region (Trevor drags a box or clicks a window), screen (the monitor in use), window (the focused
+    window), annotate (region, then opens the markup editor). Through the HUD (quickshell/Shot.qml), which keeps
+    its overlays out of the shot; straight to stark-shot if the HUD is down."""
+    mode = _choice(mode or "region", SHOT_MODES, "mode")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"screenshot {mode}"}
+    before = _shot_status()
+    rc, out, err = _run(_qs("shot", mode), timeout=4)
+    if rc != 0 or before is None:                 # HUD down: plain capture (mode is from the allowlist)
+        return _do(f"screenshot {mode}", _hypr_exec(f"stark-shot {mode}"), "started without the HUD (desktop notification when saved)")
+    if out.strip('"') == "busy":
+        return {"ok": False, "error": "a screenshot is already being taken"}
+    if mode in ("region", "annotate"):
+        return {"ok": True, "result": "selector up: Trevor drags a box, clicks a window or a screen, Escape cancels"}
+    old = (before.get("last") or {}).get("path")
+    for _ in range(40):                           # screen / window finish in well under a second
+        time.sleep(0.1)
+        st = _shot_status() or {}
+        last = st.get("last") or {}
+        if not st.get("busy") and (last.get("path") != old or last.get("error")):
+            if not last.get("ok"):
+                return {"ok": False, "error": last.get("error") or "the capture failed"}
+            return {"ok": True, "file": last.get("name"), "size": f"{last.get('width')}x{last.get('height')}",
+                    "copied": bool(last.get("copied"))}
+    return {"ok": False, "error": "the capture didn't finish"}
+
+
 POWER = {"suspend": "suspend the system", "shutdown": "shut down", "reboot": "restart", "logout": "log you out"}
 
 
@@ -1181,7 +1223,7 @@ TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_list, set_screen_role, jarvis_volume, start_task,
+    widget_add, widget_remove, widget_move, widget_list, set_screen_role, jarvis_volume, start_task, screenshot,
 ]}
 
 
@@ -1229,6 +1271,7 @@ def tool_label(tool, args):
         "vpn": lambda: {"CONNECT PROTON": "VPN → PROTON", "OPEN SCHOOL LOGIN": "VPN → SCHOOL"}.get(v("action"), f"VPN → {v('action')}"),
         "open_uwcs": lambda: f"UW CS → {v('host') or 'UWCS'}",
         "lock_screen": lambda: "SYSTEM → LOCK",
+        "screenshot": lambda: f"SCREENSHOT → {v('mode') or 'REGION'}",
         "power": lambda: f"POWER → {v('action')}",
         "set_timer": lambda: f"TIMER → {v('minutes')} MIN",
         "set_reminder": lambda: f"REMINDER → {v('when')}",

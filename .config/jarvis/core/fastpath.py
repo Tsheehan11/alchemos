@@ -213,6 +213,10 @@ def _clause(t, last_query):
     if M(r"(?:what(?:'s| is) (?:the )?)?vpn(?: status)?|(?:is|it's|is it|it is|is my) (?:the )?vpn (?:on|connected|up|running|active|working)|"
          r"am i (?:on|connected to|using) (?:the )?vpn|(?:what(?:'s| is) )?the vpn (?:status|doing)"):
         return [step("vpn", _vpn_status, action="status")]
+    # ── screenshots (before themes / screen roles: "screenshot this screen" isn't a panel) ──
+    sh = _screenshot(t)
+    if sh is not None:
+        return sh
     # ── theme ──
     if M(r"(?:set|change|switch|make)(?: the)? (?:theme|colou?rs?|hud) to (.+?)(?: theme)?|(?:switch to |use |activate )?(.+?) theme|theme (.+)"):
         name = A.match_preset(next(g for g in m.groups() if g))
@@ -416,6 +420,39 @@ def _widget(t):
     if m:
         return [step("widget_remove", "Cleared.", target="all", screen=m.group(1))]
     return None
+
+
+SHOT = r"(?:screen ?shots?|screen ?caps?|screen (?:capture|grab)|screengrab|print ?screen)"
+SHOT_DO = r"(?:take|grab|get|capture|snap|make|do)(?: me| us)?(?: a| an| another| one more)?"
+SHOT_WHAT = (r"(?:(?:this|the|my|that|a|an|current|whole|full|entire|focused|active|open|selected|one) ){0,2}"
+             r"(?:(window|app)|(monitor|screen|display|desktop)|(region|area|part|bit|selection|section|box|portion))")
+SHOT_MARK = r"(?:annotate|mark(?: it)? up|markup|draw on|edit|highlight)(?: it| that)?"
+SHOT_SAY = {"region": "Select the area, sir.", "annotate": "Select the area to mark up, sir."}
+
+
+def _screenshot(t):
+    """"take a screenshot" → region (like Print), "screenshot this monitor" → screen, "… this window" → window,
+    "… and annotate it" → annotate. None = not a screenshot request."""
+    def F(p):
+        return re.fullmatch(p, t)
+    m = (F(rf"(?:{SHOT_DO} )?{SHOT}(?: (?:of|on|from))?(?: {SHOT_WHAT})?(?: (?:i'm|i am) (?:on|in|using)| here)?"
+           rf"(?: (?:and|to|then) {SHOT_MARK})?")
+         or F(rf"(?:capture|snap|screenshot) {SHOT_WHAT}(?: (?:i'm|i am) (?:on|in|using)| here)?")
+         or F(rf"{SHOT_MARK} (?:a |the )?{SHOT}"))
+    if not m:
+        return None
+    g = m.groups() if m.re.groups else ()
+    if re.search(SHOT_MARK, t):
+        mode = "annotate"
+    elif g and g[0]:
+        mode = "window"
+    elif g and len(g) > 1 and g[1]:
+        mode = "screen"
+    else:
+        mode = "region"
+    if mode in SHOT_SAY:
+        return [step("screenshot", SHOT_SAY[mode], mode=mode)]
+    return [step("screenshot", "Window captured, sir." if mode == "window" else "Captured, sir.", mode=mode)]
 
 
 def _pretty(name):

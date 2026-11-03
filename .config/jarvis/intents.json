@@ -585,6 +585,96 @@
       ],
       "must": "\\b(?:uw ?cs|cs (?:server|servers|environment)|student (?:server|servers|cs)|linux (?:server|servers|student)|school servers|ubuntu|ssh)\\b"
     },
+    "screenshot.region": {
+      "tool": "screenshot",
+      "args": {
+        "mode": "region"
+      },
+      "say": [
+        "Select the area, sir.",
+        "Draw me a box, sir."
+      ],
+      "examples": [
+        "take a screenshot",
+        "grab a screenshot",
+        "screenshot",
+        "snap a screenshot for me",
+        "take a screen grab",
+        "capture part of the screen",
+        "screenshot a region",
+        "let me screenshot something",
+        "get me a screen capture",
+        "print screen",
+        "take a quick screenshot",
+        "screenshot a bit of the screen"
+      ],
+      "must": "\\b(?:screen ?shots?|screen ?caps?|screengrab|screen (?:capture|grab)|print ?screen|capture|snap|(?:pic|picture|photo) of (?:the|my|this))\\b",
+      "must_not": "\\b(?:window|app|monitor|whole|entire|full|annotate|mark(?: it)? up|draw on)\\b"
+    },
+    "screenshot.screen": {
+      "tool": "screenshot",
+      "args": {
+        "mode": "screen"
+      },
+      "say": [
+        "Captured, sir.",
+        "Got it, sir."
+      ],
+      "examples": [
+        "screenshot this monitor",
+        "take a screenshot of the whole screen",
+        "screenshot the entire screen",
+        "capture this screen",
+        "grab the full screen",
+        "screenshot my monitor",
+        "take a screenshot of this display",
+        "screenshot everything on this monitor",
+        "snap the whole screen",
+        "full screen screenshot"
+      ],
+      "must": "\\b(?:screen ?shots?|screen ?caps?|screengrab|screen (?:capture|grab)|print ?screen|capture|snap|(?:pic|picture|photo) of (?:the|my|this))\\b",
+      "must_not": "\\b(?:window|app|annotate|mark(?: it)? up)\\b"
+    },
+    "screenshot.window": {
+      "tool": "screenshot",
+      "args": {
+        "mode": "window"
+      },
+      "say": [
+        "Window captured, sir.",
+        "Got the window, sir."
+      ],
+      "examples": [
+        "screenshot this window",
+        "take a screenshot of the window",
+        "capture the focused window",
+        "screenshot the app",
+        "snap this window",
+        "grab a screenshot of this app",
+        "screenshot the active window",
+        "capture just this window"
+      ],
+      "must": "\\b(?:screen ?shots?|screen ?caps?|screengrab|screen (?:capture|grab)|print ?screen|capture|snap|(?:pic|picture|photo) of (?:the|my|this))\\b|\\bwindow\\b",
+      "must_not": "\\b(?:annotate|mark(?: it)? up|close|move|read|watch|what)\\b"
+    },
+    "screenshot.annotate": {
+      "tool": "screenshot",
+      "args": {
+        "mode": "annotate"
+      },
+      "say": [
+        "Select the area to mark up, sir."
+      ],
+      "examples": [
+        "take a screenshot and annotate it",
+        "screenshot and mark it up",
+        "annotate a screenshot",
+        "screenshot something so i can draw on it",
+        "mark up a screenshot",
+        "take a screenshot to annotate"
+      ],
+      "must": "\\b(?:annotate|mark(?: it)? up|markup|draw on)\\b"
+    },
     "lock_screen": {
       "tool": "lock_screen",
       "say": [

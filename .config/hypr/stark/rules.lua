@@ -21,3 +21,18 @@ hl.layer_rule({
     match = { namespace = "stark-doors" },
     no_anim = true,
 })
+
+-- Screenshots (quickshell/Shot.qml, ~/.local/bin/stark-shot). The region selector (slurp, namespace
+-- "selection") and the shutter flash skip the fade: a fading-out selector would land in the capture, and
+-- the flash is too short to fade.
+hl.layer_rule({
+    name  = "stark-shot-no-anim",
+    match = { namespace = "^(selection|stark-shot-flash)$" },
+    no_anim = true,
+})
+-- satty (annotate) floats over the desktop instead of tiling
+hl.window_rule({
+    name  = "stark-shot-satty",
+    match = { class = "^(com.gabm.satty|org.satty.satty)$" },   -- app id changed in 0.21
+    float = true,
+})

@@ -31,6 +31,11 @@ bind("J",      exec("qs ipc call jarvisapp toggle"))  -- JARVIS console (convers
 -- every input event). Plain shell, so it works even if Python or the HUD is stuck.
 bind("SHIFT + Escape", exec("touch \"$XDG_RUNTIME_DIR/jarvis-control-stop\"; qs ipc call jarviscontrol stop"))
 bind("SHIFT + M", hl.dsp.exit())
+-- Screenshots (quickshell/Shot.qml → ~/.local/bin/stark-shot): saved to ~/Pictures/Screenshots + copied.
+-- Through the HUD so its overlays step out of the shot; straight to stark-shot if the HUD is down.
+hl.bind("Print",         exec("qs ipc call shot region || stark-shot region"))    -- drag a box, or click a window / screen
+hl.bind("SHIFT + Print", exec("qs ipc call shot screen || stark-shot screen"))    -- the monitor you're on
+bind("SHIFT + S",        exec("qs ipc call shot annotate || stark-shot annotate")) -- region, then mark it up in satty
 -- Peek: hide / bring back every window on this workspace (stark/peek.lua). Loaded on its
 -- own, so a mistake in it costs only this bind.
 local peekOk, peek = pcall(require, "stark.peek")

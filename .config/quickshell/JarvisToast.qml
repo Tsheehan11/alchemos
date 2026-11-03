@@ -30,6 +30,7 @@ PanelWindow {
     implicitWidth: Math.min(900, Math.round(modelData.width * 0.52))
     implicitHeight: Math.min(Math.round(modelData.height * 0.4), content.implicitHeight + 2 * pad)
     color: "transparent"
+    Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
     readonly property int pad: 26
     readonly property string mono: "JetBrainsMono Nerd Font"

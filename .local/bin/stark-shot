@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""STARK OS screenshots: capture, save, copy.
+
+    stark-shot region     drag a box, or click a window / an empty screen (slurp)
+    stark-shot screen     the focused monitor (native resolution)
+    stark-shot window     the focused window
+    stark-shot annotate   region, then satty on top (saving writes back to the same file + clipboard)
+    options: --output NAME  (screen: that monitor instead of the focused one)   --json  (one result line for the HUD)
+
+Saved as ~/Pictures/Screenshots/stark-YYYYMMDD-HHMMSS.png and put on the clipboard (image/png).
+The HUD (quickshell/Shot.qml, `qs ipc call shot …`) runs this after its overlays step aside and shows the
+flash + toast from the --json line. Without the HUD (binds fall back to it) it sends a desktop notification.
+Exit: 0 saved, 1 cancelled (Escape in the selector), 2 failed.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+HOME = Path.home()
+OUT_DIR = HOME / "Pictures" / "Screenshots"
+SETTINGS = HOME / ".config" / "quickshell" / "settings.json"
+
+
+def sh(cmd, **kw):
+    return subprocess.run(cmd, capture_output=True, text=True, **kw)
+
+
+def hypr(*what):
+    p = sh(["hyprctl", *what, "-j"])
+    return json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip() else None
+
+
+def monitors():
+    """Enabled monitors with their logical (layout) rectangle."""
+    out = []
+    for m in hypr("monitors") or []:
+        if m.get("disabled"):
+            continue
+        s = m.get("scale") or 1
+        w, h = m["width"] / s, m["height"] / s
+        if m.get("transform", 0) % 2:          # 90° / 270°: the layout box is rotated
+            w, h = h, w
+        out.append({"name": m["name"], "x": m["x"], "y": m["y"], "w": round(w), "h": round(h),
+                    "focused": m.get("focused", False), "ws": (m.get("activeWorkspace") or {}).get("name"),
+                    "special": (m.get("specialWorkspace") or {}).get("name") or ""})
+    return out
+
+
+def overlap(g, mons):
+    """Per monitor the part of layout box g it shows, in that monitor's own coordinates (for the HUD flash)."""
+    x, y, w, h = g
+    hit = []
+    for m in mons:
+        x0, y0 = max(x, m["x"]), max(y, m["y"])
+        x1, y1 = min(x + w, m["x"] + m["w"]), min(y + h, m["y"] + m["h"])
+        if x1 > x0 and y1 > y0:
+            hit.append({"name": m["name"], "x": x0 - m["x"], "y": y0 - m["y"], "w": x1 - x0, "h": y1 - y0,
+                        "area": (x1 - x0) * (y1 - y0)})
+    hit.sort(key=lambda r: -r["area"])        # the toast goes on the monitor with most of the shot
+    return hit
+
+
+def theme():
+    try:
+        c = json.loads(SETTINGS.read_text())
+    except Exception:
+        c = {}
+    return c.get("primary", "#4fd8ff"), c.get("secondary", "#ffb347"), c.get("background", "#05090f")
+
+
+def rgba(hex_, alpha):
+    h = hex_.lstrip("#")[:6]
+    return f"#{h}{alpha:02x}"
+
+
+def visible_windows(mons):
+    """Rectangles of the windows on screen right now, for slurp's click-to-pick (floating ones first)."""
+    shown = {m["ws"] for m in mons} | {m["special"] for m in mons if m["special"]}
+    wins = [c for c in hypr("clients") or [] if c.get("mapped", True) and not c.get("hidden")
+            and (c.get("workspace") or {}).get("name") in shown and c["size"][0] > 0]
+    wins.sort(key=lambda c: (not c.get("floating"), not c.get("fullscreen")))
+    return [(*c["at"], *c["size"]) for c in wins]
+
+
+def pick_region(mons):
+    if not shutil.which("slurp"):
+        raise Fail("slurp isn't installed (paru -S slurp)")
+    pri, sec, bg = theme()
+    boxes = visible_windows(mons) + [(m["x"], m["y"], m["w"], m["h"]) for m in mons]
+    p = subprocess.run(["slurp", "-d", "-w", "2", "-c", rgba(pri, 0xff), "-s", rgba(pri, 0x22),
+                        "-b", rgba(bg, 0x88), "-B", rgba(sec, 0x18), "-F", "JetBrainsMono Nerd Font"],
+                       input="\n".join(f"{x},{y} {w}x{h}" for x, y, w, h in boxes), capture_output=True, text=True)
+    if p.returncode != 0 or not p.stdout.strip():
+        raise Cancel()
+    pos, size = p.stdout.split()
+    x, y = (int(v) for v in pos.split(","))
+    w, h = (int(v) for v in size.split("x"))
+    # slurp's surface is gone once it exits; give the compositor a frame to drop it (its layer has no
+    # fade: hypr/stark/rules.lua "stark-shot-selector-no-anim").
+    time.sleep(0.06)
+    return x, y, w, h
+
+
+class Cancel(Exception):
+    pass
+
+
+class Fail(Exception):
+    pass
+
+
+def target_path():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    stem = "stark-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    path, n = OUT_DIR / f"{stem}.png", 2
+    while path.exists():                      # two shots in one second
+        path, n = OUT_DIR / f"{stem}-{n}.png", n + 1
+    return path
+
+
+def png_size(path):
+    with open(path, "rb") as f:
+        head = f.read(24)
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
+def detach(cmd, stdin=None):
+    """Start cmd fully detached: no inherited stdout, so a caller reading our output isn't held open
+    (wl-copy stays behind serving the clipboard)."""
+    subprocess.Popen(cmd, stdin=stdin or subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def copy(path):
+    if not shutil.which("wl-copy"):
+        return False
+    with open(path, "rb") as f:
+        detach(["wl-copy", "--type", "image/png"], stdin=f)
+    return True
+
+
+def annotate(path):
+    if not shutil.which("satty"):
+        return False
+    # Enter = save over the shot, copy it again, close (Escape just closes; the raw shot is already saved + copied)
+    detach(["satty", "--filename", str(path), "--output-filename", str(path), "--copy-command", "wl-copy",
+            "--actions-on-enter", "save-to-file,save-to-clipboard,exit", "--disable-notifications"])
+    return True
+
+
+def capture(mode, output=None):
+    mons = monitors()
+    if not mons:
+        raise Fail("no monitors (hyprctl)")
+    geom, out_name = None, None
+    if mode in ("region", "annotate"):
+        geom = pick_region(mons)
+    elif mode == "screen":
+        m = next((m for m in mons if m["name"] == output), None) if output else next((m for m in mons if m["focused"]), mons[0])
+        if not m:
+            raise Fail(f"no monitor {output}")
+        geom, out_name = (m["x"], m["y"], m["w"], m["h"]), m["name"]
+    elif mode == "window":
+        w = hypr("activewindow")
+        if not w or not w.get("size") or w["size"][0] <= 0:
+            raise Fail("no focused window")
+        geom = (*w["at"], *w["size"])
+    else:
+        raise Fail(f"unknown mode {mode}")
+
+    path = target_path()
+    cmd = ["grim", "-t", "png", "-l", "3"]
+    cmd += ["-o", out_name] if out_name else ["-g", "{},{} {}x{}".format(*geom)]
+    p = sh(cmd + [str(path)])
+    if p.returncode != 0 or not path.exists():
+        raise Fail((p.stderr or "grim failed").strip()[-200:])
+    copied = copy(path)
+    annotating = annotate(path) if mode == "annotate" else False
+    pw, ph = png_size(path)
+    return {"ok": True, "mode": mode, "path": str(path), "name": path.name, "dir": str(OUT_DIR),
+            "width": pw, "height": ph, "geom": list(geom), "monitors": overlap(geom, mons),
+            "copied": copied, "annotating": annotating}
+
+
+def notify(r):
+    if not shutil.which("notify-send"):
+        return
+    if r.get("ok"):
+        detach(["notify-send", "-a", "STARK", "-i", r["path"], "Screenshot saved",
+                f"{r['name']} · {r['width']}×{r['height']}" + (" · copied" if r["copied"] else "")])
+    elif not r.get("cancelled"):
+        detach(["notify-send", "-a", "STARK", "-u", "critical", "Screenshot failed", r.get("error", "")])
+
+
+def main(argv):
+    args = [a for a in argv if not a.startswith("--")]
+    as_json = "--json" in argv
+    output = None
+    if "--output" in argv:
+        i = argv.index("--output")
+        output = argv[i + 1] if i + 1 < len(argv) else None
+        args = [a for a in args if a != output]
+    mode = (args[0] if args else "region").lower()
+    try:
+        r, code = capture(mode, output), 0
+    except Cancel:
+        r, code = {"ok": False, "cancelled": True, "mode": mode}, 1
+    except Fail as e:
+        r, code = {"ok": False, "error": str(e), "mode": mode}, 2
+    if as_json:
+        print(json.dumps(r), flush=True)
+    else:
+        notify(r)
+        if r.get("ok"):
+            print(r["path"])
+        elif r.get("error"):
+            print(r["error"], file=sys.stderr)
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

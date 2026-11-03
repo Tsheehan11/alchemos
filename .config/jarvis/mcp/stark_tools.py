@@ -102,6 +102,13 @@ def lock_screen() -> str:
 
 
 @mcp.tool(structured_output=False)
+def screenshot(mode: Literal["region", "screen", "window", "annotate"] = "region") -> str:
+    """Save + copy a screenshot to ~/Pictures/Screenshots. region: Trevor drags a box / clicks a window;
+    screen: the monitor in use; window: the focused window; annotate: region, then the markup editor."""
+    return out(A.screenshot(mode))
+
+
+@mcp.tool(structured_output=False)
 def power(action: Literal["suspend", "shutdown", "reboot", "logout"]) -> str:
     """Suspend / shut down / reboot / log out (asks Trevor first)."""
     return out(A.power(action))

@@ -21,6 +21,7 @@ PanelWindow {
     implicitWidth: 420
     implicitHeight: 96
     color: "transparent"
+    Binding { target: osd.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
     mask: Region {}
 
     readonly property string mono: "JetBrainsMono Nerd Font"

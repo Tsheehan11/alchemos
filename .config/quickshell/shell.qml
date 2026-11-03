@@ -79,6 +79,14 @@ ShellRoot {
         model: Quickshell.screens
         GameToast {}
     }
+    Variants {                  // screenshot shutter + "CAPTURE SAVED" toast (Shot.qml)
+        model: Quickshell.screens
+        ShotFlash {}
+    }
+    Variants {
+        model: Quickshell.screens
+        ShotToast {}
+    }
 
     Variants {
         model: Quickshell.screens
@@ -129,6 +137,18 @@ ShellRoot {
         function set(screen: string, role: string): string { return JSON.stringify(Roles.setFor(screen, role)) }
         function get(): string { return JSON.stringify(Roles.status()) }
         function cycle(): string { return JSON.stringify(Roles.cycle()) }
+    }
+
+    //   qs ipc call shot region | screen | window | annotate   (Print, Shift+Print, Super+Shift+S; Shot.qml)
+    //   qs ipc call shot output DP-6   (a given monitor)      status   (last shot as JSON)
+    IpcHandler {
+        target: "shot"
+        function region(): string { return Shot.take("region") }
+        function screen(): string { return Shot.take("screen") }
+        function window(): string { return Shot.take("window") }
+        function annotate(): string { return Shot.take("annotate") }
+        function output(name: string): string { return Shot.take("screen", name) }
+        function status(): string { return JSON.stringify({ busy: Shot.busy, last: Shot.last }) }
     }
 
     //   qs ipc call launcher toggle
