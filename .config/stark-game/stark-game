@@ -43,8 +43,14 @@ HYPR_GAME = {
     "decoration:blur:enabled": "false",
     "decoration:shadow:enabled": "false",
     "animations:enabled": "false",
-    "general:allow_tearing": "true",
 }
+# Tearing (allow_tearing + the window's immediate prop) is OFF: on Hyprland 0.57 + the
+# Meteor Lake iGPU every async page flip fails ("atomic drm request: failed to commit:
+# Invalid argument ... PAGE_FLIP_ASYNC"), ~half the game's frames get dropped → stutter.
+# Flip to True to retest on a newer Hyprland / kernel.
+TEARING = False
+if TEARING:
+    HYPR_GAME["general:allow_tearing"] = "true"
 NO_VFR = {"debug:vfr": "false"}   # misc:vfr moved here in 0.5x; Hyprland says leave it on
 AC_POLL = 5.0                     # seconds between AC checks while engaged
 
@@ -184,7 +190,7 @@ def game_windows():
 
 
 def immediate(addrs):
-    if addrs:
+    if addrs and TEARING:
         hyprctl("eval", " ".join(f'hl.dispatch(hl.dsp.window.set_prop({{ window = "address:0x{a}", prop = "immediate", value = "1" }}))'
                                  for a in addrs))
 

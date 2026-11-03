@@ -34,6 +34,11 @@ hl.config({
         enabled = true,
     },
 
+    -- Fullscreen games skip compositing (scanned out directly) → less iGPU work, less lag.
+    render = {
+        direct_scanout = 2,
+    },
+
     dwindle = {
         preserve_split = true,
     },
