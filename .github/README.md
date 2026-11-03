@@ -302,7 +302,8 @@ at them, so VS Code (with the `sumneko.lua` extension) completes `hl.*` in `~/.c
 the DreamView "razer" stream):
 
 - **Modes:** `auto` (theme colour, switching to a music spectrum from cava while audio plays),
-  `music`, `theme`, `manual`, `off`.
+  `music`, `theme`, `manual`, `off`. In combat mode music sync pauses (game audio isn't music): the
+  strip eases to the theme glow and picks the music back up when the game ends.
 - **Events:** boot, login, lock, unlock, logout, shutdown, sleep, wake, plus `alert` (a widget timer
   finished) and `listen` (Jarvis heard the wake word).
 - **Tuning** in `govee/config.json`: `idle_level`, `music_floor`, `music_gain`, `gamma`,

@@ -2,7 +2,7 @@
 """stark-govee: STARK OS ambient lighting for a Govee LAN strip (H618C).
 
 The daemon owns the strip: it follows the HUD theme colour, pulses to music
-(via cava), and plays boot / login / lock / unlock / logout / shutdown /
+(via cava; not in combat mode, where it eases to the theme glow until the game ends), and plays boot / login / lock / unlock / logout / shutdown /
 sleep animations. Animations and the music spectrum are drawn per segment
 through the LAN "razer" (DreamView) stream; steady colours use the plain
 whole-strip command. If segment streaming is turned off or fails, every
@@ -35,6 +35,7 @@ CFG_DIR = Path(os.environ.get("STARK_GOVEE_DIR", Path.home() / ".config/govee"))
 CONFIG, THEME, CAVA_CONF = CFG_DIR / "config.json", CFG_DIR / "theme.json", CFG_DIR / "cava.conf"
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
 SOCK = RUNTIME / "stark-govee.sock"
+GAME_STATE = RUNTIME / "stark-game" / "state.json"   # stark-game (combat mode): {"active": true, …}
 
 MCAST, SCAN_PORT, LISTEN_PORT, CMD_PORT = "239.255.255.250", 4001, 4002, 4003
 
@@ -720,6 +721,7 @@ class Daemon:
         self.parked = False       # not docked at home: strip left alone
         self.gate_vote, self.last_gate = 0, 0.0
         self.mtimes = {}
+        self.combat = False   # combat mode: music sync off, the strip eases to the theme glow
         self.last_poll = self.last_scan = 0.0
         # audio state (written by the cava thread)
         self.cava = None
@@ -768,7 +770,7 @@ class Daemon:
 
     def status(self):
         return {"ip": self.strip.ip, "mode": self.cfg.get("mode"), "locked": self.locked,
-                "asleep": self.asleep, "music_active": self.music_active(),
+                "asleep": self.asleep, "music_active": self.music_active(), "combat": self.combat,
                 "level": round(self.level, 2), "theme": self.theme,
                 "rgb": [int(x) for x in self.cur], "cava": self.cava is not None,
                 "parked": self.parked, "docked": docked(), "home": at_home(self.cfg),
@@ -778,7 +780,7 @@ class Daemon:
 
     # --- audio via cava ---
     def want_audio(self):
-        return (self.cfg.get("mode") in ("auto", "music") and not self.locked
+        return (self.cfg.get("mode") in ("auto", "music") and not self.locked and not self.combat
                 and not self.asleep and not self.parked and self.strip.ip is not None)
 
     def manage_cava(self):
@@ -830,6 +832,8 @@ class Daemon:
             self.last_frame = now
 
     def music_active(self):
+        if self.combat:       # game audio isn't music: hold the theme glow until combat ends
+            return False
         mode = self.cfg.get("mode")
         if mode == "music":
             return True
@@ -850,6 +854,19 @@ class Daemon:
             if self.mtimes.get(path) != m:
                 self.mtimes[path] = m
                 self.reload()
+        try:
+            m = GAME_STATE.stat().st_mtime
+        except OSError:
+            m = None
+        if self.mtimes.get(GAME_STATE) != m:
+            self.mtimes[GAME_STATE] = m
+            try:
+                active = bool(json.loads(GAME_STATE.read_text()).get("active")) if m else False
+            except (OSError, ValueError):
+                active = self.combat  # mid-write: keep what we had
+            if active != self.combat:
+                self.combat = active
+                log("combat mode", "on: theme glow" if active else "off: music sync back")
         if self.strip.ip is None and now - self.last_scan > 30:
             self.last_scan = now
             self.strip.ip = resolve_ip(self.cfg)
