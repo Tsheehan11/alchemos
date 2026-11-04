@@ -24,6 +24,8 @@ for st in $STAGES; do
         continue
     fi
     # torch and onnxruntime each want every core; leave some for the desktop (and Jarvis)
-    OMP_NUM_THREADS=12 nice -n 10 $PY -m openwakeword.train --training_config out/hey_friday.yml $st
+    # augment: --overwrite, or a features file half-written by a crashed run makes it skip silently
+    EXTRA=""; [ "$st" = "--augment_clips" ] && EXTRA="--overwrite"
+    OMP_NUM_THREADS=12 nice -n 10 $PY -m openwakeword.train --training_config out/hey_friday.yml $st $EXTRA
     echo "$st $(( $(date +%s) - t0 )) s" | tee -a out/timing.txt
 done

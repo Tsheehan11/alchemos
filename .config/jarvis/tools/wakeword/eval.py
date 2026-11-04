@@ -10,8 +10,8 @@ model is reset, so one utterance fires once):
   your desk          every recording Jarvis kept from the real mic (~/.local/state/jarvis/rec: commands,
                      follow-ups, near misses), none of which says "hey Friday": any trigger is a false one
 
-Picks the threshold (highest recall with ≤ MAX_FP_H false triggers per hour on the validation set, none on
-the desk recordings, ≤ 5 % adversarial accepts) and with --install puts the model where Jarvis loads it:
+Picks the threshold (highest recall, at least MIN_RECALL, with ≤ MAX_FP_H false triggers per hour on the
+validation set, none on the desk recordings, ≤ 5 % adversarial accepts) and with --install puts the model where Jarvis loads it:
 ~/.local/share/jarvis/wake/hey_friday.onnx + hey_friday.json {threshold, …}.
 
   ~/.config/jarvis/.venv/bin/python tools/wakeword/eval.py [--install]
@@ -34,6 +34,8 @@ REC = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "
 DEST = Path.home() / ".local/share/jarvis/wake"
 THRESHOLDS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 MAX_FP_H = 0.5
+MIN_RECALL = 0.5                  # on held-out clips with room + noise augmentation; missing half the time is
+                                  # worse than both personas sharing "hey Jarvis"
 FRAME_S = 0.08                    # one embedding frame
 REFRACTORY = int(2.0 / FRAME_S)   # after a trigger Jarvis resets the model and talks for seconds
 
@@ -48,6 +50,8 @@ def session():
 
 def scores_windows(sess, name, x, batch=4096):
     out = []
+    if sess.get_inputs()[0].shape[0] == 1:          # openWakeWord exports with a fixed batch of 1
+        return np.array([sess.run(None, {name: x[i:i + 1].astype(np.float32)})[0].reshape(-1)[0] for i in range(len(x))])
     for i in range(0, len(x), batch):
         out.append(sess.run(None, {name: x[i:i + batch].astype(np.float32)})[0].reshape(-1))
     return np.concatenate(out) if out else np.zeros(0)
@@ -145,6 +149,7 @@ def main():
         report["desk"] = {"hours": round(hours, 2), "files": nfiles, "files_hey_jarvis_fired": jf,
                           "friday_false_triggers": fired, "highest": worst}
     ok = [t for t in THRESHOLDS if rows[t]["fp_per_hour"] <= MAX_FP_H and rows[t]["adversarial"] <= 0.05
+          and rows[t]["recall"] >= MIN_RECALL
           and report.get("desk", {}).get("friday_false_triggers", {}).get(t, 0) == 0]
     pick = max(ok, key=lambda t: (rows[t]["recall"], -t)) if ok else None
     report["threshold"] = pick

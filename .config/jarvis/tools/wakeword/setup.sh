@@ -22,11 +22,11 @@ if [ ! -x .venv/bin/python ]; then
 fi
 PY=.venv/bin/python
 if ! $PY -c "import torch, openwakeword, piper_phonemize, audiomentations, torch_audiomentations" 2>/dev/null; then
-    uv pip install --python $PY --index-url https://download.pytorch.org/whl/cpu torch torchaudio
+    uv pip install --python $PY --index-url https://download.pytorch.org/whl/cpu "torch==2.8.*" "torchaudio==2.8.*"   # 2.9+ loads audio only via torchcodec
     uv pip install --python $PY "openwakeword==0.6.0" piper-phonemize-cross onnxruntime \
         audiomentations torch-audiomentations acoustics mutagen torchinfo torchmetrics \
         "speechbrain<1" pronouncing deep-phonemizer webrtcvad-wheels "scipy<1.15" pyyaml tqdm \
-        "numpy<2" soundfile datasets
+        "numpy<2" soundfile datasets onnx
 fi
 
 # piper-sample-generator (generates the synthetic "hey friday" clips) + its multi-speaker model
