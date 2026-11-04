@@ -217,7 +217,9 @@ PanelWindow {
                     }
                     Rectangle {
                         anchors.centerIn: parent
-                        width: 8; height: 8; radius: 4
+                        // JARVIS: a round core; FRIDAY: a diamond
+                        width: 8; height: 8; radius: JarvisState.who === "friday" ? 1 : 4
+                        rotation: JarvisState.who === "friday" ? 45 : 0
                         color: toast.accent
                         SequentialAnimation on scale {
                             running: toast.visible; loops: Animation.Infinite
@@ -228,7 +230,7 @@ PanelWindow {
                 }
                 Text {
                     anchors.left: reactor.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
-                    text: "J.A.R.V.I.S"
+                    text: JarvisState.who === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S"
                     color: Theme.primary
                     font.family: toast.mono; font.pixelSize: 11; font.letterSpacing: 4
                 }

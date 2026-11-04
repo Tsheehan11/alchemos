@@ -17,7 +17,7 @@ import stark_actions as A
 FILLER = re.compile(r"^(?:(?:hey |ok |okay )?jarvis\s*|(?:uh+|um+|er+m?|hmm+|so|okay|ok|alright|right|well|"
                     r"actually|now|hey|yeah|yes) |can you |could you |would you |will you |would you mind |"
                     r"please |i want you to |i'd like you to |i need you to |go ahead and |just |let's )+")
-TRAILER = re.compile(r"(?:\s+(?:please|for me|now|thanks|thank you|jarvis|sir|right now|real quick))+$")
+TRAILER = re.compile(r"(?:\s+(?:please|for me|now|thanks|thank you|jarvis|sir|boss|right now|real quick))+$")
 # whisper's usual mishearings of words the rules depend on
 SOUNDALIKE = [(r"\b(?:v|b)(?:p|v|b)(?:n|m)\b", "vpn"), (r"\bproton ?(?:vpn)?\b", "proton vpn"),
               (r"\bwork ?space\b", "workspace"), (r"\btemp\b", "temperature"),
@@ -135,7 +135,17 @@ NEW_WIDGETS = [(r"calendar|agenda|schedule", "calendar", "Agenda"), (r"due dates
 LIGHTS = r"(?:the |my )?(?:lights?|strip|led strip|leds)"
 
 
+# "switch to Friday" / "Friday, switch to Jarvis" (the wake word is already cut) / "let me talk to Jarvis".
+# Matched before TRAILER, which drops a trailing "jarvis".
+PERSONA = re.compile(r"(?:(?:switch|change|swap|go|flip|hand (?:it |me )?(?:over|back))(?: (?:it|me|back|over))*(?: to| for)|"
+                     r"(?:let me|can i|i want to|i'd like to) (?:talk|speak) to|(?:put|bring|get)(?: back)?|"
+                     r"give me) (jarvis|friday)(?: (?:back|on|instead|mode|please|now))*")
+
+
 def _clause(t, last_query):
+    m = PERSONA.fullmatch(FILLER.sub("", t).strip())
+    if m:
+        return [step("jarvis_persona", lambda r: r.get("say") or "Done.", name=m.group(1))]
     t = TRAILER.sub("", FILLER.sub("", t)).strip()
     if not t:
         return None

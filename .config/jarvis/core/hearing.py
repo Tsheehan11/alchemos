@@ -28,7 +28,7 @@ SPECULATE_S = 0.24          # start transcribing after this much silence; used i
 LIVE_TAIL_S = 0.32          # speech this close to the wake word = the command is already under way
 MAX_COMMAND_S = 10.0
 
-VOCAB = ("Hey Jarvis. STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, workspace, monitor, Spotify, Claude, brighten, "
+VOCAB = ("Hey Jarvis. Hey Friday. STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, workspace, monitor, Spotify, Claude, brighten, "
          "timer, lights, theme.")
 
 # "Hey Jarvis" as whisper hears it from across the desk: "Hey Joris", "Hey Joe, visit",
@@ -36,10 +36,14 @@ VOCAB = ("Hey Jarvis. STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, work
 _GREET = r"(?:hey|hay|hi|a|oh|ok|okay|yo|hello)"
 _NAME = r"(?:jarvis|jarvi|jervis|javis|jarvus|joris|jarv\w*)"                          # alone
 _FUZZY = rf"(?:{_NAME}|j\w{{2,6}}s|joe\W{{0,2}}(?:vis|fuss)\w*|john)"                 # after a greeting
-WAKE_PREFIX = re.compile(rf"^\W*(?:(?:{_GREET}\W+)+{_FUZZY}|{_NAME})\b\W*", re.I)
+# "Hey Friday" (FRIDAY's wake word): only after a real greeting, or alone with a comma ("Friday, switch to
+# Jarvis"), because Friday is also a day he says all the time ("what's due on a Friday", "oh Friday's busy").
+_FGREET = r"(?:hey|hay|hi|okay|ok|yo|hello)"
+_FRIDAY = r"(?:friday|fri day|fryday|frida|fridey)"
+WAKE_PREFIX = re.compile(rf"^\W*(?:(?:{_GREET}\W+)+{_FUZZY}|{_NAME}|(?:{_FGREET}\W+)+{_FRIDAY}|{_FRIDAY}(?=\s*,))\b\W*", re.I)
 
 
-WAKE_INSIDE = re.compile(rf"\b(?:{_GREET}\W+)+{_FUZZY}\b\W*", re.I)
+WAKE_INSIDE = re.compile(rf"\b(?:(?:{_GREET}\W+)+{_FUZZY}|(?:{_FGREET}\W+)+{_FRIDAY})\b\W*", re.I)
 
 
 def strip_wake(text, anywhere=False):
@@ -61,7 +65,7 @@ def strip_wake(text, anywhere=False):
     return t.strip()
 
 
-_VOCAB_WORDS = [w for w in re.findall(r"[a-z]+", VOCAB.lower()) if w not in ("hey", "jarvis")]
+_VOCAB_WORDS = [w for w in re.findall(r"[a-z]+", VOCAB.lower()) if w not in ("hey", "jarvis", "friday")]
 
 
 def _echoes_prompt(text):

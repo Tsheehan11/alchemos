@@ -1226,6 +1226,18 @@ def jarvis_volume(action, percent=0):
             **({"note": "already at the limit"} if new == now and action != "set" else {})}
 
 
+def jarvis_persona(name):
+    """Who answers by default: jarvis | friday (core/persona.py). Same brain, tools and memory; FRIDAY has
+    her own voice and manner. The switch is announced in the new voice (by the voice loop when the
+    change comes from Settings, IPC or Claude; as this reply when it's the fast path)."""
+    name = _choice(name, ["jarvis", "friday"], "name")
+    if DRY_RUN:
+        return {"ok": True, "dry_run": True, "would": f"persona → {name}"}
+    from core import persona
+    changed = persona.set_active(name)
+    return {"ok": True, "persona": name, "changed": changed, "say": persona.switch_reply(name, changed)}
+
+
 # ── audio devices (mcp/audio_devices.py: kinds, spoken names, stream moves, his explicit choice) ──
 def _audio_pick(direction, device):
     import audio_devices as AD
@@ -1553,7 +1565,7 @@ TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_reset, widget_list, set_screen_role, jarvis_volume, start_task, screenshot,
+    widget_add, widget_remove, widget_move, widget_reset, widget_list, set_screen_role, jarvis_volume, jarvis_persona, start_task, screenshot,
     set_audio_output, set_audio_input, list_audio_devices,
     spotify_player, spotify_play, spotify_queue, spotify_like, spotify_now_playing, spotify_devices, spotify_transfer,
     dj_start, dj_stop, dj_adjust, dj_keep, dj_chatter, dj_status, dj_save_mood,
@@ -1623,6 +1635,7 @@ def tool_label(tool, args):
         "widget_reset": lambda: "WIDGETS → RESET LAYOUT",
         "set_screen_role": lambda: f"SCREEN → {(norm_role_screen(a.get('screen')) or v('screen')).upper()} ⇢ {(norm_role(a.get('role')) or v('role')).upper()}",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
+        "jarvis_persona": lambda: f"PERSONA → {v('name')}",
         "start_task": lambda: f"TASK → {v('title')}",
         "set_audio_output": lambda: f"AUDIO OUT → {v('device')}",
         "set_audio_input": lambda: f"MIC → {v('device')}",

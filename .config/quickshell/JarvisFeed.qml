@@ -5,6 +5,8 @@ pragma Singleton
 //   agenda.json   ~/.local/share/jarvis/feed/, from `jarvis feed` (core/feed.py): main Google Calendar +
 //   weather.json  Outlook ICS + SE tracker due dates, home-town weather. That process runs only while a
 //                 calendar / due / weather widget is up, and syncs on its own clock (no Claude, ever).
+//   usage.json    ~/.local/share/jarvis/usage/, from `jarvis usage --watch` (core/usage.py) while a usage widget
+//                 is up: plan % (the CLI's /usage report), Jarvis + Claude Code tokens by model, estimated rest
 //   dj.json       $XDG_RUNTIME_DIR/jarvis/dj.json, written by DJ mode in the voice process (core/dj.py):
 //                 set name, mood, chatter level, now playing, the next three (MediaPanel, the dj widget)
 // FileView watches each file (inotify). The one clock here ticks on the minute, only while a widget
@@ -84,6 +86,31 @@ Singleton {
     }
     Timer { id: feedRetry; interval: 30000; onTriggered: if (root.needFeed && !feed.running) feed.running = true }
     function refresh() { Quickshell.execDetached([root.home + "/.local/bin/jarvis", "feed", "--kick"]); }
+
+    // ── whole-account Claude usage (CLAUDE // USAGE widget) ──
+    // usage.json from `jarvis usage --watch` (~/.config/jarvis/core/usage.py): the plan's 5-hour / weekly %
+    // from the CLI's /usage report (no tokens), Jarvis + Claude Code tokens from their local records, and the
+    // estimated remainder (claude.ai + other devices). The watcher runs only while a usage widget is up.
+    property var claude: ({})
+    FileView {
+        id: usageFile
+        path: root.home + "/.local/share/jarvis/usage/usage.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { root.claude = JSON.parse(text()); } catch (e) {} }
+    }
+    readonly property bool needUsage: Widgets.items.some(i => i.type === "usage")
+    Process {
+        id: usageWatch
+        running: root.needUsage
+        command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs", root.home + "/.local/bin/jarvis", "usage", "--watch"]
+        onRunningChanged: if (running) usageFile.reload()
+        onExited: if (root.needUsage) usageRetry.restart()
+    }
+    Timer { id: usageRetry; interval: 30000; onTriggered: if (root.needUsage && !usageWatch.running) usageWatch.running = true }
+    // a click on the widget: plan report now (the watcher polls the kick file every second)
+    function usageNow() { Quickshell.execDetached(["touch", root.home + "/.local/share/jarvis/usage/kick"]); }
 
     // ── minute clock for countdowns: fires as the minute turns, only while it's needed ──
     property double now: Date.now()

@@ -37,6 +37,24 @@ Singleton {
     property int replySerial: 0          // bumps when a new reply arrives (the pop-up resets its scrolling)
     readonly property string message: reply !== "" ? reply : transcript   // old one-line API
 
+    // ── persona (~/.config/jarvis/core/persona.py): JARVIS or FRIDAY, same assistant ──
+    // persona: the default (Settings → JARVIS → PERSONA); answering: who the wake word named for the exchange
+    // in progress (Jarvis sends it); who: the one to show right now. Glyph and accent sound differ, not the theme.
+    readonly property string persona: Theme.cfg.jarvisPersona === "friday" ? "friday" : "jarvis"
+    property string answering: ""
+    readonly property string who: answering === "friday" || answering === "jarvis" ? answering : persona
+    readonly property string name: who === "friday" ? "FRIDAY" : "JARVIS"
+    readonly property string glyph: who === "friday" ? "◈" : "◉"
+    readonly property string glyphIdle: who === "friday" ? "◇" : "○"
+    readonly property string glyphStarting: who === "friday" ? "◇" : "◌"
+    function setPersona(name) {
+        const n = String(name || "").trim().toLowerCase();
+        if (n === "") return root.persona;
+        if (n !== "jarvis" && n !== "friday") return "unknown persona " + n + " (jarvis | friday)";
+        Theme.cfg.jarvisPersona = n;
+        return n;
+    }
+
     // Jarvis runs as its own service (stark-jarvis.service), so it outlives a qs restart / hot reload.
     // This instance hasn't had Jarvis's state yet: the next heartbeat answers "resync" and Jarvis
     // sends restore() with the toast state (core/hud.py). Reset whenever Jarvis goes offline.
@@ -46,13 +64,14 @@ Singleton {
         root.online = true;
         return root.synced ? "" : "resync";
     }
-    function goOffline() { root.online = false; root.paused = false; root.synced = false; }
+    function goOffline() { root.online = false; root.paused = false; root.synced = false; root.answering = ""; }
     // {phase, transcript, reply, tools, paused}: only a live phase comes back on screen
     function restore(json) {
         let s = {};
         try { s = JSON.parse(json); } catch (e) { return; }
         root.synced = true;
         root.paused = s.paused === true;
+        root.answering = s.answering || "";
         const live = ["listening", "thinking", "followup", "confirm"];
         if (live.indexOf(s.phase) < 0) return;
         root.transcript = s.transcript || ""; root.reply = s.reply || ""; root.tools = s.tools || [];

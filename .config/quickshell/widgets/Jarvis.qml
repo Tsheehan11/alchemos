@@ -19,7 +19,7 @@ WidgetBody {
     readonly property var last: JarvisFeed.last
     readonly property string now: JarvisState.phase !== "idle" && JarvisState.transcript ? JarvisState.transcript : ""
 
-    title: "JARVIS"
+    title: JarvisState.glyph + " " + JarvisState.name
     detail: labels[mode]
     function clicked() { JarvisLink.show(); }
 

@@ -53,6 +53,7 @@ Local router (intents.json, tools/eval_router.py):
 import argparse
 import asyncio
 import atexit
+import json
 import os
 import queue
 import re
@@ -98,6 +99,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["audio"]:
 if __name__ == "__main__" and sys.argv[1:2] in (["spotify"], ["dj"]):
     from core import spotify_cli           # connect / status / disconnect / devices; dj start|stop|status (no models)
     sys.exit(spotify_cli.main(sys.argv[1:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["usage"]:
+    from core import usage                 # whole-account Claude usage for the HUD (no Claude, no tokens)
+    sys.exit(usage.main(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -105,11 +109,16 @@ if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
 
 import jarvis_db as db  # noqa: E402
 import stark_actions as A  # noqa: E402
-from core import control, fastpath, hearing, hud, secrets, trace  # noqa: E402
+from core import control, fastpath, hearing, hud, persona, secrets, trace  # noqa: E402
 from core import config as C  # noqa: E402
 
 # ── Wake word / speech-to-text ──────────────────
 WAKEWORD = "hey_jarvis"
+# "hey friday": a custom openWakeWord model (tools/wakeword/), loaded when it's there. Its own threshold
+# sits next to it (hey_friday.json, from tools/wakeword/eval.py). Without it both personas answer
+# "hey Jarvis" (the active one does).
+FRIDAY_WAKE = C.DATA_DIR / "wake/hey_friday.onnx"
+WAKE_PERSONA = {"hey_jarvis": "jarvis", "hey_friday": "friday"}
 NEAR_MISS = 0.15           # wake scores above this (but under THRESHOLD) are traced as near misses
 THRESHOLD = 0.4            # real "hey Jarvis" at the desk peaks at 0.83-1.0; nothing else got past 0.25
 BARGE_THRESHOLD = 0.3      # over its own voice (which never scored above 0.21) "hey Jarvis" is harder to hear
@@ -678,6 +687,8 @@ class VoiceLoop:
         self.announcer = None
         self.near = 0.0                                   # peak of a wake score that didn't reach THRESHOLD
         self.spec = None                                  # listen()'s early transcription, if still valid
+        self.thresholds = {WAKEWORD: THRESHOLD}           # per wake model (load() adds hey_friday)
+        self.woke_as = None
 
     def load(self):
         import openwakeword
@@ -688,7 +699,16 @@ class VoiceLoop:
             log("JARVIS: laptop mode (switched on undocked): no academic sync, watchers or room speaker")
         log("JARVIS: loading models…")
         openwakeword.utils.download_models([WAKEWORD])
-        self.wake = Model(wakeword_models=[WAKEWORD], inference_framework="onnx")
+        models, self.thresholds = [WAKEWORD], {WAKEWORD: THRESHOLD}
+        if FRIDAY_WAKE.exists():
+            models.append(str(FRIDAY_WAKE))
+            try:
+                self.thresholds["hey_friday"] = float(json.loads(FRIDAY_WAKE.with_suffix(".json").read_text())["threshold"])
+            except (OSError, ValueError, KeyError, TypeError):
+                self.thresholds["hey_friday"] = 0.5
+            log(f"JARVIS: \"hey Friday\" wake word loaded (threshold {self.thresholds['hey_friday']})")
+        self.wake = Model(wakeword_models=models, inference_framework="onnx")
+        self.woke_as = None            # persona the last wake word named (None: only "hey Jarvis" is known)
         self.vad = VAD()
         self.stt = hearing.STT(WHISPER_MODEL)
         self.voice = Voice(self.cfg, log=log, prewarm=True)
@@ -700,6 +720,7 @@ class VoiceLoop:
         from core.status import Status
         self.status = self.j.status = Status(log=log)
         self.mic.status_cb = self.status.mic
+        self.status.set("wake", ["jarvis"] + (["friday"] if "hey_friday" in self.thresholds else []))
         atexit.register(self.status.close)
         try:
             self.status.usage(self.j.brain)
@@ -727,8 +748,15 @@ class VoiceLoop:
         return a
 
     def woke(self, a, where="idle"):
-        score = max(self.wake.predict(a).values())
-        if score >= (THRESHOLD if where in ("idle", "listening") else BARGE_THRESHOLD):
+        """Score of a wake word that fired (0.0 if none); self.woke_as = the persona it named. Each model is
+        judged against its own threshold (over Jarvis's own voice: scaled down like BARGE_THRESHOLD)."""
+        preds = self.wake.predict(a)
+        scale = 1.0 if where in ("idle", "listening") else BARGE_THRESHOLD / THRESHOLD
+        rel = {k: v / (self.thresholds.get(k, THRESHOLD) * scale) for k, v in preds.items()}
+        best = max(rel, key=rel.get)
+        score = preds[best] * THRESHOLD / self.thresholds.get(best, THRESHOLD)    # in "hey Jarvis" units
+        if rel[best] >= 1.0:
+            self.woke_as = WAKE_PERSONA.get(best) if len(preds) > 1 else None
             if where != "idle":
                 trace.t("barge", during=where, score=round(score, 2))
             self.near = 0.0
@@ -891,6 +919,20 @@ class VoiceLoop:
                 self.wake.reset()
                 self.barge = True
                 return None
+
+    def check_persona(self):
+        """The default persona changed from outside (Settings, `qs ipc call jarvis persona …`, a Claude
+        tool call): the new one introduces itself, in its own voice."""
+        who = persona.switched(self.cfg)
+        if not who:
+            return
+        log(f"JARVIS: persona → {who}")
+        self.voice.warm()                         # her stock lines, in her voice
+        if self.paused:
+            return
+        hud.answering("")
+        self.say(persona.announce_line(who))
+        hud.idle()
 
     def check_combat(self):
         want = self.cfg["gameJarvis"] and A.combat_mode()
@@ -1163,10 +1205,13 @@ class VoiceLoop:
                 if u:
                     u.add(sentence)
             reply = self.j.handle(text, wait=lambda fut: self.wait(fut, u), on_sentence=on_sentence)
+            hud.answering(persona.current(self.cfg))   # "switch to Friday" changed who's talking mid-exchange
             if reply is None:            # interrupted by the wake word: listen afresh
                 if u:
                     u.stop()
                 if self.barge:
+                    persona.begin(self.woke_as)
+                    hud.answering(persona.current(self.cfg))
                     self.voice.chime()
                     hud.listening()
                     no_speech, kind, pre = NO_SPEECH_TIMEOUT_S, "command", list(self.pre)
@@ -1186,6 +1231,8 @@ class VoiceLoop:
                     u.add(reply)             # e.g. it stopped mid-answer: say why
                 u.finish()
                 if self.play(u):
+                    persona.begin(self.woke_as)
+                    hud.answering(persona.current(self.cfg))
                     self.voice.chime()
                     hud.listening()
                     no_speech, kind, pre = NO_SPEECH_TIMEOUT_S, "command", list(self.pre)
@@ -1238,7 +1285,9 @@ class VoiceLoop:
             self.mic.start()
         log('JARVIS: online — say "Hey Jarvis"')
         last, last_prune = 0.0, time.time()
+        persona.switched(self.cfg)                # remember who's active now (a later change gets announced)
         while True:
+            self.check_persona()
             self.check_reminders()
             self.check_academic()
             self.check_background()
@@ -1260,9 +1309,11 @@ class VoiceLoop:
                 trace.t("wake.skip", score=round(score, 2), why="cooldown")
                 continue
             trace.begin()
-            trace.t("wake", score=round(score, 2), queued=self.mic.q.qsize())
-            log("JARVIS: wake word")
+            trace.t("wake", score=round(score, 2), queued=self.mic.q.qsize(), persona=self.woke_as or "")
+            log("JARVIS: wake word" + (f" ({self.woke_as})" if self.woke_as else ""))
             self.wake.reset()     # else its buffer still holds "hey Jarvis" and fires again mid-reply
+            persona.begin(self.woke_as)            # "hey Friday" → FRIDAY answers this exchange
+            hud.answering(persona.current(self.cfg))
             self.voice.chime()
             govee_pulse()
             hud.listening()
@@ -1282,6 +1333,8 @@ class VoiceLoop:
                     hud.idle()
             finally:
                 self.voice.ducker.restore()
+                persona.end()
+                hud.answering("")
             trace.end()
             self.pre.clear()
             self.wake.reset()
@@ -1449,6 +1502,8 @@ def main():
     ap.add_argument("--facts", action="store_true", help="remembered facts")
     ap.add_argument("--reminders", action="store_true", help="pending timers / reminders")
     ap.add_argument("--say", metavar="TEXT", help="speak TEXT with the configured voice (Settings → TEST VOICE)")
+    ap.add_argument("--as", dest="persona", choices=list(persona.NAMES),
+                    help="with --say: as this persona (voice and manner), not the active one")
     ap.add_argument("--voice", help="with --say: voice to use instead of the setting (bm_george, en_GB-alan-medium…)")
     ap.add_argument("--effect", help="with --say: effect preset instead of the setting (CLEAN, HOLOGRAM, SUIT)")
     ap.add_argument("--trace", action="store_true", help="follow the stage-by-stage trace live (~/.local/state/jarvis/trace.log)")
@@ -1467,6 +1522,7 @@ def main():
         from core.voice import Voice
         v = Voice(C.Config(), log=log)
         v.overrides = {k: val for k, val in (("voice", args.voice), ("preset", args.effect)) if val}
+        persona.begin(args.persona)
         v.speak(args.say)
     elif args.misses:
         show_log([r for r in db.recent_log(200) if not r["tier"].startswith("fast")][:40])

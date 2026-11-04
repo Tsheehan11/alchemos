@@ -189,6 +189,13 @@ def set_screen_role(screen: str = "", role: Literal["auto", "clock", "stats", "m
 
 
 @mcp.tool(structured_output=False)
+def jarvis_persona(name: Literal["jarvis", "friday"]) -> str:
+    """Switch the assistant persona he talks to by default: jarvis or friday (only when he asks to switch).
+    The new persona announces itself, so just acknowledge in one short line."""
+    return out(A.jarvis_persona(name))
+
+
+@mcp.tool(structured_output=False)
 def jarvis_volume(action: Literal["up", "down", "set"], percent: int = 0) -> str:
     """Your own speaking volume (Jarvis's voice only, not music: use media for that). up / down = one step,
     set = percent 0-100. Reply in one short line; it's spoken at the new level."""

@@ -258,6 +258,11 @@ ShellRoot {
         function paused(on: string): void { JarvisState.paused = on === "true" }
         function heard(msg: string): void { JarvisState.heard(msg) }
         function status(msg: string): void { JarvisState.status(msg) }
+        // persona: `qs ipc call jarvis persona friday` switches the default (Jarvis announces it in the new
+        // voice); `qs ipc call jarvis whois` → the active one. answering: sent by Jarvis per exchange ("" = default)
+        function persona(name: string): string { return JarvisState.setPersona(name) }
+        function whois(): string { return JarvisState.persona }
+        function answering(who: string): void { JarvisState.answering = who }
     }
 
     //   qs ipc call vpn toggle proton | connect school | disconnect | status   (VPN.qml)

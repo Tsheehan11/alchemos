@@ -27,7 +27,7 @@ def call(fn, *args):
 # JarvisState answers the heartbeat with "resync" and gets this snapshot back (JarvisState.restore).
 # Only the live phases come back on screen; a finished reply isn't shown again.
 _lock = threading.Lock()
-_snap = {"phase": "idle", "transcript": "", "reply": "", "tools": [], "paused": False}
+_snap = {"phase": "idle", "transcript": "", "reply": "", "tools": [], "paused": False, "answering": ""}
 
 
 def _track(fn, args):
@@ -55,6 +55,8 @@ def _track(fn, args):
             s["phase"] = "idle"
         elif fn == "paused":
             s["paused"] = args[0] == "true"
+        elif fn == "answering":
+            s["answering"] = str(args[0])
 
 
 def snapshot():
@@ -73,8 +75,16 @@ def _worker():
 threading.Thread(target=_worker, daemon=True).start()
 
 
+# text the HUD shows, in the current persona's manner (core/persona.style; JARVIS unchanged): arg index per fn
+_STYLED = {"reply": 0, "confirm": 0, "toast": 1, "error": 1, "alert": 1}
+
+
 def send(fn, *args):
     if ENABLED:
+        i = _STYLED.get(fn)
+        if i is not None and len(args) > i:
+            from . import persona
+            args = args[:i] + (persona.style(str(args[i])),) + args[i + 1:]
         _track(fn, args)
         _q.put((fn, args))
 
@@ -98,6 +108,7 @@ def paused(on):    send("paused", "true" if on else "false")
 def toast(title, text): send("toast", title, text)
 def error(reason, line): send("error", reason, line)     # spoken failure line + why, e.g. NO NETWORK
 def note(label):   send("note", label)                   # an extra line on the toast, phase unchanged
+def answering(who): send("answering", who or "")         # persona of this exchange (core/persona.py); "" = the default
 
 
 def speak(start, end, total, ms):

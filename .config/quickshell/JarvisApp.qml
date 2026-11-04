@@ -76,7 +76,7 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: app.shown ? 220 : 200; easing.type: Easing.OutCubic } }
         Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         fill: 0.94
-        title: "J.A.R.V.I.S  ·  CONSOLE"
+        title: (JarvisState.persona === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S") + "  ·  CONSOLE"
         detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
                                     : JarvisState.toggleOn ? "STARTING…"
                                     : JarvisState.docked ? "OFFLINE · HISTORY ONLY · JARVIS IS OFF"
@@ -280,7 +280,7 @@ PanelWindow {
                         spacing: 3
                         readonly property bool me: modelData.role === "user"
                         Text {
-                            text: (me ? "YOU" : "JARVIS") + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
+                            text: (me ? "YOU" : modelData.persona === "friday" ? "FRIDAY" : "JARVIS") + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
                                   + (!me && modelData.tier ? "  ·  " + modelData.tier.toUpperCase() : "")
                             color: me ? Theme.dim : Theme.primary
                             font.family: app.mono; font.pixelSize: 10; font.letterSpacing: 1
@@ -313,7 +313,7 @@ PanelWindow {
                     Text {
                         visible: msgList.count === 0
                         anchors.centerIn: parent
-                        text: link.connected ? "Ask Jarvis anything, or switch to TASK for a background job." : "Jarvis is offline. History stays readable."
+                        text: link.connected ? "Ask " + (JarvisState.persona === "friday" ? "FRIDAY" : "Jarvis") + " anything, or switch to TASK for a background job." : "Jarvis is offline. History stays readable."
                         color: Theme.faint; font.family: app.mono; font.pixelSize: 12
                     }
                     // scroll position
@@ -360,7 +360,7 @@ PanelWindow {
                         id: input
                         width: parent.width - 90; height: 36
                         maximumLength: 2000
-                        placeholder: !link.connected ? "Jarvis is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask Jarvis…  (Enter)"
+                        placeholder: !link.connected ? "Jarvis is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + (JarvisState.persona === "friday" ? "FRIDAY" : "Jarvis") + "…  (Enter)"
                         onAccepted: { if (link.connected && text.trim()) { JarvisLink.ask(text); text = ""; } }
                         onCancelled: JarvisLink.open = false
                     }

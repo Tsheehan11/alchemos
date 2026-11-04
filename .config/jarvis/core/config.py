@@ -29,6 +29,11 @@ DEFAULTS = {
     "jarvisModel": "auto",              # auto = haiku, sonnet for harder requests
     "jarvisVoice": "bm_george",         # Kokoro voice, or a piper model[:speaker] in ~/.local/share/jarvis/voices
     "jarvisSpeed": 1.0,                 # speech rate multiplier
+    "jarvisPersona": "jarvis",          # jarvis | friday: who answers by default (core/persona.py); same brain,
+                                        # tools, memory and threads, different name, voice and manner
+    "fridayVoice": "bf_emma",          # FRIDAY's Kokoro voice (jarvis-voices --friday to audition)
+    "fridaySpeed": 1.15,                # FRIDAY's own speech rate (JARVIS keeps jarvisSpeed / jarvisPitch)
+    "fridayPitch": 0.0,
     "jarvisVoiceVolume": 60,            # VOICE VOLUME, 0-100 %: Jarvis's voice + chime only, a gain after the effects (core/voice.py)
     "jarvisSpeakerVolume": -1,          # own level on the Bluetooth speaker, 0-100 %; -1 = same as VOICE VOLUME
     "jarvisPitch": 0.0,                 # semitones, on top of the effect preset's

@@ -176,12 +176,12 @@ def candidates(pool, history, exclude=()):
 
 
 # ── the one Claude call per set ──
-PROMPT = """You are Jarvis, DJ for Trevor. Plan a set.
+PROMPT = """You are {name}, DJ for Trevor. Plan a set.
 VIBE: {vibe}
 {adjust}{carry}
 Pick {lo}-{hi} tracks from LIBRARY by number and order them for flow: ease in, shape the energy to the vibe, keep neighbours compatible in genre, energy and era, and never the same artist twice within 4 tracks. Use what you know about each artist and track. Fit to the vibe beats familiarity.
 You may ask for up to 4 Spotify track searches for fitting music not in the library (search syntax like "genre:lo-fi", "artist:Nujabes", "year:2012-2016 genre:house"), each placed after a position of your order.
-Write DJ lines in Jarvis's voice (dry, British, calls him "sir", at most 18 words, no emojis, no hype clichés) for about one track in three, keyed by position; each is said as that track starts and may mention the track or artist.
+Write DJ lines {voice}, at most 18 words, no emojis, no hype clichés) for about one track in three, keyed by position; each is said as that track starts and may mention the track or artist.
 Answer with only JSON: {{"name": "2-4 word set name", "order": [numbers], "search": [{{"q": "...", "after": position}}], "lines": {{"position": "line"}}}}
 LIBRARY (number | title | artist | year | from):
 {library}"""
@@ -298,7 +298,10 @@ def build_set(vibe, adjust="", carry=(), played=(), log=print, claude=None):
         raise S.SpotifyError("library too small", say="There isn't enough in your library for a set yet, sir.")
     carry_txt = ("Carry on smoothly from the last tracks played: " + "; ".join(f"{t['title']} by {t['artist']}" for t in carry) + "\n") if carry else ""
     adj_txt = (adjust + "\n") if adjust else ""
-    prompt = PROMPT.format(vibe=vibe, adjust=adj_txt, carry=carry_txt, lo=SET_MIN, hi=SET_MAX, library=library_lines(cands))
+    from . import persona
+    who = persona.active()           # the set's lines are written once, in the default persona's voice
+    prompt = PROMPT.format(name="FRIDAY" if who == "friday" else "Jarvis", voice=persona.DJ_VOICE[who],
+                           vibe=vibe, adjust=adj_txt, carry=carry_txt, lo=SET_MIN, hi=SET_MAX, library=library_lines(cands))
     text = (claude or ask_claude)(prompt, log=log)
     name, tracks, searches = parse_plan(text, cands)
     used = len(tracks) >= 8
@@ -731,7 +734,8 @@ class DJ:
             return
         if not t.get("line") and s["since_line"] < due + 2:     # wait a track or two for one of Claude's lines
             return
-        line = t.get("line") or random.choice(TEMPLATES).format(title=t["title"], artist=t["artist"].split(",")[0])
+        from . import persona
+        line = t.get("line") or random.choice(persona.DJ_TEMPLATES.get(persona.active(self.cfg), TEMPLATES)).format(title=t["title"], artist=t["artist"].split(",")[0])
         self.push_line(line)
         s["since_line"] = 0
         s["line_due"] = self._next_due() or 4

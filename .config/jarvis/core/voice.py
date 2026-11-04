@@ -33,7 +33,7 @@ import time
 
 import numpy as np
 
-from . import effects, speech, trace
+from . import effects, persona, speech, trace
 from . import config as C
 from .config import DATA_DIR, VOICES_DIR
 
@@ -100,9 +100,11 @@ def piper_voices():
     return out
 
 
-def chime_audio(kind):
-    """Soft chimes from the HUD's own notes (unlock.wav is E5 / B5 / E6). listen: rising, error: falling."""
-    notes = {"listen": [(659.3, 0.0), (987.8, 0.07)], "error": [(493.9, 0.0), (329.6, 0.11)]}[kind]
+def chime_audio(kind, who="jarvis"):
+    """Soft chimes from the HUD's own notes (unlock.wav is E5 / B5 / E6). listen: rising, error: falling.
+    FRIDAY's listen chime is a fifth higher and quicker (core/persona.CHIME_NOTES), so you hear who woke."""
+    notes = {"listen": persona.CHIME_NOTES.get(who, persona.CHIME_NOTES["jarvis"]),
+             "error": [(493.9, 0.0), (329.6, 0.11)]}[kind]
     dur = 0.34 if kind == "listen" else 0.42
     t = np.arange(int(RATE * dur)) / RATE
     out = np.zeros_like(t)
@@ -111,7 +113,8 @@ def chime_audio(kind):
         env = (t >= start) * (1 - np.exp(-tt / 0.006)) * np.exp(-tt / (0.09 if kind == "listen" else 0.12))
         out += env * (np.sin(2 * np.pi * f * tt) + 0.25 * np.sin(4 * np.pi * f * tt))
     if kind == "listen":    # faint E6 shimmer
-        out += 0.12 * np.exp(-np.clip(t - 0.07, 0, None) / 0.15) * (t >= 0.07) * np.sin(2 * np.pi * 1318.5 * t)
+        at = notes[1][1]
+        out += 0.12 * np.exp(-np.clip(t - at, 0, None) / 0.15) * (t >= at) * np.sin(2 * np.pi * persona.CHIME_SHIMMER.get(who, 1318.5) * t)
     out = 0.22 * out / np.abs(out).max()
     return np.concatenate([np.zeros(int(RATE * 0.12)), out]).astype(np.float32)   # lead-in: a waking BT sink drops the start
 
@@ -378,13 +381,19 @@ class Utterance:
         self.n_added = 0
         self.chars = 0                # spoken characters added so far (for the pop-up's progress)
         self.progress = voice.progress  # (start, end, total, ms) per sentence as it starts playing; None at the end
-        self.params = voice.params()
+        # who speaks is fixed by the first sentence, not when the stream opens: the output opens as soon as
+        # he stops talking, and "switch to Friday" is answered by FRIDAY in the same exchange
+        self.who = None
+        self.params = None
         self.proc = None
         threading.Thread(target=self._produce, daemon=True).start()
         threading.Thread(target=self._play, daemon=True).start()
 
     def add(self, text):
-        parts = speech.sentences(speech.normalize(text))
+        if self.who is None:
+            self.who = persona.current(self.v.cfg)
+            self.params = self.v.params(self.who)
+        parts = speech.sentences(speech.normalize(persona.style(text, self.who)))
         split = False
         if self.n_added == 0:
             parts, split = first_split(parts)
@@ -510,11 +519,17 @@ class Voice:
         except KeyError:
             return default
 
-    def params(self):
-        name = self._setting("voice", "jarvisVoice", "bm_george")
+    def params(self, who=None):
+        """(voice, effect preset, speed, pitch) for who's talking (core/persona.py; default: the current
+        persona). JARVIS: jarvisVoice / jarvisSpeed / jarvisPitch; FRIDAY: her own three. Shared effect."""
+        try:
+            name, speed, pitch = persona.voice_params(self.cfg, who)
+        except KeyError:
+            name, speed, pitch = "bm_george", 1.0, 0.0
+        name = self.overrides.get("voice", name)
         fx = effects.preset(self._setting("preset", "jarvisEffect", "AUTO"))
-        speed = float(self._setting("speed", "jarvisSpeed", 1.0) or 1.0) * float(fx.get("speed", 1.0))
-        pitch = float(self._setting("pitch", "jarvisPitch", 0.0) or 0.0) + float(fx.get("pitch", 0.0))
+        speed = float(self.overrides.get("speed", speed) or 1.0) * float(fx.get("speed", 1.0))
+        pitch = float(self.overrides.get("pitch", pitch) or 0.0) + float(fx.get("pitch", 0.0))
         return name, fx, speed, pitch
 
     # ── rendering ──
@@ -555,14 +570,15 @@ class Voice:
 
     def warm(self):
         """Load the model now and pre-render the stock phrases (in the background)."""
-        params = self.params()
+        who = persona.active(self.cfg)
+        params = self.params(who)
         sig = json.dumps(params, sort_keys=True)
         if sig == self._warmed:
             return
         self._warmed = sig
 
         def run():
-            for t in COMMON:
+            for t in [persona.style(t, who) for t in COMMON]:
                 try:
                     self.render(clean(t), params)
                 except Exception as e:
@@ -608,8 +624,9 @@ class Voice:
         return u.wait()
 
     def chime(self, kind="listen"):
-        """Non-blocking: the soft "I'm listening" (or error) tone."""
+        """Non-blocking: the soft "I'm listening" (or error) tone, in the current persona's notes."""
         target = self.speaker.now()
+        key = (kind, persona.current(self.cfg) if kind == "listen" else "")
 
         def play():
             try:
@@ -617,7 +634,7 @@ class Voice:
                                       "--media-role", "Notification", "-P", f'{{ media.name = "Jarvis chime" {NO_RESTORE} }}']
                                      + (["--target", target] if target else []) + ["-"],
                                      stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                p.communicate((self._chimes.setdefault(kind, chime_audio(kind)) * self.volume(target)).astype(np.float32).tobytes(), timeout=5)
+                p.communicate((self._chimes.setdefault(key, chime_audio(kind, key[1] or "jarvis")) * self.volume(target)).astype(np.float32).tobytes(), timeout=5)
             except (OSError, subprocess.TimeoutExpired):
                 pass
         threading.Thread(target=play, daemon=True).start()

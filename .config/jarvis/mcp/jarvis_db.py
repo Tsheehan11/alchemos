@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY,
     thread INTEGER NOT NULL,
     ts REAL NOT NULL,
-    role TEXT NOT NULL,          -- user | jarvis
+    role TEXT NOT NULL,          -- user | jarvis (the assistant, whichever persona)
     source TEXT NOT NULL,        -- voice | typed | task | cli
     text TEXT NOT NULL,
     tools TEXT NOT NULL DEFAULT '[]',
@@ -238,6 +238,8 @@ def _migrate(db):
     if "announced" not in cols:
         db.execute("ALTER TABLE tasks ADD COLUMN announced REAL")
         db.execute("UPDATE tasks SET announced = coalesce(finished, created)")   # old tasks: nothing owed
+    if "persona" not in {r[1] for r in db.execute("PRAGMA table_info(messages)")}:
+        db.execute("ALTER TABLE messages ADD COLUMN persona TEXT NOT NULL DEFAULT ''")   # '' = JARVIS (core/persona.py)
     _MIGRATED = True
 
 
@@ -456,14 +458,16 @@ def get_thread(tid):
     return dict(r) if r else None
 
 
-def add_message(tid, role, source, text, tools=(), tier=""):
+def add_message(tid, role, source, text, tools=(), tier="", persona=""):
+    """persona: who answered (core/persona.py) on an assistant message; '' = JARVIS."""
     now = time.time()
+    persona = "" if persona in ("", "jarvis", None) else str(persona)
     with _db() as db:
-        mid = db.execute("INSERT INTO messages(thread, ts, role, source, text, tools, tier) VALUES (?,?,?,?,?,?,?)",
-                         (tid, now, role, source, text[:20000], json.dumps(list(tools))[:4000], tier)).lastrowid
+        mid = db.execute("INSERT INTO messages(thread, ts, role, source, text, tools, tier, persona) VALUES (?,?,?,?,?,?,?,?)",
+                         (tid, now, role, source, text[:20000], json.dumps(list(tools))[:4000], tier, persona)).lastrowid
         db.execute("UPDATE threads SET updated = ? WHERE id = ?", (now, tid))
     return {"id": mid, "thread": tid, "ts": now, "role": role, "source": source, "text": text[:20000],
-            "tools": list(tools), "tier": tier}
+            "tools": list(tools), "tier": tier, "persona": persona}
 
 
 def list_threads(query="", include_quick=False, limit=60):

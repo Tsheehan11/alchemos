@@ -118,8 +118,9 @@ PanelWindow {
             spacing: 16
             Text {
                 visible: bar.isMain
-                // ◉ = listening, ◌ = switched on but not up yet, ○ = off; then ON / OFF / ON (LAPTOP, UNTIL DOCK CHANGE)
-                text: (JarvisState.online ? "◉" : JarvisState.toggleOn ? "◌" : "○") + " JARVIS " + JarvisState.stateLabel.toUpperCase()
+                // ◉ = listening, ◌ = switched on but not up yet, ○ = off (FRIDAY: ◈ ◇ ◇); the persona answering
+                // now (JarvisState.who); then ON / OFF / ON (LAPTOP, UNTIL DOCK CHANGE)
+                text: (JarvisState.online ? JarvisState.glyph : JarvisState.toggleOn ? JarvisState.glyphStarting : JarvisState.glyphIdle) + " " + JarvisState.name + " " + JarvisState.stateLabel.toUpperCase()
                 color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : bar.cyan) : Theme.faint
                 font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1
             }

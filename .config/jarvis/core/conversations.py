@@ -110,7 +110,9 @@ class Conversations:
         u = db.add_message(tid, "user", source, text)
         msgs = [u]
         if reply is not None:
-            msgs.append(db.add_message(tid, "jarvis", source, reply or "", tools, tier))
+            from . import persona
+            who = persona.current()
+            msgs.append(db.add_message(tid, "jarvis", source, persona.style(reply or "", who), tools, tier, who))
         thread = db.get_thread(tid)
         if created or promote:
             self.notify({"ev": "thread", "item": thread})

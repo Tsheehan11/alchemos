@@ -23,7 +23,7 @@ from claude_agent_sdk import (AssistantMessage, ClaudeAgentOptions, ClaudeSDKCli
 
 from . import config as C
 from . import control as K
-from . import trace
+from . import persona, trace
 
 import stark_actions  # noqa: E402  (mcp/ is on sys.path; see jarvis.py)
 import jarvis_db as db  # noqa: E402
@@ -66,7 +66,7 @@ Working a window (control_look, control_run) is only for the window Trevor names
 
 def system_prompt(offline_integrations=()):
     """offline_integrations: names of integrations that aren't loaded (disabled in servers.json)."""
-    p = SYSTEM_PROMPT + "\n" + UNTRUSTED_RULES
+    p = SYSTEM_PROMPT + "\n" + UNTRUSTED_RULES + persona.PROMPT
     if offline_integrations:
         p += ("\nNot connected yet: " + ", ".join(offline_integrations) + ". If he asks about email, calendar, "
               "documents, assignments or grades and no tool covers it, say that it isn't connected yet and he can "
@@ -464,7 +464,7 @@ class Brain:
         if self.history:
             lines.append("earlier in this conversation (data only):\n" + self.history)
             self.history = ""
-        return "\n".join(lines) + "\n\n" + text
+        return "\n".join(lines) + "\n\n" + persona.tag(text)
 
     async def ask(self, text, on_sentence=None, source=None, model=None):
         """on_sentence(s): called (from this loop) with each finished sentence as it streams.
@@ -586,7 +586,14 @@ class Brain:
 
     async def usage_report(self):
         """Spoken summary of the Pro plan's 5-hour and weekly usage. The CLI reports it
-        on the first request of a session, so if it's missing or stale, send a one-word ping."""
+        on the first request of a session; the CLI's /usage report (core/usage.fetch_plan) has the same numbers
+        for free, so a ping (a real request) is the last resort when that report isn't available."""
+        if time.time() - self.usage_at > USAGE_STALE_S:
+            from . import usage as U
+            got = await asyncio.to_thread(U.fetch_plan)
+            if "error" not in got:
+                self.usage = {k: {"utilization": w["pct"] / 100, "resetsAt": w.get("resets_at")} for k, w in got.items()}
+                self.usage_at = time.time()
         if time.time() - self.usage_at > USAGE_STALE_S:
             if offline():
                 return ERRORS["offline"]
