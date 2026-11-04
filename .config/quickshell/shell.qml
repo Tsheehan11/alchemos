@@ -239,8 +239,9 @@ ShellRoot {
     //   used by ~/.config/jarvis/jarvis.py (core/hud.py)
     IpcHandler {
         target: "jarvis"
-        function online(): void { JarvisState.beat() }
-        function offline(): void { JarvisState.online = false }
+        function online(): string { return JarvisState.beat() }          // heartbeat; "resync" → Jarvis sends restore
+        function offline(): void { JarvisState.goOffline() }
+        function restore(state: string): void { JarvisState.restore(state) }   // JSON from core/hud.py after a qs restart
         function listening(): void { JarvisState.startListening() }
         function transcript(text: string): void { JarvisState.setTranscript(text) }
         function thinking(): void { JarvisState.thinking() }

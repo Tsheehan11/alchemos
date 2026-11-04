@@ -156,6 +156,9 @@ Singleton {
     Timer { id: logoutFallback; interval: Math.max(3000, Math.round(2500 / Govee.animSpeed)); onTriggered: root.exitHyprland() }
     function exitHyprland() {
         logoutFallback.stop();
+        // Jarvis is its own service: stop it now (music back up, nothing left behind). It would also
+        // stop itself once Hyprland is gone (jarvis/core/session.py), this is just sooner.
+        Quickshell.execDetached(["systemctl", "--user", "stop", "--no-block", "stark-jarvis.service"]);
         Hyprland.dispatch(Hypr.exit());
     }
 }

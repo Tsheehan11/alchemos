@@ -37,9 +37,26 @@ Singleton {
     property int replySerial: 0          // bumps when a new reply arrives (the pop-up resets its scrolling)
     readonly property string message: reply !== "" ? reply : transcript   // old one-line API
 
+    // Jarvis runs as its own service (stark-jarvis.service), so it outlives a qs restart / hot reload.
+    // This instance hasn't had Jarvis's state yet: the next heartbeat answers "resync" and Jarvis
+    // sends restore() with the toast state (core/hud.py). Reset whenever Jarvis goes offline.
+    property bool synced: false
     function beat() {
         root.lastBeat = Date.now();
         root.online = true;
+        return root.synced ? "" : "resync";
+    }
+    function goOffline() { root.online = false; root.paused = false; root.synced = false; }
+    // {phase, transcript, reply, tools, paused}: only a live phase comes back on screen
+    function restore(json) {
+        let s = {};
+        try { s = JSON.parse(json); } catch (e) { return; }
+        root.synced = true;
+        root.paused = s.paused === true;
+        const live = ["listening", "thinking", "followup", "confirm"];
+        if (live.indexOf(s.phase) < 0) return;
+        root.transcript = s.transcript || ""; root.reply = s.reply || ""; root.tools = s.tools || [];
+        show(s.phase, s.phase === "thinking" ? 35000 : 15000);
     }
 
     function show(ph, holdMs) {
@@ -117,7 +134,7 @@ Singleton {
 
     Timer {
         interval: 5000; running: true; repeat: true
-        onTriggered: if (Date.now() - root.lastBeat > 15000) root.online = false
+        onTriggered: if (root.online && Date.now() - root.lastBeat > 15000) root.goOffline()
     }
 
     // ── Auto on/off ──
@@ -168,26 +185,68 @@ Singleton {
             }
         }
     }
-    readonly property bool running: proc.running
+    // ── The service ──
+    // stark-jarvis.service (~/.config/systemd/user) through ~/.config/jarvis/stark-jarvis:
+    //   start docked|laptop (no-op if already running in that mode, restarts it in the other one), stop, status.
+    // systemd restarts it after a crash (Restart=on-failure); while it should be on but isn't online,
+    // the watchdog below asks for it again every 15 s. Logs: journalctl --user -u stark-jarvis
+    property string svcState: "unknown"     // systemd ActiveState: active | activating | inactive | failed…
+    property string svcMode: "docked"
+    readonly property bool running: root.online || root.svcState === "active" || root.svcState === "activating"
+                                    || root.svcState === "reloading"
 
     readonly property string home: Quickshell.env("HOME")
-    Process {
-        id: proc
-        // pdeathsig: if qs dies (pkill qs), Jarvis goes with it instead of lingering as a duplicate.
-        // no-new-privs: nothing Jarvis starts can gain privileges (no sudo / setuid helpers).
-        command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs",
-                  root.home + "/.config/jarvis/.venv/bin/python", root.home + "/.config/jarvis/jarvis.py"]
-        environment: ({ STARK_JARVIS_LAPTOP: root.laptopMode ? "1" : "0" })
-        // If it dies on its own (e.g. the mic stream ends) while it should be on, start it again.
-        onExited: { root.online = false; root.paused = false; if (root.enabled) restartTimer.restart(); }
+    readonly property string ctl: root.home + "/.config/jarvis/stark-jarvis"
+    property var pending: null             // the next command, while one is running
+    function svc(args) {
+        if (ctlProc.running) { root.pending = args; return; }
+        ctlProc.command = [root.ctl].concat(args);
+        ctlProc.running = true;
     }
-    Timer { id: restartTimer; interval: 5000; onTriggered: root.sync() }
+    Process {
+        id: ctlProc
+        stdout: SplitParser {
+            onRead: line => {
+                const f = line.trim().split(/\s+/);         // "<state> <mode> <pid>"
+                if (f.length >= 2) { root.svcState = f[0]; root.svcMode = f[1]; }
+            }
+        }
+        onExited: {
+            if (root.pending) { const next = root.pending; root.pending = null; root.svc(next); return; }
+            if (!root.ready) root.adopt();
+        }
+    }
 
-    function sync() { proc.running = root.enabled; }
-    // docked ↔ laptop while running (dock with Jarvis on): restart it in the other mode (onExited restarts it)
-    onLaptopModeChanged: if (proc.running) proc.running = false
+    // ── Start-up: adopt what's already running ──
+    // A qs restart mustn't stop (or bounce) a Jarvis that's running fine. Wait until the screens and
+    // settings are known, read the service's state, and if it runs in laptop mode while undocked,
+    // that was a laptop switch-on (laptopOn isn't saved): carry it over. Only then apply the rules.
+    property bool ready: false
+    readonly property bool settled: Theme.loaded && Roles.ready && SysStats.polled
+    onSettledChanged: if (root.settled && !root.ready) adoptTimer.restart()
+    Component.onCompleted: if (root.settled) adoptTimer.restart()
+    Timer { id: adoptTimer; interval: 1500; onTriggered: root.svc(["status"]) }
+    function adopt() {
+        if (root.svcState === "active" && root.svcMode === "laptop" && !root.docked && root.powerReason() === "")
+            root.laptopOn = true;
+        root.ready = true;
+        root.sync();
+    }
+
+    function sync() {
+        if (!root.ready) return;
+        if (root.enabled) root.svc(["start", root.laptopMode ? "laptop" : "docked"]);
+        else if (root.running || root.svcState !== "inactive") root.svc(["stop"]);
+    }
+    onLaptopModeChanged: syncTimer.restart()    // docked ↔ laptop while on: stark-jarvis restarts it in the other mode
     onEnabledChanged: syncTimer.restart()
-    Component.onCompleted: syncTimer.restart()
     // Short delay so a dock that briefly drops a monitor doesn't bounce Jarvis
     Timer { id: syncTimer; interval: 1500; onTriggered: root.sync() }
+    // should be on but no heartbeat: (re)start it (start is a no-op while it's coming up)
+    Timer {
+        interval: 15000; repeat: true
+        running: root.ready && root.enabled && !root.online
+        onTriggered: root.sync()
+    }
+    onOnlineChanged: if (!root.online && root.ready) root.svc(["status"])
 }

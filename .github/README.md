@@ -113,8 +113,16 @@ uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp p
 Put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx releases, `model-files-v1.0`) in
 `~/.local/share/jarvis/kokoro/`. Claude runs on your `claude` CLI login (Pro / Max), no API key.
 
+Jarvis runs as a systemd user service, `~/.config/systemd/user/stark-jarvis.service` (tracked; no
+`enable` needed, the HUD starts it through `~/.config/jarvis/stark-jarvis`). After cloning:
+
+```sh
+ln -s ~/.config/jarvis/stark-jarvis ~/.local/bin/stark-jarvis
+systemctl --user daemon-reload
+```
+
 Log out and back in: Hyprland starts `qs`, `stark-govee daemon`, `stark-game daemon` and the audio
-watcher; the HUD starts Jarvis when docked.
+watcher; the HUD starts Jarvis (the service) when docked.
 
 ---
 
@@ -427,7 +435,7 @@ all use the same entry points (`quickshell/shell.qml`):
 | `profiles` | `status`, `recheck` | debugging |
 | `stark` | `lock`, `locked`, `unlocked`, `power`, `menu` | `stark-lock.sh`, lid, power key |
 | `game` | `refresh`, `toggle` | `stark-game` |
-| `jarvis` | `listening`, `transcript`, `thinking`, `tool`, `reply`, `confirm`, `toast`, `error`… | `jarvis/core/hud.py` → the Jarvis toast |
+| `jarvis` | `online` (heartbeat; a restarted HUD answers `resync`), `restore`, `listening`, `transcript`, `thinking`, `tool`, `reply`, `confirm`, `toast`, `error`… | `jarvis/core/hud.py` → the Jarvis toast |
 | `osd` | `brightness` | brightness keys |
 
 ```sh
@@ -603,7 +611,22 @@ to his voice on the fast path, 2–3 s through Claude.
 - **Rules enforced by Jarvis, not the model:** at most 8 tool calls per request, a 30 s timeout,
   the browser only when you ask for it, and a spoken yes before power actions, closing windows,
   deleting anything, the VPN kill switch, or sending a message. Tool output is data, never
-  instructions. No network listeners. Started by the HUD under `setpriv --no-new-privs`.
+  instructions. No network listeners. Runs with `NoNewPrivileges` (no sudo / setuid helpers).
+- **Its own service:** `stark-jarvis.service` (systemd user unit), so restarting or hot-reloading
+  Quickshell never stops it: a DJ set, a timer or a conversation carries on. The HUD
+  (`quickshell/JarvisState.qml`) only starts and stops it, through `stark-jarvis start docked|laptop`
+  / `stop`, keeping the rules: docked it follows the Jarvis toggle (`jarvisDocked`, and battery saver
+  if `saverStopJarvis`); undocked it's off until switched on for now, any dock / undock resets that;
+  laptop mode stops under 20 % on battery; combat mode only pauses the wake word. A restarted HUD
+  adopts whatever is running (a laptop-mode Jarvis stays on) and picks its state back up: the next
+  heartbeat (`qs ipc call jarvis online` → `resync`) makes Jarvis send `restore` (listening / thinking
+  / confirm, combat pause), the app socket resends threads and the task in hand, and the widgets reread
+  `status.json` (background tasks) and `dj.json` (DJ set). systemd restarts it after a crash
+  (`Restart=on-failure`). It stops when you switch it off, at log-out (the power menu stops it, it's
+  `PartOf=graphical-session.target`, and it exits by itself once its Hyprland instance is gone), and
+  the stop takes its whole cgroup (claude CLI, MCP servers, `pw-record`). One voice loop at a time
+  (a lock in `$XDG_RUNTIME_DIR/jarvis/voice.lock`): a hand-run `jarvis` says it's already running.
+  `stark-jarvis status|log|restart`, `journalctl --user -u stark-jarvis`, `stark-rescue status`.
 - **Hearing:** `jarvisMic` picks the PipeWire source (AUTO follows headsets; a plug / unplug or a
   Settings change restarts capture in place, without losing the pre-wake buffer); pre-roll keeps "hey Jarvis dim the lights"
   in one breath intact; Silero VAD ends the command; music ducks while listening. Barge in with
@@ -634,6 +657,8 @@ window commands don't work (they speak Lua); it's for fixing `hyprland.lua`, not
 **Locked out?** From a TTY (Ctrl+Alt+F3) run `stark-rescue`. It clears faillock, thaws `user.slice`
 if suspend left it frozen, turns the screens on, and unlocks hyprlock (or restarts a hung one under
 `allow_session_lock_restore`). Back with Ctrl+Alt+F2.
+`stark-rescue status` changes nothing: the Hyprland fix, the hotplug settle gate, and Jarvis's service
+(running / failed, mode, crash restarts, any stray voice loop outside it).
 
 **Fingerprint and faillock.** hyprlock takes the password or the fingerprint, whichever comes
 first. The stock PAM stack recorded every fingerprint unlock as a failed password (the aborted
@@ -661,7 +686,7 @@ Each monitor gets its own lock picture of the shut doors, so unlocking cuts seam
 doors opening.
 
 **Logs:** `journalctl -b | grep -E 'hyprlock|faillock'`, `~/.local/state/stark/hyprlock.log`,
-`journalctl -u fprintd -b`, `~/.local/share/jarvis/jarvis.log`, `stark-govee status`,
+`journalctl -u fprintd -b`, `journalctl --user -u stark-jarvis` (or `~/.local/share/jarvis/jarvis.log`), `stark-govee status`,
 `stark-vpn status`.
 
 ---

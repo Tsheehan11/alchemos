@@ -16,6 +16,7 @@ MCP server; disconnect wipes the keyring entries and disables it again.
 import json
 import os
 import signal
+import subprocess
 import sys
 import urllib.parse
 import urllib.request
@@ -103,7 +104,15 @@ def _set_enabled(key, on):
 
 
 def _restart_voice():
-    """The voice loop reads servers.json at start; the HUD restarts it when it exits."""
+    """The voice loop reads servers.json at start: restart the service (stark-jarvis.service) if it runs.
+    A voice loop run by hand is just stopped."""
+    try:
+        if subprocess.run(["systemctl", "--user", "is-active", "-q", "stark-jarvis.service"], timeout=5).returncode == 0:
+            subprocess.run(["systemctl", "--user", "restart", "--no-block", "stark-jarvis.service"], timeout=5)
+            print("Restarted Jarvis so it loads the new integration.")
+            return
+    except (OSError, subprocess.TimeoutExpired):
+        pass
     me = os.getpid()
     for d in Path("/proc").iterdir():
         if not d.name.isdigit() or int(d.name) == me:
@@ -115,7 +124,7 @@ def _restart_voice():
         args = [a for a in argv if a]
         if len(args) >= 2 and args[-1].endswith(b"/jarvis.py"):   # voice mode = jarvis.py with no arguments
             os.kill(int(d.name), signal.SIGTERM)
-            print("Restarted Jarvis so it loads the new integration.")
+            print("Stopped Jarvis; it loads the new integration when it starts again.")
 
 
 def _ask(prompt, hidden=False):

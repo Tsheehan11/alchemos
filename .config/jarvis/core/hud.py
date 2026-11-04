@@ -1,4 +1,5 @@
 """Talk to the Quickshell HUD (JarvisState via `qs ipc call jarvis …`). Silent if it isn't running."""
+import json
 import queue
 import subprocess
 import threading
@@ -9,14 +10,56 @@ _q = queue.Queue()
 
 
 def call(fn, *args):
+    """One IPC call; returns what the HUD answered ("" if it isn't running)."""
     if not ENABLED:
-        return
+        return ""
     try:
         # the whole text, every time: the pop-up scrolls long answers (the cap only guards against a runaway)
-        subprocess.run(["qs", "ipc", "call", "jarvis", fn, *[str(a)[:MAX_ARG] for a in args]],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
+        r = subprocess.run(["qs", "ipc", "call", "jarvis", fn, *[str(a)[:MAX_ARG] for a in args]],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=3, text=True)
+        return r.stdout.strip()
     except (OSError, subprocess.TimeoutExpired):
-        pass
+        return ""
+
+
+# ── what the toast shows right now, so a restarted HUD can pick it up ──
+# Jarvis runs as its own service (stark-jarvis.service); Quickshell can restart under it. A fresh
+# JarvisState answers the heartbeat with "resync" and gets this snapshot back (JarvisState.restore).
+# Only the live phases come back on screen; a finished reply isn't shown again.
+_lock = threading.Lock()
+_snap = {"phase": "idle", "transcript": "", "reply": "", "tools": [], "paused": False}
+
+
+def _track(fn, args):
+    with _lock:
+        s = _snap
+        if fn == "listening":
+            s.update(phase="listening", transcript="", reply="", tools=[])
+        elif fn == "followup":
+            s["phase"] = "followup"
+        elif fn == "transcript":
+            s["transcript"] = str(args[0])
+            if s["phase"] == "idle":
+                s["phase"] = "thinking"
+        elif fn == "thinking":
+            s["phase"] = "thinking"
+        elif fn in ("tool", "note"):
+            s["tools"] = (s["tools"] + [str(args[0])])[-5:]
+            if fn == "tool":
+                s["phase"] = "thinking"
+        elif fn == "reply":
+            s.update(phase="reply", reply=str(args[0]))
+        elif fn == "confirm":
+            s.update(phase="confirm", reply=str(args[0]))
+        elif fn in ("idle", "error"):
+            s["phase"] = "idle"
+        elif fn == "paused":
+            s["paused"] = args[0] == "true"
+
+
+def snapshot():
+    with _lock:
+        return json.loads(json.dumps(_snap))
 
 
 def _worker():
@@ -32,10 +75,16 @@ threading.Thread(target=_worker, daemon=True).start()
 
 def send(fn, *args):
     if ENABLED:
+        _track(fn, args)
         _q.put((fn, args))
 
 
-def online():      call("online")
+def online():
+    """Heartbeat. A HUD that (re)started since the last beat answers "resync": queue the state."""
+    if call("online") == "resync":
+        _q.put(("restore", (json.dumps(snapshot()),)))
+
+
 def offline():     call("offline")
 def listening():   send("listening")
 def followup():    send("followup")

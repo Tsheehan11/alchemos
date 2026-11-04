@@ -631,7 +631,7 @@ class Mic:
                     self._deaths = [t for t in self._deaths if now - t < 30] + [now]
                     if len(self._deaths) > 3:
                         log("JARVIS: microphone stream keeps ending")
-                        os._exit(1)                   # the HUD restarts Jarvis
+                        os._exit(1)                   # systemd restarts Jarvis (Restart=on-failure)
                     log("JARVIS: microphone stream ended, picking again")
                     threading.Thread(target=self._respawn, args=(proc,), daemon=True).start()
                 return
@@ -1201,10 +1201,16 @@ class VoiceLoop:
 
     def run(self):
         open_log()
+        from core import session
+        ok, holder = session.take_lock()
+        if not ok:
+            # the service (stark-jarvis.service) already runs one; see `stark-jarvis status`
+            log(f"JARVIS: another voice loop is running (pid {holder or '?'}); stop it with: stark-jarvis stop")
+            sys.exit(3)
         self.load()
         self.voice.ducker.restore_leftover()      # a previous run stopped mid-reply: music back up
 
-        def stop(signum, frame):                  # HUD reload / dock change: don't leave the music down
+        def stop(signum=None, frame=None):        # service stop (toggle off, dock change, log-out): music back up
             self.voice.ducker.restore()
             hud.offline()
             os._exit(0)
@@ -1213,8 +1219,16 @@ class VoiceLoop:
         db.prune_log()
         atexit.register(hud.offline)
 
+        sock = session.hyprland_socket()
+
         def heartbeat():
+            # also the session guard: once our Hyprland is gone (log-out), stop cleanly (exit 0, so
+            # systemd doesn't restart it). The HUD answers the first beat after a qs restart with
+            # "resync" and gets the toast state back (core/hud.py).
             while True:
+                if session.session_gone(sock):
+                    log("JARVIS: Hyprland session ended, stopping")
+                    stop()
                 hud.online()
                 time.sleep(5)
         threading.Thread(target=heartbeat, daemon=True).start()
