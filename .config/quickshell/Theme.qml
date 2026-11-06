@@ -120,10 +120,16 @@ Singleton {
     // The built-ins come from the skin (Skin.qml); each has a glyph shown on its tile
     readonly property var presets: Skin.presets
     // Sets every colour field, so nothing from the previous preset survives.
+    // presetApplied: Ignite.qml flares the new colour over the HUD ("ignite"); not for a skin switch,
+    // which plays its own transition.
+    signal presetApplied(var preset)
+    property bool switchingSkin: false
     function applyPreset(p) {
+        const changed = adapter.preset !== p.name || adapter.primary !== filled(p).primary;
         adapter.preset = p.name;
         p = filled(p);
         for (const k of presetFields) adapter[k] = p[k];
+        if (changed && !switchingSkin && loaded) presetApplied(p);
     }
 
     // ── Custom presets ──────────────────────────
@@ -173,7 +179,9 @@ Singleton {
             sp.legacy = old;
             const metal = Skin.alchemos.presets.find(x => x.name === al[old.name]);
             sp.alchemos = { name: metal.name, primary: metal.primary, secondary: metal.secondary, background: metal.background };
+            switchingSkin = true;             // no flare for a migration
             if (Skin.current === "alchemos") applyPreset(metal);
+            switchingSkin = false;
         } else {
             if (!sp.legacy || al[sp.legacy.name] === undefined) sp.legacy = old;
             sp.alchemos = old;
@@ -186,7 +194,9 @@ Singleton {
         sp[from] = lookRecord();
         adapter.skinPresets = sp;
         adapter.skin = to;                    // Skin.presets follows this at once
+        switchingSkin = true;
         applyRecord(sp[to], presets[0]);
+        switchingSkin = false;
     }
 
 

@@ -48,4 +48,8 @@ Singleton {
         target: Skin
         function onSwitched(to) { Qt.callLater(root.skin); }    // after the new skin's colours are in
     }
+    Connections {
+        target: Theme
+        function onPresetApplied(p) { root.preset(p); }
+    }
 }
