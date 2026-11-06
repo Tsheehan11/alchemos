@@ -120,6 +120,8 @@ WPOS = (r"(?:the )?(?:(?:top|bottom|upper|lower)(?: (?:left|right|center|centre|
 WTYPE = (r"(clock|timer|countdown|stopwatch|sticky note|note|now playing|music|media|player|system stats|stats|"
          r"calendar|agenda|schedule|due dates|deadlines|due|jarvis status|jarvis|claude usage|token usage|usage|weather|"
          r"network|vpn|wi ?fi|dj|widget|everything)s?(?: widgets?| card| player)?")
+BARE_MUSIC = re.compile(r"(?:start|open|give me|bring up|pull up|set up|kill|cancel|close|clear|stop)(?: me)?(?: up)? "
+                        r"(?:the |my |a |that |this )?(?:music|song|spotify|tunes)")
 WSIZE = r"(?:(big|large|huge|giant|massive|full|small|tiny|little|full size|full screen) )?"
 WSIZES = {"big": "large", "large": "large", "huge": "huge", "giant": "huge", "massive": "huge", "full": "huge",
           "full size": "huge", "full screen": "huge", "small": "small", "tiny": "small", "little": "small"}
@@ -169,7 +171,7 @@ def _clause(t, last_query):
     # ── media ──
     if M(r"(?:pause|stop)(?: the)?(?: music| song| playback| spotify| track)?"):
         return [step("media", "Paused.", action="pause")] if t != "stop" else None
-    if M(r"(?:play|resume|unpause|continue)(?: the)?(?: music| song| spotify| playback)?"):
+    if M(r"(?:play|resume|unpause|continue)(?: the)?(?: music| song| spotify| playback)?|start (?:the |my )?(?:music|tunes)(?: again| back up)?"):
         return [step("media", "Resuming.", action="play")]
     if M(r"(?:next|skip)(?: this)?(?: song| track)?|(?:play )?(?:the )?next (?:song|track)"):
         return [step("media", "Next track.", action="next")]
@@ -391,6 +393,10 @@ def _widget(t):
     rest, scr, pos = _where(t)
     where = dict(screen=scr, position=pos)
     m = None
+    # "start the music" / "kill the music" is playback, not the media widget: with these verbs a bare
+    # music word needs "widget" / "card" / "player" or a screen / position to mean the widget
+    if not scr and not pos and BARE_MUSIC.fullmatch(rest):
+        return None
 
     def W(p):
         nonlocal m

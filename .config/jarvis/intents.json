@@ -220,8 +220,11 @@
         "keep playing",
         "continue the song",
         "hit play",
-        "play my music"
-      ]
+        "play my music",
+        "keep the music going",
+        "bring the music back"
+      ],
+      "must_not": "\\b(?:rest|break|enough|pause|hold|halt|stop|silence|shush|quiet|off)\\b"
     },
     "media.pause": {
       "tool": "media",
@@ -242,8 +245,15 @@
         "stop playing",
         "freeze the music",
         "pause spotify",
-        "hit pause"
-      ]
+        "hit pause",
+        "give the music a rest",
+        "give it a rest",
+        "give the tunes a rest",
+        "take a break from the music",
+        "rest the music",
+        "that's enough music"
+      ],
+      "must_not": "\\b(?:un ?pause|resume|keep|going|back|again|continue|start)\\b"
     },
     "media.next": {
       "tool": "media",
@@ -310,7 +320,7 @@
         "a bit louder please",
         "pump up the volume"
       ],
-      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))"
+      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft)|voice|(?:can't|cannot|can not) hear you)"
     },
     "media.volume_down": {
       "tool": "media",
@@ -333,7 +343,7 @@
         "bring the volume down",
         "it's too loud"
       ],
-      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))"
+      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft)|voice|(?:can't|cannot|can not) hear you)"
     },
     "media.set_volume": {
       "tool": "media",
@@ -359,7 +369,7 @@
         "turn the volume to eighty",
         "audio at 35 percent"
       ],
-      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))"
+      "must_not": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft)|voice|(?:can't|cannot|can not) hear you)"
     },
     "media.mute": {
       "tool": "media",
@@ -389,7 +399,7 @@
       "args": {
         "action": "down"
       },
-      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))",
+      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft)|voice|(?:can't|cannot|can not) hear you)",
       "say": "@voice_volume",
       "examples": [
         "speak quieter",
@@ -405,7 +415,10 @@
         "turn down your voice",
         "quieter voice please",
         "decrease your volume",
-        "say it more quietly"
+        "say it more quietly",
+        "quieter voice",
+        "use a softer voice",
+        "voice down"
       ]
     },
     "voice.volume_up": {
@@ -413,7 +426,7 @@
       "args": {
         "action": "up"
       },
-      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))",
+      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft)|voice|(?:can't|cannot|can not) hear you)",
       "say": "@voice_volume",
       "examples": [
         "speak louder",
@@ -429,7 +442,10 @@
         "increase your volume",
         "louder voice please",
         "say that louder",
-        "you're too quiet speak up"
+        "you're too quiet speak up",
+        "louder voice",
+        "use a louder voice",
+        "voice up"
       ]
     },
     "voice.set_volume": {
@@ -440,7 +456,7 @@
       "slots": {
         "percent": "percent"
       },
-      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft))",
+      "must": "\\b(?:speak|talk|(?:just )?for you(?:rself)?\\b|your own|say (?:it|that)|your (?:voice|volume)|voice volume|jarvis(?:'s)? volume|you(?:'re| are) (?:too |a bit |a little )?(?:loud|quiet|soft)|voice|(?:can't|cannot|can not) hear you)",
       "say": "@voice_volume",
       "examples": [
         "set your volume to 40 percent",

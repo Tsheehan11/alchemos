@@ -73,6 +73,24 @@ check("'your voice' alone isn't volume", path("make your voice deeper").startswi
 for t in ["any new emails", "what's on my calendar today", "when is cs 137 a6 due", "did my midterm get graded",
           "find the lab report in my drive", "check my inbox please"]:
     check(f"phase 2 never local: {t}", path(t), "claude:claude-only")
+# regressions (2026-11-06), from the built-in examples alone (this store is empty): "rest" isn't play,
+# a "voice" request is never the music volume, "keep the music going" isn't pause
+for text, want in [("give the music a rest", "media.pause"), ("give it a rest", "media.pause"), ("let the music rest", "media.pause"),
+                   ("rest the music", "media.pause"), ("keep the music going", "media.play"),
+                   ("louder voice please", "voice.volume_up"), ("a louder voice", "voice.volume_up"), ("voice louder", "voice.volume_up"),
+                   ("speak up", "voice.volume_up"), ("talk louder", "voice.volume_up"), ("quieter voice please", "voice.volume_down"),
+                   ("softer voice", "voice.volume_down"), ("louder music", "media.volume_up")]:
+    check(f"regression: {text}", local(text)[0], want)
+for text in ["use a quieter voice", "louder voice please", "voice up", "softer voice"]:
+    d = r.decide(text, 0.70)
+    check(f"voice never moves the music: {text}", d.path == "local" and d.intent.startswith("media."), False)
+from core import fastpath as F  # noqa: E402
+fp = lambda t: [(s["tool"], s["args"].get("action") or s["args"].get("type")) for s in (F.match(t) or [])]  # noqa: E731
+check("fast: start the music = play", fp("start the music"), [("media", "play")])
+check("fast: kill the music isn't the widget", fp("kill the music"), [])
+check("fast: the music widget still works", fp("start the music widget"), [("widget_add", "media")])
+check("fast: kill the music widget still works", fp("kill the music widget")[0][0], "widget_remove")
+check("fast: music on a screen still the widget", fp("start the music on monitor 2"), [("widget_add", "media")])
 intents = R.load_intents()["intents"]
 for k in ("claude.email", "claude.calendar", "claude.docs", "claude.assignments", "claude.grades"):
     check(f"{k} is claude-only", intents[k]["kind"], "claude-only")

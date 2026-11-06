@@ -213,7 +213,7 @@ from core.brain import Reply  # noqa: E402
 JV.hud.ENABLED = False
 K.STOP_FLAG = TMP / "control-stop"
 ran = []
-A.TOOLS = {k: (lambda k=k: (lambda **a: ran.append((k, a)) or {"ok": True, "say": "ok"}))() for k in A.TOOLS}
+A.TOOLS = {k: (lambda k=k: (lambda **a: ran.append((k, a)) or {"ok": True, "say": "ok", "percent": 50, "was": 40}))() for k in A.TOOLS}
 
 
 class FakeBrain:
@@ -253,16 +253,23 @@ def outcomes(intent=None):
     return [(o["intent"], o["outcome"], o["why"]) for o in db.router_outcomes(1, intent)]
 
 
-# "give the music a rest" really did play (media.play 0.73) → "no, I meant pause it" → negative + taught
-check("setup: a wrong local action", r.decide("give the music a rest", 0.70).intent, "media.play")
-say("give the music a rest")
+# a bad learned example ("chill the tunes out" → play) makes a wrong local action; "no, I meant pause it"
+# → negative (the learned example is demoted), does the pause, and teaches the words as pause
+with L.edit() as st:
+    bad_ex = L.add_record(st, "media.play", "chill the tunes out", "claude", confirms=1)
+    bad_ex.update(state="active", promoted=time.time())
+r._reload_if_changed()
+check("setup: a wrong local action", (r.decide("chill the tunes out", 0.70).intent, r.decide("chill the tunes out", 0.70).example),
+      ("media.play", bad_ex["id"]))
+say("chill the tunes out")
 check("it acted locally", j._last_tier, "local:media.play")
 say("no, I meant pause the music")
 check("'no, I meant' = negative", outcomes("media.play")[-1][1:], ("neg", "correction"))
+check("… the bad learned example is demoted", state("chill the tunes out", "media.play"), "candidate")
 check("… and did what he meant", ran[-1], ("media", {"action": "pause"}))
-check("… and taught the right intent", state("give the music a rest", "media.pause") in ("active", "rejected"), True)
-check("the wrong reading never acts again", r.decide("give the music a rest", 0.70).intent != "media.play"
-      or r.decide("give the music a rest", 0.70).path != "local", True)
+check("… and taught the right intent", state("chill the tunes out", "media.pause") in ("active", "rejected"), True)
+d = r.decide("chill the tunes out", 0.70)
+check("the wrong reading never acts again", d.path == "local" and d.intent == "media.play", False)
 
 # undo / that's wrong
 say("bit louder")
@@ -279,10 +286,14 @@ say("go to the next one")
 check("inverse = negative", outcomes("media.previous")[-1][1:], ("neg", "inverse"))
 
 # reworded repeat that came to another intent (via Claude) → negative + taught
-FakeBrain.calls["a bit louder with your voice"] = ("jarvis_volume", {"action": "up"})
-say("louder voice please")                      # really goes to the music volume (0.88)
+with L.edit() as st:                            # a bad learned example: these words meant his voice
+    bad_ex = L.add_record(st, "media.volume_up", "boost the sound for me", "claude", confirms=1)
+    bad_ex.update(state="active", promoted=time.time())
+r._reload_if_changed()
+FakeBrain.calls["boost the sound of your voice for me"] = ("jarvis_volume", {"action": "up"})
+say("boost the sound for me")
 check("reworded: acted", j._last_tier, "local:media.volume_up")
-say("a bit louder with your voice")
+say("boost the sound of your voice for me")
 check("reworded (different intent, similar words) = negative", outcomes("media.volume_up")[-1][1:], ("neg", "reworded"))
 
 # unrelated next request → the action stood (weak positive)

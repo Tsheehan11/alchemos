@@ -87,6 +87,25 @@ CASES = [
     ("Jarvis, could you talk a little quieter?", ("voice.volume_down", {})),
     ("Raise your voice a bit.", ("voice.volume_up", {})),
     ("Set your voice volume to 35%.", ("voice.set_volume", {"percent": 35})),
+    # ── regressions (2026-11-06): these acted wrongly. "rest" read as play; "louder voice" turned up the music
+    # (the voice anchor needed "your voice"); "keep the music going" paused ──
+    ("Give the music a rest.", ("media.pause", {"action": "pause"})),
+    ("Louder voice please.", ("voice.volume_up", {"action": "up"})),
+    ("Let the music rest.", ("media.pause", {"action": "pause"})),
+    ("Enough music for now.", ("media.pause", {"action": "pause"})),
+    ("Rest the music.", ("media.pause", {"action": "pause"})),
+    ("Keep the music going.", ("media.play", {"action": "play"})),
+    ("A louder voice.", ("voice.volume_up", {"action": "up"})),
+    ("Voice louder.", ("voice.volume_up", {"action": "up"})),
+    ("Speak up.", ("voice.volume_up", {"action": "up"})),
+    ("Talk louder.", ("voice.volume_up", {"action": "up"})),
+    ("Softer voice.", ("voice.volume_down", {"action": "down"})),
+    ("Lower voice please.", ("voice.volume_down", {"action": "down"})),
+    ("I can't hear you.", ("voice.volume_up", {"action": "up"})),
+    ("Louder music.", ("media.volume_up", {"action": "volume_up"})),
+    ("Quieter music.", ("media.volume_down", {"action": "volume_down"})),
+    ("Start the music.", ("media.play", {"action": "play"})),
+    ("Use a quieter voice.", CLAUDE),                       # voice down vs up too close: never the music
     # ── ambiguous / incomplete: must go to Claude ──
     ("Open it.", CLAUDE),                                   # no app named
     ("Set the volume.", CLAUDE),                            # no level
