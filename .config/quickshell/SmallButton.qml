@@ -18,7 +18,7 @@ Rectangle {
         anchors.centerIn: parent
         text: b.text
         color: b.active ? Theme.text : Theme.textSoft
-        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11; font.letterSpacing: 2
+        font.family: Style.mono; font.pixelSize: 11; font.letterSpacing: 2
     }
     MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: b.clicked() }
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # STARK OS cursor theme.
-#   build.sh <rrggbb> [animated|static] [24|32|48] [fill opacity %, 20-90] [reactor|sigil]
-# The last picks the busy cursors' art (the HUD's skin, Skin.cursor): reactor = src/<name>.svg,
-# sigil = src/<name>-sigil.svg where one exists (a triangle and a square turning round a sun).
+#   build.sh <rrggbb> [animated|static] [24|32|48] [fill opacity %, 20-90] [template dir]
+# The last is the HUD skin's busy-cursor folder (Skin.cursorDir, e.g. quickshell/skins/alchemos/cursor):
+# any <name>.svg there replaces src/<name>.svg (the default art); "" or absent = the default art.
 # Renders src/*.svg in that accent, builds an XCursor theme (rsvg-convert + xcursorgen)
 # and a hyprcursor theme (hyprcursor-util, SVG) into ~/.local/share/icons/STARK-OS,
 # points GTK / Qt / KDE / XWayland at it, and applies it live with `hyprctl setcursor`.
@@ -22,10 +22,11 @@ hex=${1:-}; hex=${hex#\#}; hex=${hex,,}
 mode=${2:-animated}
 size=${3:-24}
 alpha=${4:-45}
-style=${5:-reactor}
+skin=${5:-}
+[[ -n $skin && ! -d $skin ]] && skin=""
 if [[ ! $hex =~ ^[0-9a-f]{6}$ || ! $mode =~ ^(animated|static)$ || ! $size =~ ^(24|32|48)$
-      || ! $alpha =~ ^[0-9]+$ || ! $style =~ ^(reactor|sigil)$ ]] || ((alpha < 20 || alpha > 90)); then
-    echo "usage: build.sh <rrggbb> [animated|static] [24|32|48] [20-90] [reactor|sigil]" >&2
+      || ! $alpha =~ ^[0-9]+$ ]] || ((alpha < 20 || alpha > 90)); then
+    echo "usage: build.sh <rrggbb> [animated|static] [24|32|48] [20-90] [template dir]" >&2
     exit 2
 fi
 
@@ -39,6 +40,8 @@ flock 9
 
 # Any edit to the templates or this script invalidates the cache
 ver=$(cat "$src"/* "$0" "$here/xcursorgen.py" | md5sum | cut -c1-8)
+style=default
+[[ -n $skin ]] && style=$(basename "$(dirname "$skin")")-$(cat "$skin"/*.svg 2>/dev/null | md5sum | cut -c1-6)
 key=$hex-$mode-a$alpha-$style-$ver
 out=$cache/$key
 fill=$(awk -v a="$alpha" 'BEGIN { printf "%.2f", a / 100 }')
@@ -54,10 +57,11 @@ build_one() {
     local name=$1 tpl=$2 hx=$3 hy=$4 rot=$5; shift 5
     local w=$work/$name hc=$work/hc/hyprcursors/$name
     mkdir -p "$w" "$hc"
-    [[ $style != reactor && -f $src/${tpl%.svg}-$style.svg ]] && tpl=${tpl%.svg}-$style.svg
+    local from=$src
+    [[ -n $skin && -f $skin/$tpl ]] && from=$skin
     [[ $rot == - ]] && rot=0
     local spins=(0)
-    if [[ $mode == animated ]] && grep -q '{{SPIN}}' "$src/$tpl"; then
+    if [[ $mode == animated ]] && grep -q '{{SPIN}}' "$from/$tpl"; then
         spins=(); for ((i = 0; i < SPIN_FRAMES; i++)); do spins+=($((i * 360 / SPIN_FRAMES))); done
     fi
     local delay=$(( ${#spins[@]} > 1 ? SPIN_MS : 0 ))
@@ -69,7 +73,7 @@ build_one() {
     : > "$w/conf"
     local i=0 s px
     for s in "${spins[@]}"; do
-        sed -e "s/{{ACCENT}}/#$hex/g" -e "s/{{FILL_ALPHA}}/$fill/g" -e "s/{{ROT}}/$rot/g" -e "s/{{SPIN}}/$s/g" "$src/$tpl" > "$hc/$name-$i.svg"
+        sed -e "s/{{ACCENT}}/#$hex/g" -e "s/{{FILL_ALPHA}}/$fill/g" -e "s/{{ROT}}/$rot/g" -e "s/{{SPIN}}/$s/g" "$from/$tpl" > "$hc/$name-$i.svg"
         if ((delay)); then echo "define_size = 0, $name-$i.svg, $delay"; else echo "define_size = 0, $name-$i.svg"; fi >> "$hc/meta.hl"
         for px in "${SIZES[@]}"; do
             rsvg-convert -w "$px" -h "$px" -o "$w/$px-$i.png" "$hc/$name-$i.svg"

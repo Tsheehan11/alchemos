@@ -5,7 +5,7 @@ import Quickshell
 Column {
     id: ap
     spacing: 14
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
 
     component DeviceRow: Rectangle {
         id: row
@@ -22,14 +22,14 @@ Column {
             elide: Text.ElideRight
             text: (row.current ? "◉  " : "○  ") + Audio.label(row.node)
             color: row.current ? Theme.text : Theme.textSoft
-            font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13
+            font.family: Style.mono; font.pixelSize: 13
         }
         Text {
             id: tag
             anchors.right: parent.right; anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             text: row.current ? "IN USE" : ""
-            color: Theme.secondary; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10; font.letterSpacing: 2
+            color: Theme.secondary; font.family: Style.mono; font.pixelSize: 10; font.letterSpacing: 2
         }
         MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: row.picked() }
     }

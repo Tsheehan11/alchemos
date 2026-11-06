@@ -22,7 +22,7 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "WIDGETS", "JARVIS", "LAUNCHER", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
@@ -386,13 +386,22 @@ PanelWindow {
                         focusCatcher.forceActiveFocus();
                     }
 
-                    // Shown once a skin has been switched by its hidden ways, and only while the overlay exists
-                    Text { visible: Theme.cfg.skinUnlocked && Skin.legacyAvailable; text: "SKIN"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
-                    Row {
-                        visible: Theme.cfg.skinUnlocked && Skin.legacyAvailable
+                    // Every installed skin (skins/<id>/); hidden ones (the legacy skin) once unlocked. Only shown
+                    // when there's a choice, so with just the default and a still-hidden skin it stays out of sight.
+                    Text { visible: Skin.listed.length > 1; text: "SKIN"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Flow {
+                        visible: Skin.listed.length > 1
+                        width: parent.width
                         spacing: 10
-                        SmallButton { text: "ALCHEMOS"; active: !Skin.isLegacy; onClicked: Skin.set("alchemos", true) }
-                        SmallButton { text: (Skin.legacyData && Skin.legacyData.label) || "LEGACY"; active: Skin.isLegacy; onClicked: Skin.set("legacy", true) }
+                        Repeater {
+                            model: Skin.listed
+                            delegate: SmallButton {
+                                required property string modelData
+                                text: Skin.labelOf(modelData)
+                                active: Skin.current === modelData
+                                onClicked: Skin.set(modelData, true)
+                            }
+                        }
                     }
 
                     Text { text: "THEME"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
@@ -622,7 +631,7 @@ PanelWindow {
                         SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/quickshell")); LauncherState.closeAll(); } }
                         ConfirmButton { label: "RESET LAYOUT"; onConfirmed: Widgets.reset() }
                     }
-                    Text { width: parent.width; wrapMode: Text.Wrap; text: "RESET LAYOUT puts the widgets on connected monitors back in their default spots (sizes kept) · drag a widget anywhere, Shift = no snap, corner handle = size"; color: Theme.faint; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "RESET LAYOUT puts the widgets on connected monitors back in their default spots (sizes kept) · drag a widget anywhere, Shift = no snap, corner handle = size"; color: Theme.faint; font.family: Style.mono; font.pixelSize: 11 }
                 }
 
                 // ════════ WIDGETS ════════

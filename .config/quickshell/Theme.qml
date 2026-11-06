@@ -161,9 +161,11 @@ Singleton {
     function lookRecord() {
         return { name: adapter.preset, primary: adapter.primary, secondary: adapter.secondary, background: adapter.background };
     }
-    function applyRecord(r, fallback) {
+    // r: a saved look; builtins: the skin's own presets (passed in: during a switch Theme.presets may still
+    // be the old skin's); fallback: what an empty record gets
+    function applyRecord(r, fallback, builtins) {
         if (!r || !r.name) { applyPreset(fallback); return; }
-        const built = presets.find(x => x.name === r.name) || allPresets.find(x => x.custom && x.name === r.name);
+        const built = (builtins || presets).find(x => x.name === r.name) || allPresets.find(x => x.custom && x.name === r.name);
         if (built) { applyPreset(built); return; }      // built-in / custom: its current colours
         adapter.preset = r.name;                        // CUSTOM (hand-mixed): the colours as they were
         for (const k of presetFields) adapter[k] = typeof r[k] === "string" && r[k] ? r[k] : fallback[k];
@@ -172,12 +174,13 @@ Singleton {
     // kept as the legacy skin's look; a custom look stays as it is, for both skins.
     function migrateSkins() {
         if (adapter.skinVersion >= 1) return;
-        const al = Skin.alchemos.aliases;
+        const alch = Skin.current === "alchemos" ? Skin.own : (Skin.installed.alchemos || {});
+        const al = alch.aliases || {};
         const sp = Object.assign({}, adapter.skinPresets || {});
         const old = lookRecord();
         if (al[old.name]) {
             sp.legacy = old;
-            const metal = Skin.alchemos.presets.find(x => x.name === al[old.name]);
+            const metal = Skin.presetsOf("alchemos").find(x => x.name === al[old.name]);
             sp.alchemos = { name: metal.name, primary: metal.primary, secondary: metal.secondary, background: metal.background };
             switchingSkin = true;             // no flare for a migration
             if (Skin.current === "alchemos") applyPreset(metal);
@@ -193,9 +196,10 @@ Singleton {
         const sp = Object.assign({}, adapter.skinPresets || {});
         sp[from] = lookRecord();
         adapter.skinPresets = sp;
-        adapter.skin = to;                    // Skin.presets follows this at once
+        adapter.skin = to;                    // Skin.presets follows once the skin's file is read
+        const builtins = Skin.presetsOf(to);
         switchingSkin = true;
-        applyRecord(sp[to], presets[0]);
+        applyRecord(sp[to], builtins[0], builtins);
         switchingSkin = false;
     }
 
@@ -537,7 +541,7 @@ Singleton {
         if (cursorBuild.running) { cursorPending = true; return; }
         cursorBuild.command = [Quickshell.env("HOME") + "/.config/stark-cursor/build.sh", hex(primary),
             cursorAnimated ? "animated" : "static", String(cursorStep(0)), String(cursorFill()),
-            Skin.cursor === "sigil" ? "sigil" : "reactor"];     // the busy cursors' art follows the skin
+            Skin.cursorDir];          // the skin's busy-cursor templates ("" = the default art)
         cursorBuild.running = true;
     }
     Process {
@@ -555,7 +559,7 @@ Singleton {
         function onCursorOpacityChanged() { cursorSync.restart(); }
     }
     onCursorAnimatedChanged: cursorSync.restart()
-    Connections { target: Skin; function onCurrentChanged() { cursorSync.restart(); } }
+    Connections { target: Skin; function onCursorDirChanged() { cursorSync.restart(); } }
     onLoadedChanged: { if (loaded) migrateSkins(); cursorSync.restart(); }
     // External pushes wait for a skin / ignite animation to end (IgniteState.busy), then go out one
     // after another (pushQueue), so a theme change never stalls the animation: hyprctl, kitty's

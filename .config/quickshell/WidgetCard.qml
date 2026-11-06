@@ -19,7 +19,7 @@ Item {
     readonly property var scr: surface.scr
     readonly property bool pinned: it ? it.pinned === true : false
     readonly property real k: resizing ? liveK : Widgets.scaleOf(it)
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property bool calm: PowerMode.saver || Perf.fps <= 0      // no edit animations
 
     // ── where it goes (screen pixels) ──

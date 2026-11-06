@@ -35,8 +35,22 @@ elif [ "$QUIET" != "-q" ]; then
     echo "ok   router eval: 0 wrong actions at 0.70"
 fi
 
+# HUD skins: every installed skin's components and the shared primitives render offscreen without a QML
+# error, and a skin with a baseline (the legacy one) still matches it pixel for pixel. Needs Wayland.
+skins=$HOME/.config/quickshell/tools/skincheck/check_skins.sh
+if [ -x "$skins" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    out=$("$skins" -q 2>&1); rc=$?
+    if [ $rc -ne 0 ]; then
+        fail+=("skins"); echo "FAIL skins"; echo "$out" | grep -v '^skins ok' | head -15 | sed 's/^/    /'
+    elif [ "$QUIET" != "-q" ]; then
+        echo "ok   skins (every installed skin renders; baselines match)"
+    fi
+elif [ -x "$skins" ]; then
+    echo "skip skins: no Wayland session to render in"
+fi
+
 if [ ${#fail[@]} -ne 0 ]; then
     echo "RED: ${#fail[@]} failing: ${fail[*]}"
     exit 1
 fi
-echo "GREEN: all suites and the router eval pass"
+echo "GREEN: all suites, the router eval and the skin check pass"

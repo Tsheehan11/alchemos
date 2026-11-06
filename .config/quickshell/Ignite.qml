@@ -1,6 +1,5 @@
 // Full-screen flourish over every screen, click-through, gone when idle.
-//   transmute  switching to ALCHEMOS: a circle inscribes itself, the six metals light in turn, flash
-//   reactor    switching to LEGACY: reactor rings spin up and ignite, flash
+//   skin       switching skins: the new skin's transition component (Skin.component("transition")), flash
 //   ignite     a preset applied: the new metal's glyph flares in its colour and a ring sweeps out
 // Combat mode skips it; at 0 fps (battery saver at static, locked) only a short tint plays.
 import QtQuick
@@ -25,7 +24,7 @@ PanelWindow {
     readonly property bool lite: IgniteState.lite
     readonly property color tint: IgniteState.color
     readonly property real r0: Math.min(width, height) * 0.24
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     function tc(a) { return Qt.rgba(tint.r, tint.g, tint.b, a); }
 
     // Frame probe: one log line per screen per animation (frame intervals as this window saw them)
@@ -75,66 +74,36 @@ PanelWindow {
         width: win.r0 * 2.6; height: width
         opacity: 1 - win.seg(0.86, 1)
 
-        // ── transmute: inscribed circle, triangle, the metals in turn ──
+        // ── ignite (every preset change): complete rings that only scale and fade, so no frame rebuilds geometry ──
         Item {
             anchors.fill: parent
-            visible: win.mode === "transmute" || win.mode === "ignite"
-            // transmute (a skin switch, rare): the rings draw themselves in. ignite (every preset change):
-            // complete rings that only scale and fade, so no frame rebuilds any geometry.
-            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 2; animated: false; startAngle: -90
-                   value: win.mode === "ignite" ? 1 : win.seg(0, 0.35); color: win.tint; opacity: 0.9 * (win.mode === "ignite" ? win.bell(0, 0.8) : 1)
-                   trackColor: "transparent"; scale: win.mode === "ignite" ? 0.75 + 0.25 * win.seg(0, 0.5) : 1 }
-            Ring { anchors.centerIn: parent; radius: win.r0 * 0.86; thickness: 1; animated: false; startAngle: 90
-                   value: win.mode === "ignite" ? 1 : win.seg(0.08, 0.42); color: win.tint; opacity: 0.6 * (win.mode === "ignite" ? win.bell(0.05, 0.85) : 1)
-                   trackColor: "transparent"; scale: win.mode === "ignite" ? 1.2 - 0.2 * win.seg(0, 0.5) : 1 }
-            Sigil {
-                anchors.centerIn: parent
-                radius: win.r0 * 0.86
-                draw: win.seg(0.2, 0.55)
-                color: win.tc(0.7)
-                visible: win.mode === "transmute"
-            }
-            Repeater {
-                model: win.mode === "transmute" ? ["☉", "☽", "♂", "♀", "☿", "♄"] : []
-                delegate: SigilText {
-                    required property string modelData
-                    required property int index
-                    readonly property real a: (index / 6) * 2 * Math.PI - Math.PI / 2
-                    readonly property real lit: win.seg(0.3 + index * 0.07, 0.38 + index * 0.07)
-                    x: stage.width / 2 + Math.cos(a) * win.r0 * 1.12 - width / 2
-                    y: stage.height / 2 + Math.sin(a) * win.r0 * 1.12 - height / 2
-                    text: modelData
-                    color: win.tc(1)
-                    font.pixelSize: win.r0 * 0.16
-                    opacity: lit
-                    scale: 0.6 + 0.4 * lit + 0.5 * win.bell(0.3 + index * 0.07, 0.5 + index * 0.07)
-                    glow: 1             // fixed: the halo is rendered once, opacity fades it
-                }
-            }
+            visible: win.mode === "ignite"
+            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 2; animated: false; startAngle: -90; value: 1
+                   color: win.tint; opacity: 0.9 * win.bell(0, 0.8); trackColor: "transparent"; scale: 0.75 + 0.25 * win.seg(0, 0.5) }
+            Ring { anchors.centerIn: parent; radius: win.r0 * 0.86; thickness: 1; animated: false; startAngle: 90; value: 1
+                   color: win.tint; opacity: 0.6 * win.bell(0.05, 0.85); trackColor: "transparent"; scale: 1.2 - 0.2 * win.seg(0, 0.5) }
         }
 
-        // ── reactor: segmented rings spin up ──
-        Item {
+        // ── skin: the new skin's transition (Skin.component("transition"); default TransmuteTransition) ──
+        Loader {
             anchors.fill: parent
-            visible: win.mode === "reactor"
-            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 1; value: 1; dashed: true; dash: [2, 8]; color: win.tint; opacity: 0.5 * win.seg(0, 0.2); trackColor: "transparent"; animated: false; rotation: 400 * win.p * win.p }
-            Ring { anchors.centerIn: parent; radius: win.r0 * 0.85; thickness: 6; value: win.seg(0.05, 0.5); color: win.tc(0.85); trackColor: win.tc(0.08); animated: false; rotation: -260 * win.p }
-            Ring { anchors.centerIn: parent; radius: win.r0 * 0.62; thickness: 4; value: 1; dashed: true; dash: [5, 1.6]; color: win.tint; opacity: 0.7 * win.seg(0.2, 0.5); trackColor: "transparent"; animated: false; rotation: 720 * win.p * win.p }
-            Rectangle {
-                anchors.centerIn: parent
-                width: win.r0 * 0.8; height: width; radius: width / 2
-                color: win.tc(0.15 + 0.6 * win.bell(0.55, 0.95))
-                border.color: win.tc(0.8); border.width: 1
+            active: win.mode === "skin"
+            source: Skin.transitionUrl
+            onLoaded: {
+                item.p = Qt.binding(() => win.p);
+                item.tint = Qt.binding(() => win.tint);
+                item.r0 = Qt.binding(() => win.r0);
             }
         }
 
         // ── centre: the new metal's glyph (ignite) or the flash core ──
         SigilText {
             anchors.centerIn: parent
-            text: win.mode === "ignite" ? IgniteState.glyph : (win.mode === "transmute" ? "☉" : "")
+            visible: win.mode === "ignite"
+            text: IgniteState.glyph
             color: win.tc(1)
             font.pixelSize: win.r0 * 0.7
-            opacity: win.mode === "ignite" ? win.bell(0.05, 0.9) : win.seg(0.6, 0.75)
+            opacity: win.bell(0.05, 0.9)
             scale: 0.7 + 0.5 * win.seg(0.05, 0.9)
             glow: 1
         }

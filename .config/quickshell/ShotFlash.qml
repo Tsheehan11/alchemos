@@ -24,7 +24,7 @@ PanelWindow {
     mask: Region {}
 
     readonly property color c: Theme.primary
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
 
     Connections {
         target: Shot

@@ -97,7 +97,7 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 90
         text: "SHIFT · NO SNAP  ·  DRAG OFF THE EDGE FOR THE NEXT MONITOR"
-        color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.letterSpacing: 3
+        color: Theme.dim; font.family: Style.mono; font.pixelSize: 12; font.letterSpacing: 3
         style: Text.Outline; styleColor: Theme.back(0.5)
     }
 

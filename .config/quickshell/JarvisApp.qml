@@ -24,7 +24,7 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property var link: JarvisLink
     onShownChanged: if (shown) { JarvisState.dismiss(); Qt.callLater(() => input.focusInput()); }
 

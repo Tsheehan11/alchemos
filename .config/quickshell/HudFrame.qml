@@ -10,7 +10,7 @@ Item {
     default property alias content: body.data
 
     readonly property color cyan: Theme.primary
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
 
     Rectangle {
         anchors.fill: parent

@@ -8,7 +8,7 @@ Column {
     spacing: 12
     signal releaseFocus()
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property var screenNames: ({ main: "MAIN MONITOR", diag: "SECOND MONITOR", media: "LAPTOP SCREEN" })
     readonly property var zones: [["", "LOCAL"], ["America/New_York", "NEW YORK"], ["America/Los_Angeles", "LOS ANGELES"],
                                   ["Europe/London", "LONDON"], ["Europe/Paris", "PARIS"], ["Asia/Tokyo", "TOKYO"],

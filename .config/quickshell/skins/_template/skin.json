@@ -1,0 +1,63 @@
+{
+    "//": "A skin is this folder copied to skins/<id>/ with this file filled in. Every key is optional: anything left out comes from the base look (Skin.qml BASE, Style.qml). Keys starting with // are notes and are ignored. Folders starting with _ are never listed. See docs/SKINS.md.",
+
+    "id": "template",
+    "label": "TEMPLATE",
+    "//label": "the name on Settings' SKIN row",
+    "osName": "the desktop",
+    "//osName": "what the assistant calls the desktop out loud",
+    "hidden": false,
+    "//hidden": "true: listed only after skins are unlocked (the app search's hidden word or `qs ipc call skin set`)",
+
+    "presets": [
+        { "name": "BLUE",   "glyph": "", "primary": "#6aa8ff", "secondary": "#ffd27a", "background": "#05070c" },
+        { "name": "RED",    "glyph": "", "primary": "#ff6a5a", "secondary": "#ffd27a", "background": "#0c0605" },
+        { "name": "GREEN",  "glyph": "", "primary": "#5adf8a", "secondary": "#e8f07a", "background": "#040a06" },
+        { "name": "PURPLE", "glyph": "", "primary": "#b08cff", "secondary": "#7ad8ff", "background": "#07050d" }
+    ],
+    "//presets": "built-in colour presets; glyph is shown on the Settings tile and flares on the ignite. Custom presets are shared by every skin.",
+    "aliases": {},
+    "//aliases": "other names that resolve to one of these presets, e.g. another skin's: { \"CYAN\": \"BLUE\" }",
+
+    "glyphs": { "ring": [], "sun": "" },
+    "//glyphs": "ring: signs set round the clock, the lock seal and the skin transition (any count; [] = bare rings). sun: the seal's centre sign.",
+
+    "personas": {
+        "jarvis": { "name": "JARVIS", "call": "Jarvis", "dotted": "J.A.R.V.I.S", "glyph": "◉", "idle": "○", "starting": "◌", "accent": "" },
+        "friday": { "name": "FRIDAY", "call": "Friday", "dotted": "F.R.I.D.A.Y", "glyph": "◈", "idle": "◇", "starting": "◇", "accent": "" }
+    },
+    "//personas": "display names of the two personas (ids stay jarvis / friday; the wake word stays \"hey Jarvis\"). name: labels; call: in a sentence and spoken; accent: a fixed colour for the persona's marker, \"\" = the theme's.",
+
+    "text": {
+        "os": "HUD", "control": "HUD // CONTROL", "settings": "HUD // SETTINGS",
+        "lockMessage": "LOCKING", "lockSub": "", "unlockMessage": "UNLOCKED", "lockTitle": "LOCKED", "denied": "TRY AGAIN",
+        "lockGlyph": "◆", "mark": "◆", "clockName": "Clock",
+        "cursorHint": "The busy cursor turns while apps load · off shows a still frame",
+        "transitionTitle": "", "transitionSub": ""
+    },
+    "//text": "the HUD's wording: bar name, panel titles, lock / unlock messages, the hyprlock title and denied text, glyphs on the lock buttons and the bar's corner (mark \"\" = the preset's glyph), the skin transition's title",
+
+    "style": {
+        "mono": "JetBrainsMono Nerd Font",
+        "display": "JetBrainsMono Nerd Font",
+        "displayCaps": false,
+        "displayScale": 1,
+        "frame": "holo",
+        "texture": "holo",
+        "grain": 0,
+        "grainDark": 0,
+        "glow": 1,
+        "corners": [],
+        "divider": "",
+        "gauge": "ring",
+        "metalRule": false,
+        "surface": 0
+    },
+    "//style": "tokens for the shared components (Style.qml). mono: data and body; display (+ displayCaps, displayScale): headings. frame: holo | engraved. texture: holo (scanlines / grid) | grain | none, grain / grainDark its strength 0..1 (grainDark on very dark presets). glow: halo multiplier. corners: four glyphs for engraved frames' corner notches. divider: glyph at a divider's centre. gauge: ring | astrolabe. metalRule: brushed-metal rule beside headings. surface: 0 glass … 1 stone plate. The values here are the base look.",
+
+    "components": {},
+    "//components": "optional overrides, files in this folder: { \"clock\": \"MyClock.qml\", \"scene\": \"MyLock.qml\", \"transition\": \"MyTransition.qml\" }. Start from the defaults (AlchemCircle.qml, VaultScene.qml, TransmuteTransition.qml) and keep their properties. Put `import \"../..\"` under `import QtQuick`.",
+
+    "cursor": "",
+    "//cursor": "a folder here with wait.svg / progress.svg busy-cursor templates (see stark-cursor/src for the placeholders); \"\" = the default art"
+}

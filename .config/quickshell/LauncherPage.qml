@@ -6,7 +6,7 @@ import Quickshell
 Column {
     id: lp
     spacing: 14
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     property string editing: ""        // id of the app whose edit panel is open
     property string adding: ""         // "" | "app" | "custom"
     property string note: ""           // last result, shown under the buttons

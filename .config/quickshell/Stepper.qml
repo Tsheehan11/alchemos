@@ -18,8 +18,8 @@ Item {
         anchors.right: ctl.left; anchors.rightMargin: 16
         anchors.verticalCenter: parent.verticalCenter
         spacing: 3
-        Text { width: parent.width; elide: Text.ElideRight; text: sp.label; color: Theme.text; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 14 }
-        Text { width: parent.width; elide: Text.ElideRight; visible: sp.hint !== ""; text: sp.hint; color: Theme.dim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
+        Text { width: parent.width; elide: Text.ElideRight; text: sp.label; color: Theme.text; font.family: Style.mono; font.pixelSize: 14 }
+        Text { width: parent.width; elide: Text.ElideRight; visible: sp.hint !== ""; text: sp.hint; color: Theme.dim; font.family: Style.mono; font.pixelSize: 11 }
     }
     Row {
         id: ctl
@@ -33,7 +33,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: sp.valueText
             color: Theme.primary
-            font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13; font.letterSpacing: 2
+            font.family: Style.mono; font.pixelSize: 13; font.letterSpacing: 2
         }
         SmallButton { text: "+"; onClicked: sp.inc() }
         SmallButton { visible: sp.preview; text: "▶"; onClicked: sp.play() }

@@ -33,7 +33,7 @@ PanelWindow {
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
     readonly property int pad: 26
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property string phase: JarvisState.phase
     readonly property bool hot: phase === "confirm" || phase === "alert" || phase === "error"     // secondary colour
     readonly property color accent: hot ? Theme.secondary : JarvisState.accent     // the persona's (ALCHEMOS gold / silver) at the edge

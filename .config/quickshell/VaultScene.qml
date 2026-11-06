@@ -1,4 +1,4 @@
-// ALCHEMOS's lock scene (Skin.scene): two heavy engraved metal doors and an alchemical seal across the
+// The default lock scene (Skin.component("scene"); a skin can override it): two heavy engraved metal doors and an alchemical seal across the
 // seam. SecurityDoors drives it from LockState (through SkinScene) and draws it shut, offscreen, for the
 // lock screen's background, so at rest (shut, sealed) it must look the same both ways: every input's
 // default is that state.
@@ -28,9 +28,10 @@ Item {
     property real dim: 0
 
     readonly property real halfH: height / 2
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property bool painted: upperDoor.painted && lowerDoor.painted
-    readonly property var metals: ["☉", "☽", "♂", "♀", "☿", "♄"]
+    readonly property var metals: Skin.glyphs.ring || []       // the skin's signs (ALCHEMOS: the six metals); none = bare seal
+    readonly property int count: metals.length
     readonly property real bigR: Math.min(halfH * 0.86, 330)       // the great circle engraved across both doors
     readonly property real sealA: Math.max(0, 1 - dim)
 
@@ -51,6 +52,8 @@ Item {
             property color tint: Theme.primary
             property color tint2: Theme.secondary
             property real r: scene.bigR
+            property int seats: scene.count
+            onSeatsChanged: { door.painted = false; requestPaint(); }
             onTintChanged: { door.painted = false; requestPaint(); }
             onTint2Changed: { door.painted = false; requestPaint(); }
             onWidthChanged: { door.painted = false; requestPaint(); }
@@ -113,8 +116,8 @@ Item {
                     ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, sy + Math.sin(a) * r0);
                     ctx.lineTo(cx + Math.cos(a) * r1, sy + Math.sin(a) * r1); ctx.stroke();
                 }
-                for (let i = 0; i < 6; i++) {
-                    const a = (i * 60 - 90) * Math.PI / 180;
+                for (let i = 0; i < seats; i++) {
+                    const a = (i * 360 / seats - 90) * Math.PI / 180;
                     const x = cx + Math.cos(a) * (R - 3), y = sy + Math.sin(a) * (R - 3);
                     ctx.fillStyle = Theme.css(Theme.mix(Theme.bg, "#000000", 0.3), 1);
                     ctx.strokeStyle = Theme.pc(0.3); ctx.lineWidth = 1.2;
@@ -156,15 +159,17 @@ Item {
                 GradientStop { position: 1.0; color: door.upper ? Theme.p(0.35) : Theme.p(0.0) }
             }
         }
-        // this door's three signs, lit in turn as the seal closes, igniting in turn as it opens
+        // this door's signs (those above / below the seam), lit in turn as the seal closes, igniting in
+        // turn as it opens
         Repeater {
-            model: 3
+            model: [...Array(scene.count).keys()].filter(i => (Math.sin((i * 360 / scene.count - 90) * Math.PI / 180) < -1e-6) === door.upper)
             delegate: SigilText {
-                required property int index
-                readonly property int n: door.upper ? [5, 0, 1][index] : [2, 3, 4][index]   // clockwise from the left
-                readonly property real a: (n * 60 - 90) * Math.PI / 180
-                readonly property real lit: scene.seg(scene.inscribe, 0.25 + n * 0.11, 0.36 + n * 0.11)
-                readonly property real flash: Math.sin(Math.PI * scene.seg(scene.ignite, n * 0.12, n * 0.12 + 0.3))
+                required property int modelData
+                readonly property int n: modelData
+                readonly property real a: (n * 360 / scene.count - 90) * Math.PI / 180
+                readonly property real step: 0.66 / scene.count
+                readonly property real lit: scene.seg(scene.inscribe, 0.25 + n * step, 0.36 + n * step)
+                readonly property real flash: Math.sin(Math.PI * scene.seg(scene.ignite, n * step * 12 / 11, n * step * 12 / 11 + 0.3))
                 text: scene.metals[n]
                 x: door.width / 2 + Math.cos(a) * (scene.bigR - 3) - width / 2
                 y: door.seamY + Math.sin(a) * (scene.bigR - 3) - height / 2
@@ -228,7 +233,7 @@ Item {
         // and the fingerprint's flash on both
         SigilText {
             anchors.centerIn: parent
-            text: "☉"
+            text: Skin.glyphs.sun || ""
             color: Theme.mix(Theme.primary, "#ffffff", 0.6 * scene.flare)
             font.pixelSize: scene.isMain ? 150 : 64
             opacity: (scene.isMain ? 0.07 + 0.6 * scene.flare : 0.9) * scene.seg(scene.inscribe, 0.7, 1)

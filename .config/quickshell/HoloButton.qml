@@ -37,7 +37,7 @@ Item {
         anchors.centerIn: parent
         text: hb.text
         color: hb.usable ? (hb.hot ? Qt.lighter(hb.color, 1.4) : hb.color) : Theme.faint
-        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: hb.pixelSize
+        font.family: Style.mono; font.pixelSize: hb.pixelSize
     }
     MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: hb.usable; onClicked: hb.clicked() }
 }

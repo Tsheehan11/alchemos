@@ -11,7 +11,7 @@ Column {
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color warn: "#ff5f5f"
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property real third: (width - 36) / 3
 
     function ghz(v) { return v > 0 ? v.toFixed(2) + " GHz" : "--"; }

@@ -11,7 +11,7 @@ Column {
     id: dp
     spacing: 16
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property string laptop: "eDP-1"
 
     property var mons: []          // hyprctl monitors all -j

@@ -28,11 +28,17 @@ settings = tmp / "settings.json"
 # The checks below are the legacy skin's (JARVIS / FRIDAY, exactly as before skins); ALCHEMOS's names are at the end
 settings.write_text(json.dumps({"jarvisVoice": "bm_lewis", "jarvisSpeed": 1.4, "jarvisPitch": 0.5, "other": 1,
                                 "skin": "legacy"}, indent=4))
-(tmp / "legacy-skin.json").write_text("{}")
+# skins, as the HUD has them: alchemos (the real skin.json) and a stand-in for the private legacy overlay
+import shutil  # noqa: E402
+(tmp / "skins/alchemos").mkdir(parents=True)
+shutil.copy(Path(ROOT).resolve().parent / "quickshell/skins/alchemos/skin.json", tmp / "skins/alchemos/skin.json")
+(tmp / "skins/legacy").mkdir()
+(tmp / "skins/legacy/skin.json").write_text(json.dumps({"osName": "STARK OS", "personas": {
+    "jarvis": {"name": "JARVIS", "call": "Jarvis"}, "friday": {"name": "FRIDAY", "call": "FRIDAY"}}}))
 C.HUD_SETTINGS = settings
 
 from core import persona as P  # noqa: E402
-P.LEGACY_SKIN = tmp / "legacy-skin.json"      # the overlay is "installed"; the real one is never read
+P.SKINS_DIR = tmp / "skins"      # the real skins folder is never read
 
 cfg = C.Config()
 
@@ -194,12 +200,12 @@ check("alchemos skin", P.skin(), "alchemos")
 check("alchemos labels", (P.label("jarvis"), P.label("friday"), P.call("jarvis"), P.call("friday")), ("ORRIN", "SELENE", "Orrin", "Selene"))
 check("alchemos announce", P.announce_line("friday"), "Hey boss, SELENE here. ORRIN is taking five.")
 check("alchemos announce jarvis", P.announce_line("jarvis"), "ORRIN here, sir. SELENE's on standby.")
-check("alchemos tag jarvis", P.tag("hi", "jarvis"), "[AlchemOS] hi")
-check("alchemos tag friday", P.tag("hi", "friday"), "[AlchemOS] [FRIDAY] hi")
-check("prompt explains the tag", "[AlchemOS]" in brain.system_prompt() and "ORRIN" in brain.system_prompt(), True)
+check("alchemos tag jarvis", P.tag("hi", "jarvis"), "[AlchemOS · ORRIN · SELENE] hi")
+check("alchemos tag friday", P.tag("hi", "friday"), "[AlchemOS · ORRIN · SELENE] [FRIDAY] hi")
+check("prompt explains the tag", "[AlchemOS · ORRIN · SELENE]" in brain.system_prompt(), True)
 check("os name alchemos", P.os_name(), "AlchemOS")
 check("prompt: AlchemOS is the desktop, never STARK OS",
-      "the desktop is called AlchemOS (never STARK OS)" in brain.system_prompt(), True)
+      "the first name is what the desktop is called (say that, never stark os)" in brain.system_prompt().lower(), True)
 check("alchemos label tool", A.tool_label("jarvis_persona", {"name": "friday"}), "PERSONA → SELENE")
 check("dj voice orrin", P.dj_voice("jarvis").startswith("in Orrin's voice"), True)
 check("aliases", (P.norm("Orrin"), P.norm("SELENE"), P.norm("jarvis"), P.norm("ultron")), ("jarvis", "friday", "jarvis", None))
@@ -212,10 +218,20 @@ check("action takes selene", (r["ok"], r["persona"]), (True, "friday"))
 A.TOOLS["jarvis_persona"](name="jarvis")
 # the legacy skin asked for but its overlay missing: ALCHEMOS names (the HUD shows ALCHEMOS too)
 set_skin("legacy")
-P.LEGACY_SKIN = tmp / "no-such-overlay.json"
+(tmp / "skins/legacy").rename(tmp / "skins/legacy-away")
 check("legacy without overlay", (P.skin(), P.label("jarvis")), ("alchemos", "ORRIN"))
-P.LEGACY_SKIN = tmp / "legacy-skin.json"
+(tmp / "skins/legacy-away").rename(tmp / "skins/legacy")
 check("os name legacy", P.os_name(), "STARK OS")
+check("legacy: no names tag", P.tag("hi", "jarvis"), "hi")
+# any skin folder names them: a made-up one, and the template-like fallback for missing keys
+(tmp / "skins/nebula").mkdir()
+(tmp / "skins/nebula/skin.json").write_text(json.dumps({"osName": "NebulaOS", "personas": {"jarvis": {"name": "VEGA", "call": "Vega"}}}))
+set_skin("nebula")
+check("new skin names", (P.os_name(), P.label("jarvis"), P.call("jarvis"), P.label("friday")), ("NebulaOS", "VEGA", "Vega", "FRIDAY"))
+check("new skin tag", P.tag("hi", "jarvis"), "[NebulaOS · VEGA · FRIDAY] hi")
+set_skin("_template")
+check("templates are never a skin", P.skin(), "alchemos")
+set_skin("legacy")
 
 print("FAILS:", len(FAILS)) if FAILS else print("ok: personas")
 sys.exit(1 if FAILS else 0)

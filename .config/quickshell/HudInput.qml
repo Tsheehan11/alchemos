@@ -24,7 +24,7 @@ Rectangle {
         selectionColor: Theme.p(0.4)
         selectByMouse: true
         clip: true
-        font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 13
+        font.family: Style.mono; font.pixelSize: 13
         Keys.onReturnPressed: hi.accepted()
         Keys.onEnterPressed: hi.accepted()
         Keys.onEscapePressed: hi.cancelled()

@@ -1244,13 +1244,19 @@ def jarvis_volume(action, percent=0):
             **({"note": "already at the limit"} if new == now and action != "set" else {})}
 
 
-SKINS = ["alchemos", "legacy"]
+def skins():
+    """Installed HUD skins (quickshell/skins/<id>/skin.json; _template and the like aren't skins)."""
+    from core import persona
+    try:
+        return sorted(p.parent.name for p in persona.SKINS_DIR.glob("*/skin.json") if not p.parent.name.startswith("_"))
+    except OSError:
+        return []
 
 
 def skin_current():
-    """The HUD skin in use (alchemos | legacy), "" if the HUD isn't answering."""
+    """The HUD skin in use (alchemos, legacy, …), "" if the HUD isn't answering."""
     rc, out, _ = _run(_qs("skin", "get"), timeout=3)
-    return out if rc == 0 and out in SKINS else ""
+    return out if rc == 0 and re.fullmatch(r"[a-z0-9][a-z0-9_-]*", out or "") else ""
 
 
 def _persona_label(name):
@@ -1260,9 +1266,10 @@ def _persona_label(name):
 
 @safe
 def set_skin(name):
-    """The HUD's look (quickshell/Skin.qml): alchemos (the default) | legacy (a private overlay, may be
-    missing) | toggle. Behaviour, voices and wake word are the same in both."""
-    name = _choice(name, SKINS + ["toggle"], "name")
+    """The HUD's look (quickshell/Skin.qml): an installed skin's id (alchemos, the default; legacy, a private
+    overlay that may be missing; any other folder in quickshell/skins) | toggle (the legacy skin and back).
+    Behaviour, tools and wake word are the same in every skin."""
+    name = _choice(name, skins() + ["toggle"], "name")
     r = _do(f"skin {name}", _qs("skin", "toggle") if name == "toggle" else _qs("skin", "set", name), timeout=4)
     if not r.get("ok") or r.get("dry_run"):
         return r
@@ -1270,7 +1277,9 @@ def set_skin(name):
     if not res.startswith("skin "):
         return {"ok": False, "error": res or "the HUD didn't switch"}
     now = res.split()[1]
-    return {"ok": True, "skin": now, "say": "Legacy skin, sir." if now == "legacy" else "AlchemOS skin, sir."}
+    from core import persona
+    label = persona.os_name() if now != "legacy" else "Legacy"
+    return {"ok": True, "skin": now, "say": f"{label} skin, sir."}
 
 
 def jarvis_persona(name):

@@ -30,7 +30,7 @@ PanelWindow {
 
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
 
     // Apps in launch order. Consecutive pairs form one branch: the first sits
     // close to the core, the second flows out from it.

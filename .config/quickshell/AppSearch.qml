@@ -24,7 +24,7 @@ PanelWindow {
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property int maxResults: 8
 
     property string query: ""

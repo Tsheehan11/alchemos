@@ -21,7 +21,7 @@ PanelWindow {
 
     readonly property color cyan: Theme.primary
     readonly property color dim: Theme.dim
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
 
     anchors { top: true; left: true; right: true }
     implicitHeight: 34

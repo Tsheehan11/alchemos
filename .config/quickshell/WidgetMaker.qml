@@ -20,7 +20,7 @@ PanelWindow {
     color: "transparent"
     Binding { target: mk.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     property string step: ""                 // "" (pick a type) | timer | clock | note
     onVisibleChanged: { step = ""; if (visible) keys.forceActiveFocus(); }
 

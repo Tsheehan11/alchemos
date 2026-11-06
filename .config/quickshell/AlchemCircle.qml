@@ -1,4 +1,4 @@
-// The alchemical-circle clock (ALCHEMOS's Skin.clock): CPU / RAM / GPU / battery gauge rings around the
+// The default clock (Skin.component("clock"); a skin can override it), an alchemical circle: CPU / RAM / GPU / battery gauge rings around the
 // time, inside engraved concentric circles that carry the six metals, with a triangle-and-square
 // inscription. The sign of the metal in use glows brightest. Change k to resize the whole thing.
 //   t        effects clock (seconds, from HudWindow); frozen while windows cover the screen
@@ -18,8 +18,8 @@ Item {
     readonly property color c1: Theme.primary
     readonly property color c2: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: "JetBrainsMono Nerd Font"
-    readonly property var metals: ["☉", "☽", "♂", "♀", "☿", "♄"]
+    readonly property string mono: Style.mono
+    readonly property var metals: Skin.glyphs.ring || []       // the skin's signs (ALCHEMOS: the six metals); none = bare rings
     readonly property string active: Skin.glyphFor(Theme.cfg.preset)
 
     SystemClock { id: clock; precision: SystemClock.Seconds }
@@ -65,7 +65,7 @@ Item {
                     required property string modelData
                     required property int index
                     readonly property bool lit: modelData === r.active
-                    readonly property real a: index * 60 - 90
+                    readonly property real a: index * 360 / r.metals.length - 90
                     x: band.width / 2 + Math.cos(a * Math.PI / 180) * 214 * r.k
                     y: band.height / 2 + Math.sin(a * Math.PI / 180) * 214 * r.k
                     // a little engraved cartouche round each sign
@@ -87,10 +87,10 @@ Item {
             }
             // dots between the signs
             Repeater {
-                model: 6
+                model: r.metals.length
                 delegate: Rectangle {
                     required property int index
-                    readonly property real a: (index * 60 - 60) * Math.PI / 180
+                    readonly property real a: ((index + 0.5) * 360 / r.metals.length - 90) * Math.PI / 180
                     width: 3 * r.k; height: width; radius: width / 2
                     color: Theme.p(0.4)
                     x: band.width / 2 + Math.cos(a) * 214 * r.k - width / 2

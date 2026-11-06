@@ -24,7 +24,7 @@ PanelWindow {
     Binding { target: osd.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
     mask: Region {}
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property bool isVol: OsdState.kind === "volume"
     readonly property bool isRole: OsdState.kind === "role"
     readonly property color accent: isVol && OsdState.muted ? "#ff5f5f" : (isVol || isRole ? Theme.primary : Theme.secondary)

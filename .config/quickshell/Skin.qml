@@ -1,145 +1,227 @@
 pragma Singleton
-// Skins: the look of the HUD, never its behaviour. A skin picks the built-in colour presets,
-// the clock and lock-scene components, persona display names / glyphs, the words on the bar,
-// lock screen and settings, the busy-cursor art and its own switch transition. Keybinds, IPC,
-// voices, wake word and custom presets are the same in every skin.
+// Skins: the look of the HUD, never its behaviour. Every feature lives in the main tree and works in
+// every skin; a skin is just a folder, skins/<id>/, holding skin.json and, optionally, files it names.
+// See docs/SKINS.md and skins/_template/.
 //
-//   alchemos  built in (the default)
-//   legacy    the private overlay in skins/legacy/ (its own repo, ignored here): skin.json +
-//             the components it names. Missing folder = the skin doesn't exist and the HUD
-//             quietly stays on ALCHEMOS.
+// A skin provides (all optional; anything left out comes from BASE below, today's hologram look):
+//   presets + aliases   built-in colour presets (with glyphs) and other names for them
+//   personas, text      names / glyphs / accents of the two personas, the HUD's wording
+//   osName              what the assistant calls the desktop
+//   glyphs              { ring: [...] signs round the clock, the lock seal and the skin transition; sun }
+//   style               tokens read by the shared components (Style.qml)
+//   components          overrides of the default clock / scene / transition (files in the skin's folder)
+//   cursor              a folder of busy-cursor templates (wait.svg, progress.svg) for stark-cursor/build.sh
+//   namer, voices       preset auto-namer (Settings → SAVE AS PRESET) and voice defaults
+//   hidden              listed in Settings only once skins have been unlocked (the legacy skin)
 //
-// Settings: cfg.skin (asked-for skin), cfg.skinPresets ({ skin: { name, primary, secondary,
-// background } }: each skin's last look), cfg.skinUnlocked (the SKIN row shows in Settings).
-//   qs ipc call skin get | set legacy | set alchemos | toggle | list
+//   alchemos   skins/alchemos (this repo; the default)
+//   legacy     skins/legacy: the private overlay (its own repo, ignored here). Missing = no such skin.
+//   _template  skins/_template: never listed; the starting point for a new skin
+//
+// The skin in use is read synchronously (no flicker at start-up); the list of installed skins is
+// scanned in the background (Settings' SKIN row, `skin list`).
+// Settings: cfg.skin, cfg.skinPresets (each skin's last look), cfg.skinUnlocked.
+//   qs ipc call skin get | set <id> | toggle | list
 import QtQuick
+import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 
 Singleton {
     id: root
 
-    readonly property string dir: Quickshell.env("HOME") + "/.config/quickshell/skins/"
+    readonly property string defaultSkin: "alchemos"
+    readonly property string hiddenSkin: "legacy"        // the app search's hidden word toggles to and from it
 
-    // ── ALCHEMOS (built in) ─────────────────────
-    readonly property var alchemos: ({
-        id: "alchemos",
-        label: "ALCHEMOS",
-        // ☉ gold · ☽ silver · ♂ iron · ♀ copper · ☿ quicksilver · ♄ lead
+    // ── BASE: what a skin leaves out. Today's hologram look, neutral wording ──
+    readonly property var base: ({
+        id: "base",
+        label: "HUD",
+        osName: "the desktop",
         presets: [
-            { name: "AURUM",     glyph: "☉", primary: "#ffc04a", secondary: "#ff8f3a", background: "#0b0803" },
-            { name: "ARGENT",    glyph: "☽", primary: "#d4dde8", secondary: "#9fb6d6", background: "#06080b" },
-            { name: "IRON",      glyph: "♂", primary: "#e23b2e", secondary: "#ffb27a", background: "#0d0505" },
-            { name: "VERDIGRIS", glyph: "♀", primary: "#3fd6b0", secondary: "#e0915a", background: "#03100c" },
-            { name: "MERCURY",   glyph: "☿", primary: "#5fdcff", secondary: "#cfe9f5", background: "#04090e" },
-            { name: "LEAD",      glyph: "♄", primary: "#a497c8", secondary: "#7d8db0", background: "#07060b" }
+            { name: "CYAN",    primary: "#4fd8ff", secondary: "#ffb347", background: "#05090f" },
+            { name: "CRIMSON", primary: "#ff5a4d", secondary: "#ffd24d", background: "#0c0505" },
+            { name: "VIOLET",  primary: "#b48cff", secondary: "#7fe0ff", background: "#08050f" },
+            { name: "EMERALD", primary: "#4dff88", secondary: "#d4ff4d", background: "#030a05" },
+            { name: "ICE",     primary: "#d6f1ff", secondary: "#6fa8ff", background: "#05080f" },
+            { name: "AMBER",   primary: "#ffb347", secondary: "#ff6b8a", background: "#0c0705" }
         ],
-        // the STARK OS preset each metal replaced (closest hue); spoken / typed old names still work
-        aliases: { "SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS",
-                   "STARK": "MERCURY", "VIBRANIUM": "LEAD" },
-        clock: "AlchemCircle.qml",
-        scene: "VaultScene.qml",
-        cursor: "sigil",
-        transition: "transmute",
+        aliases: {},
+        glyphs: { ring: [], sun: "" },
+        components: {},
+        cursor: "",
         personas: {
-            jarvis: { name: "ORRIN",  call: "Orrin",  dotted: "O.R.R.I.N",   glyph: "☉", idle: "☉", starting: "☉", accent: "#ffc04a" },
-            friday: { name: "SELENE", call: "Selene", dotted: "S.E.L.E.N.E", glyph: "☽", idle: "☽", starting: "☽", accent: "#d4dde8" }
+            jarvis: { name: "JARVIS", call: "Jarvis", dotted: "J.A.R.V.I.S", glyph: "◉", idle: "○", starting: "◌", accent: "" },
+            friday: { name: "FRIDAY", call: "Friday", dotted: "F.R.I.D.A.Y", glyph: "◈", idle: "◇", starting: "◇", accent: "" }
         },
         text: {
-            os: "ALCHEMOS",
-            control: "ALCHEMOS // CONTROL",
-            settings: "ALCHEMOS // SETTINGS",
-            lockMessage: "SEALING",
-            lockSub: "ALCHEMOS // THE VAULT CLOSES",
-            unlockMessage: "SEAL BROKEN",
-            lockTitle: "ALCHEMOS // SEALED",
-            denied: "THE SEAL HOLDS",
-            lockGlyph: "☉",
-            mark: "",                 // bar corner: "" = the sign of the metal in use
-            clockName: "Alchemical circle clock",
-            cursorHint: "The sigil turns while apps load · off shows a still frame",
-            transitionTitle: "TRANSMUTATION",
-            transitionSub: "ALCHEMOS // THE WORK BEGINS"
-        }
+            os: "HUD", control: "HUD // CONTROL", settings: "HUD // SETTINGS",
+            lockMessage: "LOCKING", lockSub: "", unlockMessage: "UNLOCKED", lockTitle: "LOCKED", denied: "TRY AGAIN",
+            lockGlyph: "◆", mark: "◆", clockName: "Clock",
+            cursorHint: "The busy cursor turns while apps load · off shows a still frame",
+            transitionTitle: "", transitionSub: ""
+        },
+        style: {},
+        namer: null,
+        voices: null,
+        hidden: false
     })
+    // Default implementations, used when a skin doesn't override them
+    readonly property var defaults: ({ clock: "AlchemCircle.qml", scene: "VaultScene.qml", transition: "TransmuteTransition.qml" })
 
-    // ── LEGACY (private overlay) ────────────────
+    // ── The skin in use (read synchronously) ────
+    function parse(text) {
+        if (!text) return null;
+        try { const d = JSON.parse(text); return d && typeof d === "object" ? d : null; } catch (e) { return null; }
+    }
+    readonly property string asked: String(Theme.cfg.skin || defaultSkin)
+    // Each FileView remembers which file its last load came from: right after the path changes, text()
+    // can still be the previous file's, and the new id must never be paired with the old skin's data.
     FileView {
-        id: legacyFile
-        path: root.dir + "legacy/skin.json"
-        watchChanges: true
-        printErrors: false
-        blockLoading: true
+        id: askedFile
+        property string loadedPath: ""
+        property var loadedData: null
+        path: Quickshell.shellPath("skins/" + root.asked + "/skin.json")
+        watchChanges: true; printErrors: false; blockLoading: true
         onFileChanged: reload()
-        onLoadFailed: root.legacyText = ""
-        onLoaded: root.legacyText = text()
+        onLoaded: { loadedData = root.parse(text()); loadedPath = path; root.resolve(); }
+        onLoadFailed: { loadedData = null; loadedPath = path; root.resolve(); }
     }
-    property string legacyText: ""
-    readonly property var legacyData: {
-        if (!legacyText) return null;
-        try {
-            const d = JSON.parse(legacyText);
-            return Array.isArray(d.presets) && d.presets.length > 0 ? d : null;
-        } catch (e) { return null; }
+    FileView {
+        id: defaultFile
+        property string loadedPath: ""
+        property var loadedData: null
+        path: Quickshell.shellPath("skins/" + root.defaultSkin + "/skin.json")
+        watchChanges: true; printErrors: false; blockLoading: true
+        onFileChanged: reload()
+        onLoaded: { loadedData = root.parse(text()); loadedPath = path; root.resolve(); }
+        onLoadFailed: { loadedData = null; loadedPath = path; root.resolve(); }
     }
-    readonly property bool legacyAvailable: legacyData !== null
+    onAskedChanged: resolve()
+    Component.onCompleted: resolve()
+    // The skin in use: { id, own (its skin.json) }, updated only once the asked skin's own file has been read
+    property var resolved: ({ id: "base", own: {} })
+    function resolve() {
+        // compare with the path the asked id means now (the FileView's own path binding may not have
+        // caught up yet when `asked` changes)
+        const want = id => Quickshell.shellPath("skins/" + id + "/skin.json");
+        const ownOf = (f, id) => f.loadedPath === want(id) ? f.loadedData : undefined;   // undefined: not read yet
+        const hidden = root.asked.charAt(0) === "_" && root.asked !== Quickshell.env("SKINCHECK_SKIN");
+        const a = hidden ? null : ownOf(askedFile, root.asked);
+        const d = ownOf(defaultFile, root.defaultSkin);
+        if (a === undefined) {
+            Qt.callLater(() => { if (askedFile.loadedPath !== want(root.asked)) askedFile.reload(); else root.resolve(); });
+            return;                                  // keep the skin as it is until the asked one is read
+        }
+        const next = a ? { id: root.asked, own: a } : d ? { id: root.defaultSkin, own: d } : { id: "base", own: {} };
+        if (next.id !== root.resolved.id || JSON.stringify(next.own) !== JSON.stringify(root.resolved.own)) root.resolved = next;
+    }
+    readonly property string current: resolved.id
+    readonly property var own: resolved.own
+    readonly property var data: merged(base, resolved.own)
+    readonly property bool isLegacy: current === hiddenSkin
 
-    // ── The skin in use ─────────────────────────
-    readonly property string current: Theme.cfg.skin === "legacy" && legacyAvailable ? "legacy" : "alchemos"
-    readonly property bool isLegacy: current === "legacy"
-    readonly property var data: isLegacy ? merged(alchemos, legacyData) : alchemos
-
-    // a legacy skin.json that leaves something out gets ALCHEMOS's value for it
+    // a skin's skin.json over BASE: objects merge a level deep, lists and values replace
     function merged(a, b) {
         const out = Object.assign({}, a, b);
-        out.text = Object.assign({}, a.text, b.text || {});
+        for (const k of ["text", "glyphs", "style", "components"]) out[k] = Object.assign({}, a[k], b[k] || {});
         out.personas = {
             jarvis: Object.assign({}, a.personas.jarvis, (b.personas || {}).jarvis || {}),
             friday: Object.assign({}, a.personas.friday, (b.personas || {}).friday || {})
         };
-        out.aliases = b.aliases || {};
+        if (!Array.isArray(out.presets) || out.presets.length === 0) out.presets = a.presets;
         return out;
     }
 
     readonly property var presets: data.presets
     readonly property var text: data.text
     readonly property var aliases: data.aliases || {}
+    readonly property var glyphs: data.glyphs
+    readonly property var style: data.style
     readonly property string label: data.label
-    readonly property string cursor: data.cursor
-    readonly property string transition: data.transition
+    readonly property string osName: data.osName
+
     // Components resolve inside the shell (qs:@/qs/…, like widgets/): a file:// URL would load a second
-    // copy of every singleton the component imports. One expression each, so a switch never pairs one
-    // skin's folder with the other's file name.
-    function component(key) {
-        return isLegacy && legacyData[key] ? Qt.resolvedUrl("skins/legacy/" + legacyData[key]) : Qt.resolvedUrl(alchemos[key]);
+    // copy of every singleton the component imports. A skin's own file, else the default.
+    function component(name) {
+        const r = root.resolved;
+        const file = (r.own.components || {})[name];
+        if (file && r.id !== "base") return Qt.resolvedUrl("skins/" + r.id + "/" + file);
+        return root.defaults[name] ? Qt.resolvedUrl(root.defaults[name]) : "";
     }
     readonly property url clockUrl: component("clock")
     readonly property url sceneUrl: component("scene")
+    readonly property url transitionUrl: component("transition")
+    // stark-cursor/build.sh: the skin's busy-cursor template folder ("" = the default art)
+    readonly property string cursorDir: resolved.own.cursor && resolved.id !== "base" ? Quickshell.shellPath("skins/" + resolved.id + "/" + resolved.own.cursor) : ""
+
     function persona(who) { return data.personas[who === "friday" ? "friday" : "jarvis"]; }
     function glyphFor(presetName) {
         const p = presets.find(x => x.name === presetName);
         return p ? (p.glyph || "") : "";
     }
-    // Every built-in name of every skin (custom presets can't take one)
-    readonly property var reservedNames: alchemos.presets.map(p => p.name)
-        .concat(Object.keys(alchemos.aliases)).concat(legacyAvailable ? legacyData.presets.map(p => p.name) : [])
+
+    // ── Installed skins (scanned in the background) ──
+    FolderListModel {
+        id: folders
+        folder: "file://" + Quickshell.shellPath("skins")
+        showDirs: true; showFiles: false; showDotAndDotDot: false
+    }
+    property var installed: ({})                         // id → skin.json data
+    Instantiator {
+        model: folders
+        delegate: FileView {
+            required property string fileName
+            path: Quickshell.shellPath("skins/" + fileName + "/skin.json")
+            watchChanges: true; printErrors: false
+            onFileChanged: reload()
+            onLoaded: root.note(fileName, root.parse(text()))
+            onLoadFailed: root.note(fileName, null)
+        }
+    }
+    function note(id, d) {
+        const m = Object.assign({}, root.installed);
+        if (d && id.charAt(0) !== "_") m[id] = d; else delete m[id];
+        root.installed = m;
+    }
+    function has(id) { return !!root.installed[id] || id === root.current; }
+    // what Settings lists: every skin, hidden ones once unlocked
+    readonly property var listed: Object.keys(installed).filter(id => !installed[id].hidden || Theme.cfg.skinUnlocked)
+        .sort((a, b) => (a === root.defaultSkin ? -1 : b === root.defaultSkin ? 1 : a.localeCompare(b)))
+    function labelOf(id) { return (installed[id] && installed[id].label) || id.toUpperCase(); }
+    // compatibility with the two-skin API
+    readonly property bool legacyAvailable: !!installed[hiddenSkin] || current === hiddenSkin
+    readonly property var legacyData: installed[hiddenSkin] || null
+    // Every built-in name of every installed skin (custom presets can't take one)
+    readonly property var reservedNames: {
+        let names = presets.map(p => p.name).concat(Object.keys(aliases));
+        for (const id in installed) {
+            const d = installed[id];
+            names = names.concat((d.presets || []).map(p => p.name)).concat(Object.keys(d.aliases || {}));
+        }
+        return names;
+    }
+    function presetsOf(id) {
+        const d = id === root.current ? root.own : installed[id];
+        return d && Array.isArray(d.presets) && d.presets.length ? d.presets : base.presets;
+    }
 
     // ── Switching ───────────────────────────────
     signal switched(string to)          // Ignite.qml plays the new skin's transition
-    readonly property var names: ["alchemos", "legacy"]
 
     // → "" on success, else why not
     function set(name, unlock) {
         const n = String(name || "").trim().toLowerCase();
-        if (names.indexOf(n) < 0) return "unknown skin " + n + " (alchemos | legacy)";
-        if (n === "legacy" && !legacyAvailable) return "legacy skin not installed";
+        if (n.charAt(0) === "_" || !installed[n] && n !== current)
+            return "skin " + n + " not installed (" + Object.keys(installed).join(" | ") + ")";
         if (unlock && !Theme.cfg.skinUnlocked) Theme.cfg.skinUnlocked = true;
         if (n === current) return "";
         Theme.switchSkin(current, n);
         root.switched(n);
         return "";
     }
-    function toggle(unlock) { return set(isLegacy ? "alchemos" : "legacy", unlock); }
+    // the hidden skin and back (the app search's word, `skin toggle`, "switch skins")
+    function toggle(unlock) { return set(isLegacy || !legacyAvailable ? defaultSkin : hiddenSkin, unlock); }
 
     // The app search's hidden word (Qt.md5 of it; the word itself isn't kept anywhere)
     readonly property string secretHash: "c08b2c550f28b9569e2bf83ffb37e2d1"
@@ -149,15 +231,17 @@ Singleton {
         target: "skin"
         function get(): string { return root.current }
         function list(): string {
-            return JSON.stringify({ current: root.current, asked: Theme.cfg.skin, available: root.legacyAvailable ? root.names : ["alchemos"] });
+            return JSON.stringify({ current: root.current, asked: Theme.cfg.skin, available: Object.keys(root.installed).sort(),
+                                    listed: root.listed });
         }
+        // the reply names the skin switched to (the switch itself lands once that skin's file is read)
         function set(name: string): string {
             const why = root.set(name, true);
-            return why || "skin " + root.current;
+            return why || "skin " + root.asked;
         }
         function toggle(): string {
             const why = root.toggle(true);
-            return why || "skin " + root.current;
+            return why || "skin " + root.asked;
         }
     }
 }

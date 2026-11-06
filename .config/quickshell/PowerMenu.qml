@@ -20,7 +20,7 @@ PanelWindow {
     color: "transparent"
     Binding { target: pm.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property var items: [
         { key: "lock",     label: "LOCK",      glyph: Skin.text.lockGlyph, confirm: false },
         { key: "sleep",    label: "SLEEP",     glyph: "☾", confirm: false },

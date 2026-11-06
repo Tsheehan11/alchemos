@@ -1,6 +1,6 @@
 pragma Singleton
 // Drives Ignite.qml on every screen: one animation at a time.
-//   skin(name)        the new skin's transition (Skin.transition: transmute | reactor)
+//   skin()            the new skin's transition component (Skin.component("transition"))
 //   preset(p)         the ignite flare in the preset's colour, with its glyph
 import QtQuick
 import Quickshell
@@ -24,7 +24,7 @@ Singleton {
 
     function skin() {
         if (GameMode.quiet) return;
-        root.mode = Skin.transition;
+        root.mode = "skin";
         root.color = Theme.primary;
         root.title = Skin.text.transitionTitle || "";
         root.sub = Skin.text.transitionSub || "";

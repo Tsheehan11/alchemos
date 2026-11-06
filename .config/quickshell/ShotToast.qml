@@ -28,7 +28,7 @@ PanelWindow {
     // Out of the next shot's way (Shot.qml)
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property color accent: ok ? Theme.primary : "#ff5f5f"
 
     Rectangle {

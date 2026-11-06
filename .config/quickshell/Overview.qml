@@ -27,7 +27,7 @@ PanelWindow {
     color: "transparent"
     Binding { target: ov.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property var ids: OverviewData.workspacesFor(modelData)
     readonly property int n: ids.length
 

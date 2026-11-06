@@ -15,10 +15,12 @@ JARVIS is exactly what it always was: its text is never touched here. FRIDAY get
   - style(): her versions of the stock lines (fast path, errors, confirmations, DJ, alerts) and a
     "sir" → "boss" pass over anything else that reaches the speaker or the HUD.
 
-Names follow the HUD's skin (quickshell/Skin.qml, "skin" in settings.json): ALCHEMOS calls them ORRIN and
-SELENE, the legacy skin JARVIS and FRIDAY. The ids (jarvis / friday), voices, wake words and manner are
-the same in both, and "Orrin" / "Selene" work wherever "jarvis" / "friday" do. Claude learns the names per
-turn from a "[AlchemOS]" tag (tag()), so a skin switch applies at once and the system prompt stays cached.
+Names follow the HUD's skin (quickshell/skins/<id>/skin.json: personas, osName; the same fallback as
+quickshell/Skin.qml: the asked skin, else alchemos, else the base names). ALCHEMOS calls them ORRIN and
+SELENE on AlchemOS, the legacy skin JARVIS and FRIDAY on STARK OS. The ids (jarvis / friday), wake words
+and manner are the same in every skin, and "Orrin" / "Selene" work wherever "jarvis" / "friday" do.
+Claude learns the names per turn from a tag like "[AlchemOS · ORRIN · SELENE]" (tag()), so a skin
+switch applies at once and the system prompt stays cached; the legacy names need no tag.
 """
 import json
 import re
@@ -28,11 +30,13 @@ from . import config as C
 
 NAMES = ("jarvis", "friday")
 ALIASES = {"orrin": "jarvis", "selene": "friday"}
-# Display names per skin (the HUD's Skin.qml has the same, with glyphs); LABEL in capitals, CALL in a sentence
-LABEL = {"alchemos": {"jarvis": "ORRIN", "friday": "SELENE"}, "legacy": {"jarvis": "JARVIS", "friday": "FRIDAY"}}
-CALL = {"alchemos": {"jarvis": "Orrin", "friday": "Selene"}, "legacy": {"jarvis": "Jarvis", "friday": "FRIDAY"}}
-LEGACY_SKIN = C.HOME / ".config/quickshell/skins/legacy/skin.json"   # the private overlay; missing = no legacy skin
-SKIN_TAG = "[AlchemOS] "
+SKINS_DIR = C.HOME / ".config/quickshell/skins"
+DEFAULT_SKIN = "alchemos"
+# what a skin leaves out (quickshell/Skin.qml BASE); name: labels, call: in a sentence
+BASE = {"osName": "the desktop", "personas": {"jarvis": {"name": "JARVIS", "call": "Jarvis"},
+                                              "friday": {"name": "FRIDAY", "call": "Friday"}}}
+UNTAGGED = ("STARK OS", "JARVIS", "FRIDAY")      # the names the system prompt itself uses: no tag needed
+_skin_cache = {}                                 # path → (mtime, data)
 
 _lock = threading.Lock()
 _override = None        # persona of the exchange in progress (named by its wake word)
@@ -45,31 +49,67 @@ def norm(name):
     return n if n in NAMES else None
 
 
-def skin(cfg=None):
-    """alchemos | legacy, as the HUD shows it (legacy only while its overlay is installed)."""
+def _read(sid):
+    """A skin's skin.json (cached by mtime), None if it isn't installed or doesn't parse."""
+    if not sid or sid.startswith("_"):
+        return None
+    path = SKINS_DIR / sid / "skin.json"
     try:
-        s = (cfg or C.Config())["skin"]
+        m = path.stat().st_mtime
+    except OSError:
+        return None
+    hit = _skin_cache.get(path)
+    if hit and hit[0] == m:
+        return hit[1]
+    try:
+        data = json.loads(path.read_text())
+        data = data if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        data = None
+    _skin_cache[path] = (m, data)
+    return data
+
+
+def skin(cfg=None):
+    """The skin the HUD shows: the asked one if installed, else alchemos, else "base"."""
+    try:
+        asked = str((cfg or C.Config())["skin"] or DEFAULT_SKIN)
     except Exception:
-        s = "alchemos"
-    return "legacy" if s == "legacy" and LEGACY_SKIN.exists() else "alchemos"
+        asked = DEFAULT_SKIN
+    if _read(asked):
+        return asked
+    return DEFAULT_SKIN if _read(DEFAULT_SKIN) else "base"
 
 
-OS_NAME = {"alchemos": "AlchemOS", "legacy": "STARK OS"}
+def skin_data(cfg=None):
+    return _read(skin(cfg)) or {}
 
 
 def os_name(cfg=None):
     """The desktop's name as the skin shows it: 'AlchemOS' (legacy 'STARK OS')."""
-    return OS_NAME[skin(cfg)]
+    return skin_data(cfg).get("osName") or BASE["osName"]
+
+
+def _persona(who, key, cfg):
+    who = norm(who) or current(cfg)
+    p = (skin_data(cfg).get("personas") or {}).get(who) or {}
+    return p.get(key) or BASE["personas"][who][key]
 
 
 def label(who=None, cfg=None):
     """'ORRIN' / 'SELENE' (legacy 'JARVIS' / 'FRIDAY') for who (default: who's talking)."""
-    return LABEL[skin(cfg)][norm(who) or current(cfg)]
+    return _persona(who, "name", cfg)
 
 
 def call(who=None, cfg=None):
     """The name in a sentence: 'Orrin' / 'Selene' (legacy 'Jarvis' / 'FRIDAY')."""
-    return CALL[skin(cfg)][norm(who) or current(cfg)]
+    return _persona(who, "call", cfg)
+
+
+def skin_tag(cfg=None):
+    """The turn's names tag, "" when they're the prompt's own (STARK OS, JARVIS, FRIDAY)."""
+    names = (os_name(cfg), label("jarvis", cfg), label("friday", cfg))
+    return "" if names == UNTAGGED else "[" + " · ".join(names) + "] "
 
 
 def active(cfg=None):
@@ -141,7 +181,7 @@ def voice_params(cfg, who=None):
 
 
 def announce_line(who, cfg=None):
-    n = LABEL[skin(cfg)]
+    n = {"jarvis": label("jarvis", cfg), "friday": label("friday", cfg)}
     return {"jarvis": f"{n['jarvis']} here, sir. {n['friday']}'s on standby.",
             "friday": f"Hey boss, {n['friday']} here. {n['jarvis']} is taking five."}[who]
 
@@ -156,16 +196,16 @@ def switch_reply(who, changed):
 # Brain: appended to JARVIS's system prompt (which stays as it is); her turns start with "[FRIDAY]".
 PROMPT = """
 You have a second persona, FRIDAY, with the same tools, memory and rules. A message tagged [FRIDAY] is answered as FRIDAY; every other message is answered as JARVIS, exactly as described above. FRIDAY is warmer, quicker and more casual than JARVIS: friendly, a little playful, plain words and contractions, short punchy sentences, no butler formality. She calls him "boss" (sparingly), never "sir", and she is FRIDAY, not JARVIS. Same speech rules: written for the ear, 1-2 short sentences, no lists or symbols. Never write the [FRIDAY] tag yourself.
-A message may also start with [AlchemOS]: then the desktop wears its AlchemOS skin: the desktop is called AlchemOS (never STARK OS), JARVIS is named ORRIN and FRIDAY is named SELENE. Same two of you, same manner; only the names change. In those exchanges call yourselves and each other ORRIN and SELENE, never JARVIS or FRIDAY, and the desktop AlchemOS (he may still say "Jarvis" or "Friday", or wake you with "hey Jarvis": that means you). Never write the [AlchemOS] tag yourself."""
+A message may also start with a names tag such as [AlchemOS · ORRIN · SELENE]: the desktop is wearing a skin that renames things. The first name is what the desktop is called (say that, never STARK OS), the second is JARVIS's name and the third FRIDAY's. Same two of you, same manner; only the names change. In those exchanges call yourselves, each other and the desktop only by the tag's names (he may still say "Jarvis" or "Friday", or wake you with "hey Jarvis": that means you). For example, with [AlchemOS · ORRIN · SELENE] the desktop is AlchemOS, JARVIS is ORRIN and FRIDAY is SELENE. Never write a names tag yourself."""
 
 TAG = "[FRIDAY] "
 
 
 def tag(text, who=None, cfg=None):
-    """The user turn as Claude sees it: FRIDAY's turns carry [FRIDAY], and under the ALCHEMOS skin every turn
-    starts with [AlchemOS] (the names). Legacy JARVIS turns are unchanged."""
+    """The user turn as Claude sees it: FRIDAY's turns carry [FRIDAY], and every turn under a skin that renames
+    things starts with its names tag ("[AlchemOS · ORRIN · SELENE] "). Legacy JARVIS turns are unchanged."""
     t = TAG + text if (who or current()) == "friday" else text
-    return SKIN_TAG + t if skin(cfg) == "alchemos" else t
+    return skin_tag(cfg) + t
 
 
 # Her versions of JARVIS's stock lines (exact match, after the line is formatted).

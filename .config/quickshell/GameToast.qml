@@ -25,7 +25,7 @@ PanelWindow {
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
     mask: Region {}
 
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
     readonly property bool on: GameMode.active
     readonly property color accent: GameMode.batteryWarn ? "#ff5f5f" : (on ? Theme.secondary : Theme.primary)
     readonly property string sub: !on ? "SYSTEMS RESTORED · HUD ONLINE"

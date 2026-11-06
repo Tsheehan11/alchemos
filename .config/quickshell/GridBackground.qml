@@ -18,7 +18,7 @@ PanelWindow {
     Binding on t { when: bg.live; value: Perf.time; restoreMode: Binding.RestoreNone }
 
     readonly property int step: 40
-    readonly property string mono: "JetBrainsMono Nerd Font"
+    readonly property string mono: Style.mono
 
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.namespace: "stark-grid"
