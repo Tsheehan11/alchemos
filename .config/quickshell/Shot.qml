@@ -90,7 +90,7 @@ Singleton {
                 }
                 root.last = r;
                 Quickshell.execDetached(["pw-play", "--volume", "0.7", "-P",
-                    "{ media.name = \"STARK shutter\" state.restore-props = false }", root.sound]);
+                    "{ media.name = \"HUD shutter\" state.restore-props = false }", root.sound]);
                 root.serial++;
                 root.toastShowing = true;
                 toastTimer.restart();
