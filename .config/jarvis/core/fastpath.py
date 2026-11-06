@@ -150,13 +150,26 @@ PERSONA_WORDS = {"orrin": "jarvis", "oren": "jarvis", "orin": "jarvis", "selene"
 # "skin" has to be said, except "switch back" while the legacy skin is on.
 SKIN_WORDS = {"legacy": "legacy", "old": "legacy", "original": "legacy", "stark": "legacy", "stark os": "legacy",
               "alchemos": "alchemos", "alchemy": "alchemos", "alchemy os": "alchemos", "alchemist": "alchemos",
-              "al chemos": "alchemos", "default": "alchemos", "normal": "alchemos", "new": "alchemos"}
+              "al chemos": "alchemos", "default": "alchemos", "normal": "alchemos", "new": "alchemos",
+              # how Whisper hears "AlchemOS"
+              "alkene os": "alchemos", "alkeneos": "alchemos", "alkene": "alchemos", "alchem os": "alchemos",
+              "alcamos": "alchemos", "alchemist os": "alchemos", "alkemos": "alchemos", "al kemos": "alchemos",
+              "alchemy o s": "alchemos", "alchem o s": "alchemos"}
+# names that can only mean a skin, so "switch back to AlchemOS" needs no "skin"
+SKIN_ONLY = sorted((w for w, s in SKIN_WORDS.items() if w not in ("old", "original", "stark", "stark os", "default",
+                                                                 "normal", "new", "alchemy", "alchemist", "alkene")),
+                   key=len, reverse=True)
 _SKIN_NAME = "|".join(sorted(map(re.escape, SKIN_WORDS), key=len, reverse=True))
-SKIN = re.compile(rf"(?:(?:switch|change|swap|go|flip|put|set)(?: (?:it|me|us|the hud|the desktop))?(?: back)?(?: to| into)?"
-                  rf"(?: (?:the|a|my))? ({_SKIN_NAME}) skin(?: (?:back|on|please|now))*|"
-                  rf"(?:switch|change|swap|flip|toggle)(?: the)? skins?(?: back| over| around)?(?: (?:to|into)(?: the)? ({_SKIN_NAME})(?: skin)?)?"
-                  rf"(?: please| now)*)")
+SKIN = re.compile(
+    # "[switch to] [the] legacy skin [please]"
+    rf"(?:(?:switch|change|swap|go|flip|put|set)(?: (?:it|me|us|the hud|the desktop))?(?: back)?(?: to| into)? )?"
+    rf"(?:(?:the|a|my) )?({_SKIN_NAME}) skin(?: (?:back|on|please|now))*"
+    # "switch skins [back] [to legacy]"
+    rf"|(?:switch|change|swap|flip|toggle)(?: the)? skins?(?: back| over| around)?(?: (?:to|into)(?: the)? ({_SKIN_NAME})(?: skin)?)?"
+    rf"(?: please| now)*")
 SKIN_BACK = re.compile(r"(?:switch|change|go|flip|put|take)(?: (?:it|me|us|everything))? back(?: please| now)*")
+SKIN_TO = re.compile(rf"(?:switch|change|go|flip|swap)(?: (?:it|me|us|everything))?(?: back)? to (?:the )?({'|'.join(map(re.escape, SKIN_ONLY))})"
+                     rf"(?: please| now)*")
 
 
 def _skin(t):
@@ -164,6 +177,9 @@ def _skin(t):
     if m:
         word = m.group(1) or m.group(2)
         return SKIN_WORDS[word] if word else "toggle"
+    m = SKIN_TO.fullmatch(t)
+    if m:
+        return SKIN_WORDS[m.group(1)]
     if SKIN_BACK.fullmatch(t) and A.skin_current() == "legacy":
         return "alchemos"
     return None
@@ -358,7 +374,7 @@ def _on(screen):
 # Screen roles (set_screen_role) vs widgets. Widget: the word "widget" or a widget-only thing (timer, note…).
 # Role: the TV, "screen", "panel", "HUD", "set <screen> to <role>", "nothing / none / auto on". Anything else
 # that could be either ("put music on monitor 2") asks "Panel or widget?" once; Jarvis remembers the answer.
-RROLE = (r"(?:the |a |an |my )?(?:arc reactor|reactor|clock|stats|statistics|system stats|diagnostics|telemetry|music|media|"
+RROLE = (r"(?:the |a |an |my )?(?:arc reactor|reactor|alchemical circle|astrolabe|clock|stats|statistics|system stats|diagnostics|telemetry|music|media|"
          r"audio|now playing|visuali[sz]er|player|nothing|none|blank|auto|automatic|default)(?: deck| panel| hud| wall| view)?")
 RSCREEN = (r"(?:the |my )?(?:tv|t v|television|telly|laptop(?: screen| display)?|(?:built in|internal) (?:screen|display)|"
            r"(?:main|primary|first|left|second|middle) (?:monitor|screen|display)|(?:monitor|screen|display) (?:1|one|2|two|3|three)|"

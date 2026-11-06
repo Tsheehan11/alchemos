@@ -179,6 +179,7 @@ def _words(t):
     for a, b in ABBREV.items():
         t = re.sub(rf"(?<!\w){re.escape(a)}(?!\w)", b, t)
     t = re.sub(r"\b(II|III|IV|VI|VII|VIII|IX)\b", lambda m: ROMAN[m.group(1)], t)    # MARK III
+    t = re.sub(r"\b(?:AlchemOS|ALCHEMOS|Alchemos)\b", "Alkem O S", t)                # the desktop's name, as a word + O S
     t = re.sub(rf"\b(?:{CAPS_WORDS})\b|\b(?!(?:{ACRONYMS})\b)[A-Z]{{5,}}\b", lambda m: m.group(0).title(), t)
     t = re.sub(r"\bUW ?CS\b", "U W C S", t)
     t = re.sub(r"\bSTARK OS\b|\bStark OS\b", "Stark O S", t)

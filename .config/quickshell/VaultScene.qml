@@ -61,6 +61,7 @@ Item {
                 const ctx = getContext("2d");
                 ctx.reset();                                   // not clearRect(): see Graph.qml
                 const W = width, H = height, sy = door.seamY, cx = W / 2, R = r;
+                if (W < 2 || H < 2 || R < 40) return;          // not laid out yet (the first paint can come at 0×0)
                 const dir = door.upper ? -1 : 1;               // away from the seam
                 // metal: darker away from the seam, a warm sheen toward it
                 const g = ctx.createLinearGradient(0, sy, 0, sy + dir * H);

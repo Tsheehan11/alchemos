@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-JARVIS: Claude-powered voice assistant for STARK OS.
+JARVIS: Claude-powered voice assistant for the desktop (AlchemOS; STARK OS in the legacy skin).
 
   "Hey Jarvis" → chime, LISTENING on the HUD, music turned down → the command
     (from just before the wake word, so a one-breath "hey Jarvis dim the lights"
@@ -1638,7 +1638,7 @@ def show_log(rows):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="JARVIS for STARK OS")
+    ap = argparse.ArgumentParser(description="JARVIS, the desktop's voice assistant (ORRIN / SELENE in AlchemOS)")
     ap.add_argument("--text", action="append", help="handle a typed request (repeat for a conversation)")
     ap.add_argument("--dry-run", action="store_true", help="validate and print tool calls without running them")
     ap.add_argument("--confirm", choices=["ask", "yes", "no"], default="ask", help="answer confirmations (text mode)")

@@ -1048,7 +1048,7 @@ def widget_note_count(target, screen=""):
 # nothing), saved per monitor. Never moves workspaces.
 SCREEN_ROLES = ["auto", "clock", "stats", "music", "none"]
 ROLE_WORDS = [   # spoken → role; fullmatch on the normalized phrase
-    (r"(?:the )?(?:arc )?(?:reactor|clock|time)(?: panel| hud| view)?", "clock"),
+    (r"(?:the )?(?:arc |alchemical |alchemy )?(?:reactor|clock|time|circle|astrolabe)(?: panel| hud| view)?", "clock"),
     (r"(?:the )?(?:system )?(?:stats|statistics|diagnostics|diag|telemetry)(?: wall| panel| hud| view)?", "stats"),
     (r"(?:the )?(?:music|media|audio|now playing|visualizer|visualiser|player|spotify)(?: deck| panel| hud| view)?", "music"),
     (r"nothing|none|blank|empty|(?:just )?(?:the )?grid|no panel|off", "none"),
@@ -1091,7 +1091,7 @@ def norm_role_screen(spoken):
 
 @safe
 def set_screen_role(screen, role):
-    """Choose what a screen's HUD shows: clock (arc reactor) | stats (diagnostics) | music (audio deck +
+    """Choose what a screen's HUD shows: clock (the big clock) | stats (diagnostics) | music (audio deck +
     visualizer) | none (grid only) | auto (by position). screen: "TV" | "laptop screen" | "monitor 2" |
     "main monitor" | "second monitor" | "" (the one in use). Saved per monitor; workspaces don't move."""
     r = norm_role(role)

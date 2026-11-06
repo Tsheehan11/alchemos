@@ -139,7 +139,7 @@ def gate(tool, args=None, fresh=False, auto=False):
 check("read runs freely", gate("mcp__google__email_search", fresh=True), ("Allow", 0))
 check("read-only write refused", gate("mcp__google__send_email", fresh=True), ("Deny", 0))
 check("write asks", gate("mcp__academic__calendar_add_assignment", {"course": "CS 137", "title": "A5"}, fresh=True), ("Allow", 1))
-check("write prompt", asked, ["Add CS 137 A5 to your STARK assignments calendar, sir?"])
+check("write prompt", asked, ["Add CS 137 A5 to your assignments calendar, sir?"])
 check("auto-add skips asking", gate("mcp__academic__calendar_add_assignment", fresh=True, auto=True), ("Allow", 0))
 check("desktop tool, untainted", gate("mcp__stark__set_theme", {"preset": "matrix"}, fresh=True), ("Allow", 0))
 gate("mcp__google__email_search", fresh=True)

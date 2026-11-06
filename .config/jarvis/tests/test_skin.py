@@ -38,9 +38,15 @@ for text, want in [
 ]:
     check(f"skin {text!r}", skin_of(text), [want])
 
+# bare and misheard skin names (Whisper: "AlkeneOS"), no verb or no "skin"
+for text, want in [("Legacy skin.", "legacy"), ("the legacy skin", "legacy"), ("alchemos skin please", "alchemos"),
+                   ("Hey Jarvis, switch back to AlkeneOS.", "alchemos"), ("switch back to legacy", "legacy"),
+                   ("go back to alchemos", "alchemos"), ("switch to alchemy os", "alchemos")]:
+    check(f"skin {text!r}", skin_of(text), [want])
+
 # not a skin: the persona and theme switches keep their own tools, and "switch back" needs the legacy skin
 for text in ["switch to friday", "switch to the stark theme", "set the theme to iron", "switch back",
-             "go back", "switch to workspace 2"]:
+             "go back", "switch to workspace 2", "switch back to jarvis", "switch to stark", "switch to the old theme"]:
     check(f"not skin {text!r}", bool(skin_of(text)), False)
 SKIN_NOW["v"] = "legacy"
 check("switch back while legacy", skin_of("switch back"), ["alchemos"])
@@ -74,6 +80,13 @@ for spoken, presets, want in [("mark three", METALS, "IRON"), ("Mark 3", METALS,
                               ("stark", OLD, "STARK"), ("chrome", METALS, None)]:
     check(f"preset {spoken!r} in {presets[0]}…", A.match_preset(spoken, presets), want)
 check("choices", sorted(A.preset_choices(["IRON", "PINKY"])), ["IRON", "MARK III", "PINKY"])
+
+# the desktop's name, spoken
+from core import speech  # noqa: E402
+check("speak AlchemOS", speech.normalize("Welcome to AlchemOS. ALCHEMOS skin."), "Welcome to Alkem O S. Alkem O S skin.")
+check("speak STARK OS", speech.normalize("STARK OS online."), "Stark O S online.")
+# the clock's role words for the new clock
+check("role circle", A.norm_role("the alchemical circle"), "clock")
 
 print(f"\n{'FAILED ' + str(len(FAILS)) if FAILS else 'all passed'}")
 sys.exit(1 if FAILS else 0)

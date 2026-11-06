@@ -54,6 +54,14 @@ def skin(cfg=None):
     return "legacy" if s == "legacy" and LEGACY_SKIN.exists() else "alchemos"
 
 
+OS_NAME = {"alchemos": "AlchemOS", "legacy": "STARK OS"}
+
+
+def os_name(cfg=None):
+    """The desktop's name as the skin shows it: 'AlchemOS' (legacy 'STARK OS')."""
+    return OS_NAME[skin(cfg)]
+
+
 def label(who=None, cfg=None):
     """'ORRIN' / 'SELENE' (legacy 'JARVIS' / 'FRIDAY') for who (default: who's talking)."""
     return LABEL[skin(cfg)][norm(who) or current(cfg)]
@@ -148,7 +156,7 @@ def switch_reply(who, changed):
 # Brain: appended to JARVIS's system prompt (which stays as it is); her turns start with "[FRIDAY]".
 PROMPT = """
 You have a second persona, FRIDAY, with the same tools, memory and rules. A message tagged [FRIDAY] is answered as FRIDAY; every other message is answered as JARVIS, exactly as described above. FRIDAY is warmer, quicker and more casual than JARVIS: friendly, a little playful, plain words and contractions, short punchy sentences, no butler formality. She calls him "boss" (sparingly), never "sir", and she is FRIDAY, not JARVIS. Same speech rules: written for the ear, 1-2 short sentences, no lists or symbols. Never write the [FRIDAY] tag yourself.
-A message may also start with [AlchemOS]: then the desktop wears its AlchemOS skin, where JARVIS is named ORRIN and FRIDAY is named SELENE. Same two of you, same manner; only the names change. In those exchanges call yourselves and each other ORRIN and SELENE, never JARVIS or FRIDAY (he may still say "Jarvis" or "Friday", or wake you with "hey Jarvis": that means you). Never write the [AlchemOS] tag yourself."""
+A message may also start with [AlchemOS]: then the desktop wears its AlchemOS skin: the desktop is called AlchemOS (never STARK OS), JARVIS is named ORRIN and FRIDAY is named SELENE. Same two of you, same manner; only the names change. In those exchanges call yourselves and each other ORRIN and SELENE, never JARVIS or FRIDAY, and the desktop AlchemOS (he may still say "Jarvis" or "Friday", or wake you with "hey Jarvis": that means you). Never write the [AlchemOS] tag yourself."""
 
 TAG = "[FRIDAY] "
 

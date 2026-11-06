@@ -130,8 +130,9 @@ def grades_new() -> str:
 
 @mcp.tool(structured_output=False)
 def calendar_add_assignment(course: str, title: str) -> str:
-    """Add one LEARN assignment (as listed by assignments_upcoming) to the STARK – Assignments calendar,
-    with its due time, link and a reminder two days before. Never touches any other calendar."""
+    """Add one LEARN assignment (as listed by assignments_upcoming) to his dedicated assignments calendar (its
+    real name is "STARK – Assignments"; say "your assignments calendar"), with its due time, link and a
+    reminder two days before. Never touches any other calendar."""
     import tracker
     if tracker.configured():
         return out({"ok": False, "error": "the SE tracker is the assignment record now (it syncs to his calendar); "
@@ -173,7 +174,7 @@ def calendar_add_assignment(course: str, title: str) -> str:
     said = {"created": "Added", "updated": "Updated", "unchanged": "Already had"}[what]
     return out({**untrusted("LEARN", {"course": a["course"], "title": a["title"], "due": when}), "result": what,
                 "calendar": academic.ASSIGNMENTS_CALENDAR,
-                "say": f"{said} {academic.spoken_course(a)} {'on' if what == 'unchanged' else 'to'} your STARK assignments calendar, due {when}."})
+                "say": f"{said} {academic.spoken_course(a)} {'on' if what == 'unchanged' else 'to'} your assignments calendar, due {when}."})
 
 
 # ── the SE tracker sheet ──

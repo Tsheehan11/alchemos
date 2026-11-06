@@ -197,6 +197,9 @@ check("alchemos announce jarvis", P.announce_line("jarvis"), "ORRIN here, sir. S
 check("alchemos tag jarvis", P.tag("hi", "jarvis"), "[AlchemOS] hi")
 check("alchemos tag friday", P.tag("hi", "friday"), "[AlchemOS] [FRIDAY] hi")
 check("prompt explains the tag", "[AlchemOS]" in brain.system_prompt() and "ORRIN" in brain.system_prompt(), True)
+check("os name alchemos", P.os_name(), "AlchemOS")
+check("prompt: AlchemOS is the desktop, never STARK OS",
+      "the desktop is called AlchemOS (never STARK OS)" in brain.system_prompt(), True)
 check("alchemos label tool", A.tool_label("jarvis_persona", {"name": "friday"}), "PERSONA → SELENE")
 check("dj voice orrin", P.dj_voice("jarvis").startswith("in Orrin's voice"), True)
 check("aliases", (P.norm("Orrin"), P.norm("SELENE"), P.norm("jarvis"), P.norm("ultron")), ("jarvis", "friday", "jarvis", None))
@@ -211,6 +214,8 @@ A.TOOLS["jarvis_persona"](name="jarvis")
 set_skin("legacy")
 P.LEGACY_SKIN = tmp / "no-such-overlay.json"
 check("legacy without overlay", (P.skin(), P.label("jarvis")), ("alchemos", "ORRIN"))
+P.LEGACY_SKIN = tmp / "legacy-skin.json"
+check("os name legacy", P.os_name(), "STARK OS")
 
 print("FAILS:", len(FAILS)) if FAILS else print("ok: personas")
 sys.exit(1 if FAILS else 0)
