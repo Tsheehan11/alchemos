@@ -61,6 +61,9 @@
     "namer": null,
     "//namer": "SAVE AS PRESET's suggestions: { \"entries\": [{ \"name\": \"COBALT\", \"glyph\": \"\", \"h\": 215, \"s\": 0.7, \"l\": 0.45 }, …], \"compound\": true, \"joiner\": \"-\" }. h in degrees, s and l 0..1; the nearest entry to the primary colour wins, compound pairs it with the accent's. null = plain colour names (RED, TEAL, SILVER…).",
 
+    "voices": null,
+    "//voices": "the skin's default voices: { \"jarvis\": { \"voice\": \"bm_george\", \"speed\": 0.94, \"pitch\": -0.5 }, \"friday\": { … }, \"effect\": \"CHAMBER\" } (Kokoro / piper voice names as in Settings; effect presets from jarvis/effects.json). Applied the first time the skin is used; after that whatever is set in Settings is remembered per skin. null = keep the current voices.",
+
     "cursor": "",
     "//cursor": "a folder here with wait.svg / progress.svg busy-cursor templates (see stark-cursor/src for the placeholders); \"\" = the default art"
 }

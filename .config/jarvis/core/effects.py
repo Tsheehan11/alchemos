@@ -87,7 +87,7 @@ def preset(name):
 
 
 def _board(fx, pitch):
-    from pedalboard import (Chorus, Compressor, Distortion, Gain, HighpassFilter, HighShelfFilter, Limiter,
+    from pedalboard import (Chorus, Compressor, Delay, Distortion, Gain, HighpassFilter, HighShelfFilter, Limiter,
                             LowpassFilter, LowShelfFilter, Pedalboard, PeakFilter, PitchShift, Reverb)
     chain = []
     if abs(pitch) >= 0.05:
@@ -110,8 +110,12 @@ def _board(fx, pitch):
     if fx.get("chorus_mix"):
         chain.append(Chorus(rate_hz=0.5, depth=fx.get("chorus_depth", 0.05), centre_delay_ms=6,
                             feedback=0.0, mix=fx["chorus_mix"]))
+    if fx.get("resonance_mix"):
+        # a faint metallic ring: a comb filter, i.e. a few-millisecond echo fed back into itself
+        chain.append(Delay(delay_seconds=fx.get("resonance_ms", 7.0) / 1000, feedback=fx.get("resonance_feedback", 0.3),
+                           mix=fx["resonance_mix"]))
     if fx.get("reverb_wet"):
-        chain.append(Reverb(room_size=fx.get("reverb_room", 0.2), damping=0.6, wet_level=fx["reverb_wet"],
+        chain.append(Reverb(room_size=fx.get("reverb_room", 0.2), damping=fx.get("reverb_damp", 0.6), wet_level=fx["reverb_wet"],
                             dry_level=1.0 - fx["reverb_wet"] / 2, width=0.5))
     chain.append(Limiter(threshold_db=-2.0))     # part of the tone (it squeezes); the level is set afterwards
     return Pedalboard(chain)

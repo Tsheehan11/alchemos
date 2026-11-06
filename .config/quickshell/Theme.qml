@@ -110,7 +110,8 @@ Singleton {
             property string skin: "alchemos"            // alchemos | legacy (needs the private skins/legacy overlay)
             property bool skinUnlocked: false           // the SKIN row shows in Settings → APPEARANCE
             property var skinPresets: ({})              // each skin's last look: { skin: { name, primary, secondary, background } }
-            property int skinVersion: 0                 // 1 = STARK OS presets moved to their metals (migrateSkins)
+            property int skinVersion: 0                 // 1 = STARK OS presets moved to their metals; 2 = voices per skin (migrateSkins)
+            property var skinVoices: ({})               // each skin's last voices: { skin: { jarvisVoice, jarvisSpeed, … } } (voiceKeys)
         }
     }
     property bool loaded: false   // settings.json has been read at least once
@@ -175,7 +176,14 @@ Singleton {
     // Once: settings from before skins. A STARK OS preset in use becomes its metal (MARK III → IRON) and is
     // kept as the legacy skin's look; a custom look stays as it is, for both skins.
     function migrateSkins() {
-        if (adapter.skinVersion >= 1) return;
+        if (adapter.skinVersion < 2) {
+            // v2: voices became part of the skin. The voices set until now stay the legacy skin's, as they are.
+            const sv = Object.assign({}, adapter.skinVoices || {});
+            if (!sv.legacy) sv.legacy = voiceRecord();
+            adapter.skinVoices = sv;
+            if (adapter.skinVersion >= 1) { adapter.skinVersion = 2; applySkinVoiceDefaults(); return; }
+        }
+        if (adapter.skinVersion >= 1) { applySkinVoiceDefaults(); return; }
         const alch = Skin.current === "alchemos" ? Skin.own : (Skin.installed.alchemos || {});
         const al = alch.aliases || {};
         const sp = Object.assign({}, adapter.skinPresets || {});
@@ -192,9 +200,50 @@ Singleton {
             sp.alchemos = old;
         }
         adapter.skinPresets = sp;
-        adapter.skinVersion = 1;
+        adapter.skinVersion = 2;
+        applySkinVoiceDefaults();
     }
+    // ── Voices per skin ─────────────────────────
+    // A skin's skin.json "voices" ({ jarvis: { voice, speed, pitch }, friday: {…}, effect }) are its defaults;
+    // what's set in Settings is remembered per skin (skinVoices) and comes back with the skin.
+    readonly property var voiceKeys: ["jarvisVoice", "jarvisSpeed", "jarvisPitch", "fridayVoice", "fridaySpeed", "fridayPitch", "jarvisEffect"]
+    function voiceRecord() {
+        const r = {};
+        for (const k of voiceKeys) r[k] = adapter[k];
+        return r;
+    }
+    function voiceDefaults(v) {          // skin.json voices → settings keys (only the ones it gives)
+        const r = {};
+        if (!v) return r;
+        for (const who of ["jarvis", "friday"]) {
+            const p = v[who] || {};
+            if (p.voice) r[who + "Voice"] = p.voice;
+            if (typeof p.speed === "number") r[who + "Speed"] = p.speed;
+            if (typeof p.pitch === "number") r[who + "Pitch"] = p.pitch;
+        }
+        if (v.effect) r.jarvisEffect = v.effect;
+        return r;
+    }
+    function applyVoices(r) {
+        for (const k of voiceKeys) if (r[k] !== undefined && adapter[k] !== r[k]) adapter[k] = r[k];
+    }
+    // The skin in use has no remembered voices yet but brings defaults: apply them once and remember them
+    function applySkinVoiceDefaults() {
+        const sv = adapter.skinVoices || {};
+        if (sv[Skin.current]) return;
+        const d = voiceDefaults(Skin.data.voices);
+        if (Object.keys(d).length === 0) return;
+        applyVoices(d);
+        adapter.skinVoices = Object.assign({}, sv, { [Skin.current]: voiceRecord() });
+    }
+    Connections { target: Skin; function onDataChanged() { if (root.loaded && adapter.skinVersion >= 2) root.applySkinVoiceDefaults(); } }
+
     function switchSkin(from, to) {
+        const sv = Object.assign({}, adapter.skinVoices || {});
+        sv[from] = voiceRecord();
+        adapter.skinVoices = sv;
+        if (sv[to]) applyVoices(sv[to]);       // else the new skin's defaults, once its file is read (onDataChanged)
+
         const sp = Object.assign({}, adapter.skinPresets || {});
         sp[from] = lookRecord();
         adapter.skinPresets = sp;
