@@ -8,6 +8,11 @@ import Quickshell
 Singleton {
     id: root
     property bool playing: false
+    // busy: playing, or just finished (a short tail so the last frames and the window unmapping are smooth).
+    // Theme's external pushes and the lock-picture redraws wait for it.
+    readonly property bool busy: playing || tail.running
+    readonly property bool moving: run.running          // the motion itself (after the warm start)
+    Timer { id: tail; interval: 250 }
     property string mode: ""
     property real p: 0
     property color color: Theme.primary
@@ -25,7 +30,7 @@ Singleton {
         root.sub = Skin.text.transitionSub || "";
         root.glyph = "";
         run.duration = root.lite ? 350 : 1900;
-        run.restart();
+        root.arm();
     }
     function preset(p) {
         if (GameMode.quiet || (run.running && root.mode !== "ignite")) return;   // a skin switch is showing
@@ -34,15 +39,33 @@ Singleton {
         root.glyph = p.glyph || "";
         root.title = ""; root.sub = "";
         run.duration = root.lite ? 300 : 1000;
-        run.restart();
+        root.arm();
     }
 
+    // Warm start: map the overlay windows (p = 0 draws nothing) and let the recolour and the windows'
+    // first frames land, then start the motion, so their one-off cost never shows as a stutter.
+    function arm() {
+        run.stop();
+        root.p = 0;
+        root.playing = true;
+        warm.ticks = 0;
+        warm.start();
+    }
+    FrameAnimation {
+        id: warm
+        property int ticks: 0
+        property real spent: 0
+        onRunningChanged: if (running) spent = 0
+        onTriggered: {
+            spent += frameTime * 1000;
+            if (++ticks >= 3) { stop(); console.log("ignite warm start: " + spent.toFixed(0) + " ms before the motion"); run.start(); }
+        }
+    }
     NumberAnimation {
         id: run
         target: root; property: "p"; from: 0; to: 1
         easing.type: Easing.Linear
-        onStarted: root.playing = true
-        onFinished: { root.playing = false; root.p = 0; }
+        onFinished: { root.playing = false; root.p = 0; tail.restart(); }
     }
     Connections {
         target: Skin

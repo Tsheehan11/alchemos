@@ -27,6 +27,24 @@ PanelWindow {
     readonly property real r0: Math.min(width, height) * 0.24
     readonly property string mono: "JetBrainsMono Nerd Font"
     function tc(a) { return Qt.rgba(tint.r, tint.g, tint.b, a); }
+
+    // Frame probe: one log line per screen per animation (frame intervals as this window saw them)
+    property var frames: []
+    FrameAnimation {
+        running: win.visible && IgniteState.moving
+        onTriggered: win.frames.push(frameTime * 1000)
+        onRunningChanged: {
+            if (running) { win.frames = []; return; }
+            const raw = win.frames.slice(1);
+            const f = raw.slice().sort((a, b) => a - b);
+            const slow = raw.map((x, i) => x > 25 ? i + "@" + x.toFixed(0) : "").filter(x => x).join(" ");
+            if (f.length < 3) return;
+            const mean = f.reduce((a, b) => a + b, 0) / f.length;
+            console.log("ignite " + IgniteState.mode + " " + win.modelData.name + ": first " + (win.frames[0] || 0).toFixed(0) + " ms, " + f.length + " frames, mean "
+                        + mean.toFixed(1) + " ms, p95 " + f[Math.floor(f.length * 0.95)].toFixed(1) + " ms, max "
+                        + f[f.length - 1].toFixed(1) + " ms, >25 ms: " + f.filter(x => x > 25).length + (slow ? " (" + slow + ")" : ""));
+        }
+    }
     function seg(a, b) { return Math.max(0, Math.min(1, (p - a) / (b - a))); }   // progress inside [a, b]
     function bell(a, b) { const x = seg(a, b); return Math.sin(Math.PI * x); }
 
@@ -61,8 +79,14 @@ PanelWindow {
         Item {
             anchors.fill: parent
             visible: win.mode === "transmute" || win.mode === "ignite"
-            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 2; value: win.seg(0, 0.35); color: win.tc(0.9); trackColor: "transparent"; animated: false; startAngle: -90 }
-            Ring { anchors.centerIn: parent; radius: win.r0 * 0.86; thickness: 1; value: win.seg(0.08, 0.42); color: win.tc(0.6); trackColor: "transparent"; animated: false; startAngle: 90 }
+            // transmute (a skin switch, rare): the rings draw themselves in. ignite (every preset change):
+            // complete rings that only scale and fade, so no frame rebuilds any geometry.
+            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 2; animated: false; startAngle: -90
+                   value: win.mode === "ignite" ? 1 : win.seg(0, 0.35); color: win.tint; opacity: 0.9 * (win.mode === "ignite" ? win.bell(0, 0.8) : 1)
+                   trackColor: "transparent"; scale: win.mode === "ignite" ? 0.75 + 0.25 * win.seg(0, 0.5) : 1 }
+            Ring { anchors.centerIn: parent; radius: win.r0 * 0.86; thickness: 1; animated: false; startAngle: 90
+                   value: win.mode === "ignite" ? 1 : win.seg(0.08, 0.42); color: win.tint; opacity: 0.6 * (win.mode === "ignite" ? win.bell(0.05, 0.85) : 1)
+                   trackColor: "transparent"; scale: win.mode === "ignite" ? 1.2 - 0.2 * win.seg(0, 0.5) : 1 }
             Sigil {
                 anchors.centerIn: parent
                 radius: win.r0 * 0.86
@@ -84,7 +108,7 @@ PanelWindow {
                     font.pixelSize: win.r0 * 0.16
                     opacity: lit
                     scale: 0.6 + 0.4 * lit + 0.5 * win.bell(0.3 + index * 0.07, 0.5 + index * 0.07)
-                    glow: lit
+                    glow: 1             // fixed: the halo is rendered once, opacity fades it
                 }
             }
         }
@@ -93,9 +117,9 @@ PanelWindow {
         Item {
             anchors.fill: parent
             visible: win.mode === "reactor"
-            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 1; value: 1; dashed: true; dash: [2, 8]; color: win.tc(0.5 * win.seg(0, 0.2)); trackColor: "transparent"; animated: false; rotation: 400 * win.p * win.p }
+            Ring { anchors.centerIn: parent; radius: win.r0; thickness: 1; value: 1; dashed: true; dash: [2, 8]; color: win.tint; opacity: 0.5 * win.seg(0, 0.2); trackColor: "transparent"; animated: false; rotation: 400 * win.p * win.p }
             Ring { anchors.centerIn: parent; radius: win.r0 * 0.85; thickness: 6; value: win.seg(0.05, 0.5); color: win.tc(0.85); trackColor: win.tc(0.08); animated: false; rotation: -260 * win.p }
-            Ring { anchors.centerIn: parent; radius: win.r0 * 0.62; thickness: 4; value: 1; dashed: true; dash: [5, 1.6]; color: win.tc(0.7 * win.seg(0.2, 0.5)); trackColor: "transparent"; animated: false; rotation: 720 * win.p * win.p }
+            Ring { anchors.centerIn: parent; radius: win.r0 * 0.62; thickness: 4; value: 1; dashed: true; dash: [5, 1.6]; color: win.tint; opacity: 0.7 * win.seg(0.2, 0.5); trackColor: "transparent"; animated: false; rotation: 720 * win.p * win.p }
             Rectangle {
                 anchors.centerIn: parent
                 width: win.r0 * 0.8; height: width; radius: width / 2
@@ -117,7 +141,8 @@ PanelWindow {
         // flash
         Rectangle {
             anchors.centerIn: parent
-            width: win.r0 * 0.4 + win.r0 * 4 * win.seg(0.62, 1); height: width; radius: width / 2
+            width: win.r0 * 4.4; height: width; radius: width / 2            // fixed size: scaled, not resized
+            scale: (0.4 + 4 * (win.mode === "ignite" ? win.seg(0.2, 1) : win.seg(0.62, 1))) / 4.4
             color: "transparent"
             border.color: win.tc(0.9); border.width: 3
             opacity: win.mode === "ignite" ? win.bell(0.2, 1) : win.bell(0.62, 1)

@@ -84,10 +84,16 @@ PanelWindow {
     onSavedKeyChanged: checkBg()
     Connections { target: Theme; function onLoadedChanged() { dw.checkBg(); } }
     Component.onCompleted: checkBg()
+    // Redraws never run during an animation (saving the PNG blocks the UI thread for a moment), and the
+    // screens take turns: each waits its index × 1.5 s after things are quiet.
+    readonly property int screenIndex: Quickshell.screens.indexOf(dw.modelData)
     Timer {
         id: bgCheck
-        interval: 800     // let a burst of colour / monitor changes settle
-        onTriggered: if (dw.bgKey !== dw.savedKey) bgRender.active = true
+        interval: 2000 + Math.max(0, dw.screenIndex) * 1500     // let a burst of colour / monitor changes settle
+        onTriggered: {
+            if (IgniteState.busy || LockState.doors !== "open" && LockState.doors !== "closed") { restart(); return; }
+            if (dw.bgKey !== dw.savedKey) bgRender.active = true;
+        }
     }
     // The window is 1×1 and the scene sits just outside it, so nothing reaches the screen;
     // grabToImage renders the whole scene regardless.

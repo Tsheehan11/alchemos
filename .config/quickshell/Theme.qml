@@ -557,12 +557,34 @@ Singleton {
     onCursorAnimatedChanged: cursorSync.restart()
     Connections { target: Skin; function onCurrentChanged() { cursorSync.restart(); } }
     onLoadedChanged: { if (loaded) migrateSkins(); cursorSync.restart(); }
-    Timer { id: hyprSync; interval: 300; onTriggered: root.pushToHyprland() }
-    Timer { id: kittySync; interval: 300; onTriggered: root.pushToKitty() }
-    Timer { id: heroicSync; interval: 300; onTriggered: root.pushToHeroic() }
-    Timer { id: codeSync; interval: 300; onTriggered: root.pushToCode() }
+    // External pushes wait for a skin / ignite animation to end (IgniteState.busy), then go out one
+    // after another (pushQueue), so a theme change never stalls the animation: hyprctl, kitty's
+    // SIGUSR1, VS Code reloading its settings and the cursor build all compete for the CPU. The Govee
+    // command goes at once: the strip's own wipe should run alongside the HUD's.
+    property var pushQueue: []
+    function push(fn) {
+        if (pushQueue.indexOf(fn) < 0) pushQueue = pushQueue.concat([fn]);
+        if (!IgniteState.busy && !pushRunner.running) pushRunner.start();
+    }
+    Timer {
+        id: pushRunner
+        interval: 120                 // a little air between pushes
+        repeat: true
+        onTriggered: {
+            if (IgniteState.busy) { stop(); return; }
+            if (root.pushQueue.length === 0) { stop(); return; }
+            const fn = root.pushQueue[0];
+            root.pushQueue = root.pushQueue.slice(1);
+            fn();
+        }
+    }
+    Connections { target: IgniteState; function onBusyChanged() { if (!IgniteState.busy && root.pushQueue.length) pushRunner.start(); } }
+    Timer { id: hyprSync; interval: 300; onTriggered: root.push(root.pushToHyprland) }
+    Timer { id: kittySync; interval: 300; onTriggered: root.push(root.pushToKitty) }
+    Timer { id: heroicSync; interval: 300; onTriggered: root.push(root.pushToHeroic) }
+    Timer { id: codeSync; interval: 300; onTriggered: root.push(root.pushToCode) }
     Timer { id: goveeSync; interval: 300; onTriggered: root.pushToGovee() }
-    Timer { id: cursorSync; interval: 600; onTriggered: root.pushCursor() }   // longer: a cold build is ~1 s
+    Timer { id: cursorSync; interval: 600; onTriggered: root.push(root.pushCursor) }   // longer: a cold build is ~1 s
     Component.onCompleted: { hyprSync.restart(); kittySync.restart(); heroicSync.restart(); codeSync.restart(); goveeSync.restart(); }
     // `hyprctl reload` resets border colors → push them again
     Connections {
