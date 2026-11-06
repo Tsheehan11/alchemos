@@ -70,7 +70,7 @@ def system_prompt(offline_integrations=()):
     if offline_integrations:
         p += ("\nNot connected yet: " + ", ".join(offline_integrations) + ". If he asks about email, calendar, "
               "documents, assignments or grades and no tool covers it, say that it isn't connected yet and he can "
-              "connect it in Settings, under Jarvis. Don't guess or make anything up.")
+              "connect it in Settings, on the assistant's own tab (ORRIN, or JARVIS in the legacy skin). Don't guess or make anything up.")
     return p
 
 STRONG_HINTS = re.compile(

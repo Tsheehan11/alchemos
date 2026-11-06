@@ -22,7 +22,7 @@ WidgetBody {
     readonly property var next: on ? (dj.next || []).slice(0, 3) : []
 
     title: "DJ // DECK"
-    detail: !JarvisFeed.online ? "JARVIS OFF" : building && !on ? "BUILDING SET" : on ? "LIVE · " + (dj.chatter || "rare").toUpperCase()
+    detail: !JarvisFeed.online ? JarvisState.assistant + " OFF" : building && !on ? "BUILDING SET" : on ? "LIVE · " + (dj.chatter || "rare").toUpperCase()
                                                                                        : "STANDBY"
     function jarvis(args) { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "dj"].concat(args)); }
     function fmt(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
@@ -70,7 +70,7 @@ WidgetBody {
                 Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackArtist || "") : ""; color: Theme.dim; font.family: w.mono; font.pixelSize: 11 }
                 Text {
                     width: parent.width; elide: Text.ElideRight; topPadding: 3
-                    text: w.on ? "◈ " + (w.dj.set || "SET").toUpperCase() : w.building ? "◈ BUILDING A SET…" : "◇ DJ MODE OFF"
+                    text: w.on ? Skin.text.lockGlyph + " " + (w.dj.set || "SET").toUpperCase() : w.building ? Skin.text.lockGlyph + " BUILDING A SET…" : "◇ DJ MODE OFF"
                     color: w.on || w.building ? Theme.primary : Theme.faint
                     font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2
                 }

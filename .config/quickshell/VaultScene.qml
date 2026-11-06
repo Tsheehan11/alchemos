@@ -163,15 +163,15 @@ Item {
                 readonly property int n: door.upper ? [5, 0, 1][index] : [2, 3, 4][index]   // clockwise from the left
                 readonly property real a: (n * 60 - 90) * Math.PI / 180
                 readonly property real lit: scene.seg(scene.inscribe, 0.25 + n * 0.11, 0.36 + n * 0.11)
-                readonly property real burn: Math.sin(Math.PI * scene.seg(scene.ignite, n * 0.12, n * 0.12 + 0.3))
+                readonly property real flash: Math.sin(Math.PI * scene.seg(scene.ignite, n * 0.12, n * 0.12 + 0.3))
                 text: scene.metals[n]
                 x: door.width / 2 + Math.cos(a) * (scene.bigR - 3) - width / 2
                 y: door.seamY + Math.sin(a) * (scene.bigR - 3) - height / 2
-                color: burn > 0.05 ? Theme.mix(Theme.primary, "#ffffff", 0.5 * burn) : Theme.primary
+                color: flash > 0.05 ? Theme.mix(Theme.primary, "#ffffff", 0.5 * flash) : Theme.primary
                 opacity: (0.25 + 0.75 * lit) * scene.sealA
                 font.pixelSize: 24
-                scale: 1 + 0.45 * burn
-                glow: Math.min(1, 0.45 * lit + burn)
+                scale: 1 + 0.45 * flash
+                glow: Math.min(1, 0.45 * lit + flash)
             }
         }
         // this door's half of the seal

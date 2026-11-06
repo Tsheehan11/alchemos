@@ -1,6 +1,6 @@
 // The alchemical-circle clock (ALCHEMOS's Skin.clock): CPU / RAM / GPU / battery gauge rings around the
 // time, inside engraved concentric circles that carry the six metals, with a triangle-and-square
-// inscription. The sign of the metal in use burns brightest. Change k to resize the whole thing.
+// inscription. The sign of the metal in use glows brightest. Change k to resize the whole thing.
 //   t        effects clock (seconds, from HudWindow); frozen while windows cover the screen
 //   animated false in combat mode: gauges jump, no seconds sweep
 import QtQuick
@@ -53,7 +53,7 @@ Item {
             }
         }
 
-        // ── The metals, slowly turning; the one in use burns ──
+        // ── The metals, slowly turning; the one in use glows ──
         Item {
             id: band
             anchors.fill: parent

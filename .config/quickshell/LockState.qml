@@ -22,7 +22,7 @@ Singleton {
     property real spin: 0                // emblem rotation
     property string message: ""
     property string submessage: ""
-    // Lock-scene extras (a scene uses what it has; VaultScene all of them). At rest: sealed, nothing burning.
+    // Lock-scene extras (a scene uses what it has; VaultScene all of them). At rest: sealed, nothing ignited.
     property real inscribe: 1            // 0..1 the seal draws itself as the doors close
     property real ignite: 0              // 0..1 the signs ignite in turn before the doors part
     property real flare: 0               // the centre's flash on a fingerprint unlock

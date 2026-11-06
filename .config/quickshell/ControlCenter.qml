@@ -126,7 +126,7 @@ PanelWindow {
                           act: () => cc.run("bluetoothctl power " + (cc.btOn ? "off" : "on")) },
                         { label: "MUTE", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
                           act: () => { if (cc.sink && cc.sink.audio) cc.sink.audio.muted = !cc.muted; } },
-                        { label: "JARVIS", on: JarvisState.toggleOn,
+                        { label: JarvisState.assistant, on: JarvisState.toggleOn,
                           sub: !JarvisState.toggleOn ? (JarvisState.docked ? "off" : "off · laptop")
                              : JarvisState.laptopMode ? "on · laptop, until dock change"
                              : JarvisState.online ? "on · listening" : "on · starting…",

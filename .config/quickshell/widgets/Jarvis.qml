@@ -119,7 +119,7 @@ WidgetBody {
         Text {
             visible: !JarvisState.running && !JarvisState.online
             width: parent.width; wrapMode: Text.Wrap
-            text: JarvisState.docked ? "Switched off · Settings → JARVIS" : "Off on the laptop · Control center to switch on"
+            text: JarvisState.docked ? "Switched off · Settings → " + JarvisState.assistant : "Off on the laptop · Control center to switch on"
             color: Theme.faint; font.family: w.mono; font.pixelSize: 10
         }
     }

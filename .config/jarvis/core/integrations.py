@@ -25,6 +25,12 @@ from pathlib import Path
 from . import config as C
 from . import secrets
 
+
+def _assistant():
+    """The assistant's name for pages he sees (Orrin, or Jarvis in the legacy skin)."""
+    from . import persona
+    return persona.call("jarvis")
+
 import academic  # noqa: E402  (mcp/ is on sys.path; see jarvis.py)
 
 DOCS = C.JARVIS_DIR / "docs"
@@ -189,7 +195,7 @@ def connect_google(args):
     print("Opening Google sign-in in the browser… (mail and Drive read-only; calendar events and your SE tracker editable)")
     creds = flow.run_local_server(host="localhost", bind_addr="127.0.0.1", port=0, open_browser=True,
                                   prompt="consent", access_type="offline",
-                                  success_message="Jarvis is connected. You can close this tab.")
+                                  success_message=f"{_assistant()} is connected. You can close this tab.")
     secrets.store("google", "token", creds.to_json())
     # Google's consent screen has a checkbox per permission: what came back can be less than was asked
     got = set(creds.granted_scopes or scopes)

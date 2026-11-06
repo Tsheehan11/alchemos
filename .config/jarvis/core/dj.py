@@ -792,5 +792,6 @@ def request(op, timeout=15, **kw):
         c.close()
         return json.loads(buf.decode() or "{}")
     except (OSError, ValueError):
+        from . import persona
         return {"ok": False, "error": "Jarvis's voice loop isn't running",
-                "say": "DJ mode needs me running, sir. Switch me on in Settings, under Jarvis."}
+                "say": f"DJ mode needs me running, sir. Switch me on in Settings, under {persona.call('jarvis')}."}

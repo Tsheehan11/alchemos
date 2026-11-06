@@ -36,7 +36,7 @@ PanelWindow {
         { t: "note", g: "", n: "NOTE", next: "note" },
         { t: "calendar", g: "\uf073", n: "AGENDA" },
         { t: "due", g: "\uf0ae", n: "DUE" },
-        { t: "jarvis", g: "\uf2db", n: "JARVIS" },
+        { t: "jarvis", g: "\uf2db", n: JarvisState.assistant },
         { t: "usage", g: "\uf080", n: "CLAUDE USAGE" },
         { t: "weather", g: "\ue30d", n: "WEATHER" },
         { t: "network", g: "\uf1eb", n: "NETWORK" },

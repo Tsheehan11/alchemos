@@ -109,7 +109,7 @@ WidgetBody {
                     textFormat: Text.StyledText
                     font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1; color: Theme.dim
                     text: pw.sp.calibrated === true
-                          ? "<font color='" + w.cJarvis + "'>■</font> JARVIS " + w.pctText(pw.sp.jarvis) + "%  "
+                          ? "<font color='" + w.cJarvis + "'>■</font> " + JarvisState.assistant + " " + w.pctText(pw.sp.jarvis) + "%  "
                             + "<font color='" + w.cCode + "'>■</font> CLAUDE CODE " + w.pctText(pw.sp.code) + "%  "
                             + "<font color='" + w.cOther + "'>▨</font> CLAUDE.AI + OTHER DEVICES ~" + w.pctText(pw.sp.other) + "% (ESTIMATE)"
                           : "SPLIT · CALIBRATING (needs a window with some local use)"
@@ -139,7 +139,7 @@ WidgetBody {
                 Text { width: 95; text: "PLAN WEEK"; color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1 }
             }
             Repeater {
-                model: [["jarvis", "JARVIS"], ["code", "CLAUDE CODE"]]
+                model: [["jarvis", JarvisState.assistant], ["code", "CLAUDE CODE"]]
                 delegate: Row {
                     required property var modelData
                     readonly property var td: w.today[modelData[0]] || ({})
@@ -168,7 +168,7 @@ WidgetBody {
             visible: w.localWeek.pct !== undefined && w.localWeek.pct !== null
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "JARVIS HANDLED LOCALLY"; color: Theme.dim; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+                text: JarvisState.assistant + " HANDLED LOCALLY"; color: Theme.dim; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
             }
             HoloBar { x: 150; width: 70; height: 6; ticks: 4; anchors.verticalCenter: parent.verticalCenter; value: (w.localWeek.pct || 0) / 100; color: Theme.primary }
             Text {
@@ -200,7 +200,7 @@ WidgetBody {
                 HoloBar { x: 98; width: 120; height: 6; ticks: 5; anchors.verticalCenter: parent.verticalCenter; value: parent.share; color: modelData.family === "haiku" ? Theme.primary : modelData.family === "opus" ? Theme.secondary : Theme.text }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: JarvisFeed.tokens(modelData.tokens) + " · " + modelData.sources.map(s => s === "code" ? "CODE" : "JARVIS").join("+")
+                    text: JarvisFeed.tokens(modelData.tokens) + " · " + modelData.sources.map(s => s === "code" ? "CODE" : JarvisState.assistant).join("+")
                     color: Theme.textSoft; font.family: w.mono; font.pixelSize: 9
                 }
             }

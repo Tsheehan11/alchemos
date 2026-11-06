@@ -186,7 +186,7 @@ Column {
             text: {
                 const p = Profiles.current;
                 if (!p) return "";
-                return dp.layoutNames[p.layout] + "  ·  JARVIS " + (p.jarvis ? "ON" : "OFF")
+                return dp.layoutNames[p.layout] + "  ·  " + JarvisState.assistant + " " + (p.jarvis ? "ON" : "OFF")
                     + "  ·  STRIP " + String(p.govee).toUpperCase() + "  ·  BATTERY SAVER " + (p.saver ? "ON" : "OFF");
             }
         }

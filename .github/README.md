@@ -1,40 +1,49 @@
-# STARK OS
+# AlchemOS
 
-> *"Sometimes you gotta run before you can walk."*
+> *Solve et coagula.*
 
-A holographic, Iron-Man-inspired desktop for **Hyprland** on Arch / CachyOS. The HUD is built with
-**Quickshell**, and a local voice assistant, **Jarvis**, runs everything through **Claude**. Every
-colour, screen, light and voice can be changed, and every piece can be driven by every other one.
+An alchemy-of-metals desktop for **Hyprland** on Arch / CachyOS: a holographic HUD of glowing, etched
+sigils built with **Quickshell**, and a local voice assistant, **ORRIN** ☉ (with a second persona,
+**SELENE** ☽), that runs everything through **Claude**. Every colour, screen, light and voice can be
+changed, and every piece can be driven by every other one.
 
-Arc-reactor clock · holographic workspace ring · radial app launcher · security-door lock and
-shutdown animations · diagnostics wall · audio deck with visualizer · desktop widgets · Govee
-ambient lights · VPN switch · combat (gaming) mode · Jarvis voice control.
+Alchemical-circle clock · six metal themes (☉ Aurum ☽ Argent ♂ Iron ♀ Verdigris ☿ Mercury ♄ Lead) ·
+holographic workspace ring · radial app launcher · sealed-vault lock and shutdown animations ·
+diagnostics wall · audio deck with visualizer · desktop widgets · Govee ambient lights · VPN switch ·
+combat (gaming) mode · voice control.
+
+> **Names in the code.** The repo, paths, scripts, services, settings keys and IPC targets keep their
+> original names (`~/.stark-os`, `stark-*`, `~/.config/jarvis`, `stark-jarvis.service`, the `jarvis`
+> CLI and `jarvis*` keys), and the wake word is still **"hey Jarvis"**. Below, "Jarvis" means that
+> code; on screen and in its voice the assistant is ORRIN / SELENE.
 
 <!-- Screenshots: drop PNGs into .github/screenshots/ and uncomment.
 | | |
 | --- | --- |
 | ![Desk, three screens](screenshots/desk.png) | ![Radial launcher](screenshots/launcher.png) |
 | ![Workspace overview](screenshots/overview.png) | ![Settings → APPEARANCE](screenshots/settings.png) |
-| ![Security doors](screenshots/doors.png) | ![Jarvis toast](screenshots/jarvis.png) |
+| ![The sealed vault](screenshots/vault.png) | ![ORRIN toast](screenshots/orrin.png) |
+| ![Alchemical-circle clock](screenshots/clock.png) | ![Metal presets](screenshots/presets.png) |
 -->
-> 📸 *Screenshots coming soon: desk, launcher, overview, settings, security doors, Jarvis.*
+> 📸 *Screenshots coming soon: desk, alchemical-circle clock, launcher, overview, metal presets, the
+> sealed vault, ORRIN.*
 
 ---
 
 ## Contents
 
-- [Suit-up (install)](#suit-up-install)
+- [Install](#install)
 - [Keybinds](#keybinds)
 - [Make it yours: customization](#make-it-yours-customization)
 - [How the pieces talk: integration](#how-the-pieces-talk-integration)
 - [Extend it](#extend-it)
-- [Jarvis](#jarvis)
+- [The assistant (ORRIN · `jarvis`)](#the-assistant-orrin--jarvis)
 - [Troubleshooting: config, lock screen, fingerprint, lid](#troubleshooting-config-lock-screen-fingerprint-lid)
 - [Roadmap](#roadmap)
 
 ---
 
-## Suit-up (install)
+## Install
 
 ### 1. Packages
 
@@ -133,10 +142,10 @@ watcher; the HUD starts Jarvis (the service) when docked.
 | `Super + Space` | Radial launcher (keys `1`–`9`, `0` launch the first ten; type to search) |
 | `Super + R` | App search |
 | `Super + Tab` | Workspace overview: hologram panels on a 3D ring, live previews |
-| `Super + C` | Control center (Wi-Fi, Bluetooth, VPN, lights, Jarvis, combat mode…) |
+| `Super + C` | Control center (Wi-Fi, Bluetooth, VPN, lights, ORRIN, combat mode…) |
 | `Super + ,` | Settings |
 | `Super + P` | Settings → DISPLAY |
-| `Super + L` | Lock: security doors slam shut |
+| `Super + L` | Lock: the vault seals (its circle inscribes itself, the six signs light) |
 | `Super + Escape` / power key | Power menu (shutdown plays a CRT power-off) |
 | `Super + Return` | kitty |
 | `Super + B` / `Super + E` | Zen browser / Dolphin |
@@ -189,10 +198,13 @@ qs ipc call settings open appearance     # open a Settings tab
 
 ### Themes and custom presets
 
-Six built-in suits: **STARK** (cyan / amber), **MARK III** (red / gold), **VIBRANIUM**, **MATRIX**,
-**ARCTIC** and **SOLAR**. Pick primary and accent swatches to make a **CUSTOM** theme, then give it a
-name to save it as a preset (up to 14 characters). Custom presets sit next to the built-ins, show up
-in `qs ipc call theme presets`, and Jarvis can apply them by name ("set the theme to Midnight").
+Six built-in metals, each with its alchemical sign on its tile: **☉ AURUM** (gold, the default),
+**☽ ARGENT** (silver), **♂ IRON** (deep red), **♀ VERDIGRIS** (copper-teal), **☿ MERCURY** (cool cyan)
+and **♄ LEAD** (violet-grey). Choosing one ignites it: its sign flares across the HUD and the Govee
+strip wipes to the new colour. Pick primary and accent swatches to make a **CUSTOM** theme, then give it
+a name to save it as a preset (up to 14 characters). Custom presets sit next to the built-ins, show
+up in `qs ipc call theme presets`, and the assistant can apply them by name ("set the theme to Midnight").
+The glyphs use Noto Sans Symbols / Symbols 2 (`noto-fonts`), which the HUD's mono font lacks.
 
 One theme change ripples out to everything (see [the theme fan-out](#the-theme-fan-out)):
 HUD, Hyprland borders, lock screen pictures, kitty, VS Code, cursor and the Govee strip.
@@ -201,7 +213,7 @@ HUD, Hyprland borders, lock screen pictures, kitty, VS Code, cursor and the Gove
 
 `~/.config/stark-cursor/build.sh <rrggbb> [animated|static] [24|32|48] [20-90]` renders the SVG
 templates in `src/` (`{{ACCENT}}`, `{{FILL_ALPHA}}`) into `~/.local/share/icons/STARK-OS`: an
-XCursor theme in three sizes plus a hyprcursor theme, with an arc-reactor busy cursor.
+XCursor theme in three sizes plus a hyprcursor theme, with a turning-sigil busy cursor.
 `src/cursors.txt` lists every cursor's hotspot and aliases so nothing falls back to Adwaita. Builds
 are cached per colour (about 1 s cold, 0.15 s cached).
 
@@ -241,7 +253,7 @@ reseeds from `LauncherApps.qml`.
 | Setup | main | diag | media |
 | --- | --- | --- | --- |
 | Laptop only | laptop: clock, workspaces 1–5 | none | none |
-| Docked | leftmost external: arc-reactor clock, 1–3 | next external: diagnostics wall, 4–6 | laptop: audio deck, 7–9 |
+| Docked | leftmost external: alchemical-circle clock, 1–3 | next external: diagnostics wall, 4–6 | laptop: audio deck, 7–9 |
 
 Settings → HUD turns each panel on or off and hides panels on screens with open windows. Widgets
 and Jarvis use the same role names ("show a clock on the second monitor"), so undocking moves
@@ -441,7 +453,7 @@ all use the same entry points (`quickshell/shell.qml`):
 ```sh
 qs ipc call widgets add clock diag top-right '{"tz":"America/New_York"}'
 qs ipc call vpn toggle proton
-qs ipc call theme preset "mark iii"
+qs ipc call theme preset iron          # the old names work too ("mark iii" → IRON)
 ```
 
 ### The theme fan-out
@@ -574,7 +586,7 @@ in `quickshell/LauncherApps.qml`.
 
 - **For you:** pick swatches in Settings → APPEARANCE and save with a name. Stored in
   `customPresets`: `[{ "name": "MIDNIGHT", "primary": "#7aa2ff", "secondary": "#ff9e64", "background": "#05060f" }]`.
-- **Built in for everyone:** add a line to `presets` in `quickshell/Theme.qml`. Jarvis picks it up
+- **Built in for everyone:** add a line (with its `glyph`) to `presets` in `quickshell/Skin.qml`. Jarvis picks it up
   automatically through `qs ipc call theme presets`.
 
 ### Add an MCP server (`servers.json`)
@@ -600,9 +612,10 @@ this file.
 
 ---
 
-## Jarvis
+## The assistant (ORRIN · `jarvis`)
 
-**"Hey Jarvis"** (openWakeWord) → faster-whisper `base.en` → a regex **fast path** for everyday
+ORRIN ☉ answers by default and SELENE ☽ is the second persona: one assistant, two names, voices and
+manners ("switch to Selene"). **"Hey Jarvis"** (openWakeWord) → faster-whisper `base.en` → a regex **fast path** for everyday
 commands (media, lights, workspaces, VPN, themes, timers, weather: 5–40 ms, no AI) → otherwise
 **Claude** through the Agent SDK: Haiku by default, Sonnet for longer or "explain / plan" requests.
 Replies are spoken sentence by sentence as they stream. About 0.6–1 s from the end of your sentence
@@ -637,7 +650,7 @@ to his voice on the fast path, 2–3 s through Claude.
 - **CLI:** `jarvis --text "…" [--dry-run]`, `--misses`, `--log`, `--facts`, `--reminders`,
   `--say "…"`, `--trace` (wake score, VAD, transcript, route, latency), `--record [MIN]`.
 
-Try: *"set the theme to Mark III and dim the lights"*, *"timer for 10 minutes on the second
+Try: *"set the theme to Iron and dim the lights"*, *"timer for 10 minutes on the second
 monitor"*, *"connect the VPN"*, *"what's playing"*, *"move the clock to the top right"*,
 *"play Discovery by Daft Punk"*, *"DJ for me"*, *"like this song"*.
 
@@ -693,7 +706,7 @@ doors opening.
 
 ## Roadmap
 
-**Jarvis phase 2: from desktop to house.** Each item is a new MCP server in `servers.json`; the core
+**Assistant phase 2: from desktop to house.** Each item is a new MCP server in `servers.json`; the core
 loop doesn't change.
 
 - [ ] **Calendar:** "what's on tomorrow", "move my 3 pm" (reads auto-allowed, writes confirmed)
@@ -701,12 +714,11 @@ loop doesn't change.
 - [ ] **Smart home:** Nest thermostat, more lights, scenes tied to theme presets
 - [ ] **Phone:** KDE Connect: notifications on the HUD, "find my phone", texts read aloud
 - [ ] **Remote:** Tailscale, so Jarvis can check on the desk from the laptop
-- [ ] **Hardware:** ESP32 sensors and a physical arc-reactor status light
+- [ ] **Hardware:** ESP32 sensors and a physical sigil status light
 - [ ] Proactive briefings: morning summary on login, reminders spoken at the desk
 
 Also on the list: screenshot gallery, a one-shot bootstrap script, per-profile theme presets.
 
 ---
 
-<sub>Sounds in `quickshell/sounds/` are synthesized from scratch. Not affiliated with Marvel. Built
-with help from Claude.</sub>
+<sub>Sounds in `quickshell/sounds/` are synthesized from scratch. Built with help from Claude.</sub>
