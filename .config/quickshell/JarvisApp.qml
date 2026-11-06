@@ -79,8 +79,8 @@ PanelWindow {
         title: (JarvisState.persona === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S") + "  ·  CONSOLE"
         detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
                                     : JarvisState.toggleOn ? "STARTING…"
-                                    : JarvisState.docked ? "OFFLINE · HISTORY ONLY · JARVIS IS OFF"
-                                    : "OFFLINE · HISTORY ONLY · OFF ON THE LAPTOP (TURN ON: JARVIS TOGGLE)")
+                                    : JarvisState.docked ? "OFFLINE · HISTORY ONLY · " + JarvisState.assistant + " IS OFF"
+                                    : "OFFLINE · HISTORY ONLY · OFF ON THE LAPTOP (TURN ON: " + JarvisState.assistant + " TOGGLE)")
                 + (JarvisState.laptopMode ? "   ·   LAPTOP MODE" : "")
                 + "   ·   CLAUDE TURNS TODAY " + (link.usage.turns ?? 0)
                 + ((link.usage.watch ?? 0) > 0 || (link.usage.control ?? 0) > 0
@@ -164,7 +164,7 @@ PanelWindow {
                     Text {
                         visible: threadList.count === 0
                         width: parent.width; wrapMode: Text.Wrap
-                        text: link.query ? "Nothing matches." : "No conversations yet. Talk to Jarvis or type below."
+                        text: link.query ? "Nothing matches." : "No conversations yet. Talk to " + JarvisState.callOf("jarvis") + " or type below."
                         color: Theme.faint; font.family: app.mono; font.pixelSize: 11
                     }
                 }
@@ -280,7 +280,7 @@ PanelWindow {
                         spacing: 3
                         readonly property bool me: modelData.role === "user"
                         Text {
-                            text: (me ? "YOU" : modelData.persona === "friday" ? "FRIDAY" : "JARVIS") + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
+                            text: (me ? "YOU" : JarvisState.nameOf(modelData.persona)) + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
                                   + (!me && modelData.tier ? "  ·  " + modelData.tier.toUpperCase() : "")
                             color: me ? Theme.dim : Theme.primary
                             font.family: app.mono; font.pixelSize: 10; font.letterSpacing: 1
@@ -313,7 +313,7 @@ PanelWindow {
                     Text {
                         visible: msgList.count === 0
                         anchors.centerIn: parent
-                        text: link.connected ? "Ask " + (JarvisState.persona === "friday" ? "FRIDAY" : "Jarvis") + " anything, or switch to TASK for a background job." : "Jarvis is offline. History stays readable."
+                        text: link.connected ? "Ask " + JarvisState.callOf(JarvisState.persona) + " anything, or switch to TASK for a background job." : JarvisState.callOf("jarvis") + " is offline. History stays readable."
                         color: Theme.faint; font.family: app.mono; font.pixelSize: 12
                     }
                     // scroll position
@@ -360,7 +360,7 @@ PanelWindow {
                         id: input
                         width: parent.width - 90; height: 36
                         maximumLength: 2000
-                        placeholder: !link.connected ? "Jarvis is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + (JarvisState.persona === "friday" ? "FRIDAY" : "Jarvis") + "…  (Enter)"
+                        placeholder: !link.connected ? JarvisState.callOf("jarvis") + " is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + JarvisState.callOf(JarvisState.persona) + "…  (Enter)"
                         onAccepted: { if (link.connected && text.trim()) { JarvisLink.ask(text); text = ""; } }
                         onCancelled: JarvisLink.open = false
                     }
@@ -392,7 +392,7 @@ PanelWindow {
                             required property var modelData
                             readonly property var w: modelData
                             readonly property bool live: w.status === "active" || w.status === "paused"
-                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : w.laptop ? "PAUSED · ON LAPTOP" : link.connected ? "WATCHING" : "PAUSED · JARVIS OFF")
+                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : w.laptop ? "PAUSED · ON LAPTOP" : link.connected ? "WATCHING" : "PAUSED · " + JarvisState.assistant + " OFF")
                                                             : w.status === "paused" ? "PAUSED" : w.status === "done" ? "SEEN" : w.status.toUpperCase()
                             readonly property color tone: w.status === "active" && !w.combat && !w.laptop && link.connected ? Theme.primary
                                                         : w.status === "done" ? Theme.secondary : Theme.dim
@@ -479,12 +479,12 @@ PanelWindow {
                         x: 10; y: 10; width: parent.width - 20
                         wrapMode: Text.Wrap; textFormat: Text.StyledText
                         color: Theme.textSoft; font.family: app.mono; font.pixelSize: 11; lineHeight: 1.15
-                        text: "<b>A task is a job Jarvis does in the background</b> while you carry on: many steps "
+                        text: "<b>A task is a job " + JarvisState.callOf("jarvis") + " does in the background</b> while you carry on: many steps "
                             + "(up to 40 tool calls), its own thread, and a spoken note when it's done. Two run at once.<br><br>"
                             + "<b>Start one</b><br>"
                             + "· <b>Type</b>: switch the box below from ASK to <b>TASK</b>, describe the job, Enter.<br>"
                             + "· <b>Say</b>: \"Jarvis, do this in the background: …\"<br>"
-                            + "· Ask for something long, and Jarvis may hand it to a task itself.<br><br>"
+                            + "· Ask for something long, and " + JarvisState.callOf("jarvis") + " may hand it to a task itself.<br><br>"
                             + "<b>Examples</b><br>"
                             + "· Compare my tracker with LEARN and list what's different<br>"
                             + "· Summarise this week's course emails<br>"
@@ -567,7 +567,7 @@ PanelWindow {
                                     case "done": return "Done in " + app.span(card.elapsed) + "  ·  " + steps + "  ·  " + app.when(t.finished);
                                     case "failed": return "Failed after " + app.span(card.elapsed) + "  ·  " + steps + "  ·  see the log";
                                     case "cancelled": return "Cancelled  ·  " + steps;
-                                    case "interrupted": return "Stopped when Jarvis restarted  ·  RESUME picks it up";
+                                    case "interrupted": return "Stopped when " + JarvisState.callOf("jarvis") + " restarted  ·  RESUME picks it up";
                                     }
                                     return steps;
                                 }

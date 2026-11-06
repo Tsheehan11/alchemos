@@ -141,7 +141,9 @@ LIGHTS = r"(?:the |my )?(?:lights?|strip|led strip|leds)"
 # Matched before TRAILER, which drops a trailing "jarvis".
 PERSONA = re.compile(r"(?:(?:switch|change|swap|go|flip|hand (?:it |me )?(?:over|back))(?: (?:it|me|back|over))*(?: to| for)|"
                      r"(?:let me|can i|i want to|i'd like to) (?:talk|speak) to|(?:put|bring|get)(?: back)?|"
-                     r"give me) (jarvis|friday)(?: (?:back|on|instead|mode|please|now))*")
+                     r"give me) (jarvis|friday|orrin|oren|orin|selene|selena|celine)(?: (?:back|on|instead|mode|please|now))*")
+# how Whisper spells the AlchemOS names, and which persona each is
+PERSONA_WORDS = {"orrin": "jarvis", "oren": "jarvis", "orin": "jarvis", "selene": "friday", "selena": "friday", "celine": "friday"}
 
 
 # "switch to the legacy skin" / "go back to the AlchemOS skin" / "switch skins" (the HUD's look, Skin.qml).
@@ -170,7 +172,7 @@ def _skin(t):
 def _clause(t, last_query):
     m = PERSONA.fullmatch(FILLER.sub("", t).strip())
     if m:
-        return [step("jarvis_persona", lambda r: r.get("say") or "Done.", name=m.group(1))]
+        return [step("jarvis_persona", lambda r: r.get("say") or "Done.", name=PERSONA_WORDS.get(m.group(1), m.group(1)))]
     sk = _skin(TRAILER.sub("", FILLER.sub("", t)).strip())
     if sk:
         return [step("set_skin", lambda r: r.get("say") or "Done.", name=sk)]

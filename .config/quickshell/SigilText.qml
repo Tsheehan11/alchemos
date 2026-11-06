@@ -1,5 +1,5 @@
-// A glyph (☉ ☽ ♂ ♀ ☿ ♄ …): the HUD's mono font has none of them, so a symbol face first.
-// Noto Sans Symbols has ☽♂♀☿♄, Noto Sans Symbols 2 has ☉ (left to Qt, ☉ came from a CJK face).
+// A featured glyph (☉ ☽ ♂ ♀ ☿ ♄ …) in a finer face than the mono font's fallback (DejaVu Sans Mono,
+// fine for glyphs inside labels): Noto Sans Symbols has ☽♂♀☿♄, Noto Sans Symbols 2 has ☉.
 // (No font.families in this Qt, so the face is picked from the text; other letters fall back as usual.)
 // glow: 0..1, a soft halo in the text colour.
 import QtQuick

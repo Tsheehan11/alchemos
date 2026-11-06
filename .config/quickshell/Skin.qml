@@ -42,8 +42,8 @@ Singleton {
         cursor: "sigil",
         transition: "transmute",
         personas: {
-            jarvis: { name: "ORRIN",  spoken: "Orrin",  dotted: "O.R.R.I.N",   glyph: "☉", idle: "☉", starting: "☉", accent: "#ffc04a" },
-            friday: { name: "SELENE", spoken: "Selene", dotted: "S.E.L.E.N.E", glyph: "☽", idle: "☽", starting: "☽", accent: "#d4dde8" }
+            jarvis: { name: "ORRIN",  call: "Orrin",  dotted: "O.R.R.I.N",   glyph: "☉", idle: "☉", starting: "☉", accent: "#ffc04a" },
+            friday: { name: "SELENE", call: "Selene", dotted: "S.E.L.E.N.E", glyph: "☽", idle: "☽", starting: "☽", accent: "#d4dde8" }
         },
         text: {
             os: "ALCHEMOS",
@@ -55,6 +55,7 @@ Singleton {
             lockTitle: "ALCHEMOS // SEALED",
             denied: "THE SEAL HOLDS",
             lockGlyph: "☉",
+            mark: "",                 // bar corner: "" = the sign of the metal in use
             clockName: "Alchemical circle clock",
             cursorHint: "The sigil turns while apps load · off shows a still frame",
             transitionTitle: "TRANSMUTATION",

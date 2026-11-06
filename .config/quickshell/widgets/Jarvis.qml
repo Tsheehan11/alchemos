@@ -14,7 +14,7 @@ WidgetBody {
                                   : JarvisState.listening ? "listening" : "idle"
     readonly property var labels: ({ offline: "OFFLINE", starting: "COMING ONLINE", paused: "PAUSED · COMBAT", speaking: "SPEAKING",
                                      thinking: "THINKING", listening: "LISTENING", idle: "STANDING BY" })
-    readonly property color tone: mode === "paused" ? Theme.secondary : mode === "offline" ? Theme.faint : Theme.primary
+    readonly property color tone: mode === "paused" ? Theme.secondary : mode === "offline" ? Theme.faint : JarvisState.accent
     readonly property var tasks: JarvisFeed.tasks.filter(t => t.status === "running" || t.status === "queued")
     readonly property var last: JarvisFeed.last
     readonly property string now: JarvisState.phase !== "idle" && JarvisState.transcript ? JarvisState.transcript : ""

@@ -37,18 +37,29 @@ Singleton {
     property int replySerial: 0          // bumps when a new reply arrives (the pop-up resets its scrolling)
     readonly property string message: reply !== "" ? reply : transcript   // old one-line API
 
-    // ── persona (~/.config/jarvis/core/persona.py): JARVIS or FRIDAY, same assistant ──
-    // persona: the default (Settings → JARVIS → PERSONA); answering: who the wake word named for the exchange
-    // in progress (Jarvis sends it); who: the one to show right now. Glyph and accent sound differ, not the theme.
+    // ── persona (~/.config/jarvis/core/persona.py): two personas, same assistant ──
+    // persona: the default (Settings → PERSONA); answering: who the wake word named for the exchange in
+    // progress (Jarvis sends it); who: the one to show right now. The ids stay jarvis / friday; the names,
+    // glyphs and accents are the skin's (ALCHEMOS: ☉ ORRIN in gold, ☽ SELENE in silver, whatever the
+    // preset; LEGACY: ◉ JARVIS / ◈ FRIDAY in the theme colour).
     readonly property string persona: Theme.cfg.jarvisPersona === "friday" ? "friday" : "jarvis"
     property string answering: ""
     readonly property string who: answering === "friday" || answering === "jarvis" ? answering : persona
-    readonly property string name: who === "friday" ? "FRIDAY" : "JARVIS"
-    readonly property string glyph: who === "friday" ? "◈" : "◉"
-    readonly property string glyphIdle: who === "friday" ? "◇" : "○"
-    readonly property string glyphStarting: who === "friday" ? "◇" : "◌"
+    readonly property var look: Skin.persona(who)
+    readonly property string name: look.name
+    readonly property string dotted: look.dotted
+    readonly property string glyph: look.glyph
+    readonly property string glyphIdle: look.idle
+    readonly property string glyphStarting: look.starting
+    readonly property bool hasAccent: !!look.accent
+    readonly property color accent: hasAccent ? look.accent : Theme.primary
+    function nameOf(id) { return Skin.persona(id).name; }      // label: ORRIN / SELENE (legacy JARVIS / FRIDAY)
+    function callOf(id) { return Skin.persona(id).call; }      // in a sentence: Orrin / Selene (legacy Jarvis / FRIDAY)
+    readonly property string assistant: nameOf("jarvis")        // the assistant's name in labels ("ORRIN")
+    readonly property var aliases: ({ orrin: "jarvis", selene: "friday" })
     function setPersona(name) {
-        const n = String(name || "").trim().toLowerCase();
+        let n = String(name || "").trim().toLowerCase();
+        n = root.aliases[n] || n;
         if (n === "") return root.persona;
         if (n !== "jarvis" && n !== "friday") return "unknown persona " + n + " (jarvis | friday)";
         Theme.cfg.jarvisPersona = n;

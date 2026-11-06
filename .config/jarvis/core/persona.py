@@ -14,6 +14,11 @@ JARVIS is exactly what it always was: its text is never touched here. FRIDAY get
     persona costs no extra Claude call and doesn't break the prompt cache,
   - style(): her versions of the stock lines (fast path, errors, confirmations, DJ, alerts) and a
     "sir" → "boss" pass over anything else that reaches the speaker or the HUD.
+
+Names follow the HUD's skin (quickshell/Skin.qml, "skin" in settings.json): ALCHEMOS calls them ORRIN and
+SELENE, the legacy skin JARVIS and FRIDAY. The ids (jarvis / friday), voices, wake words and manner are
+the same in both, and "Orrin" / "Selene" work wherever "jarvis" / "friday" do. Claude learns the names per
+turn from a "[AlchemOS]" tag (tag()), so a skin switch applies at once and the system prompt stays cached.
 """
 import json
 import re
@@ -22,8 +27,12 @@ import threading
 from . import config as C
 
 NAMES = ("jarvis", "friday")
-LABEL = {"jarvis": "JARVIS", "friday": "FRIDAY"}
-GLYPH = {"jarvis": "◉", "friday": "◈"}       # the HUD uses the same pair (JarvisState.glyph)
+ALIASES = {"orrin": "jarvis", "selene": "friday"}
+# Display names per skin (the HUD's Skin.qml has the same, with glyphs); LABEL in capitals, CALL in a sentence
+LABEL = {"alchemos": {"jarvis": "ORRIN", "friday": "SELENE"}, "legacy": {"jarvis": "JARVIS", "friday": "FRIDAY"}}
+CALL = {"alchemos": {"jarvis": "Orrin", "friday": "Selene"}, "legacy": {"jarvis": "Jarvis", "friday": "FRIDAY"}}
+LEGACY_SKIN = C.HOME / ".config/quickshell/skins/legacy/skin.json"   # the private overlay; missing = no legacy skin
+SKIN_TAG = "[AlchemOS] "
 
 _lock = threading.Lock()
 _override = None        # persona of the exchange in progress (named by its wake word)
@@ -32,7 +41,27 @@ _seen = None            # the active persona this process last announced / switc
 
 def norm(name):
     n = str(name or "").strip().lower()
+    n = ALIASES.get(n, n)
     return n if n in NAMES else None
+
+
+def skin(cfg=None):
+    """alchemos | legacy, as the HUD shows it (legacy only while its overlay is installed)."""
+    try:
+        s = (cfg or C.Config())["skin"]
+    except Exception:
+        s = "alchemos"
+    return "legacy" if s == "legacy" and LEGACY_SKIN.exists() else "alchemos"
+
+
+def label(who=None, cfg=None):
+    """'ORRIN' / 'SELENE' (legacy 'JARVIS' / 'FRIDAY') for who (default: who's talking)."""
+    return LABEL[skin(cfg)][norm(who) or current(cfg)]
+
+
+def call(who=None, cfg=None):
+    """The name in a sentence: 'Orrin' / 'Selene' (legacy 'Jarvis' / 'FRIDAY')."""
+    return CALL[skin(cfg)][norm(who) or current(cfg)]
 
 
 def active(cfg=None):
@@ -103,9 +132,10 @@ def voice_params(cfg, who=None):
     return cfg["jarvisVoice"], cfg["jarvisSpeed"], cfg["jarvisPitch"]
 
 
-def announce_line(who):
-    return {"jarvis": "JARVIS here, sir. FRIDAY's on standby.",
-            "friday": "Hey boss, FRIDAY here. JARVIS is taking five."}[who]
+def announce_line(who, cfg=None):
+    n = LABEL[skin(cfg)]
+    return {"jarvis": f"{n['jarvis']} here, sir. {n['friday']}'s on standby.",
+            "friday": f"Hey boss, {n['friday']} here. {n['jarvis']} is taking five."}[who]
 
 
 def switch_reply(who, changed):
@@ -117,14 +147,17 @@ def switch_reply(who, changed):
 # ── FRIDAY's manner ─────────────────────────────────────────────────────────────
 # Brain: appended to JARVIS's system prompt (which stays as it is); her turns start with "[FRIDAY]".
 PROMPT = """
-You have a second persona, FRIDAY, with the same tools, memory and rules. A message that starts with [FRIDAY] is answered as FRIDAY; every other message is answered as JARVIS, exactly as described above. FRIDAY is warmer, quicker and more casual than JARVIS: friendly, a little playful, plain words and contractions, short punchy sentences, no butler formality. She calls him "boss" (sparingly), never "sir", and she is FRIDAY, not JARVIS. Same speech rules: written for the ear, 1-2 short sentences, no lists or symbols. Never write the [FRIDAY] tag yourself."""
+You have a second persona, FRIDAY, with the same tools, memory and rules. A message tagged [FRIDAY] is answered as FRIDAY; every other message is answered as JARVIS, exactly as described above. FRIDAY is warmer, quicker and more casual than JARVIS: friendly, a little playful, plain words and contractions, short punchy sentences, no butler formality. She calls him "boss" (sparingly), never "sir", and she is FRIDAY, not JARVIS. Same speech rules: written for the ear, 1-2 short sentences, no lists or symbols. Never write the [FRIDAY] tag yourself.
+A message may also start with [AlchemOS]: then the desktop wears its AlchemOS skin, where JARVIS is named ORRIN and FRIDAY is named SELENE. Same two of you, same manner; only the names change. In those exchanges call yourselves and each other ORRIN and SELENE, never JARVIS or FRIDAY (he may still say "Jarvis" or "Friday", or wake you with "hey Jarvis": that means you). Never write the [AlchemOS] tag yourself."""
 
 TAG = "[FRIDAY] "
 
 
-def tag(text, who=None):
-    """The user turn as Claude sees it: FRIDAY's turns carry the tag, JARVIS's are unchanged."""
-    return TAG + text if (who or current()) == "friday" else text
+def tag(text, who=None, cfg=None):
+    """The user turn as Claude sees it: FRIDAY's turns carry [FRIDAY], and under the ALCHEMOS skin every turn
+    starts with [AlchemOS] (the names). Legacy JARVIS turns are unchanged."""
+    t = TAG + text if (who or current()) == "friday" else text
+    return SKIN_TAG + t if skin(cfg) == "alchemos" else t
 
 
 # Her versions of JARVIS's stock lines (exact match, after the line is formatted).
@@ -201,8 +234,12 @@ def style(text, who=None):
 
 
 # ── DJ: lines written for each set (core/dj.py) and the stock templates between tracks ──
-DJ_VOICE = {"jarvis": 'in Jarvis\'s voice (dry, British, calls him "sir"',
-            "friday": 'in FRIDAY\'s voice (warm, quick, casual, calls him "boss", never "sir"'}
+DJ_VOICE = {"jarvis": 'in {name}\'s voice (dry, British, calls him "sir"',
+            "friday": 'in {name}\'s voice (warm, quick, casual, calls him "boss", never "sir"'}
+
+
+def dj_voice(who, cfg=None):
+    return DJ_VOICE[who].format(name=call(who, cfg))
 DJ_TEMPLATES = {
     "friday": ["{title}, by {artist}.", "Next up: {title}.", "Ooh, {artist}.", "Keeping it rolling with {artist}.",
                "Here's {artist}. {title}.", "This one's {title}."],

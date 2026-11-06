@@ -36,7 +36,7 @@ PanelWindow {
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property string phase: JarvisState.phase
     readonly property bool hot: phase === "confirm" || phase === "alert" || phase === "error"     // secondary colour
-    readonly property color accent: hot ? Theme.secondary : Theme.primary
+    readonly property color accent: hot ? Theme.secondary : JarvisState.accent     // the persona's (ALCHEMOS gold / silver) at the edge
     readonly property bool busy: phase === "thinking"
     readonly property string phaseLabel: ({
         listening: "LISTENING", followup: "LISTENING · FOLLOW-UP", thinking: "PROCESSING",
@@ -202,7 +202,7 @@ PanelWindow {
                 onTriggered: { interval = 1800 + Math.random() * 4200; if (Math.random() < 0.6) flicker.start(); }
             }
 
-            // header: a small reactor, the name, the phase
+            // header: the persona's marker, its name, the phase
             Item {
                 width: parent.width; height: 22
                 Item {
@@ -215,14 +215,29 @@ PanelWindow {
                         color: toast.accent; trackColor: "transparent"
                         RotationAnimation on rotation { running: toast.visible; from: 0; to: 360; duration: toast.busy ? 1100 : 3200; loops: Animation.Infinite }
                     }
-                    Rectangle {
+                    // ALCHEMOS: the persona's sign (☉ / ☽), breathing
+                    SigilText {
+                        visible: JarvisState.hasAccent
                         anchors.centerIn: parent
-                        // JARVIS: a round core; FRIDAY: a diamond
+                        text: JarvisState.glyph
+                        color: toast.accent
+                        font.pixelSize: 12
+                        glow: 0.6
+                        SequentialAnimation on scale {
+                            running: toast.visible && JarvisState.hasAccent; loops: Animation.Infinite
+                            NumberAnimation { from: 0.85; to: 1.15; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 1.15; to: 0.85; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                        }
+                    }
+                    Rectangle {
+                        visible: !JarvisState.hasAccent
+                        anchors.centerIn: parent
+                        // legacy: JARVIS a round core; FRIDAY a diamond
                         width: 8; height: 8; radius: JarvisState.who === "friday" ? 1 : 4
                         rotation: JarvisState.who === "friday" ? 45 : 0
                         color: toast.accent
                         SequentialAnimation on scale {
-                            running: toast.visible; loops: Animation.Infinite
+                            running: toast.visible && !JarvisState.hasAccent; loops: Animation.Infinite
                             NumberAnimation { from: 0.7; to: 1.25; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
                             NumberAnimation { from: 1.25; to: 0.7; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
                         }
@@ -230,8 +245,8 @@ PanelWindow {
                 }
                 Text {
                     anchors.left: reactor.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
-                    text: JarvisState.who === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S"
-                    color: Theme.primary
+                    text: JarvisState.dotted
+                    color: JarvisState.hasAccent ? JarvisState.accent : Theme.primary
                     font.family: toast.mono; font.pixelSize: 11; font.letterSpacing: 4
                 }
                 Text {

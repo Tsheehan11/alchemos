@@ -33,11 +33,13 @@ path's INTEGRATION_INTENT guard sends them to Claude first, and their intents in
 intents.json are kind "claude-only", which this module can only pass through.
 """
 import hashlib
+import os
 import json
 import random
 import re
 import threading
 import time
+import zipfile
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -551,11 +553,11 @@ class LocalRouter:
         cache = C.DATA_DIR / f"router-{self.emb.name}.npz"
         vecs = None
         try:
-            z = np.load(cache)
-            if str(z["hash"]) == h:
-                vecs = z["vecs"]
-        except (OSError, KeyError, ValueError):
-            pass
+            with np.load(cache) as z:
+                if str(z["hash"]) == h:
+                    vecs = z["vecs"]
+        except (OSError, KeyError, ValueError, EOFError, zipfile.BadZipFile):
+            pass            # missing, stale or unreadable: embed again
         if vecs is None:
             # only embed what's new (a learned example adds one), reusing the vectors already in memory
             old = dict(zip(zip(self.labels, self.texts), self.vecs)) if hasattr(self, "vecs") else {}
@@ -563,7 +565,11 @@ class LocalRouter:
             new = dict(zip(todo, self.emb([texts[i] for i in todo]))) if todo else {}
             vecs = np.asarray([new[i] if i in new else old[k] for i, k in enumerate(zip(labels, texts))], dtype=np.float32)
             C.DATA_DIR.mkdir(parents=True, exist_ok=True)
-            np.savez(cache, vecs=vecs, hash=np.array(h))
+            # atomically: another thread / process (the app, a test, the service) may be loading it right now,
+            # and a half-written .npz read as EOFError ("No data left in file")
+            tmp = cache.with_name(f".{cache.stem}.{os.getpid()}.{threading.get_ident()}.npz")
+            np.savez(tmp, vecs=vecs, hash=np.array(h))
+            os.replace(tmp, cache)
         self.labels, self.texts, self.ids, self.vecs = np.array(labels), texts, ids, vecs
         self.names = list(self.data["intents"])
 

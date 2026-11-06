@@ -1253,6 +1253,11 @@ def skin_current():
     return out if rc == 0 and out in SKINS else ""
 
 
+def _persona_label(name):
+    from core import persona
+    return persona.label(name) if persona.norm(name) else str(name or "").upper()
+
+
 @safe
 def set_skin(name):
     """The HUD's look (quickshell/Skin.qml): alchemos (the default) | legacy (a private overlay, may be
@@ -1272,10 +1277,10 @@ def jarvis_persona(name):
     """Who answers by default: jarvis | friday (core/persona.py). Same brain, tools and memory; FRIDAY has
     her own voice and manner. The switch is announced in the new voice (by the voice loop when the
     change comes from Settings, IPC or Claude; as this reply when it's the fast path)."""
-    name = _choice(name, ["jarvis", "friday"], "name")
+    from core import persona
+    name = _choice(persona.norm(name) or name, ["jarvis", "friday"], "name")    # "orrin" / "selene" too
     if DRY_RUN:
         return {"ok": True, "dry_run": True, "would": f"persona → {name}"}
-    from core import persona
     changed = persona.set_active(name)
     return {"ok": True, "persona": name, "changed": changed, "say": persona.switch_reply(name, changed)}
 
@@ -1677,7 +1682,7 @@ def tool_label(tool, args):
         "widget_reset": lambda: "WIDGETS → RESET LAYOUT",
         "set_screen_role": lambda: f"SCREEN → {(norm_role_screen(a.get('screen')) or v('screen')).upper()} ⇢ {(norm_role(a.get('role')) or v('role')).upper()}",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
-        "jarvis_persona": lambda: f"PERSONA → {v('name')}",
+        "jarvis_persona": lambda: f"PERSONA → {_persona_label(a.get('name'))}",
         "set_skin": lambda: f"SKIN → {v('name')}",
         "start_task": lambda: f"TASK → {v('title')}",
         "set_audio_output": lambda: f"AUDIO OUT → {v('device')}",

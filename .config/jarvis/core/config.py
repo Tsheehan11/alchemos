@@ -29,6 +29,7 @@ DEFAULTS = {
     "jarvisModel": "auto",              # auto = haiku, sonnet for harder requests
     "jarvisVoice": "bm_george",         # Kokoro voice, or a piper model[:speaker] in ~/.local/share/jarvis/voices
     "jarvisSpeed": 1.0,                 # speech rate multiplier
+    "skin": "alchemos",                 # the HUD's skin (quickshell/Skin.qml): names the personas (core/persona.py)
     "jarvisPersona": "jarvis",          # jarvis | friday: who answers by default (core/persona.py); same brain,
                                         # tools, memory and threads, different name, voice and manner
     "fridayVoice": "bf_emma",          # FRIDAY's Kokoro voice (jarvis-voices --friday to audition)

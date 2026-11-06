@@ -300,7 +300,7 @@ def build_set(vibe, adjust="", carry=(), played=(), log=print, claude=None):
     adj_txt = (adjust + "\n") if adjust else ""
     from . import persona
     who = persona.active()           # the set's lines are written once, in the default persona's voice
-    prompt = PROMPT.format(name="FRIDAY" if who == "friday" else "Jarvis", voice=persona.DJ_VOICE[who],
+    prompt = PROMPT.format(name=persona.call(who), voice=persona.dj_voice(who),
                            vibe=vibe, adjust=adj_txt, carry=carry_txt, lo=SET_MIN, hi=SET_MAX, library=library_lines(cands))
     text = (claude or ask_claude)(prompt, log=log)
     name, tracks, searches = parse_plan(text, cands)

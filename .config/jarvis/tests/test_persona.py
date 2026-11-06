@@ -25,10 +25,14 @@ def check(name, got, want):
 
 tmp = Path(tempfile.mkdtemp())
 settings = tmp / "settings.json"
-settings.write_text(json.dumps({"jarvisVoice": "bm_lewis", "jarvisSpeed": 1.4, "jarvisPitch": 0.5, "other": 1}, indent=4))
+# The checks below are the legacy skin's (JARVIS / FRIDAY, exactly as before skins); ALCHEMOS's names are at the end
+settings.write_text(json.dumps({"jarvisVoice": "bm_lewis", "jarvisSpeed": 1.4, "jarvisPitch": 0.5, "other": 1,
+                                "skin": "legacy"}, indent=4))
+(tmp / "legacy-skin.json").write_text("{}")
 C.HUD_SETTINGS = settings
 
 from core import persona as P  # noqa: E402
+P.LEGACY_SKIN = tmp / "legacy-skin.json"      # the overlay is "installed"; the real one is never read
 
 cfg = C.Config()
 
@@ -161,9 +165,9 @@ check("error chime shared", bool(abs(V.chime_audio("error", "jarvis") - V.chime_
 # ── DJ: templates + set prompt per persona ──
 from core import dj  # noqa: E402
 check("dj friday templates sir-free", [t for t in P.DJ_TEMPLATES["friday"] if "sir" in t], [])
-p = dj.PROMPT.format(name="FRIDAY", voice=P.DJ_VOICE["friday"], vibe="v", adjust="", carry="", lo=1, hi=2, library="")
+p = dj.PROMPT.format(name=P.call("friday"), voice=P.dj_voice("friday"), vibe="v", adjust="", carry="", lo=1, hi=2, library="")
 check("dj prompt friday", ("You are FRIDAY" in p, 'calls him "boss"' in p, "Jarvis's voice" in p), (True, True, False))
-p = dj.PROMPT.format(name="Jarvis", voice=P.DJ_VOICE["jarvis"], vibe="v", adjust="", carry="", lo=1, hi=2, library="")
+p = dj.PROMPT.format(name=P.call("jarvis"), voice=P.dj_voice("jarvis"), vibe="v", adjust="", carry="", lo=1, hi=2, library="")
 check("dj prompt jarvis unchanged", 'Write DJ lines in Jarvis\'s voice (dry, British, calls him "sir", at most 18 words, no emojis, no hype clichés)' in p, True)
 
 # ── conversation DB: who answered is stored (temp DB) ──
@@ -176,6 +180,37 @@ check("db persona stored", db.thread_messages(tid)[-1]["persona"], "friday")
 db.add_message(tid, "jarvis", "voice", "hi", persona="jarvis")
 check("db jarvis = ''", db.thread_messages(tid)[-1]["persona"], "")
 check("db temp only", str(db.DB_PATH).startswith(str(tmp)), True)
+
+# ── ALCHEMOS skin: ORRIN / SELENE (same ids, voices, manner) ──
+def set_skin(name):
+    data = json.loads(settings.read_text())
+    data["skin"] = name
+    settings.write_text(json.dumps(data, indent=4))
+    os.utime(settings, (os.path.getmtime(settings) + 5,) * 2)
+
+
+set_skin("alchemos")
+check("alchemos skin", P.skin(), "alchemos")
+check("alchemos labels", (P.label("jarvis"), P.label("friday"), P.call("jarvis"), P.call("friday")), ("ORRIN", "SELENE", "Orrin", "Selene"))
+check("alchemos announce", P.announce_line("friday"), "Hey boss, SELENE here. ORRIN is taking five.")
+check("alchemos announce jarvis", P.announce_line("jarvis"), "ORRIN here, sir. SELENE's on standby.")
+check("alchemos tag jarvis", P.tag("hi", "jarvis"), "[AlchemOS] hi")
+check("alchemos tag friday", P.tag("hi", "friday"), "[AlchemOS] [FRIDAY] hi")
+check("prompt explains the tag", "[AlchemOS]" in brain.system_prompt() and "ORRIN" in brain.system_prompt(), True)
+check("alchemos label tool", A.tool_label("jarvis_persona", {"name": "friday"}), "PERSONA → SELENE")
+check("dj voice orrin", P.dj_voice("jarvis").startswith("in Orrin's voice"), True)
+check("aliases", (P.norm("Orrin"), P.norm("SELENE"), P.norm("jarvis"), P.norm("ultron")), ("jarvis", "friday", "jarvis", None))
+for text, who in [("switch to Selene", "friday"), ("let me talk to Orrin", "jarvis"), ("switch to selena", "friday"),
+                  ("switch to friday", "friday")]:
+    r = F.match(text)
+    check(f"alchemos fastpath {text!r}", [(s["tool"], s["args"]) for s in r] if r else None, [("jarvis_persona", {"name": who})])
+r = A.TOOLS["jarvis_persona"](name="selene")
+check("action takes selene", (r["ok"], r["persona"]), (True, "friday"))
+A.TOOLS["jarvis_persona"](name="jarvis")
+# the legacy skin asked for but its overlay missing: ALCHEMOS names (the HUD shows ALCHEMOS too)
+set_skin("legacy")
+P.LEGACY_SKIN = tmp / "no-such-overlay.json"
+check("legacy without overlay", (P.skin(), P.label("jarvis")), ("alchemos", "ORRIN"))
 
 print("FAILS:", len(FAILS)) if FAILS else print("ok: personas")
 sys.exit(1 if FAILS else 0)

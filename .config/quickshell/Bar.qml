@@ -118,10 +118,10 @@ PanelWindow {
             spacing: 16
             Text {
                 visible: bar.isMain
-                // ◉ = listening, ◌ = switched on but not up yet, ○ = off (FRIDAY: ◈ ◇ ◇); the persona answering
-                // now (JarvisState.who); then ON / OFF / ON (LAPTOP, UNTIL DOCK CHANGE)
+                // listening / starting / off glyphs and the name of the persona answering now (the skin's: ☉ ORRIN,
+                // ☽ SELENE; legacy ◉ ◌ ○ JARVIS, ◈ ◇ FRIDAY), in its accent; then ON / OFF / ON (LAPTOP, …)
                 text: (JarvisState.online ? JarvisState.glyph : JarvisState.toggleOn ? JarvisState.glyphStarting : JarvisState.glyphIdle) + " " + JarvisState.name + " " + JarvisState.stateLabel.toUpperCase()
-                color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : bar.cyan) : Theme.faint
+                color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : JarvisState.accent) : Theme.faint
                 font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1
             }
             Text { text: "CPU " + Math.round(SysStats.cpu * 100) + "%"; color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
@@ -144,7 +144,8 @@ PanelWindow {
                 color: GameMode.batteryWarn ? "#ff5f5f" : Theme.secondary
                 font.family: bar.mono; font.pixelSize: 12; font.bold: true; font.letterSpacing: 2
             }
-            Text { text: "◈"; color: bar.cyan; font.pixelSize: 13 }
+            // the skin's mark: ALCHEMOS the sign of the metal in use (☉ for a custom preset), legacy ◈
+            Text { text: Skin.text.mark || Skin.glyphFor(Theme.cfg.preset) || "☉"; color: bar.cyan; font.pixelSize: 13 }
         }
 
         MouseArea {
