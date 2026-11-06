@@ -91,7 +91,7 @@ PanelWindow {
         anchors.topMargin: 50
         width: 420
         height: body.implicitHeight + 56
-        title: "STARK // CONTROL"
+        title: Skin.text.control
         detail: Qt.formatDateTime(new Date(), "hh:mm")
 
         opacity: cc.visible ? 1 : 0
@@ -107,7 +107,7 @@ PanelWindow {
             // Session buttons
             Row {
                 spacing: 8
-                SmallButton { text: "◈ LOCK"; onClicked: LockState.requestLock() }
+                SmallButton { text: Skin.text.lockGlyph + " LOCK"; onClicked: LockState.requestLock() }
                 SmallButton { text: "☾ SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["stark-govee", "suspend"]); } }
                 SmallButton { text: "⏻ POWER"; onClicked: LauncherState.togglePower() }
             }
@@ -328,7 +328,7 @@ PanelWindow {
                 Text { text: "OPEN"; color: cc.dim; font.family: cc.mono; font.pixelSize: 11; font.letterSpacing: 2 }
                 Repeater {
                     model: [
-                        ["STARK settings", "@settings"],
+                        [Skin.text.os + " settings", "@settings"],
                         ["Wi-Fi networks", "@settings:NETWORK"],
                         ["Bluetooth devices", "@settings:BLUETOOTH"],
                         ["Displays & monitors", "@settings:DISPLAY"],

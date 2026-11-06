@@ -1,4 +1,4 @@
-// Lock / unlock / power transitions. Drives the "security doors" on every screen.
+// Lock / unlock / power transitions. Drives the lock scene (the skin's doors) on every screen.
 //
 //   requestLock()   – Super+L, LOCK buttons: doors slam shut (with sound), then hyprlock
 //   locked()        – from stark-lock.sh: snaps the doors shut instantly (lid / idle locks),
@@ -43,7 +43,7 @@ Singleton {
         id: lockSeq
         ScriptAction { script: {
             root.doors = "closing"; root.crt = 0; root.msgP = 0;
-            root.message = "SECURING"; root.submessage = "STARK OS // LOCKDOWN";
+            root.message = Skin.text.lockMessage; root.submessage = Skin.text.lockSub;
             root.play("lock.wav");
         } }
         ParallelAnimation {
@@ -68,7 +68,7 @@ Singleton {
         return Quickshell.env("HOME") + "/.config/hypr/stark-lock-bg-" + screenName + ".png";
     }
     function bgKey(size, main) {
-        return ["v2", Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size, main ? "main" : "other"].join(" ");
+        return ["v3", Skin.current, Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size, main ? "main" : "other"].join(" ");
     }
 
     // Snapshot every screen's shut doors, then start the lock screen
@@ -109,7 +109,7 @@ Singleton {
         id: unlockSeq
         ScriptAction { script: {
             root.doors = "opening"; root.msgP = 0;
-            root.message = "ACCESS GRANTED";
+            root.message = Skin.text.unlockMessage;
             root.submessage = "WELCOME BACK, " + Theme.cfg.greetName.toUpperCase();
             root.play("unlock.wav");
         } }

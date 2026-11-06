@@ -196,6 +196,14 @@ def jarvis_persona(name: Literal["jarvis", "friday"]) -> str:
 
 
 @mcp.tool(structured_output=False)
+def set_skin(name: Literal["alchemos", "legacy", "toggle"]) -> str:
+    """Switch the HUD skin, the desktop's look only (only when he asks for a skin): alchemos = the
+    default, legacy = the old look ("switch to the legacy skin"), toggle = the other one ("switch back").
+    Nothing else changes: same voices, wake word, tools and settings."""
+    return out(A.set_skin(name))
+
+
+@mcp.tool(structured_output=False)
 def jarvis_volume(action: Literal["up", "down", "set"], percent: int = 0) -> str:
     """Your own speaking volume (Jarvis's voice only, not music: use media for that). up / down = one step,
     set = percent 0-100. Reply in one short line; it's spoken at the new level."""

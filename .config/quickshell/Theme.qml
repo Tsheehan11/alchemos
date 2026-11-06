@@ -1,4 +1,4 @@
-// STARK OS theme + preferences. Everything here is saved to settings.json
+// HUD theme + preferences. Everything here is saved to settings.json
 // (next to this file) and edited from the Settings screen (Super + ,).
 pragma Singleton
 import QtQuick
@@ -106,20 +106,18 @@ Singleton {
             property bool gameNotify: true              // do-not-disturb on the notification daemon
             property var launcherApps: []               // radial launcher (LauncherApps.qml); seeded on first run
             property string vpnProvider: "proton"       // VPN the tile / Settings act on (VPN.qml, stark-vpn providers.json)
+            // Skins (Skin.qml): the look only, never behaviour
+            property string skin: "alchemos"            // alchemos | legacy (needs the private skins/legacy overlay)
+            property bool skinUnlocked: false           // the SKIN row shows in Settings → APPEARANCE
+            property var skinPresets: ({})              // each skin's last look: { skin: { name, primary, secondary, background } }
         }
     }
     property bool loaded: false   // settings.json has been read at least once
     Timer { id: saveTimer; interval: 50; onTriggered: file.writeAdapter() }
 
     // ── Presets ─────────────────────────────────
-    readonly property var presets: [
-        { name: "STARK",     primary: "#4fd8ff", secondary: "#ffb347", background: "#05090f" },
-        { name: "MARK III",  primary: "#ff5a4d", secondary: "#ffd24d", background: "#0c0505" },
-        { name: "VIBRANIUM", primary: "#b48cff", secondary: "#7fe0ff", background: "#08050f" },
-        { name: "MATRIX",    primary: "#4dff88", secondary: "#d4ff4d", background: "#030a05" },
-        { name: "ARCTIC",    primary: "#d6f1ff", secondary: "#6fa8ff", background: "#05080f" },
-        { name: "SOLAR",     primary: "#ffb347", secondary: "#ff6b8a", background: "#0c0705" }
-    ]
+    // The built-ins come from the skin (Skin.qml); each has a glyph shown on its tile
+    readonly property var presets: Skin.presets
     // Sets every colour field, so nothing from the previous preset survives.
     function applyPreset(p) {
         adapter.preset = p.name;
@@ -130,7 +128,7 @@ Singleton {
     // ── Custom presets ──────────────────────────
     // Built-ins first, then the user's (tagged custom: true). Colour fields are
     // whatever a built-in defines, so new fields get saved automatically.
-    readonly property var presetFields: Object.keys(presets[0]).filter(k => k !== "name")
+    readonly property var presetFields: ["primary", "secondary", "background"]
     readonly property var allPresets: presets.concat((adapter.customPresets || []).map(c => filled(Object.assign({ custom: true }, c))))
     // A custom preset saved before a field existed (or hand-edited) gets its own accent for the
     // secondary and STARK's value for anything else, so nothing reads undefined → black
@@ -141,7 +139,36 @@ Singleton {
         return out;
     }
     function presetName(raw) { return (raw || "").trim().toUpperCase().slice(0, 14); }
-    function isBuiltin(name) { return presets.some(b => b.name === name); }
+    function isBuiltin(name) { return presets.some(b => b.name === name) || Skin.reservedNames.indexOf(name) >= 0; }
+    // By name, case-insensitive; the other skin's names map through the skin's aliases (MARK III → IRON)
+    function findPreset(raw) {
+        const n = presetName(raw);
+        const hit = allPresets.find(x => x.name === n);
+        if (hit) return hit;
+        const alias = Skin.aliases[n];
+        return alias ? allPresets.find(x => x.name === alias) || null : null;
+    }
+
+    // ── Skins ───────────────────────────────────
+    // Each skin keeps its own last look; switching saves the one being left and puts the other back.
+    function lookRecord() {
+        return { name: adapter.preset, primary: adapter.primary, secondary: adapter.secondary, background: adapter.background };
+    }
+    function applyRecord(r, fallback) {
+        if (!r || !r.name) { applyPreset(fallback); return; }
+        const built = presets.find(x => x.name === r.name) || allPresets.find(x => x.custom && x.name === r.name);
+        if (built) { applyPreset(built); return; }      // built-in / custom: its current colours
+        adapter.preset = r.name;                        // CUSTOM (hand-mixed): the colours as they were
+        for (const k of presetFields) adapter[k] = typeof r[k] === "string" && r[k] ? r[k] : fallback[k];
+    }
+    function switchSkin(from, to) {
+        const sp = Object.assign({}, adapter.skinPresets || {});
+        sp[from] = lookRecord();
+        adapter.skinPresets = sp;
+        adapter.skin = to;                    // Skin.presets follows this at once
+        applyRecord(sp[to], presets[0]);
+    }
+
 
     // Saves the colours currently applied. Returns "" on success, else the reason.
     function savePreset(raw) {
@@ -214,7 +241,7 @@ Singleton {
     // monitor (that screen's picture of its shut doors, LockState.bgPath) and the clock /
     // password on the main screen. Rewritten when the colours or the monitors change.
     FileView { id: lockTemplate; path: Quickshell.env("HOME") + "/.config/hypr/hyprlock.template.conf"; watchChanges: true; onFileChanged: { reload(); hyprSync.restart(); } }
-    readonly property string lockMonitors: Quickshell.screens.map(s => s.name + ":" + Roles.role(s)).join(" ")
+    readonly property string lockMonitors: Quickshell.screens.map(s => s.name + ":" + Roles.role(s)).join(" ") + " " + Skin.current
     onLockMonitorsChanged: hyprSync.restart()
     function lockConf() {
         const t = lockTemplate.text();
@@ -230,8 +257,9 @@ Singleton {
         // One pass, so a colour that's swapped in (SOLAR's primary is STARK's secondary)
         // isn't swapped again. 8fb4c4 = muted text (placeholder, battery) → the HUD's label colour.
         const swap = { "4fd8ff": hex(primary), "ffb347": hex(secondary), "05090f": hex(bg), "8fb4c4": hex(dim),
-                       "__HOME__": Quickshell.env("HOME"), "__BACKGROUNDS__": blocks.join("\n"), "__MAIN__": main };
-        return t.replace(/4fd8ff|ffb347|05090f|8fb4c4|__HOME__|__BACKGROUNDS__|__MAIN__/g, m => swap[m]);
+                       "__HOME__": Quickshell.env("HOME"), "__BACKGROUNDS__": blocks.join("\n"), "__MAIN__": main,
+                       "__LOCKTITLE__": Skin.text.lockTitle, "__DENIED__": Skin.text.denied };
+        return t.replace(/4fd8ff|ffb347|05090f|8fb4c4|__HOME__|__BACKGROUNDS__|__MAIN__|__LOCKTITLE__|__DENIED__/g, m => swap[m]);
     }
     function pushLockConf() {
         const conf = lockConf();

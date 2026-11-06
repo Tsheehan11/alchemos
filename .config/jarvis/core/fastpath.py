@@ -144,10 +144,36 @@ PERSONA = re.compile(r"(?:(?:switch|change|swap|go|flip|hand (?:it |me )?(?:over
                      r"give me) (jarvis|friday)(?: (?:back|on|instead|mode|please|now))*")
 
 
+# "switch to the legacy skin" / "go back to the AlchemOS skin" / "switch skins" (the HUD's look, Skin.qml).
+# "skin" has to be said, except "switch back" while the legacy skin is on.
+SKIN_WORDS = {"legacy": "legacy", "old": "legacy", "original": "legacy", "stark": "legacy", "stark os": "legacy",
+              "alchemos": "alchemos", "alchemy": "alchemos", "alchemy os": "alchemos", "alchemist": "alchemos",
+              "al chemos": "alchemos", "default": "alchemos", "normal": "alchemos", "new": "alchemos"}
+_SKIN_NAME = "|".join(sorted(map(re.escape, SKIN_WORDS), key=len, reverse=True))
+SKIN = re.compile(rf"(?:(?:switch|change|swap|go|flip|put|set)(?: (?:it|me|us|the hud|the desktop))?(?: back)?(?: to| into)?"
+                  rf"(?: (?:the|a|my))? ({_SKIN_NAME}) skin(?: (?:back|on|please|now))*|"
+                  rf"(?:switch|change|swap|flip|toggle)(?: the)? skins?(?: back| over| around)?(?: (?:to|into)(?: the)? ({_SKIN_NAME})(?: skin)?)?"
+                  rf"(?: please| now)*)")
+SKIN_BACK = re.compile(r"(?:switch|change|go|flip|put|take)(?: (?:it|me|us|everything))? back(?: please| now)*")
+
+
+def _skin(t):
+    m = SKIN.fullmatch(t)
+    if m:
+        word = m.group(1) or m.group(2)
+        return SKIN_WORDS[word] if word else "toggle"
+    if SKIN_BACK.fullmatch(t) and A.skin_current() == "legacy":
+        return "alchemos"
+    return None
+
+
 def _clause(t, last_query):
     m = PERSONA.fullmatch(FILLER.sub("", t).strip())
     if m:
         return [step("jarvis_persona", lambda r: r.get("say") or "Done.", name=m.group(1))]
+    sk = _skin(TRAILER.sub("", FILLER.sub("", t)).strip())
+    if sk:
+        return [step("set_skin", lambda r: r.get("say") or "Done.", name=sk)]
     t = TRAILER.sub("", FILLER.sub("", t)).strip()
     if not t:
         return None

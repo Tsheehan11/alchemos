@@ -49,7 +49,7 @@ PanelWindow {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: bar.isMain ? "STARK OS" : bar.modelData.name
+            text: bar.isMain ? Skin.text.os : bar.modelData.name
             color: bar.isMain ? bar.cyan : bar.dim
             font.family: bar.mono
             font.pixelSize: 13

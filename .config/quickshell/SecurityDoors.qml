@@ -23,7 +23,7 @@ PanelWindow {
     readonly property bool isMain: Roles.role(modelData) === "main"
 
     // Everything that makes up the closed-doors picture (captured for the lock screen)
-    DoorScene {
+    SkinScene {
         id: scene
         anchors.fill: parent
         isMain: dw.isMain
@@ -100,7 +100,7 @@ PanelWindow {
             mask: Region {}
             color: "transparent"
 
-            DoorScene {
+            SkinScene {
                 id: still
                 x: 1     // outside the 1×1 window
                 width: dw.screenW; height: dw.screenH

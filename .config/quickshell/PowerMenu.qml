@@ -22,7 +22,7 @@ PanelWindow {
 
     readonly property string mono: "JetBrainsMono Nerd Font"
     readonly property var items: [
-        { key: "lock",     label: "LOCK",      glyph: "◈", confirm: false },
+        { key: "lock",     label: "LOCK",      glyph: Skin.text.lockGlyph, confirm: false },
         { key: "sleep",    label: "SLEEP",     glyph: "☾", confirm: false },
         { key: "logout",   label: "LOG OUT",   glyph: "⇥", confirm: true },
         { key: "reboot",   label: "RESTART",   glyph: "⟳", confirm: true },

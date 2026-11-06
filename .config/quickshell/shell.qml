@@ -27,7 +27,7 @@ ShellRoot {
             id: slot
             required property var modelData
             readonly property string shows: Roles.shows(modelData)
-            LazyLoader { active: slot.shows === "clock"; HudWindow { modelData: slot.modelData } }       // arc-reactor clock
+            LazyLoader { active: slot.shows === "clock"; HudWindow { modelData: slot.modelData } }       // the skin's clock (Skin.clockUrl)
             LazyLoader {                                                                                  // diagnostics wall / combat telemetry
                 active: slot.shows === "stats" || Perf.telemetryScreen === slot.modelData.name
                 DiagPanel { modelData: slot.modelData }
@@ -107,6 +107,10 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         SecurityDoors {}
+    }
+    Variants {                  // skin transitions and the preset ignite (IgniteState.qml)
+        model: Quickshell.screens
+        Ignite {}
     }
 
     //   qs ipc call widgets add clock diag top-right '{"tz":"America/New_York","label":"New York"}'
@@ -294,10 +298,11 @@ ShellRoot {
             Theme.cfg[key] = typeof cur === "number" ? Number(value) : typeof cur === "boolean" ? value === "true" : value;
             return key + " = " + JSON.stringify(Theme.cfg[key]);
         }
-        //   qs ipc call theme presets   → ["STARK","MARK III",…] (built-in + custom; Jarvis validates against it)
+        //   qs ipc call theme presets   → ["AURUM","ARGENT",…] (the skin's built-ins + custom; Jarvis validates against it)
+        //   preset: the other skin's names work too (MARK III → IRON in ALCHEMOS, Skin.aliases)
         function presets(): string { return JSON.stringify(Theme.allPresets.map(p => p.name)) }
         function preset(name: string): string {
-            const p = Theme.allPresets.find(x => x.name === name.toUpperCase());
+            const p = Theme.findPreset(name);
             if (!p) return "no preset " + name;
             Theme.applyPreset(p);
             return "preset " + p.name;

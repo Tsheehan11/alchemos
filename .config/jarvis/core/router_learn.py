@@ -42,7 +42,7 @@ DOC = ("What Jarvis's local router learned (core/router_learn.py). Untracked; sh
 BLOCKED_INTENTS = {"power", "lock_screen", "close_window", "move_window", "widget.clear", "vpn.control"}
 BLOCKED_TOOLS = {"power", "lock_screen", "close_focused_window", "move_window_to_workspace", "widget_remove",
                  "forget", "cancel_reminder", "remember", "set_reminder", "start_task", "open_in_browser",
-                 "jarvis_persona", "control_run", "control_look"}
+                 "jarvis_persona", "set_skin", "control_run", "control_look"}
 
 PROMOTE_SEEN = 2            # sightings that promote without a confirm
 LEARN_CAP = 25              # active learned examples per intent

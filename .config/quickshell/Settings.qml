@@ -74,7 +74,7 @@ PanelWindow {
         anchors.centerIn: parent
         width: Math.min(1080, parent.width - 80)
         height: Math.min(720, parent.height - 100)
-        title: "STARK OS // SETTINGS"
+        title: Skin.text.settings
         detail: "ESC TO CLOSE"
 
         opacity: st.visible ? 1 : 0
@@ -386,6 +386,15 @@ PanelWindow {
                         focusCatcher.forceActiveFocus();
                     }
 
+                    // Shown once a skin has been switched by its hidden ways, and only while the overlay exists
+                    Text { visible: Theme.cfg.skinUnlocked && Skin.legacyAvailable; text: "SKIN"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Row {
+                        visible: Theme.cfg.skinUnlocked && Skin.legacyAvailable
+                        spacing: 10
+                        SmallButton { text: "ALCHEMOS"; active: !Skin.isLegacy; onClicked: Skin.set("alchemos", true) }
+                        SmallButton { text: (Skin.legacyData && Skin.legacyData.label) || "LEGACY"; active: Skin.isLegacy; onClicked: Skin.set("legacy", true) }
+                    }
+
                     Text { text: "THEME"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
                     Grid {
                         columns: 3
@@ -540,7 +549,7 @@ PanelWindow {
                             value: (Theme.cursorFill() - 20) / 70
                             onMoved: v => Theme.cfg.cursorOpacity = Math.round((20 + v * 70) / 5) * 5
                         }
-                        Toggle { width: parent.width; label: "ANIMATED BUSY CURSOR"; hint: "Arc reactor spins while apps load · off shows a still frame"; checked: Theme.cfg.cursorAnimated; onToggled: Theme.cfg.cursorAnimated = !Theme.cfg.cursorAnimated }
+                        Toggle { width: parent.width; label: "ANIMATED BUSY CURSOR"; hint: Skin.text.cursorHint; checked: Theme.cfg.cursorAnimated; onToggled: Theme.cfg.cursorAnimated = !Theme.cfg.cursorAnimated }
                     }
                     Toggle { width: parent.width; label: "Background grid"; checked: Theme.cfg.showGrid; onToggled: Theme.cfg.showGrid = !Theme.cfg.showGrid }
                     Toggle { width: parent.width; label: "24-hour clock"; checked: Theme.cfg.clock24; onToggled: Theme.cfg.clock24 = !Theme.cfg.clock24 }
@@ -591,7 +600,7 @@ PanelWindow {
                     width: parent.width
                     spacing: 12
 
-                    Toggle { width: parent.width; label: "Arc-reactor clock"; hint: "CLOCK screens (Display → HUD on this screen)"; checked: Theme.cfg.showReactor; onToggled: Theme.cfg.showReactor = !Theme.cfg.showReactor }
+                    Toggle { width: parent.width; label: Skin.text.clockName; hint: "CLOCK screens (Display → HUD on this screen)"; checked: Theme.cfg.showReactor; onToggled: Theme.cfg.showReactor = !Theme.cfg.showReactor }
                     Toggle { width: parent.width; label: "Diagnostics wall"; hint: "STATS screens"; checked: Theme.cfg.showDiag; onToggled: Theme.cfg.showDiag = !Theme.cfg.showDiag }
                     Toggle { width: parent.width; label: "Audio deck"; hint: "MUSIC screens"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
                     Toggle { width: parent.width; label: "Hide panels behind windows"; hint: "Clock, diagnostics and audio deck only show on screens with no windows open"; checked: Theme.cfg.hideHudBehindWindows; onToggled: Theme.cfg.hideHudBehindWindows = !Theme.cfg.hideHudBehindWindows }
@@ -963,7 +972,7 @@ PanelWindow {
                         title: "ABOUT"
                         Column {
                             spacing: 6
-                            Text { text: "STARK OS  ·  " + sys.distro; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                            Text { text: Skin.text.os + "  ·  " + sys.distro; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
                             Text { text: "Kernel " + sys.kernel + "   ·   " + sys.hypr; color: Theme.dim; font.family: st.mono; font.pixelSize: 12 }
                             Text { text: "Uptime " + SysStats.fmtUptime(SysStats.uptimeS) + "   ·   " + SysStats.ramTotalGb.toFixed(0) + " GB RAM   ·   " + Math.round(SysStats.diskTotalGb) + " GB disk"; color: Theme.dim; font.family: st.mono; font.pixelSize: 12 }
                         }

@@ -167,7 +167,10 @@ PanelWindow {
                             NumberAnimation { to: 1; duration: 500 }
                         }
                     }
-                    onTextChanged: { win.query = text; win.selected = 0; }
+                    onTextChanged: {
+                        if (Skin.isSecret(text)) { text = ""; LauncherState.closeAll(); Skin.toggle(true); return; }   // the hidden skin switch
+                        win.query = text; win.selected = 0;
+                    }
 
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Escape) {

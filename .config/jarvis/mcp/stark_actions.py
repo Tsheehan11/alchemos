@@ -1226,6 +1226,30 @@ def jarvis_volume(action, percent=0):
             **({"note": "already at the limit"} if new == now and action != "set" else {})}
 
 
+SKINS = ["alchemos", "legacy"]
+
+
+def skin_current():
+    """The HUD skin in use (alchemos | legacy), "" if the HUD isn't answering."""
+    rc, out, _ = _run(_qs("skin", "get"), timeout=3)
+    return out if rc == 0 and out in SKINS else ""
+
+
+@safe
+def set_skin(name):
+    """The HUD's look (quickshell/Skin.qml): alchemos (the default) | legacy (a private overlay, may be
+    missing) | toggle. Behaviour, voices and wake word are the same in both."""
+    name = _choice(name, SKINS + ["toggle"], "name")
+    r = _do(f"skin {name}", _qs("skin", "toggle") if name == "toggle" else _qs("skin", "set", name), timeout=4)
+    if not r.get("ok") or r.get("dry_run"):
+        return r
+    res = r.get("result", "")
+    if not res.startswith("skin "):
+        return {"ok": False, "error": res or "the HUD didn't switch"}
+    now = res.split()[1]
+    return {"ok": True, "skin": now, "say": "Legacy skin, sir." if now == "legacy" else "AlchemOS skin, sir."}
+
+
 def jarvis_persona(name):
     """Who answers by default: jarvis | friday (core/persona.py). Same brain, tools and memory; FRIDAY has
     her own voice and manner. The switch is announced in the new voice (by the voice loop when the
@@ -1565,7 +1589,7 @@ TOOLS = {f.__name__: f for f in [
     open_app, close_focused_window, switch_workspace, move_window_to_workspace, set_theme, lights,
     media, what_is_playing, system_status, vpn, open_uwcs, lock_screen, power,
     set_timer, set_reminder, list_reminders, cancel_reminder, remember, recall, forget, open_in_browser, weather,
-    widget_add, widget_remove, widget_move, widget_reset, widget_list, set_screen_role, jarvis_volume, jarvis_persona, start_task, screenshot,
+    widget_add, widget_remove, widget_move, widget_reset, widget_list, set_screen_role, jarvis_volume, jarvis_persona, set_skin, start_task, screenshot,
     set_audio_output, set_audio_input, list_audio_devices,
     spotify_player, spotify_play, spotify_queue, spotify_like, spotify_now_playing, spotify_devices, spotify_transfer,
     dj_start, dj_stop, dj_adjust, dj_keep, dj_chatter, dj_status, dj_save_mood,
@@ -1636,6 +1660,7 @@ def tool_label(tool, args):
         "set_screen_role": lambda: f"SCREEN → {(norm_role_screen(a.get('screen')) or v('screen')).upper()} ⇢ {(norm_role(a.get('role')) or v('role')).upper()}",
         "jarvis_volume": lambda: f"VOICE → {v('percent') + '%' if a.get('action') == 'set' else v('action')}",
         "jarvis_persona": lambda: f"PERSONA → {v('name')}",
+        "set_skin": lambda: f"SKIN → {v('name')}",
         "start_task": lambda: f"TASK → {v('title')}",
         "set_audio_output": lambda: f"AUDIO OUT → {v('device')}",
         "set_audio_input": lambda: f"MIC → {v('device')}",
