@@ -83,7 +83,7 @@ WidgetBody {
                     width: 112; height: 126
                     Ring {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        radius: 48; thickness: 5; value: Math.max(0.001, modelData.v); animated: w.live
+                        radius: 48; thickness: 5; value: Math.max(0.001, modelData.v); animated: w.live; gauge: true
                         color: modelData.hot ? Theme.secondary : Theme.primary
                     }
                     Text {

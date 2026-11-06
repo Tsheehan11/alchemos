@@ -149,7 +149,7 @@ PanelWindow {
                     }
 
                     // VPN (VPN.qml / stark-vpn)
-                    Text { text: "VPN"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "VPN"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 8
                         visible: VPN.providers.length > 1
@@ -203,7 +203,7 @@ PanelWindow {
                         onToggled: VPN.setKillSwitch(!VPN.killSwitch)
                     }
 
-                    Text { visible: wifi.on; text: "WI-FI NETWORKS"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { visible: wifi.on; text: "WI-FI NETWORKS"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Repeater {
                         model: wifi.on ? wifi.networks : []
                         delegate: Rectangle {
@@ -312,7 +312,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { visible: bt.on; text: "DEVICES"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { visible: bt.on; text: "DEVICES"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
 
                     Repeater {
                         model: bt.on ? bt.devices : []
@@ -388,7 +388,7 @@ PanelWindow {
 
                     // Every installed skin (skins/<id>/); hidden ones (the legacy skin) once unlocked. Only shown
                     // when there's a choice, so with just the default and a still-hidden skin it stays out of sight.
-                    Text { visible: Skin.listed.length > 1; text: "SKIN"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { visible: Skin.listed.length > 1; text: "SKIN"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Flow {
                         visible: Skin.listed.length > 1
                         width: parent.width
@@ -404,7 +404,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "THEME"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "THEME"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Grid {
                         columns: 3
                         columnSpacing: 12; rowSpacing: 12
@@ -494,14 +494,14 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "CUSTOM — MAIN COLOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "CUSTOM — MAIN COLOR"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Swatches { selected: Theme.cfg.primary; onPicked: c => { Theme.cfg.primary = c; Theme.cfg.preset = "CUSTOM"; } }
-                    Text { text: "CUSTOM — ACCENT COLOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "CUSTOM — ACCENT COLOR"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Swatches { selected: Theme.cfg.secondary; onPicked: c => { Theme.cfg.secondary = c; Theme.cfg.preset = "CUSTOM"; } }
 
                     Column {
                         spacing: 8
-                        Text { text: "AMBIENT LIGHTS"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "AMBIENT LIGHTS"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Text { text: "Govee strip: AUTO follows the theme and pulses to music when audio plays."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
                         Row {
                             spacing: 10
@@ -515,7 +515,7 @@ PanelWindow {
                                 }
                             }
                         }
-                        Text { text: "ANIMATION SPEED"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "ANIMATION SPEED"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -535,7 +535,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Pause effects behind windows"; hint: "Big GPU saver — effects only run on screens you can actually see"; checked: Theme.cfg.pauseBehindWindows; onToggled: Theme.cfg.pauseBehindWindows = !Theme.cfg.pauseBehindWindows }
                     Column {
                         spacing: 8
-                        Text { text: "EFFECTS FRAME RATE"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "EFFECTS FRAME RATE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -559,7 +559,7 @@ PanelWindow {
                     Column {
                         width: parent.width
                         spacing: 8
-                        Text { text: "CURSOR"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "CURSOR"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Stepper { width: parent.width; label: "Cursor size"; hint: "24 standard · 32 / 48 for HiDPI screens"; valueText: Theme.cursorStep(0) + " PX"; onDec: Theme.cfg.cursorSize = Theme.cursorStep(-1); onInc: Theme.cfg.cursorSize = Theme.cursorStep(1) }
                         Slider {
                             width: parent.width
@@ -737,7 +737,7 @@ PanelWindow {
                     // ROUTER: what the local router learned and how often it answers without Claude
                     // (~/.config/jarvis/core/router_learn.py; `jarvis router stats --json`, polled with INTEGRATIONS)
                     Toggle { width: parent.width; visible: Theme.cfg.jarvisDecisions === "local"; label: "Ask when unsure"; hint: "A near miss gets \"Did you mean …?\" · yes runs it and teaches it, no sends it to Claude"; checked: Theme.cfg.jarvisRouterAsk; onToggled: Theme.cfg.jarvisRouterAsk = !Theme.cfg.jarvisRouterAsk }
-                    Text { visible: Theme.cfg.jarvisDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { visible: Theme.cfg.jarvisDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Process {
                         id: routerStats
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "router", "stats", "--json"]
@@ -820,7 +820,7 @@ PanelWindow {
 
                     // Phase-2 integrations: entries in ~/.config/jarvis/servers.json, tokens in the system keyring.
                     // CONNECT opens a terminal running the sign-in flow (`jarvis connect …`).
-                    Text { text: "INTEGRATIONS"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "INTEGRATIONS"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Process {
                         id: integrationList
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "integrations", "--json"]
@@ -862,7 +862,7 @@ PanelWindow {
                     Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
                     // Spotify: his own developer app, PKCE sign-in, tokens in the keyring (~/.config/jarvis/mcp/spotify_api.py);
                     // DJ mode runs in the voice process (~/.config/jarvis/core/dj.py).
-                    Text { text: "SPOTIFY"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "SPOTIFY"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Process {
                         id: spotifyStatus
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "spotify", "status", "--json"]
@@ -935,7 +935,7 @@ PanelWindow {
                         text: "CROSSFADE · Spotify's API can't set it: Spotify → Settings → Playback → Crossfade songs (6–8 s suits DJ mode)"
                         color: Theme.faint; font.family: st.mono; font.pixelSize: 11
                     }
-                    Text { text: "WINDOW READING"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "WINDOW READING"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Stepper { width: parent.width; label: "Watch every"; hint: "How often a watcher looks at its window · compared on this machine, Claude only looks when enough changed"; valueText: Theme.cfg.jarvisWatchInterval + " S"; onDec: Theme.cfg.jarvisWatchInterval = Math.max(3, Theme.cfg.jarvisWatchInterval - (Theme.cfg.jarvisWatchInterval > 30 ? 10 : Theme.cfg.jarvisWatchInterval > 10 ? 5 : 1)); onInc: Theme.cfg.jarvisWatchInterval = Math.min(300, Theme.cfg.jarvisWatchInterval + (Theme.cfg.jarvisWatchInterval >= 30 ? 10 : Theme.cfg.jarvisWatchInterval >= 10 ? 5 : 1)) }
                     Column {
                         width: parent.width; spacing: 4
@@ -1000,7 +1000,7 @@ PanelWindow {
                     Column {
                         visible: sys.power !== ""
                         spacing: 8
-                        Text { text: "POWER MODE"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "POWER MODE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -1015,7 +1015,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "FINGERPRINT"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "FINGERPRINT"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Text { text: "Unlock the lock screen with your finger (your password always works too)."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
                     Row {
                         spacing: 10
@@ -1024,13 +1024,13 @@ PanelWindow {
                         ConfirmButton { label: "REMOVE ALL"; onConfirmed: st.act(["fprintd-delete", Quickshell.env("USER")], "Removing fingerprints") }
                     }
 
-                    Text { text: "SLEEP & SCREEN"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "SLEEP & SCREEN"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Stepper { width: parent.width; label: "Dim the screen after"; valueText: Idle.label(Theme.cfg.idleDim); onDec: Theme.cfg.idleDim = Idle.step(Theme.cfg.idleDim, -1); onInc: Theme.cfg.idleDim = Idle.step(Theme.cfg.idleDim, 1) }
                     Stepper { width: parent.width; label: "Lock after"; valueText: Idle.label(Theme.cfg.idleLock); onDec: Theme.cfg.idleLock = Idle.step(Theme.cfg.idleLock, -1); onInc: Theme.cfg.idleLock = Idle.step(Theme.cfg.idleLock, 1) }
                     Stepper { width: parent.width; label: "Turn screens off after"; valueText: Idle.label(Theme.cfg.idleScreenOff); onDec: Theme.cfg.idleScreenOff = Idle.step(Theme.cfg.idleScreenOff, -1); onInc: Theme.cfg.idleScreenOff = Idle.step(Theme.cfg.idleScreenOff, 1) }
                     Stepper { width: parent.width; label: "Sleep after"; hint: "Closing the lid always sleeps (unless docked)"; valueText: Idle.label(Theme.cfg.idleSleep); onDec: Theme.cfg.idleSleep = Idle.step(Theme.cfg.idleSleep, -1); onInc: Theme.cfg.idleSleep = Idle.step(Theme.cfg.idleSleep, 1) }
 
-                    Text { text: "BATTERY"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "BATTERY"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Text {
                         text: PowerMode.onBattery
                               ? (PowerMode.saver ? "On battery — saver active" : "On battery — saver off")
@@ -1044,7 +1044,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Pause " + JarvisState.callOf("jarvis"); hint: "Wake-word listening uses a little CPU all the time"; checked: Theme.cfg.saverStopJarvis; onToggled: Theme.cfg.saverStopJarvis = !Theme.cfg.saverStopJarvis }
                     Column {
                         spacing: 8
-                        Text { text: "EFFECTS ON BATTERY"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                        Text { text: "EFFECTS ON BATTERY"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -1059,7 +1059,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "COMBAT MODE"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "COMBAT MODE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Item {
                         width: parent.width; height: 34
                         Text {
@@ -1096,7 +1096,7 @@ PanelWindow {
                         Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/stark-game/games.conf"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
                     }
 
-                    Text { text: "CONFIG"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "CONFIG"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10
                         SmallButton { text: "HYPRLAND CONFIG"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hyprland.lua ~/.config/hypr/stark/*.lua")); LauncherState.closeAll(); } }
@@ -1104,7 +1104,7 @@ PanelWindow {
                         SmallButton { text: "FULL KDE SETTINGS"; onClicked: { Hyprland.dispatch(Hypr.exec("systemsettings")); LauncherState.closeAll(); } }
                     }
 
-                    Text { text: "SESSION"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Text { text: "SESSION"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10
                         SmallButton { text: "LOCK"; onClicked: LockState.requestLock() }

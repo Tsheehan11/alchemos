@@ -25,8 +25,26 @@ Item {
         }
     }
 
+    // engraved: a metal stud in a slot cut into the plate
+    Rectangle {
+        visible: Style.engraved
+        anchors.right: parent.right; anchors.rightMargin: 2
+        anchors.verticalCenter: parent.verticalCenter
+        width: 46; height: 16; radius: 8
+        color: tg.checked ? Theme.p(0.24) : Qt.rgba(0, 0, 0, 0.45)
+        border.color: tg.checked ? Theme.p(0.75) : Theme.p(0.28)
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Rectangle { x: 3; y: 2; width: parent.width - 6; height: 1; radius: 1; color: Qt.rgba(0, 0, 0, 0.6) }
+        MetalStud {
+            width: 20; height: 20; anchors.verticalCenter: parent.verticalCenter
+            x: tg.checked ? parent.width - width + 2 : -2
+            metal: tg.checked ? Theme.primary : Theme.faint
+            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+        }
+    }
     Rectangle {
         id: sw
+        visible: !Style.engraved
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: 48; height: 24; radius: 12

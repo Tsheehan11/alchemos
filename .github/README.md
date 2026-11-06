@@ -55,6 +55,9 @@ ttf-jetbrains-mono-nerd networkmanager bluez-utils uv librsvg hyprcursor python-
 Hyprland 0.56 or newer: the config is Lua (`~/.config/hypr/hyprland.lua`, see
 [Hyprland config](#hyprland-config-lua)). hyprlock, hypridle and xdph still use their own `.conf` files.
 
+The AlchemOS headings use **Cinzel** (SIL OFL, `~/.local/share/fonts/cinzel/`, in this repo with its
+licence; run `fc-cache -f` after cloning) and the alchemical signs use `noto-fonts` (Noto Sans Symbols / Symbols 2).
+
 Optional: `xorg-xcursorgen` (the cursor build falls back to its own `xcursorgen.py`), `protonvpn`
 (for the Proton provider in stark-vpn), `gamemode`.
 

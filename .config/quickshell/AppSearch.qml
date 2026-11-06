@@ -83,13 +83,14 @@ PanelWindow {
 
     // The panel
     Rectangle {
+        Engraving { visible: Style.engraved; fillAlpha: Theme.panelAlpha }     // engraved skins: the plate (Engraving.qml)
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         y: parent.height * 0.22
         width: 660
         height: col.implicitHeight + 40
-        color: Theme.d(Theme.panelAlpha)
-        border.color: Theme.p(0.45)
+        color: Style.engraved ? "transparent" : Theme.d(Theme.panelAlpha)
+        border.color: Style.engraved ? "transparent" : Theme.p(0.45)
         border.width: 1
 
         opacity: win.visible ? 1 : 0
@@ -125,7 +126,7 @@ PanelWindow {
                 Text {
                     text: "SEARCH // APPLICATIONS"
                     color: win.cyan
-                    font.family: win.mono; font.pixelSize: 11; font.letterSpacing: 3
+                    font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 3
                 }
                 Text {
                     anchors.right: parent.right

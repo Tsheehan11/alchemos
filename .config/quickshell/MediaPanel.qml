@@ -88,7 +88,7 @@ PanelWindow {
         x: 0; y: 0
         text: "AUDIO // " + (media.hasPlayer ? (media.player.identity || "PLAYER").toUpperCase() : "NO SIGNAL") + (media.dj ? "  ·  DJ" : "")
         color: media.cyan
-        font.family: media.mono; font.pixelSize: 13; font.letterSpacing: 4
+        font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 4
     }
 
     // ── Album art inside progress rings ──
@@ -123,11 +123,12 @@ PanelWindow {
         }
 
         Rectangle {
+            Engraving { visible: Style.engraved; fillAlpha: 0.9; corners: []; notch: 12; inner: false; ember: 0 }     // engraved skins: the plate (Engraving.qml)
             id: artFrame
             anchors.centerIn: parent
             width: 250; height: 250
-            color: Theme.d(0.9)
-            border.color: Theme.p(0.6)
+            color: Style.engraved ? "transparent" : Theme.d(0.9)
+            border.color: Style.engraved ? "transparent" : Theme.p(0.6)
             border.width: 1
 
             Image {
@@ -316,6 +317,15 @@ PanelWindow {
             height: 1
             color: Theme.p(0.4)
         }
+        Repeater {      // engraved: a graduated baseline
+            model: Style.engraved ? 25 : 0
+            delegate: Rectangle {
+                required property int index
+                x: Math.round(index * (viz.width - 1) / 24); y: 171
+                width: 1; height: index % 4 === 0 ? 5 : 3
+                color: Theme.p(0.35)
+            }
+        }
 
         Row {
             anchors.left: parent.left; anchors.right: parent.right
@@ -333,11 +343,13 @@ PanelWindow {
                         width: parent.width
                         height: Math.max(2, parent.level * 166)
                         y: 170 - height
+                        // engraved: an ingot of the preset's metal, brightest at its tip
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: Theme.text }
-                            GradientStop { position: 0.25; color: Theme.primary }
-                            GradientStop { position: 1.0; color: Theme.p(0.25) }
+                            GradientStop { position: 0.0; color: Style.engraved ? Theme.mix(Theme.primary, "#ffffff", 0.55) : Theme.text }
+                            GradientStop { position: Style.engraved ? 0.12 : 0.25; color: Theme.primary }
+                            GradientStop { position: 1.0; color: Style.engraved ? Theme.mix(Theme.primary, Theme.bg, 0.7) : Theme.p(0.25) }
                         }
+                        Rectangle { visible: Style.engraved; width: parent.width; height: 1; color: Theme.mix(Theme.primary, "#ffffff", 0.7) }
                     }
                     // Reflection
                     Rectangle {

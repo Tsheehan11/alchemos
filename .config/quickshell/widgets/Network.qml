@@ -34,7 +34,7 @@ WidgetBody {
         width: 70; height: 70
         Ring { anchors.centerIn: parent; radius: 32; thickness: 2; value: 1; animated: false; color: Qt.rgba(w.vpnTone.r, w.vpnTone.g, w.vpnTone.b, 0.8); trackColor: "transparent"; dashed: !VPN.connected; dash: [3, 5]
                rotation: VPN.busy && w.live && !w.saver ? w.t * 120 : 0 }
-        Ring { anchors.centerIn: parent; radius: 24; thickness: 3; value: Math.max(0.001, SysStats.wifi); animated: w.live; color: Theme.primary }
+        Ring { anchors.centerIn: parent; radius: 24; thickness: 3; value: Math.max(0.001, SysStats.wifi); animated: w.live; color: Theme.primary; gauge: true }
         Text { anchors.centerIn: parent; text: VPN.connected ? "⛨" : "◌"; color: w.vpnTone; font.pixelSize: 18 }
     }
     Column {

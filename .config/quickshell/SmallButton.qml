@@ -13,6 +13,12 @@ Rectangle {
     color: active ? Theme.s(0.2) : (ma.containsMouse ? Theme.p(0.16) : Theme.d(0.8))
     border.color: active ? Theme.secondary : (ma.containsMouse ? Theme.primary : Theme.p(0.35))
 
+    Rectangle {          // engraved: the inner line of a double-line border
+        visible: Style.engraved
+        anchors.fill: parent; anchors.margins: 2
+        color: "transparent"
+        border.color: b.active ? Theme.s(0.3) : Theme.p(0.14)
+    }
     Text {
         id: label
         anchors.centerIn: parent

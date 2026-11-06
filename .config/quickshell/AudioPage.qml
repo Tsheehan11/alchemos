@@ -35,7 +35,7 @@ Column {
     }
 
     // ── Output ──
-    Text { text: "OUTPUT"; color: Theme.dim; font.family: ap.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+    Text { text: "OUTPUT"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
     Repeater {
         model: Audio.outputs
         delegate: DeviceRow {

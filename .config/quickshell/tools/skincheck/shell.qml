@@ -64,7 +64,7 @@ ShellRoot {
                 HoloButton { text: "HOLO BUTTON" }
                 ConfirmButton { label: "CONFIRM" }
                 Graph { width: 340; height: 80; values: [0.1, 0.3, 0.2, 0.6, 0.4, 0.8, 0.5, 0.7, 0.3, 0.9] }
-                Ring { radius: 40; thickness: 6; value: 0.65 }
+                Ring { radius: 40; thickness: 6; value: 0.65; gauge: true }
             }
         }
     }

@@ -65,7 +65,7 @@ PanelWindow {
         Text {
             text: "DIAGNOSTICS // " + diag.modelData.name
             color: diag.cyan
-            font.family: diag.mono; font.pixelSize: 13; font.letterSpacing: 4
+            font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 4
         }
 
         // CPU + GPU graph

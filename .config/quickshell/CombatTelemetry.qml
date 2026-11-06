@@ -20,7 +20,7 @@ Column {
     Text {
         text: "COMBAT TELEMETRY // " + tel.screenName
         color: tel.amber
-        font.family: tel.mono; font.pixelSize: 13; font.letterSpacing: 4
+        font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 4
     }
 
     // Game + session

@@ -105,6 +105,16 @@ PanelWindow {
             }
         }
 
+        // engraved skins: a stone plate, its rim glowing in the persona's accent (dense enough over white windows)
+        Engraving {
+            visible: Style.engraved
+            anchors.fill: parent; anchors.margins: 10
+            fillAlpha: 0.96
+            corners: []
+            emberColor: toast.accent
+            ember: (toast.busy ? 0.22 + 0.12 * Math.sin(glowT.t) : 0.2) * Style.glow
+        }
+
         // soft glass: a blurred plate with no hard edge, tinted toward the accent at the rim
         Rectangle {
             id: plate
@@ -114,11 +124,13 @@ PanelWindow {
             visible: false
         }
         MultiEffect {
+            visible: !Style.engraved
             source: plate; anchors.fill: plate
             autoPaddingEnabled: true
             blurEnabled: true; blur: 0.45; blurMax: 32
         }
         Rectangle {                                     // denser in the middle, so what's behind can't compete
+            visible: !Style.engraved
             anchors.fill: parent; anchors.margins: 30
             radius: 14; color: Theme.d(0.45)
         }
@@ -130,6 +142,7 @@ PanelWindow {
             visible: false
         }
         MultiEffect {
+            visible: !Style.engraved
             source: rim; anchors.fill: rim
             autoPaddingEnabled: true
             blurEnabled: true; blur: 1.0; blurMax: 48
@@ -139,6 +152,7 @@ PanelWindow {
 
         // scanlines + a slow sweep, kept inside the plate
         Item {
+            visible: Style.texture === "holo"
             anchors.fill: parent; anchors.margins: 18
             clip: true
             Column {
@@ -161,6 +175,7 @@ PanelWindow {
 
         // the projector: a bright line along the bottom, light rising from it
         Rectangle {
+            visible: !Style.engraved
             anchors.horizontalCenter: parent.horizontalCenter
             y: parent.height - 9
             width: parent.width * 0.78; height: 2; radius: 1
@@ -172,6 +187,7 @@ PanelWindow {
             }
         }
         Rectangle {
+            visible: !Style.engraved
             anchors.horizontalCenter: parent.horizontalCenter
             y: parent.height - 9 - height
             width: parent.width * 0.7; height: 46
@@ -197,7 +213,7 @@ PanelWindow {
                 NumberAnimation { to: 1; duration: 90 }
             }
             Timer {
-                running: toast.visible; repeat: true
+                running: toast.visible && !Style.engraved; repeat: true      // a projection flickers; engraved metal doesn't
                 interval: 2600
                 onTriggered: { interval = 1800 + Math.random() * 4200; if (Math.random() < 0.6) flicker.start(); }
             }
@@ -247,7 +263,7 @@ PanelWindow {
                     anchors.left: reactor.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
                     text: JarvisState.dotted
                     color: JarvisState.hasAccent ? JarvisState.accent : Theme.primary
-                    font.family: toast.mono; font.pixelSize: 11; font.letterSpacing: 4
+                    font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 4
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -255,6 +271,14 @@ PanelWindow {
                     color: toast.hot ? Theme.secondary : Theme.dim
                     font.family: toast.mono; font.pixelSize: 10; font.letterSpacing: 3
                 }
+            }
+
+            // skins with a divider glyph: a rule under the header carrying the persona's own sign
+            Divider {
+                visible: Style.divider !== ""
+                width: parent.width
+                glyph: JarvisState.glyph
+                color: toast.accent
             }
 
             // waveform while listening with nothing heard yet

@@ -35,10 +35,11 @@ PanelWindow {
            Theme.cfg.gameHud ? "HUD SILENT" : ""].filter(x => x).join(" · ") || "STANDING BY FOR TARGETS"
 
     Rectangle {
+        Engraving { visible: Style.engraved; fillAlpha: 0.92; corners: []; notch: 12; emberColor: toast.accent }     // engraved skins: the plate (Engraving.qml)
         id: panel
         anchors.fill: parent
-        color: Theme.d(0.9)
-        border.color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.55)
+        color: Style.engraved ? "transparent" : Theme.d(0.9)
+        border.color: Style.engraved ? "transparent" : Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.55)
         border.width: 1
         opacity: GameMode.showing ? 1 : 0
         scale: GameMode.showing ? 1 : 0.92
@@ -47,7 +48,7 @@ PanelWindow {
 
         // Corner brackets
         Repeater {
-            model: 4
+            model: Style.engraved ? 0 : 4
             delegate: Item {
                 required property int index
                 width: 14; height: 14

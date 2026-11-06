@@ -13,14 +13,16 @@ Item {
     readonly property string mono: Style.mono
 
     Rectangle {
+        visible: !Style.engraved
         anchors.fill: parent
         color: Theme.d(f.fill)
         border.color: Theme.p(0.22)
         border.width: 1
     }
+    Engraving { visible: Style.engraved; fillAlpha: f.fill }
 
     Repeater {
-        model: 4
+        model: Style.engraved ? 0 : 4
         delegate: Item {
             required property int index
             width: 14; height: 14
@@ -32,13 +34,23 @@ Item {
     }
 
     Text {
+        visible: !Style.engraved
         x: 14; y: 10
         text: f.title
         color: f.cyan
         font.family: f.mono; font.pixelSize: 11; font.letterSpacing: 3
     }
+    // engraved: the title in the display face with a metal rule up to the detail
+    Heading {
+        visible: Style.engraved
+        x: 24; y: 9; height: 18
+        width: f.width - 48 - (f.detail !== "" ? detail.implicitWidth + 16 : 0)
+        text: f.title
+        color: f.cyan
+    }
     Text {
-        anchors.right: parent.right; anchors.rightMargin: 14
+        id: detail
+        anchors.right: parent.right; anchors.rightMargin: Style.engraved ? 24 : 14
         y: 10
         text: f.detail
         color: Theme.dim

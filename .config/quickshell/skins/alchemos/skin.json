@@ -13,6 +13,20 @@
     "aliases": { "SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS", "STARK": "MERCURY", "VIBRANIUM": "LEAD" },
     "glyphs": { "ring": ["☉", "☽", "♂", "♀", "☿", "♄"], "sun": "☉" },
     "cursor": "cursor",
+    "style": {
+        "display": "Cinzel",
+        "displayScale": 1,
+        "frame": "engraved",
+        "texture": "grain",
+        "grain": 0.45,
+        "grainDark": 0.28,
+        "glow": 0.8,
+        "corners": ["🜁", "🜂", "🜄", "🜃"],
+        "divider": "☿",
+        "gauge": "astrolabe",
+        "metalRule": true,
+        "surface": 1
+    },
     "personas": {
         "jarvis": { "name": "ORRIN",  "call": "Orrin",  "dotted": "O.R.R.I.N",   "glyph": "☉", "idle": "☉", "starting": "☉", "accent": "#ffc04a" },
         "friday": { "name": "SELENE", "call": "Selene", "dotted": "S.E.L.E.N.E", "glyph": "☽", "idle": "☽", "starting": "☽", "accent": "#d4dde8" }

@@ -49,6 +49,21 @@ Item {
     }
     opacity: f.flick
 
+    // engraved skins (Style.frame "engraved"): a stone plate with an engraved double line instead of light;
+    // the same inputs drive it (boot fades it in, strong / lift / pulse raise its ember)
+    Engraving {
+        visible: Style.engraved
+        opacity: Math.min(1, f.boot * 1.4)
+        fillAlpha: 0.78
+        notch: 14
+        corners: []
+        ember: (0.08 + (f.strong ? 0.14 : 0) + 0.25 * f.flare + 0.2 * f.lift) * Style.glow
+    }
+
+    // ── the hologram (base look) ──
+    Item {
+    anchors.fill: parent
+    visible: !Style.engraved
     // ── fill: elliptical fade (a circle in a square, squashed to the card) + a faint primary tint ──
     Item {
         id: fillBox
@@ -210,5 +225,6 @@ Item {
             }
         }
         Rectangle { anchors.centerIn: parent; width: 3; height: 3; radius: 1.5; color: f.accent; opacity: 0.8 }
+    }
     }
 }

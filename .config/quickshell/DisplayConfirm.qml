@@ -26,9 +26,10 @@ PanelWindow {
     readonly property string mono: Style.mono
 
     Rectangle {
+        Engraving { visible: Style.engraved; fillAlpha: 0.96; corners: []; emberColor: Theme.secondary }     // engraved skins: the plate (Engraving.qml)
         anchors.fill: parent
-        color: Theme.d(0.94)
-        border.color: Theme.secondary
+        color: Style.engraved ? "transparent" : Theme.d(0.94)
+        border.color: Style.engraved ? "transparent" : Theme.secondary
         border.width: 1
         focus: true
         Keys.onReturnPressed: Displays.keep()

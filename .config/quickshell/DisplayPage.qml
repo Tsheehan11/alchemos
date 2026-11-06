@@ -171,7 +171,7 @@ Column {
     }
 
     // ── Active profile ──
-    Text { text: "DISPLAY PROFILE"; color: Theme.dim; font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+    Text { text: "DISPLAY PROFILE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
     Column {
         width: parent.width
         spacing: 6
@@ -208,7 +208,7 @@ Column {
     }
 
     // ── Layout mode ──
-    Text { text: "WHAT THE SCREENS SHOW"; color: Theme.dim; font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+    Text { text: "WHAT THE SCREENS SHOW"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
     Row {
         spacing: 10
         visible: dp.hasExternal
@@ -292,7 +292,7 @@ Column {
             width: parent.width; elide: Text.ElideRight
         }
         // What this screen's HUD shows: live, no APPLY / KEEP
-        Text { text: "HUD ON THIS SCREEN  ·  APPLIES NOW"; color: Theme.dim; font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+        Text { text: "HUD ON THIS SCREEN  ·  APPLIES NOW"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
         Repeater {
             model: dp.roleRows(dp.selName)
             delegate: Row {

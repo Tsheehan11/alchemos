@@ -32,10 +32,11 @@ PanelWindow {
     readonly property color accent: ok ? Theme.primary : "#ff5f5f"
 
     Rectangle {
+        Engraving { visible: Style.engraved; fillAlpha: 0.94; corners: []; notch: 12; emberColor: toast.accent }     // engraved skins: the plate (Engraving.qml)
         id: panel
         width: parent.width; height: parent.height
-        color: Theme.d(0.92)
-        border.color: Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.55)
+        color: Style.engraved ? "transparent" : Theme.d(0.92)
+        border.color: Style.engraved ? "transparent" : Qt.rgba(toast.accent.r, toast.accent.g, toast.accent.b, 0.55)
         border.width: 1
         opacity: Shot.toastShowing ? 1 : 0
         x: Shot.toastShowing || Shot.calm ? 0 : 40
@@ -46,7 +47,7 @@ PanelWindow {
 
         // Corner brackets
         Repeater {
-            model: 4
+            model: Style.engraved ? 0 : 4
             delegate: Item {
                 required property int index
                 width: 14; height: 14

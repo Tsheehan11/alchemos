@@ -28,10 +28,32 @@ PanelWindow {
 
     DesktopMenuArea { screen: bg.modelData }    // right-click → widget maker
 
+    readonly property bool holo: Style.texture === "holo"      // grid, data streams, scanline (base look)
+
+    // Grain texture (Style.texture "grain"): static stone grain and a soft vignette instead of the grid
+    Image {
+        anchors.fill: parent
+        visible: Theme.cfg.showGrid && Style.texture === "grain"
+        source: "assets/grain.png"
+        fillMode: Image.Tile
+        opacity: Style.grainNow * 0.8
+        smooth: false
+    }
+    Rectangle {
+        visible: !bg.holo
+        width: parent.width; height: parent.height * 0.35
+        gradient: Gradient { GradientStop { position: 0; color: Qt.rgba(0, 0, 0, 0.35) } GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0) } }
+    }
+    Rectangle {
+        visible: !bg.holo
+        width: parent.width; height: parent.height * 0.35; anchors.bottom: parent.bottom
+        gradient: Gradient { GradientStop { position: 0; color: Qt.rgba(0, 0, 0, 0) } GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.4) } }
+    }
+
     // Static grid (drawn once)
     Canvas {
         anchors.fill: parent
-        visible: Theme.cfg.showGrid
+        visible: Theme.cfg.showGrid && bg.holo
         property color tint: Theme.primary
         onTintChanged: requestPaint()
         onWidthChanged: requestPaint()
@@ -88,7 +110,7 @@ PanelWindow {
             readonly property real speed: 90 + Math.random() * 120      // px per second
             readonly property real offset: Math.random() * 3000
             readonly property real span: bg.height + height + 600       // includes a pause off-screen
-            visible: bg.live
+            visible: bg.live && bg.holo
             width: 2; height: 90 + Math.random() * 120
             x: col * bg.step
             y: bg.height - ((bg.t * speed + offset) % span)
@@ -107,7 +129,7 @@ PanelWindow {
             readonly property real speed: 80 + Math.random() * 100
             readonly property real offset: Math.random() * 3000
             readonly property real span: bg.width + width + 900
-            visible: bg.live
+            visible: bg.live && bg.holo
             height: 2; width: 120 + Math.random() * 160
             y: row * bg.step
             x: ((bg.t * speed + offset) % span) - width
@@ -123,7 +145,7 @@ PanelWindow {
     Rectangle {
         id: scan
         readonly property real cyc: bg.t % 40
-        visible: bg.live && cyc < 9
+        visible: bg.live && bg.holo && cyc < 9
         width: parent.width; height: 140
         y: -height + (cyc / 9) * (bg.height + height)
         gradient: Gradient {
@@ -178,7 +200,7 @@ PanelWindow {
         x: 28; y: 58
         spacing: 4
         opacity: 0.4
-        Text { text: "SYS.GRID // " + (bg.live ? "ONLINE" : "STANDBY"); color: Theme.primary; font.family: bg.mono; font.pixelSize: 11; font.letterSpacing: 2 }
+        Text { text: (bg.holo ? "SYS.GRID // " : Skin.text.os + " // ") + (bg.live ? "ONLINE" : "STANDBY"); color: Theme.primary; font.family: bg.mono; font.pixelSize: 11; font.letterSpacing: 2 }
         Text {
             readonly property int level: Math.round(SysStats.wifi * 8)
             text: "WIFI   " + "▮".repeat(level) + "▯".repeat(8 - level) + "  " + Math.round(SysStats.wifi * 100) + "%"

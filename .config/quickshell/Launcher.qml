@@ -241,6 +241,11 @@ PanelWindow {
                     GradientStop { position: 1.0; color: Theme.d(0.95) }
                 }
                 border.color: Theme.p(0.7)
+                Rectangle {      // engraved: the core's inner ring and its sign
+                    visible: Style.engraved
+                    anchors.fill: parent; anchors.margins: 5
+                    radius: width / 2; color: "transparent"; border.color: Theme.p(0.3)
+                }
             }
             Column {
                 anchors.centerIn: parent
@@ -328,8 +333,17 @@ PanelWindow {
                 border.color: node.sel ? "#ffffff" : node.tint
                 border.width: node.sel ? 2 : 1
 
+                // engraved: an inner ring, like a seal
+                Rectangle {
+                    visible: Style.engraved
+                    anchors.fill: parent; anchors.margins: 4
+                    radius: width / 2
+                    color: "transparent"
+                    border.color: node.sel ? Theme.p(0.8) : Theme.p(0.25)
+                }
                 // Glass glint
                 Rectangle {
+                    visible: !Style.engraved
                     x: node.size * 0.2; y: node.size * 0.12
                     width: node.size * 0.6; height: node.size * 0.16; radius: height / 2
                     color: Qt.rgba(1, 1, 1, 0.10)

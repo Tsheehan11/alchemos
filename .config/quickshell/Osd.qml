@@ -37,10 +37,11 @@ PanelWindow {
     Behavior on shown { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     Rectangle {
+        Engraving { visible: Style.engraved; fillAlpha: 0.9; corners: []; notch: 12; emberColor: osd.accent }     // engraved skins: the plate (Engraving.qml)
         id: panel
         anchors.fill: parent
-        color: Theme.d(0.88)
-        border.color: Qt.rgba(osd.accent.r, osd.accent.g, osd.accent.b, 0.55)
+        color: Style.engraved ? "transparent" : Theme.d(0.88)
+        border.color: Style.engraved ? "transparent" : Qt.rgba(osd.accent.r, osd.accent.g, osd.accent.b, 0.55)
         border.width: 1
         opacity: OsdState.showing ? 1 : 0
         scale: OsdState.showing ? 1 : 0.92
@@ -49,7 +50,7 @@ PanelWindow {
 
         // Corner brackets
         Repeater {
-            model: 4
+            model: Style.engraved ? 0 : 4
             delegate: Item {
                 required property int index
                 width: 14; height: 14
@@ -69,7 +70,7 @@ PanelWindow {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "DISPLAY // " + OsdState.screenName + " SHOWS"
-                color: Theme.dim; font.family: osd.mono; font.pixelSize: 11; font.letterSpacing: 3
+                color: Theme.dim; font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 3
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter

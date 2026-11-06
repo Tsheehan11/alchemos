@@ -31,6 +31,7 @@ PanelWindow {
     SystemClock { id: clock; precision: GameMode.quiet ? SystemClock.Minutes : SystemClock.Seconds }
 
     Rectangle {
+        visible: !Style.engraved
         anchors.fill: parent
         color: Theme.d(0.85)
         Rectangle {
@@ -38,6 +39,24 @@ PanelWindow {
             width: parent.width; height: 1
             color: Theme.p(0.35)
         }
+    }
+    // engraved: a stone strip with grain and an engraved double line along its foot
+    Item {
+        id: strip
+        visible: Style.engraved
+        anchors.fill: parent
+        readonly property color stone: Theme.mix(Theme.bg, Theme.primary, 0.05)
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0; color: Qt.rgba(strip.stone.r, strip.stone.g, strip.stone.b, 0.9) }
+                GradientStop { position: 1; color: Theme.back(0.9) }
+            }
+        }
+        Image { anchors.fill: parent; source: "assets/grain.png"; fillMode: Image.Tile; opacity: Style.grainNow; smooth: false }
+        Rectangle { anchors.bottom: parent.bottom; anchors.bottomMargin: 3; width: parent.width; height: 1; color: Theme.p(0.18) }
+        Rectangle { anchors.bottom: parent.bottom; anchors.bottomMargin: 1; width: parent.width; height: 1; color: Qt.rgba(0, 0, 0, 0.6) }
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.p(0.5) }
     }
 
     // Left: name + workspace dots
@@ -51,8 +70,8 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             text: bar.isMain ? Skin.text.os : bar.modelData.name
             color: bar.isMain ? bar.cyan : bar.dim
-            font.family: bar.mono
-            font.pixelSize: 13
+            font.family: bar.isMain ? Style.display : bar.mono
+            font.pixelSize: bar.isMain && Style.display !== Style.mono ? 15 : 13
             font.bold: bar.isMain
             font.letterSpacing: 2
         }
@@ -71,6 +90,13 @@ PanelWindow {
                     color: active ? Theme.p(0.25) : "transparent"
                     border.color: active ? bar.cyan : Theme.p(0.6)
                     border.width: 1
+                    Rectangle {      // engraved: a second, inner ring (a little seal)
+                        visible: Style.engraved
+                        anchors.fill: parent; anchors.margins: 3
+                        radius: width / 2
+                        color: "transparent"
+                        border.color: parent.active ? Theme.p(0.5) : Theme.p(0.2)
+                    }
 
                     Text {
                         anchors.centerIn: parent

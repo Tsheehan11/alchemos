@@ -104,7 +104,7 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "WORKSPACES // " + (Roles.docked ? ov.modelData.name : "ALL")
             color: Theme.primary
-            font.family: ov.mono; font.pixelSize: 13; font.letterSpacing: 6
+            font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 6
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
