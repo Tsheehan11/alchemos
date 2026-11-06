@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # STARK OS cursor theme.
-#   build.sh <rrggbb> [animated|static] [24|32|48] [fill opacity %, 20-90]
+#   build.sh <rrggbb> [animated|static] [24|32|48] [fill opacity %, 20-90] [reactor|sigil]
+# The last picks the busy cursors' art (the HUD's skin, Skin.cursor): reactor = src/<name>.svg,
+# sigil = src/<name>-sigil.svg where one exists (a triangle and a square turning round a sun).
 # Renders src/*.svg in that accent, builds an XCursor theme (rsvg-convert + xcursorgen)
 # and a hyprcursor theme (hyprcursor-util, SVG) into ~/.local/share/icons/STARK-OS,
 # points GTK / Qt / KDE / XWayland at it, and applies it live with `hyprctl setcursor`.
@@ -20,9 +22,10 @@ hex=${1:-}; hex=${hex#\#}; hex=${hex,,}
 mode=${2:-animated}
 size=${3:-24}
 alpha=${4:-45}
+style=${5:-reactor}
 if [[ ! $hex =~ ^[0-9a-f]{6}$ || ! $mode =~ ^(animated|static)$ || ! $size =~ ^(24|32|48)$
-      || ! $alpha =~ ^[0-9]+$ ]] || ((alpha < 20 || alpha > 90)); then
-    echo "usage: build.sh <rrggbb> [animated|static] [24|32|48] [20-90]" >&2
+      || ! $alpha =~ ^[0-9]+$ || ! $style =~ ^(reactor|sigil)$ ]] || ((alpha < 20 || alpha > 90)); then
+    echo "usage: build.sh <rrggbb> [animated|static] [24|32|48] [20-90] [reactor|sigil]" >&2
     exit 2
 fi
 
@@ -36,7 +39,7 @@ flock 9
 
 # Any edit to the templates or this script invalidates the cache
 ver=$(cat "$src"/* "$0" "$here/xcursorgen.py" | md5sum | cut -c1-8)
-key=$hex-$mode-a$alpha-$ver
+key=$hex-$mode-a$alpha-$style-$ver
 out=$cache/$key
 fill=$(awk -v a="$alpha" 'BEGIN { printf "%.2f", a / 100 }')
 
@@ -51,6 +54,7 @@ build_one() {
     local name=$1 tpl=$2 hx=$3 hy=$4 rot=$5; shift 5
     local w=$work/$name hc=$work/hc/hyprcursors/$name
     mkdir -p "$w" "$hc"
+    [[ $style != reactor && -f $src/${tpl%.svg}-$style.svg ]] && tpl=${tpl%.svg}-$style.svg
     [[ $rot == - ]] && rot=0
     local spins=(0)
     if [[ $mode == animated ]] && grep -q '{{SPIN}}' "$src/$tpl"; then
@@ -94,7 +98,7 @@ if [[ ! -f $out/.stark-build ]]; then
 
     cat > "$work/hc/manifest.hl" <<EOF
 name = $THEME
-description = STARK OS holographic HUD cursors (#$hex)
+description = Holographic HUD cursors (#$hex, $style busy cursor)
 version = 1
 cursors_directory = hyprcursors
 EOF
@@ -103,7 +107,7 @@ EOF
     cat > "$work/theme/index.theme" <<EOF
 [Icon Theme]
 Name=$THEME
-Comment=STARK OS holographic HUD cursors (#$hex, $mode, $alpha% fill)
+Comment=Holographic HUD cursors (#$hex, $mode $style busy cursor, $alpha% fill)
 Inherits=Adwaita
 EOF
     echo "$key" > "$work/theme/.stark-build"

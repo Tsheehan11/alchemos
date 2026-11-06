@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+<!-- Arrow + busy, sigil style (ALCHEMOS): the pointer with a small turning triangle round a sun. {{ACCENT}} / {{FILL_ALPHA}} / {{SPIN}}: ../build.sh -->
+<defs><path id="a" d="M4 3 V20 L8.3 16.2 L11.3 23 L14 21.8 L11.1 15.2 H16.8 Z"/></defs>
+<use href="#a" fill="none" stroke="#000" stroke-opacity=".6" stroke-width="3.8" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#a" fill="{{ACCENT}}" fill-opacity="{{FILL_ALPHA}}" stroke="{{ACCENT}}" stroke-opacity="1" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="23.5" cy="23.5" r="6.9" fill="none" stroke="{{ACCENT}}" stroke-opacity=".3" stroke-width="1"/>
+<g transform="rotate({{SPIN}} 23.5 23.5)">
+<path d="M23.5 17 L29.13 26.75 L17.87 26.75 Z" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="3.4" stroke-linejoin="round"/>
+<path d="M23.5 17 L29.13 26.75 L17.87 26.75 Z" fill="none" stroke="{{ACCENT}}" stroke-width="1.6" stroke-linejoin="round"/>
+<circle cx="23.5" cy="17" r="1.1" fill="#fff" fill-opacity=".9"/>
+</g>
+<circle cx="23.5" cy="23.5" r="1.7" fill="none" stroke="{{ACCENT}}" stroke-width="1"/>
+<circle cx="23.5" cy="23.5" r=".6" fill="#fff" fill-opacity=".95"/>
+<circle cx="4" cy="3" r="1.5" fill="{{ACCENT}}" stroke="#000" stroke-opacity=".5" stroke-width="1"/><circle cx="4" cy="3" r=".6" fill="#fff" fill-opacity=".9"/>
+</svg>

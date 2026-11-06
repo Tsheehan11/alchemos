@@ -536,7 +536,8 @@ Singleton {
         if (!root.loaded) return;
         if (cursorBuild.running) { cursorPending = true; return; }
         cursorBuild.command = [Quickshell.env("HOME") + "/.config/stark-cursor/build.sh", hex(primary),
-            cursorAnimated ? "animated" : "static", String(cursorStep(0)), String(cursorFill())];
+            cursorAnimated ? "animated" : "static", String(cursorStep(0)), String(cursorFill()),
+            Skin.cursor === "sigil" ? "sigil" : "reactor"];     // the busy cursors' art follows the skin
         cursorBuild.running = true;
     }
     Process {
@@ -554,6 +555,7 @@ Singleton {
         function onCursorOpacityChanged() { cursorSync.restart(); }
     }
     onCursorAnimatedChanged: cursorSync.restart()
+    Connections { target: Skin; function onCurrentChanged() { cursorSync.restart(); } }
     onLoadedChanged: { if (loaded) migrateSkins(); cursorSync.restart(); }
     Timer { id: hyprSync; interval: 300; onTriggered: root.pushToHyprland() }
     Timer { id: kittySync; interval: 300; onTriggered: root.pushToKitty() }
