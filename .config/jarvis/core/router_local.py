@@ -228,7 +228,7 @@ def slot_app(t):
 
 
 def slot_theme(t):
-    return _fuzzy(t, A.theme_presets() or ["STARK", "MARK III", "VIBRANIUM", "MATRIX", "ARCTIC", "SOLAR"],
+    return _fuzzy(t, A.preset_choices(A.theme_presets() or ["AURUM", "ARGENT", "IRON", "VERDIGRIS", "MERCURY", "LEAD"]),
                   key=A._preset_key, strip=VERBS | {"theme", "preset", "colors", "colours", "hud", "look", "mode"})
 
 

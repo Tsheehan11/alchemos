@@ -53,7 +53,9 @@ def move_window_to_workspace(n: int) -> str:
 
 @mcp.tool(structured_output=False)
 def set_theme(preset: str) -> str:
-    """Apply a HUD theme preset: STARK, MARK III, VIBRANIUM, MATRIX, ARCTIC, SOLAR, or a custom preset name."""
+    """Apply a HUD theme preset: AURUM (gold), ARGENT (silver), IRON (red), VERDIGRIS (copper-teal), MERCURY (cyan),
+    LEAD (violet-grey), or a custom preset name. (The legacy skin's STARK, MARK III, VIBRANIUM, MATRIX, ARCTIC,
+    SOLAR also work: each maps to its metal.)"""
     return out(A.set_theme(preset))
 
 

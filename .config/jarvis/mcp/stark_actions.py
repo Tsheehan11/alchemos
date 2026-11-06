@@ -308,20 +308,38 @@ def theme_presets():
     return names
 
 
+# Each AlchemOS metal took the place of the STARK OS preset closest in hue (quickshell/Skin.qml). Either
+# name works in either skin: the one the HUD doesn't have resolves to the one it does.
+PRESET_ALIASES = {"SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS",
+                  "STARK": "MERCURY", "VIBRANIUM": "LEAD"}
+PRESET_ALIASES |= {new: old for old, new in PRESET_ALIASES.items()}
+
+
+def preset_choices(presets):
+    """The HUD's presets plus the other skin's names for them (what can be said)."""
+    return list(presets) + [a for a, t in PRESET_ALIASES.items() if t in presets and a not in presets]
+
+
 def match_preset(spoken, presets=None):
     presets = presets if presets is not None else theme_presets()
+    choices = preset_choices(presets)
+    hit = None
     key = _preset_key(spoken)
-    for p in presets:
+    for p in choices:
         if _preset_key(p) == key:
-            return p
-    keys = {_preset_key(p): p for p in presets}
-    m = difflib.get_close_matches(key, list(keys), n=1, cutoff=0.8)
-    return keys[m[0]] if m else None
+            hit = p
+            break
+    if hit is None:
+        keys = {_preset_key(p): p for p in choices}
+        m = difflib.get_close_matches(key, list(keys), n=1, cutoff=0.8)
+        hit = keys[m[0]] if m else None
+    return hit if hit is None or hit in presets else PRESET_ALIASES[hit]
 
 
 @safe
 def set_theme(preset):
-    """Apply a HUD theme preset: built-in (STARK, MARK III, VIBRANIUM, MATRIX, ARCTIC, SOLAR) or a custom one."""
+    """Apply a HUD theme preset: a built-in of the skin (AURUM, ARGENT, IRON, VERDIGRIS, MERCURY, LEAD; the legacy
+    skin's STARK, MARK III, VIBRANIUM, MATRIX, ARCTIC, SOLAR; each name works in both) or a custom one."""
     presets = theme_presets()
     if not presets:
         return {"ok": False, "error": "the HUD isn't running, so themes can't change"}

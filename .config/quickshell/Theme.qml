@@ -26,10 +26,10 @@ Singleton {
 
         JsonAdapter {
             id: adapter
-            property string preset: "STARK"
-            property string primary: "#4fd8ff"
-            property string secondary: "#ffb347"
-            property string background: "#05090f"
+            property string preset: "AURUM"
+            property string primary: "#ffc04a"
+            property string secondary: "#ff8f3a"
+            property string background: "#0b0803"
             property bool animatedBg: true
             property bool showGrid: true
             property bool showReactor: true
@@ -110,6 +110,7 @@ Singleton {
             property string skin: "alchemos"            // alchemos | legacy (needs the private skins/legacy overlay)
             property bool skinUnlocked: false           // the SKIN row shows in Settings → APPEARANCE
             property var skinPresets: ({})              // each skin's last look: { skin: { name, primary, secondary, background } }
+            property int skinVersion: 0                 // 1 = STARK OS presets moved to their metals (migrateSkins)
         }
     }
     property bool loaded: false   // settings.json has been read at least once
@@ -160,6 +161,25 @@ Singleton {
         if (built) { applyPreset(built); return; }      // built-in / custom: its current colours
         adapter.preset = r.name;                        // CUSTOM (hand-mixed): the colours as they were
         for (const k of presetFields) adapter[k] = typeof r[k] === "string" && r[k] ? r[k] : fallback[k];
+    }
+    // Once: settings from before skins. A STARK OS preset in use becomes its metal (MARK III → IRON) and is
+    // kept as the legacy skin's look; a custom look stays as it is, for both skins.
+    function migrateSkins() {
+        if (adapter.skinVersion >= 1) return;
+        const al = Skin.alchemos.aliases;
+        const sp = Object.assign({}, adapter.skinPresets || {});
+        const old = lookRecord();
+        if (al[old.name]) {
+            sp.legacy = old;
+            const metal = Skin.alchemos.presets.find(x => x.name === al[old.name]);
+            sp.alchemos = { name: metal.name, primary: metal.primary, secondary: metal.secondary, background: metal.background };
+            if (Skin.current === "alchemos") applyPreset(metal);
+        } else {
+            if (!sp.legacy || al[sp.legacy.name] === undefined) sp.legacy = old;
+            sp.alchemos = old;
+        }
+        adapter.skinPresets = sp;
+        adapter.skinVersion = 1;
     }
     function switchSkin(from, to) {
         const sp = Object.assign({}, adapter.skinPresets || {});
@@ -524,7 +544,7 @@ Singleton {
         function onCursorOpacityChanged() { cursorSync.restart(); }
     }
     onCursorAnimatedChanged: cursorSync.restart()
-    onLoadedChanged: cursorSync.restart()
+    onLoadedChanged: { if (loaded) migrateSkins(); cursorSync.restart(); }
     Timer { id: hyprSync; interval: 300; onTriggered: root.pushToHyprland() }
     Timer { id: kittySync; interval: 300; onTriggered: root.pushToKitty() }
     Timer { id: heroicSync; interval: 300; onTriggered: root.pushToHeroic() }

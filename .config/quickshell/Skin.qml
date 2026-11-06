@@ -27,15 +27,16 @@ Singleton {
         label: "ALCHEMOS",
         // ☉ gold · ☽ silver · ♂ iron · ♀ copper · ☿ quicksilver · ♄ lead
         presets: [
-            { name: "STARK",     glyph: "◈", primary: "#4fd8ff", secondary: "#ffb347", background: "#05090f" },
-            { name: "MARK III",  glyph: "◈", primary: "#ff5a4d", secondary: "#ffd24d", background: "#0c0505" },
-            { name: "VIBRANIUM", glyph: "◈", primary: "#b48cff", secondary: "#7fe0ff", background: "#08050f" },
-            { name: "MATRIX",    glyph: "◈", primary: "#4dff88", secondary: "#d4ff4d", background: "#030a05" },
-            { name: "ARCTIC",    glyph: "◈", primary: "#d6f1ff", secondary: "#6fa8ff", background: "#05080f" },
-            { name: "SOLAR",     glyph: "◈", primary: "#ffb347", secondary: "#ff6b8a", background: "#0c0705" }
+            { name: "AURUM",     glyph: "☉", primary: "#ffc04a", secondary: "#ff8f3a", background: "#0b0803" },
+            { name: "ARGENT",    glyph: "☽", primary: "#d4dde8", secondary: "#9fb6d6", background: "#06080b" },
+            { name: "IRON",      glyph: "♂", primary: "#e23b2e", secondary: "#ffb27a", background: "#0d0505" },
+            { name: "VERDIGRIS", glyph: "♀", primary: "#3fd6b0", secondary: "#e0915a", background: "#03100c" },
+            { name: "MERCURY",   glyph: "☿", primary: "#5fdcff", secondary: "#cfe9f5", background: "#04090e" },
+            { name: "LEAD",      glyph: "♄", primary: "#a497c8", secondary: "#7d8db0", background: "#07060b" }
         ],
         // the STARK OS preset each metal replaced (closest hue); spoken / typed old names still work
-        aliases: {},
+        aliases: { "SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS",
+                   "STARK": "MERCURY", "VIBRANIUM": "LEAD" },
         clock: "Reactor.qml",
         scene: "DoorScene.qml",
         cursor: "sigil",

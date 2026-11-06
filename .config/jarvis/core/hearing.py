@@ -28,7 +28,7 @@ SPECULATE_S = 0.24          # start transcribing after this much silence; used i
 LIVE_TAIL_S = 0.32          # speech this close to the wake word = the command is already under way
 MAX_COMMAND_S = 10.0
 
-VOCAB = ("Hey Jarvis. Hey Friday. STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, workspace, monitor, Spotify, Claude, brighten, "
+VOCAB = ("Hey Jarvis. Hey Friday. Orrin, Selene, AURUM, ARGENT, VERDIGRIS, STARK, MARK III, VIBRANIUM, Govee, Proton VPN, UW CS, workspace, monitor, Spotify, Claude, brighten, "
          "timer, lights, theme.")
 
 # "Hey Jarvis" as whisper hears it from across the desk: "Hey Joris", "Hey Joe, visit",

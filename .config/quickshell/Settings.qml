@@ -419,6 +419,16 @@ PanelWindow {
                                     color: modelData.primary
                                     font.family: st.mono; font.pixelSize: 12; font.letterSpacing: 3
                                 }
+                                // the metal's alchemical sign (built-ins that have one)
+                                SigilText {
+                                    visible: !modelData.custom && !!modelData.glyph
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    anchors.rightMargin: 16
+                                    text: modelData.glyph || ""
+                                    color: modelData.primary
+                                    font.pixelSize: 30
+                                    glow: on ? 0.8 : 0
+                                }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Theme.applyPreset(modelData) }
                                 // Custom presets: marker + delete
                                 Text {

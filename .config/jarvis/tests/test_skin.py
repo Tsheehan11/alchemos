@@ -64,5 +64,16 @@ A._run = lambda cmd, timeout=6: (0, "legacy skin not installed", "")
 check("not installed", A.set_skin("legacy"), {"ok": False, "error": "legacy skin not installed"})
 check("bad name", A.set_skin("chrome").get("ok"), False)
 
+# theme presets: each skin's names work in the other (STARK OS preset ⇄ the metal that replaced it)
+METALS = ["AURUM", "ARGENT", "IRON", "VERDIGRIS", "MERCURY", "LEAD", "PINKY"]
+OLD = ["STARK", "MARK III", "VIBRANIUM", "MATRIX", "ARCTIC", "SOLAR", "PINKY"]
+for spoken, presets, want in [("mark three", METALS, "IRON"), ("Mark 3", METALS, "IRON"), ("matrix", METALS, "VERDIGRIS"),
+                              ("solar", METALS, "AURUM"), ("iron", METALS, "IRON"), ("verdigris", METALS, "VERDIGRIS"),
+                              ("argent", METALS, "ARGENT"), ("pinky", METALS, "PINKY"),
+                              ("iron", OLD, "MARK III"), ("aurum", OLD, "SOLAR"), ("lead", OLD, "VIBRANIUM"),
+                              ("stark", OLD, "STARK"), ("chrome", METALS, None)]:
+    check(f"preset {spoken!r} in {presets[0]}…", A.match_preset(spoken, presets), want)
+check("choices", sorted(A.preset_choices(["IRON", "PINKY"])), ["IRON", "MARK III", "PINKY"])
+
 print(f"\n{'FAILED ' + str(len(FAILS)) if FAILS else 'all passed'}")
 sys.exit(1 if FAILS else 0)

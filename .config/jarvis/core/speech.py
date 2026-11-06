@@ -21,7 +21,7 @@ MON = {m[:3].lower(): m for m in MONTHS} | {"sept": "September"}
 DAYS = r"(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
 ROMAN = {"II": "two", "III": "three", "IV": "four", "VI": "six", "VII": "seven", "VIII": "eight", "IX": "nine"}
 # Words the HUD writes in capitals that are words, not acronyms
-CAPS_WORDS = r"STARK|MARK|VIBRANIUM|MATRIX|ARCTIC|SOLAR|JARVIS|HOLOGRAM|SUIT|CLEAN|AUTO|MEDIA|TIMER|REMINDER|WEATHER"
+CAPS_WORDS = r"STARK|MARK|VIBRANIUM|MATRIX|ARCTIC|SOLAR|AURUM|ARGENT|IRON|VERDIGRIS|MERCURY|LEAD|ALCHEMOS|ORRIN|SELENE|JARVIS|HOLOGRAM|SUIT|CLEAN|AUTO|MEDIA|TIMER|REMINDER|WEATHER"
 ACRONYMS = r"HDMI|NVME|USB|ASCII|JSON|HTTPS|QWERTY"          # 5+ capitals that are still spelled out
 UNITS = [  # (pattern after a number, singular, plural)
     (r"°\s?C\b|degrees? (?:C|Celsius)\b", "degree", "degrees"), (r"°\s?F\b|degrees? F(?:ahrenheit)?\b", "degree Fahrenheit", "degrees Fahrenheit"),

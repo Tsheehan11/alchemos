@@ -13,6 +13,8 @@
   ],
   "strip_overrides": {
     "#ff5a4d": "#ff0a00",
-    "#b48cff": "#a01aff"
+    "#b48cff": "#a01aff",
+    "#e23b2e": "#ff0a00",
+    "#a497c8": "#a01aff"
   }
 }
