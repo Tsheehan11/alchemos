@@ -37,7 +37,7 @@ Singleton {
         // the STARK OS preset each metal replaced (closest hue); spoken / typed old names still work
         aliases: { "SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS",
                    "STARK": "MERCURY", "VIBRANIUM": "LEAD" },
-        clock: "Reactor.qml",
+        clock: "AlchemCircle.qml",
         scene: "DoorScene.qml",
         cursor: "sigil",
         transition: "transmute",
@@ -87,9 +87,6 @@ Singleton {
     readonly property string current: Theme.cfg.skin === "legacy" && legacyAvailable ? "legacy" : "alchemos"
     readonly property bool isLegacy: current === "legacy"
     readonly property var data: isLegacy ? merged(alchemos, legacyData) : alchemos
-    // Components resolve inside the shell (qs:@/qs/…, like widgets/): a file:// URL would load a second
-    // copy of every singleton the component imports
-    readonly property string base: isLegacy ? "skins/legacy/" : ""
 
     // a legacy skin.json that leaves something out gets ALCHEMOS's value for it
     function merged(a, b) {
@@ -109,8 +106,14 @@ Singleton {
     readonly property string label: data.label
     readonly property string cursor: data.cursor
     readonly property string transition: data.transition
-    readonly property url clockUrl: Qt.resolvedUrl(base + data.clock)
-    readonly property url sceneUrl: Qt.resolvedUrl(base + data.scene)
+    // Components resolve inside the shell (qs:@/qs/…, like widgets/): a file:// URL would load a second
+    // copy of every singleton the component imports. One expression each, so a switch never pairs one
+    // skin's folder with the other's file name.
+    function component(key) {
+        return isLegacy && legacyData[key] ? Qt.resolvedUrl("skins/legacy/" + legacyData[key]) : Qt.resolvedUrl(alchemos[key]);
+    }
+    readonly property url clockUrl: component("clock")
+    readonly property url sceneUrl: component("scene")
     function persona(who) { return data.personas[who === "friday" ? "friday" : "jarvis"]; }
     function glyphFor(presetName) {
         const p = presets.find(x => x.name === presetName);
