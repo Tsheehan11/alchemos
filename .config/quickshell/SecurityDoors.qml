@@ -33,6 +33,10 @@ PanelWindow {
         submessage: LockState.submessage
         msgP: LockState.msgP
         spin: LockState.spin
+        inscribe: LockState.inscribe
+        ignite: LockState.ignite
+        flare: LockState.flare
+        dim: LockState.crt
     }
 
     // ── This screen's lock screen background ──

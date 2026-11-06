@@ -102,6 +102,18 @@ PanelWindow {
                         trackColor: "transparent"
                         RotationAnimation on rotation { running: tile.asking && pm.visible; from: 0; to: 360; duration: 3000; loops: Animation.Infinite }
                     }
+                    // ALCHEMOS: an engraved, graduated ring that draws itself in as the menu appears
+                    // and turns on the chosen tile (the legacy menu is as it was)
+                    Ring {
+                        visible: !Skin.isLegacy
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 63 - width / 2      // concentric with the tile ring and disc (centre y 63)
+                        radius: 70; thickness: 5; value: pm.appear; animated: false
+                        dashed: true; dash: [0.25, 2.6]
+                        color: tile.asking ? Theme.s(0.7) : Theme.p(tile.on ? 0.6 : 0.22)
+                        trackColor: "transparent"
+                        RotationAnimation on rotation { running: tile.on && pm.visible && !Skin.isLegacy; from: 0; to: 360; duration: 24000; loops: Animation.Infinite }
+                    }
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
                         y: 13

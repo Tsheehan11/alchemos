@@ -38,7 +38,7 @@ Singleton {
         aliases: { "SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS",
                    "STARK": "MERCURY", "VIBRANIUM": "LEAD" },
         clock: "AlchemCircle.qml",
-        scene: "DoorScene.qml",
+        scene: "VaultScene.qml",
         cursor: "sigil",
         transition: "transmute",
         personas: {

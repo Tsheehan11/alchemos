@@ -205,6 +205,7 @@ ShellRoot {
         function lock(): void { LockState.requestLock() }            // Super + L
         function locked(): void { LockState.locked() }
         function unlocked(): void { LockState.unlocked() }
+        function fingerprint(): void { LockState.fingerprint() }      // just before unlocked(): the finger matched
         function power(action: string): void { LockState.power(action) }   // shutdown | reboot | logout
         function menu(): void { LauncherState.togglePower() }        // power button / Super + Esc
     }

@@ -76,7 +76,9 @@ stdbuf -oL hyprlock 2>&1 | {
         case "$line" in
             *"fprint: started verifying"*|*"fprint: "*[Ee]rror*|*"fprint: could not"*)
                 [ -n "$guard" ] && { kill "$guard" 2>/dev/null; guard=""; } ;;
-            *"auth: authenticated"*|*"status verify-match"*|*"Unlocking with a SIGUSR1"*|*"Unlocked, exiting!"*)
+            *"status verify-match"*)    # the finger: the lock scene flashes its centre as it opens
+                [ -z "$opened" ] && { { qs ipc call stark fingerprint; qs ipc call stark unlocked; } >/dev/null 2>&1 & opened=1; } ;;
+            *"auth: authenticated"*|*"Unlocking with a SIGUSR1"*|*"Unlocked, exiting!"*)
                 [ -z "$opened" ] && { qs ipc call stark unlocked >/dev/null 2>&1 & opened=1; } ;;
         esac
     done
