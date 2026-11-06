@@ -29,6 +29,7 @@ for s in $skins; do
     errs=$(echo "$log" | grep -E 'ERROR|caused by|Error:|TypeError|ReferenceError|is not a type|File not found|not found|Cannot assign|SKINCHECK FAIL' \
            | grep -v -E 'textinput|Socket' | head -8)
     echo "$log" | grep -q 'SKINCHECK done' || errs+=$'\n'"never finished"
+    [[ -n $baseline ]] || echo "$log" | grep -q 'SKINCHECK ok namer' || errs+=$'\n'"the preset namer didn't run"
     n=$(ls "$out"/*.png 2>/dev/null | wc -l)
     if [[ -n $errs ]]; then fail+=("$s"); echo "FAIL skin $s ($n renders)"; echo "$errs" | sed 's/^/    /'; continue; fi
     if [[ -n $baseline ]]; then

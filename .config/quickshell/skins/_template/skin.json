@@ -58,6 +58,9 @@
     "components": {},
     "//components": "optional overrides, files in this folder: { \"clock\": \"MyClock.qml\", \"scene\": \"MyLock.qml\", \"transition\": \"MyTransition.qml\" }. Start from the defaults (AlchemCircle.qml, VaultScene.qml, TransmuteTransition.qml) and keep their properties. Put `import \"../..\"` under `import QtQuick`.",
 
+    "namer": null,
+    "//namer": "SAVE AS PRESET's suggestions: { \"entries\": [{ \"name\": \"COBALT\", \"glyph\": \"\", \"h\": 215, \"s\": 0.7, \"l\": 0.45 }, …], \"compound\": true, \"joiner\": \"-\" }. h in degrees, s and l 0..1; the nearest entry to the primary colour wins, compound pairs it with the accent's. null = plain colour names (RED, TEAL, SILVER…).",
+
     "cursor": "",
     "//cursor": "a folder here with wait.svg / progress.svg busy-cursor templates (see stark-cursor/src for the placeholders); \"\" = the default art"
 }

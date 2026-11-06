@@ -369,16 +369,31 @@ PanelWindow {
                     spacing: 16
                     property bool naming: false        // SAVE AS PRESET name field open
                     property string saveError: ""
+                    // the skin's namer (Namer.qml): suggestions for these colours, ↻ cycles; an existing custom
+                    // preset being re-saved keeps its own name and glyph
+                    property var suggestions: []
+                    property int pick: 0
+                    property string glyph: ""
+                    function suggestNext() {
+                        if (!look.suggestions.length) return;
+                        look.pick = (look.pick + 1) % look.suggestions.length;
+                        presetIn.text = look.suggestions[look.pick].name;
+                        look.glyph = look.suggestions[look.pick].glyph;
+                    }
                     function startNaming() {
                         look.saveError = "";
-                        presetIn.text = Theme.isBuiltin(Theme.cfg.preset) || Theme.cfg.preset === "CUSTOM" ? "" : Theme.cfg.preset;
+                        const own = (Theme.cfg.customPresets || []).find(c => c.name === Theme.cfg.preset);
+                        look.suggestions = own ? [] : Namer.suggest(Theme.primary, Theme.secondary, Theme.takenNames());
+                        look.pick = 0;
+                        look.glyph = own ? (own.glyph || "") : (look.suggestions.length ? look.suggestions[0].glyph : "");
+                        presetIn.text = own ? own.name : (look.suggestions.length ? look.suggestions[0].name : "");
                         look.naming = true;
                         presetIn.forceActiveFocus();
                         presetIn.selectAll();
                     }
                     function finishNaming(save) {
                         if (save) {
-                            look.saveError = Theme.savePreset(presetIn.text);
+                            look.saveError = Theme.savePreset(presetIn.text, look.glyph);
                             if (look.saveError !== "") return;
                             st.status = "✓ Saved preset " + Theme.presetName(presetIn.text);
                         }
@@ -430,9 +445,9 @@ PanelWindow {
                                 }
                                 // the metal's alchemical sign (built-ins that have one)
                                 SigilText {
-                                    visible: !modelData.custom && !!modelData.glyph
+                                    visible: !!modelData.glyph
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    anchors.rightMargin: 16
+                                    anchors.rightMargin: modelData.custom ? 54 : 16      // custom tiles: clear of USER and ✕
                                     text: modelData.glyph || ""
                                     color: modelData.primary
                                     font.pixelSize: 30
@@ -463,6 +478,11 @@ PanelWindow {
                     Row {
                         spacing: 10
                         SmallButton { visible: !look.naming; text: "+ SAVE AS PRESET"; onClicked: look.startNaming() }
+                        SigilText {
+                            visible: look.naming && look.glyph !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: look.glyph; color: Theme.primary; font.pixelSize: 22; glow: 0.5 * Style.glow
+                        }
                         Rectangle {
                             visible: look.naming
                             width: 240; height: 32
@@ -482,6 +502,7 @@ PanelWindow {
                                 Text { visible: presetIn.text === ""; text: "PRESET NAME"; color: Theme.faint; font: presetIn.font }
                             }
                         }
+                        SmallButton { visible: look.naming && look.suggestions.length > 1; text: "↻"; onClicked: look.suggestNext() }
                         SmallButton { visible: look.naming; text: "SAVE"; onClicked: look.finishNaming(true) }
                         SmallButton { visible: look.naming; text: "CANCEL"; onClicked: look.finishNaming(false) }
                         Text {

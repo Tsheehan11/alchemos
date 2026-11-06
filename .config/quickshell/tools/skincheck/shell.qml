@@ -25,7 +25,7 @@ ShellRoot {
     property string loading: ""
     function next() {
         i++;
-        if (i >= gallery.length) { console.log("SKINCHECK done"); Qt.quit(); return; }
+        if (i >= gallery.length) { root.checkNamer(); console.log("SKINCHECK done"); Qt.quit(); return; }
         const g = gallery[i];
         if (!g[3] || (Quickshell.env("SKINCHECK_SKIP") || "").split(",").indexOf(g[0]) >= 0) { console.log("SKINCHECK skip " + g[0]); next(); return; }
         stage.width = g[1]; stage.height = g[2];
@@ -35,7 +35,18 @@ ShellRoot {
         else { ld.sourceComponent = undefined; ld.source = g[3]; }
         settle.restart();
     }
-    Timer { interval: 400; running: true; onTriggered: root.next() }      // let the skin list settle first
+    Timer { interval: 400; running: true; onTriggered: root.next() }
+    // the skin's preset namer: a suggestion for every colour, ≤ 14 characters, never a taken name
+    function checkNamer() {
+        if (typeof Namer === "undefined") return;
+        const taken = Skin.presets.map(p => p.name).concat(Object.keys(Skin.aliases));
+        for (const c of ["#d23a2a", "#2f6fd8", "#3fbf6a", "#ff6b8a", "#c8ccd2", "#9a5cff", "#ffc04a", "#1a1c22"]) {
+            const s = Namer.suggest(c, "#ffb000", taken);
+            const bad = !s.length ? "no suggestion" : s.find(x => x.name.length > 14 || taken.indexOf(x.name) >= 0);
+            if (bad) { console.log("SKINCHECK FAIL namer " + c + ": " + JSON.stringify(bad)); return; }
+        }
+        console.log("SKINCHECK ok namer");
+    }      // let the skin list settle first
     Timer {
         id: settle; interval: 700
         onTriggered: {

@@ -146,6 +146,8 @@ Singleton {
         return out;
     }
     function presetName(raw) { return (raw || "").trim().toUpperCase().slice(0, 14); }
+    // Every name a new preset can't take: built-ins of every installed skin and the saved custom ones
+    function takenNames() { return Skin.reservedNames.concat((adapter.customPresets || []).map(c => c.name)).concat(["CUSTOM"]); }
     function isBuiltin(name) { return presets.some(b => b.name === name) || Skin.reservedNames.indexOf(name) >= 0; }
     // By name, case-insensitive; the other skin's names map through the skin's aliases (MARK III → IRON)
     function findPreset(raw) {
@@ -204,12 +206,13 @@ Singleton {
     }
 
 
-    // Saves the colours currently applied. Returns "" on success, else the reason.
-    function savePreset(raw) {
+    // Saves the colours currently applied (with an optional glyph, e.g. the namer's). "" on success, else the reason.
+    function savePreset(raw, glyph) {
         const name = presetName(raw);
         if (name === "") return "Give it a name";
         if (isBuiltin(name) || name === "CUSTOM") return name + " is a built-in name";
         const entry = { name: name };
+        if (glyph) entry.glyph = String(glyph);
         for (const k of presetFields) entry[k] = adapter[k];
         const list = (adapter.customPresets || []).filter(c => c.name !== name);
         list.push(entry);
