@@ -349,6 +349,28 @@ def _models(src_totals, versions):
     return sorted(merged.values(), key=lambda e: -(e["tokens"] + e["cache"] / 10))
 
 
+def handled_locally(since):
+    """Jarvis requests since `since` answered without Claude (regex fast path, local router, a "Did you mean"
+    yes) vs sent to Claude, from jarvis.db action_log (read-only). → {"local", "claude", "pct"}."""
+    out = {"local": 0, "claude": 0, "pct": None}
+    if not JARVIS_DB.exists():
+        return out
+    try:
+        db = sqlite3.connect(f"file:{JARVIS_DB}?mode=ro", uri=True, timeout=2)
+        tiers = [r[0] for r in db.execute("SELECT tier FROM action_log WHERE ts >= ?", (since,))]
+        db.close()
+    except sqlite3.Error:
+        return out
+    for t in tiers:
+        if t == "fast" or t.startswith(("local:", "ask:")):
+            out["local"] += 1
+        elif t.startswith(("claude", "error:")):
+            out["claude"] += 1
+    n = out["local"] + out["claude"]
+    out["pct"] = round(100.0 * out["local"] / n, 1) if n else None
+    return out
+
+
 def summary(st, now=None):
     now = now or time.time()
     midnight = datetime.combine(datetime.now().date(), datetime.min.time()).timestamp()
@@ -368,7 +390,8 @@ def summary(st, now=None):
     return {"updated": now, "week_start": week,
             "plan": p, "plan_error": plan.get("error") if not p or p["stale"] else None,
             "today": src(today_t), "week": src(week_t),
-            "models": {"today": _models(today_t, st["versions"]), "week": _models(week_t, st["versions"])}}
+            "models": {"today": _models(today_t, st["versions"]), "week": _models(week_t, st["versions"])},
+            "local": {"today": handled_locally(midnight), "week": handled_locally(week)}}
 
 
 def prune(st, now=None):

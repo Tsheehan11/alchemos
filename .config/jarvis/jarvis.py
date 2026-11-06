@@ -48,7 +48,8 @@ Spotify + DJ mode (mcp/spotify_api.py, core/dj.py, core/spotify_cli.py):
   jarvis dj start [MOOD] | stop | status | more | less | keep | chatter off|rare|normal | save NAME | moods
 
 Local router (intents.json, tools/eval_router.py):
-  jarvis intents [list | log [N] | review | remove N…]   learned examples, recent decisions
+  jarvis intents [list | log [N]]                        intents, recent decisions
+  jarvis router stats | review | approve ID | forget ID | reset-learned   what it learned (core/router_learn.py)
 """
 import argparse
 import asyncio
@@ -102,6 +103,10 @@ if __name__ == "__main__" and sys.argv[1:2] in (["spotify"], ["dj"]):
 if __name__ == "__main__" and sys.argv[1:2] == ["usage"]:
     from core import usage                 # whole-account Claude usage for the HUD (no Claude, no tokens)
     sys.exit(usage.main(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["router"]:
+    sys.path.insert(0, str(JARVIS_DIR / "mcp"))
+    from core import router_learn          # stats / review / forget / reset-learned need no model (approve loads it)
+    sys.exit(router_learn.cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["intents"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     from core import router_local          # list / review / remove need no model
@@ -140,6 +145,15 @@ ALLOW_TASK = re.compile(r"\ballow (it |this |the )?(for )?(the |this |whole )?ta
 STOP_CONTROL = re.compile(r"^\s*(?:(?:hey )?jarvis,? )?(?:stop|stop it|stop that|stop now|halt|abort|let go|hands off|"
                           r"stop (?:control|controlling|clicking|typing))\s*(?:,? jarvis)?[.!]*\s*$", re.I)
 NO = re.compile(r"\b(no|nope|don't|do not|cancel|stop|negative|never ?mind|wait)\b")
+
+REWORD_SIM = 0.6          # this similar to the request just before = the same request reworded (core/router_learn.py)
+L_OUTCOME_S = 30          # router_learn.OUTCOME_S (not imported here: the CLI paths above must stay light)
+
+
+def _refused(tools):
+    """A tool call that was declined, refused or failed: nothing to learn from it."""
+    return any(t.endswith(("[declined]", "[failed]", "[read-only]")) for t in tools)
+
 
 LOG_FILE = None   # voice mode: ~/.local/share/jarvis/jarvis.log (the HUD discards stdout)
 
@@ -210,6 +224,9 @@ class Jarvis:
         self.is_usage_question = is_usage_question
         self.brain = Brain(cfg, self._confirm_async, self._on_tool, dry_run=dry_run, log=log)
         self.router = None
+        self.watch = None                      # the last local action, until it's judged (core/router_learn.py)
+        self.watch_lock = threading.Lock()
+        self._resolved = None                  # (tool, args) of the one stark call the last request came to, if any
         self.learning = []                     # learn() threads; text mode waits for them before exiting
         # The JARVIS app (core/appserver.py, voice mode only): voice and typed requests take turns on
         # one brain, every exchange is recorded in a thread, and tool labels / confirmations reach the app.
@@ -225,6 +242,10 @@ class Jarvis:
             from core.router_local import LocalRouter
             self.router = LocalRouter(cfg, log=log)
             self.router.warm()
+            if not dry_run:                    # tidy + re-check candidates (runs the gate) without delaying startup
+                th = threading.Thread(target=self.router.settle, daemon=True)
+                th.start()
+                self.learning.append(th)
         except Exception as e:                 # no model files and offline, bad intents.json…: Claude only
             log(f"JARVIS: local router unavailable ({type(e).__name__}: {e}); using Claude only")
 
@@ -337,6 +358,18 @@ class Jarvis:
             control.stop_all("voice")
             self._last_tier = "control:stop"
             return "Stopped, sir. I've let go of the window."
+        self._resolved = None
+        prev = self._take_watch()             # the local action just before this, if it's still being judged
+        if prev and (c := self._correction(text, prev)):
+            if c[0] != "meant":
+                self._last_tier = "router:correction"
+                reply = "My mistake, sir. I won't take those words that way again."
+                self._log_action(text, "router:correction", [], reply, int((time.monotonic() - t0) * 1000))
+                return reply
+            reply = self._handle(c[1], wait, on_sentence, confirm)       # "no, I meant X": do X
+            if self._resolved:                                         # … and learn that the first words meant X
+                self._bg(lambda r=self._resolved: self.router.learn(prev["raw"], r[0], r[1], source="correction"))
+            return reply
         steps = self._choice_answer(text)
         if steps is None:
             steps = fastpath.match(text, self.last_query)
@@ -352,11 +385,12 @@ class Jarvis:
             self._on_tool("CLAUDE USAGE")
             reply, tools = asyncio.run_coroutine_threadsafe(self.brain.usage_report(), self.loop).result(), ["usage"]
             tier = "usage"
-        elif (d := self.route_local(text)) and d.path == "local":
-            trace.t("route", to="local", intent=d.intent, score=d.top3[0][1], ms=d.ms)
+        elif (d := self.route_local(text)) and (d.path == "local" or (d.path == "ask" and self._ask(d, confirm))):
+            trace.t("route", to=d.path, intent=d.intent, score=d.top3[0][1], ms=d.ms)
             steps = d.steps
             reply, tools = self.run_steps(steps, confirm)
-            tier = f"local:{d.intent}"
+            tier = f"{d.path}:{d.intent}"
+            self._after_local(text, d, tools)
         else:
             trace.t("route", to="claude", **({"why": d.path.split(":", 1)[1]} if d else {}))
             self._thinking()
@@ -371,10 +405,17 @@ class Jarvis:
             reply, tools = r.text, r.tools
             tier = r.tier if not r.error else f"error:{r.error}"
             self.error = r.error
+            if not r.error and len(r.calls) == 1 and r.calls[0][0] == "stark" and not _refused(tools):
+                self._resolved = (r.calls[0][1], r.calls[0][2])
             if d and not r.error:
                 self._learn(text, d, r)
         if steps is not None and any(t.endswith("[failed]") for t in tools):
             self.error = "tool"
+        if steps is not None and len([s for s in steps if s["tool"]]) == 1 and not _refused(tools):
+            s = next(s for s in steps if s["tool"])
+            self._resolved = (s["tool"], dict(s["args"]))
+        if prev:
+            self._judge_next(prev, text, d if tier.startswith(("local:", "ask:")) else None, self._resolved)
         ms = int((time.monotonic() - t0) * 1000)
         self._last_tools, self._last_tier = tools, tier
         self._log_action(text, tier, tools, reply, ms)
@@ -423,15 +464,121 @@ class Jarvis:
             return None
 
     def _learn(self, text, d, r):
-        """Claude answered with exactly one stark tool call: teach the router that phrasing."""
-        if self.dry_run or d.path in ("claude:claude-only", "claude:empty") or len(r.calls) != 1:
+        """Claude answered with exactly one stark tool call that went through: evidence for the intent that
+        covers it (core/router_learn.py decides whether it ever goes live)."""
+        if (self.dry_run or d.path in ("claude:claude-only", "claude:empty") or len(r.calls) != 1
+                or _refused(r.tools) or len(r.tools) != 1):
             return
         server, tool, args = r.calls[0]
         if server != "stark":
             return
-        th = threading.Thread(target=lambda: self.router.learn(text, tool, args), daemon=True)
+        self._bg(lambda: self.router.learn(text, tool, args))
+
+    # ── learning from him (core/router_learn.py): what happens right after a local action ──
+    def _bg(self, fn):
+        def run():
+            try:
+                fn()
+            except Exception as e:
+                log(f"JARVIS: router learning: {type(e).__name__}: {e}")
+        th = threading.Thread(target=run, daemon=True)
         th.start()
-        self.learning.append(th)
+        self.learning = [t for t in self.learning if t.is_alive()] + [th]
+
+    def _ask(self, d, confirm):
+        """A near miss: "Did you mean …?" Yes runs it and counts as a confirm for these words; no sends the
+        request to Claude and teaches nothing."""
+        ok = bool(confirm(d.ask))
+        if not self.dry_run:
+            info = d.info()
+            self._bg(lambda: self.router.outcome(info, "ask_yes" if ok else "ask_no", "asked"))
+            if ok:
+                self._bg(lambda: self.router.add_evidence(info["intent"], info["text"], "ask", confirm=True))
+        return ok
+
+    def _after_local(self, text, d, tools):
+        """A local action ran: a declined confirmation is a negative now; otherwise watch what comes next."""
+        if self.dry_run or not self.router:
+            return
+        if any("[declined]" in t for t in tools):
+            info = d.info()
+            self._bg(lambda: self.router.outcome(info, "neg", "declined"))
+            return
+        if any(t.endswith("[failed]") for t in tools):
+            return
+        w = {"info": d.info(), "raw": text, "ts": time.monotonic(), "wall": time.time()}
+        w["timer"] = threading.Timer(L_OUTCOME_S, self._expire, args=(w,))
+        w["timer"].daemon = True
+        with self.watch_lock:
+            old, self.watch = self.watch, w
+        if old:
+            old["timer"].cancel()
+            self._bg(lambda: self._finish(old))
+        w["timer"].start()
+
+    def _take_watch(self):
+        """The previous local action if it's still within its 30 s (it's judged by this request), else None."""
+        if not self.router or self.dry_run:
+            return None
+        with self.watch_lock:
+            w, self.watch = self.watch, None
+        if not w:
+            return None
+        w["timer"].cancel()
+        if time.monotonic() - w["ts"] > L_OUTCOME_S:
+            self._bg(lambda: self._finish(w))
+            return None
+        return w
+
+    def _expire(self, w):
+        with self.watch_lock:
+            if self.watch is not w:
+                return
+            self.watch = None
+        self._finish(w)
+
+    def _finish(self, w):
+        """No correction came: a weak positive, unless the kill switch went after it."""
+        try:
+            stopped = control.STOP_FLAG.stat().st_mtime > w["wall"]
+        except OSError:
+            stopped = False
+        self.router.outcome(w["info"], "neg" if stopped else "pos", "kill-switch" if stopped else "weak-positive")
+
+    def _correction(self, text, prev):
+        """ "undo" / "that's wrong" / "no, I meant X" right after a local action → (kind, X), and the
+        action counts as a negative."""
+        from core import router_learn as L
+        from core.router_local import clean
+        c = L.correction(clean(text))
+        if c:
+            info = prev["info"]
+            self._bg(lambda: self.router.outcome(info, "neg", "undo" if c[0] == "undo" else "correction"))
+        return c
+
+    def _judge_next(self, prev, text, d, resolved):
+        """The request after a local action: the opposite command within 10 s, or the same request reworded
+        that came to a different intent, means the local action was wrong (and the reword teaches the right
+        one). Anything else: the local action stood."""
+        from core import router_learn as L
+        dt = time.monotonic() - prev["ts"]
+
+        def judge():
+            info = prev["info"]
+            now = d.intent if d else (self.router.intent_for_call(text, *resolved) if resolved else None)
+            why = None
+            if now and now != info["intent"]:
+                if L.INVERSE.get(info["intent"]) == now and dt <= L.INVERSE_S:
+                    why = "inverse"
+                elif self.router.similarity(text, prev["raw"]) >= REWORD_SIM:
+                    why = "reworded"
+            if not why:
+                self._finish(prev)
+                return
+            self.router.outcome(info, "neg", why)
+            if why == "reworded" and resolved:
+                self.router.learn(prev["raw"], resolved[0], resolved[1], source="correction")
+        self._bg(judge)
 
     def _log_action(self, *row):
         """SQLite write off the critical path (it was ~50 ms before the reply could play)."""

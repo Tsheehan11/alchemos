@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Local router: decisions, phase-2 pass-through, self-learning (into the untracked learned file),
 migration out of intents.json, the vector cache and `jarvis intents remove`. Runs against a temp copy
-of intents.json and a temp data dir. Nothing executes. Run: python tests/test_router.py"""
+of intents.json and a temp data dir. Nothing executes. (The learning rules themselves: test_router_learning.py.) Run: python tests/test_router.py"""
 import json
 import os
 import shutil
@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path[:0] = [os.path.join(ROOT, "mcp"), ROOT]
+os.environ["JARVIS_DB"] = os.path.join(tempfile.mkdtemp(), "jarvis.db")   # the gate reads outcomes: never his
 from core import config as C  # noqa: E402
 from core import router_local as R  # noqa: E402
 
@@ -34,13 +35,15 @@ old["intents"]["media.pause"]["learned"] = ["put the tunes on hold"]
 old["intents"]["media.next"]["learned"] = []
 R.INTENTS_FILE.write_text(json.dumps(old, indent=2))
 check("migrated count", R.migrate_learned(), 1)
-check("learned file has it", R.load_learned(), {"media.pause": ["put the tunes on hold"]})
+check("learned store has it, as a candidate to re-check", [(x["intent"], x["text"], x["state"]) for x in R.L.read()["examples"].values()],
+      [("media.pause", "put the tunes on hold", "candidate")])
 check("intents.json has no learned keys", any("learned" in it for it in R.load_intents()["intents"].values()), False)
 check("second migration is a no-op", R.migrate_learned(), 0)
 pristine = R.INTENTS_FILE.read_text()
 
-r = R.LocalRouter(C.Config(), record=False, log=lambda *a: None)
-check("learned example merged at load", "put the tunes on hold" in r.texts, True)
+r = R.LocalRouter(C.Config(), record=False, log=lambda *a: None, settle=True)
+check("migrated example re-checked at settle", R.L.read()["examples"]["1"]["state"] in ("active", "rejected"), True)
+check("active examples merged at load", "put the tunes on hold" in r.texts, R.L.read()["examples"]["1"]["state"] == "active")
 check("one vector per example", len(r.vecs), len(r.texts))
 
 
@@ -79,7 +82,9 @@ check("every tool intent names a real tool", all(it["tool"] in R.A.TOOLS for it 
 check("learn new phrasing", r.learn("make the lights a cozy 30 percent", "lights", {"action": "brightness", "value": 30}), "lights.brightness")
 check("learned saved to the learned file", "make the lights a cozy 30 percent" in R.load_learned()["lights.brightness"], True)
 check("intents.json untouched by learning", R.INTENTS_FILE.read_text(), pristine)
-check("dedupe", r.learn("Make the lights a cozy 30 percent.", "lights", {"action": "brightness", "value": 30}), None)
+n = len(R.L.read()["examples"])
+r.learn("Make the lights a cozy 30 percent.", "lights", {"action": "brightness", "value": 30})
+check("dedupe", len(R.L.read()["examples"]), n)
 check("args must match the transcript", r.learn("make it cozy in here", "lights", {"action": "brightness", "value": 30}), None)
 check("never learn phase 2", r.learn("check my email and dim the lights to 30", "lights", {"action": "brightness", "value": 30}), None)
 check("never learn compound", r.learn("dim the lights to 30 and play jazz", "lights", {"action": "brightness", "value": 30}), None)
@@ -98,9 +103,9 @@ r2._load()
 check("cache hit after learning", calls, [])
 check("cache matches merged examples", (len(r2.vecs), r2.texts), (len(r.vecs), r.texts))
 
-# ── jarvis intents remove ──
+# ── jarvis intents remove (→ jarvis router forget) ──
 before = sum(map(len, R.load_learned().values()))
-R.cli(["remove", "1"])
+R.cli(["remove", next(x["id"] for x in R.L.read()["examples"].values() if x["state"] == "active")])
 after = sum(map(len, R.load_learned().values()))
 check("remove one", before - after, 1)
 check("remove leaves intents.json alone", R.INTENTS_FILE.read_text(), pristine)

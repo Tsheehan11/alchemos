@@ -128,7 +128,7 @@ check("learned as screen.role", "put music on monitor 2" in R.load_learned().get
 check("second time: no question", route(j, "put music on monitor 2"), "set_screen_role")
 check("other ambiguous phrasing still asks", route(j, "put the clock on the second monitor"), "ask")
 check("answer widget runs the widget (moves the clock)", route(j, "widget"), "widget_move")
-check("no widget_move intent: kept as choice.widget", "put the clock on the second monitor" in R.load_learned().get("choice.widget", []), True)
+check("no widget_move intent: kept as choice.widget", "put the clock on the second monitor" in R.L.read()["choices"].get("widget", []), True)
 check("remembered widget (choice)", route(j, "put the clock on the second monitor"), "widget_move")
 check("already a widget.stats example", r.known_intent("show stats on the second monitor"), "widget.stats")
 check("remembered widget", route(j, "show stats on the second monitor"), "widget_add")

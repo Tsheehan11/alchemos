@@ -11,7 +11,9 @@ presets from the HUD) are used, as in Jarvis. Reports, for the router alone (as 
 fast path didn't exist) and for the real pipeline (fast path first):
   accuracy       right local action, or correctly left to Claude
   wrong actions  acted locally when it shouldn't have, or did the wrong thing (the number that matters)
-  fall-through   commands that went to Claude anyway (costs time, not correctness)
+  fall-through   commands that went to Claude anyway, or got "Did you mean …?" (costs time, not correctness)
+Per-intent thresholds and learned examples (~/.local/share/jarvis/learned_intents.json) are included,
+so this measures the router as it runs; the promotion gate (core/router_local.py) runs the same cases.
   latency        decide() p50 / p95, embedding + slots
 """
 import argparse
@@ -163,7 +165,7 @@ def judge(d, expected):
 
 
 def run(router, threshold, verbose=False, pipeline=False):
-    res, lat, reasons = [], [], {}
+    res, lat, reasons, asks = [], [], {}, []
     for text, exp in CASES:
         if pipeline and fastpath.match(text) is not None:
             res.append("ok")    # the regex fast path is exact by design (e.g. "turn on the VPN" = Proton); not under test
@@ -174,7 +176,10 @@ def run(router, threshold, verbose=False, pipeline=False):
         j = judge(d, exp)
         res.append(j)
         if d.path != "local":
-            reasons[d.path.split(":")[1]] = reasons.get(d.path.split(":")[1], 0) + 1
+            why = d.path.split(":")[1] if ":" in d.path else d.path
+            reasons[why] = reasons.get(why, 0) + 1
+        if d.path == "ask":
+            asks.append(exp is not CLAUDE and d.intent == exp[0])
         if verbose and (j != "ok" or verbose > 1):
             top = " ".join(f"{n}:{s:.2f}" for n, s in d.top3)
             got = d.steps[0]["args"] if d.steps else ""
@@ -182,7 +187,7 @@ def run(router, threshold, verbose=False, pipeline=False):
     cmds = sum(1 for _, e in CASES if e is not CLAUDE)
     return {"acc": res.count("ok") / len(res), "wrong": res.count("wrong"), "fell": res.count("fell") / cmds,
             "p50": statistics.median(lat) if lat else 0, "p95": sorted(lat)[int(len(lat) * 0.95)] if lat else 0,
-            "reasons": reasons}
+            "reasons": reasons, "asks": len(asks), "asks_right": sum(asks)}
 
 
 def main():
@@ -202,6 +207,7 @@ def main():
     print(f"\nthreshold {th:.2f}, gap {R.GAP}: router alone")
     print(f"  accuracy {r['acc']:.1%}   wrong actions {r['wrong']}   fall-through {r['fell']:.1%}   "
           f"latency p50 {r['p50']:.1f} ms  p95 {r['p95']:.1f} ms")
+    print(f"  asked \"Did you mean …?\" {r['asks']}× ({r['asks_right']} about the right intent; a question, never an action)")
     print(f"  fell through because: {', '.join(f'{k} {v}' for k, v in sorted(r['reasons'].items(), key=lambda kv: -kv[1]))}")
     p = run(router, th, pipeline=True)
     print(f"  with the regex fast path first: accuracy {p['acc']:.1%}, wrong {p['wrong']}, fall-through {p['fell']:.1%}")

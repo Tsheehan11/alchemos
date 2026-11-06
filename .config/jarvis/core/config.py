@@ -52,6 +52,7 @@ DEFAULTS = {
     "jarvisAutoUpdateTracker": False,   # tracker events (grades, new LEARN work, moved deadlines) write to the SE tracker without asking
     "jarvisDecisions": "local",         # local = regex fast path, then the local router (core/router_local.py), then Claude | claude
     "jarvisRouterThreshold": 0.70,
+    "jarvisRouterAsk": True,            # near misses get "Did you mean …?" instead of going straight to Claude (core/router_local.py)
     "jarvisWatchInterval": 10,
     "jarvisDjChatter": "rare",          # DJ mode lines between tracks: off | rare (every 4-5) | normal (every 2-3) (core/dj.py)          # seconds between a watcher's captures (core/watch.py)
     "jarvisCaptureBlocklist": ["bank", "banking", "rbc royal", "td canada", "scotiabank", "cibc", "bmo", "tangerine",

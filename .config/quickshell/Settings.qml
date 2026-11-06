@@ -630,6 +630,7 @@ PanelWindow {
                     property var integrations: []      // `jarvis integrations --json`: [{key, name, label, auth, connected, state, detail}]
                     property var spotify: ({})         // `jarvis spotify status --json`: {connected, user, premium, client, missing, detail}
                     property var djMoods: []           // preset names from ~/.config/jarvis/dj_moods.json + saved ones
+                    property var router: ({})          // `jarvis router stats --json` (core/router_learn.py)
                     function speakerName(mac) { const s = speakers.find(x => x.mac === mac); return mac === "" ? "OFF" : (s ? s.name : mac).toUpperCase(); }
                     function voiceName(v) {
                         if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
@@ -705,6 +706,85 @@ PanelWindow {
                     Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.jarvisFollowup > 0 ? Theme.cfg.jarvisFollowup + " S" : "OFF"; onDec: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, -1); onInc: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, 1) }
                     Stepper { width: parent.width; label: "DECISIONS"; hint: Theme.cfg.jarvisDecisions === "local" ? "Common commands decided on this PC (offline, ~5 ms) · Claude for the rest" : "Everything the regex rules miss goes to Claude"; valueText: Theme.cfg.jarvisDecisions === "local" ? "LOCAL+CLAUDE" : "CLAUDE ONLY"; onDec: Theme.cfg.jarvisDecisions = Theme.cfg.jarvisDecisions === "local" ? "claude" : "local"; onInc: Theme.cfg.jarvisDecisions = Theme.cfg.jarvisDecisions === "local" ? "claude" : "local" }
                     Stepper { width: parent.width; visible: Theme.cfg.jarvisDecisions === "local"; label: "Local confidence"; hint: "Higher = fewer local actions, more sent to Claude · tune with tools/eval_router.py"; valueText: Theme.cfg.jarvisRouterThreshold.toFixed(2); onDec: Theme.cfg.jarvisRouterThreshold = Math.max(0.5, Math.round((Theme.cfg.jarvisRouterThreshold - 0.01) * 100) / 100); onInc: Theme.cfg.jarvisRouterThreshold = Math.min(0.95, Math.round((Theme.cfg.jarvisRouterThreshold + 0.01) * 100) / 100) }
+                    // ROUTER: what the local router learned and how often it answers without Claude
+                    // (~/.config/jarvis/core/router_learn.py; `jarvis router stats --json`, polled with INTEGRATIONS)
+                    Toggle { width: parent.width; visible: Theme.cfg.jarvisDecisions === "local"; label: "Ask when unsure"; hint: "A near miss gets \"Did you mean …?\" · yes runs it and teaches it, no sends it to Claude"; checked: Theme.cfg.jarvisRouterAsk; onToggled: Theme.cfg.jarvisRouterAsk = !Theme.cfg.jarvisRouterAsk }
+                    Text { visible: Theme.cfg.jarvisDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 3 }
+                    Process {
+                        id: routerStats
+                        command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "router", "stats", "--json"]
+                        stdout: StdioCollector { onStreamFinished: { try { jarvisPage.router = JSON.parse(text); } catch (e) {} } }
+                    }
+                    Timer { id: routerRefresh; interval: 1500; onTriggered: routerStats.running = true }
+                    function routerCmd(args) { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "router"].concat(args)); routerRefresh.interval = args[0] === "approve" ? 6000 : 800; routerRefresh.restart(); }
+                    function evAge(ts) { const m = Math.round((Date.now() / 1000 - ts) / 60); return m < 60 ? m + "M" : m < 1440 ? Math.round(m / 60) + "H" : Math.round(m / 1440) + "D"; }
+                    Column {
+                        id: routerBox
+                        width: parent.width; spacing: 6
+                        visible: Theme.cfg.jarvisDecisions === "local"
+                        readonly property var r: jarvisPage.router
+                        Row {
+                            spacing: 22
+                            Repeater {
+                                model: [["LOCAL", "local_pct", "fast path + router + \"yes\""], ["ROUTER", "router_pct", "embedding router"], ["CLAUDE", "claude_pct", "escalated"], ["ASKED", "ask_pct", "did you mean"]]
+                                delegate: Column {
+                                    required property var modelData
+                                    Text { text: (routerBox.r[modelData[1]] !== undefined ? Math.round(routerBox.r[modelData[1]]) : "—") + "%"; color: modelData[0] === "CLAUDE" ? Theme.textSoft : Theme.primary; font.family: st.mono; font.pixelSize: 20; font.weight: Font.Light }
+                                    Text { text: modelData[0]; color: Theme.dim; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2 }
+                                }
+                            }
+                        }
+                        Text {
+                            width: parent.width; wrapMode: Text.Wrap; color: Theme.dim; font.family: st.mono; font.pixelSize: 11
+                            text: parent.r.requests === undefined ? "Reading the router log…"
+                                  : "Last 7 days · " + parent.r.requests + " requests · today " + parent.r.today.local_pct + "% local of " + parent.r.today.requests
+                                    + " · outcomes +" + parent.r.outcomes.pos + " −" + parent.r.outcomes.neg + " · asked yes " + parent.r.outcomes.ask_yes + " / no " + parent.r.outcomes.ask_no
+                                    + (Object.keys(parent.r.offsets || {}).length ? " · tuned: " + Object.keys(parent.r.offsets).map(k => k + " " + (parent.r.offsets[k] > 0 ? "+" : "") + parent.r.offsets[k].toFixed(2)).join(", ") : "")
+                        }
+                        readonly property var shownEvents: (r.events || []).filter(e => ["promoted", "rejected", "demoted", "deleted", "approved", "threshold", "corrected", "decayed", "forgotten"].indexOf(e.kind) >= 0).slice(0, 6)
+                        Text { visible: parent.shownEvents.length > 0; text: "RECENT"; topPadding: 4; color: Theme.faint; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2 }
+                        Repeater {
+                            model: parent.shownEvents
+                            delegate: Text {
+                                required property var modelData
+                                width: jarvisPage.width; elide: Text.ElideRight; font.family: st.mono; font.pixelSize: 11
+                                color: ["promoted", "approved"].indexOf(modelData.kind) >= 0 ? Theme.primary : ["rejected", "demoted", "deleted", "corrected"].indexOf(modelData.kind) >= 0 ? Theme.secondary : Theme.textSoft
+                                text: jarvisPage.evAge(modelData.ts) + "  " + modelData.kind.toUpperCase() + "  " + (modelData.text ? "\"" + modelData.text + "\" → " : "") + modelData.intent + (modelData.why ? " · " + modelData.why : "")
+                            }
+                        }
+                        Text { visible: (parent.r.review || []).length > 0; text: "LEARNED · REVIEW"; topPadding: 4; color: Theme.faint; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2 }
+                        Text { visible: parent.r.review !== undefined && parent.r.review.length === 0; text: "Nothing learned yet · it learns from Claude's simple answers, your corrections and \"yes\" to \"Did you mean…\""; width: jarvisPage.width; wrapMode: Text.Wrap; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                        Repeater {
+                            // waiting on you first (candidates, rejections), then what's live
+                            model: (parent.r.review || []).slice().sort((a, b) => (a.state === "active") - (b.state === "active")).slice(0, 14)
+                            delegate: Item {
+                                required property var modelData
+                                width: jarvisPage.width; height: 40
+                                Column {
+                                    anchors.left: parent.left; anchors.right: reviewBtns.left; anchors.rightMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 2
+                                    Text { width: parent.width; elide: Text.ElideRight; text: "\"" + modelData.text + "\"  →  " + modelData.intent; color: modelData.state === "active" ? Theme.text : Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                                    Text {
+                                        width: parent.width; elide: Text.ElideRight; font.family: st.mono; font.pixelSize: 10
+                                        color: modelData.state === "rejected" ? Theme.secondary : Theme.dim
+                                        text: modelData.state.toUpperCase() + " · #" + modelData.id + " · " + modelData.source + " · seen " + modelData.seen + " · +" + modelData.pos + " −" + modelData.neg + (modelData.why ? " · " + modelData.why : "")
+                                    }
+                                }
+                                Row {
+                                    id: reviewBtns
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 8
+                                    SmallButton { visible: modelData.state !== "active"; text: "APPROVE"; onClicked: jarvisPage.routerCmd(["approve", modelData.id]) }
+                                    ConfirmButton { label: "REMOVE"; onConfirmed: jarvisPage.routerCmd(["forget", modelData.id]) }
+                                }
+                            }
+                        }
+                        Text {
+                            width: jarvisPage.width; wrapMode: Text.Wrap; color: Theme.faint; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 1
+                            text: "APPROVE still has to pass the router eval (0 wrong actions) · learned data stays in ~/.local/share/jarvis · jarvis router stats | review | forget ID | reset-learned"
+                        }
+                    }
                     Toggle { width: parent.width; label: "Spoken replies"; hint: "Off = replies only show on the toast"; checked: Theme.cfg.jarvisSpeak; onToggled: Theme.cfg.jarvisSpeak = !Theme.cfg.jarvisSpeak }
                     Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.jarvisDuck; onToggled: Theme.cfg.jarvisDuck = !Theme.cfg.jarvisDuck }
                     Toggle { width: parent.width; label: "Pause in combat mode"; hint: "Wake word off, mic released · timers still go off"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
@@ -718,7 +798,7 @@ PanelWindow {
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "integrations", "--json"]
                         stdout: StdioCollector { onStreamFinished: { try { jarvisPage.integrations = JSON.parse(text); } catch (e) {} } }
                     }
-                    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: jarvisPage.visible; onTriggered: { integrationList.running = true; spotifyStatus.running = true; } }
+                    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: jarvisPage.visible; onTriggered: { integrationList.running = true; spotifyStatus.running = true; if (Theme.cfg.jarvisDecisions === "local") routerStats.running = true; } }
                     Repeater {
                         model: jarvisPage.integrations
                         delegate: Item {

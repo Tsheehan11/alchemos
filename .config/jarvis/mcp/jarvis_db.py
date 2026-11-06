@@ -5,6 +5,9 @@ Jarvis memory: one SQLite file shared by the voice loop and the MCP server.
   action_log  every request: tier used, tools called, result (pruned after 30 days)
   reminders   timers / reminders; the voice loop fires them, so they survive restarts
   router_log  every local-router decision: top-3 intents, slots, latency, path (pruned with action_log)
+  router_outcomes what happened after a local action or a "Did you mean…?": pos (no correction in 30 s) | neg
+              (correction, undo, reworded repeat, kill switch, declined) | ask_yes | ask_no. Per-intent
+              thresholds and the promotion gate's personal checks come from it (core/router_learn.py)
   tracker_log every write to his SE tracker sheet: cell, old → new, why; `jarvis tracker undo` reverts the last batch
   calendar_log every write to his Google calendars (google_api.CalendarWriter): event, before → after;
               `jarvis calendar undo` reverts the last batch; link ties a batch to the tracker batch it followed
@@ -72,6 +75,17 @@ CREATE TABLE IF NOT EXISTS router_log (
     ms REAL
 );
 CREATE INDEX IF NOT EXISTS router_log_ts ON router_log(ts);
+CREATE TABLE IF NOT EXISTS router_outcomes (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    request TEXT NOT NULL,       -- normalised utterance
+    intent TEXT NOT NULL,        -- the intent the router matched (or asked about)
+    score REAL NOT NULL,         -- its similarity
+    example TEXT,                -- learned example id that matched ('' = built-in)
+    outcome TEXT NOT NULL,       -- pos | neg | ask_yes | ask_no
+    why TEXT                     -- weak-positive | correction | undo | reworded | inverse | kill-switch | declined | …
+);
+CREATE INDEX IF NOT EXISTS router_outcomes_intent ON router_outcomes(intent, ts);
 CREATE TABLE IF NOT EXISTS tracker_log (
     id INTEGER PRIMARY KEY,
     ts REAL NOT NULL,
@@ -304,6 +318,7 @@ def log_action(request, tier, tools, result, ms=None):
 def prune_log(days=LOG_DAYS):
     with _db() as db:
         db.execute("DELETE FROM router_log WHERE ts < ?", (time.time() - days * 86400,))
+        db.execute("DELETE FROM router_outcomes WHERE ts < ?", (time.time() - 3 * days * 86400,))   # calibration wants history
         db.execute("DELETE FROM claude_turns WHERE ts < ?", (time.time() - days * 86400,))
         return db.execute("DELETE FROM action_log WHERE ts < ?", (time.time() - days * 86400,)).rowcount
 
@@ -312,6 +327,37 @@ def log_decision(request, path, intent, top3, slots, ms):
     with _db() as db:
         db.execute("INSERT INTO router_log(ts, request, path, intent, top3, slots, ms) VALUES (?,?,?,?,?,?,?)",
                    (time.time(), request[:1000], path, intent, json.dumps(top3), json.dumps(slots, default=str)[:1000], ms))
+
+
+def log_outcome(request, intent, score, example, outcome, why=""):
+    with _db() as db:
+        db.execute("INSERT INTO router_outcomes(ts, request, intent, score, example, outcome, why) VALUES (?,?,?,?,?,?,?)",
+                   (time.time(), request[:500], intent, float(score), example or "", outcome, why))
+
+
+def router_outcomes(days=90, intent=None):
+    q, args = "SELECT * FROM router_outcomes WHERE ts >= ?", [time.time() - days * 86400]
+    if intent:
+        q += " AND intent = ?"
+        args.append(intent)
+    with _db() as db:
+        return [dict(r) for r in db.execute(q + " ORDER BY ts", args)]
+
+
+def router_counts(since):
+    """→ {"requests", "fast", "local", "ask", "claude", "other"} from action_log tiers, and the router's own paths."""
+    with _db() as db:
+        tiers = [r[0] for r in db.execute("SELECT tier FROM action_log WHERE ts >= ?", (since,))]
+        paths = [r[0] for r in db.execute("SELECT path FROM router_log WHERE ts >= ?", (since,))]
+    c = {"requests": len(tiers), "fast": 0, "local": 0, "ask": 0, "claude": 0, "other": 0}
+    for t in tiers:
+        k = ("fast" if t == "fast" else "local" if t.startswith("local:") else "ask" if t.startswith("ask:")
+             else "claude" if t.startswith(("claude", "error:")) else "other")
+        c[k] += 1
+    c["router"] = len(paths)
+    c["router_local"] = sum(1 for p in paths if p == "local")
+    c["router_ask"] = sum(1 for p in paths if p == "ask")
+    return c
 
 
 def recent_decisions(limit=40):

@@ -8,6 +8,8 @@
 //   sources    fresh tokens (input + output) today and this plan week: Jarvis (its SDK records), Claude Code (the
 //              session logs' usage blocks only, never their content).
 //   models     every model actually used, with its tokens; one model today → "TODAY: HAIKU 5.5 ONLY".
+//   local      % of Jarvis requests answered on this PC (regex fast path, local router, a "Did you mean" yes):
+//              no Claude tokens at all (usage.json "local", from jarvis.db action_log).
 import QtQuick
 import ".."
 
@@ -20,6 +22,8 @@ WidgetBody {
     readonly property var week: u.week || ({})
     readonly property var modelsToday: (u.models || {}).today || []
     readonly property var modelsWeek: (u.models || {}).week || []
+    readonly property var localToday: (u.local || {}).today || ({})
+    readonly property var localWeek: (u.local || {}).week || ({})
     readonly property var windows: [["five_hour", "5-HOUR"], ["seven_day", "WEEKLY"]]
     readonly property color cJarvis: Theme.primary
     readonly property color cCode: Theme.secondary
@@ -155,6 +159,23 @@ WidgetBody {
                       + " / " + JarvisFeed.tokens(((w.today.jarvis || {}).cache_write || 0) + ((w.today.code || {}).cache_write || 0))
                       + " · CLAUDE.AI HAS NO LOCAL RECORD (ESTIMATED ABOVE)"
                 color: Theme.faint; font.family: w.mono; font.pixelSize: 8; font.letterSpacing: 1
+            }
+        }
+
+        // ── Jarvis requests answered on this PC (no tokens) ──
+        Item {
+            width: 340; height: 18
+            visible: w.localWeek.pct !== undefined && w.localWeek.pct !== null
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "JARVIS HANDLED LOCALLY"; color: Theme.dim; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+            }
+            HoloBar { x: 150; width: 70; height: 6; ticks: 4; anchors.verticalCenter: parent.verticalCenter; value: (w.localWeek.pct || 0) / 100; color: Theme.primary }
+            Text {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                text: (w.localToday.pct === null || w.localToday.pct === undefined ? "—" : Math.round(w.localToday.pct) + "%") + " TODAY · "
+                      + Math.round(w.localWeek.pct || 0) + "% WEEK"
+                color: Theme.text; font.family: w.mono; font.pixelSize: 10
             }
         }
 
