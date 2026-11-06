@@ -1,6 +1,6 @@
 """
-Jarvis's voice. Kokoro (local, ONNX on CPU) by default, piper as the fallback,
-then the effect chain (effects.py), streamed into pw-play.
+Jarvis's voice. A TTS engine (core/tts/: Kokoro, local ONNX on CPU, by default; piper as the fallback;
+more drop in as one file each), then the effect chain (effects.py), streamed into pw-play.
 
 Every line goes through speech.normalize first (times, dates, numbers, units,
 symbols → words), then plays as an Utterance: sentences can be added while it's
@@ -10,8 +10,9 @@ opened as soon as Jarvis knows what you said, so Bluetooth is awake and the
 first syllable isn't clipped. A long first sentence is split at its first comma
 so the first sound comes sooner. Short stock lines are cached on disk.
 
-Voice names: Kokoro voices as-is (bm_george, bm_fable…); piper voices by model
-file, with a speaker for multi-speaker models (en_GB-semaine-medium:obadiah).
+Voice names pick the engine (core/tts/__init__.py): Kokoro voices as-is (bm_george, bm_fable…); piper
+voices by model file, with a speaker for multi-speaker models (en_GB-semaine-medium:obadiah); any other
+engine's as "<engine>/<voice>".
 
 Output: the default sink, except when it isn't headphones and a Bluetooth speaker
 is set (Settings → JARVIS → Speaker): then Jarvis connects to it when it hears
@@ -33,14 +34,11 @@ import time
 
 import numpy as np
 
-from . import effects, persona, speech, trace
+from . import effects, persona, speech, trace, tts
 from . import config as C
-from .config import DATA_DIR, VOICES_DIR
-
-KOKORO_DIR = DATA_DIR / "kokoro"
-KOKORO_MODEL = KOKORO_DIR / "kokoro-v1.0.int8.onnx"   # int8: ~5× real time on CPU, 300 MB; fp32 file is 40% slower
-KOKORO_VOICES = KOKORO_DIR / "voices-v1.0.bin"
-FALLBACK_PIPER = "en_GB-alan-medium"
+from .config import DATA_DIR
+from .tts.kokoro import KOKORO_DIR, KOKORO_MODEL, KOKORO_VOICES  # noqa: F401  (tools/wakeword uses these)
+from .tts.piper import FALLBACK as FALLBACK_PIPER
 CACHE_DIR = DATA_DIR / "tts-cache"
 CACHE_MAX_WORDS = 6        # sentences this short get cached on disk
 CACHE_MAX_FILES = 400
@@ -77,27 +75,21 @@ def first_split(parts):
 
 
 def is_kokoro(name):
-    return bool(re.match(r"^[abefhijpz][fm]_", name or ""))
+    return tts.resolve(name)[0] is not None and tts.resolve(name)[0].id == "kokoro"
 
 
 def kokoro_voices():
-    try:
-        from kokoro_onnx import Kokoro  # noqa: F401
-        return sorted(np.load(KOKORO_VOICES).files)
-    except Exception:
-        return []
+    return tts.all_voices().get("kokoro", [])
 
 
 def piper_voices():
     """Piper voices on disk, multi-speaker models expanded (en_GB-semaine-medium:obadiah)."""
-    out = []
-    for f in sorted(VOICES_DIR.glob("*.onnx")):
-        try:
-            spk = json.loads(f.with_suffix(".onnx.json").read_text()).get("speaker_id_map") or {}
-        except (OSError, ValueError):
-            spk = {}
-        out += [f"{f.stem}:{s}" for s in spk] if len(spk) > 1 else [f.stem]
-    return out
+    return tts.all_voices().get("piper", [])
+
+
+def other_voices():
+    """Voices of any engine besides Kokoro and piper ("<engine>/<voice>"), for Settings."""
+    return [v for eid, vs in tts.all_voices().items() if eid not in ("kokoro", "piper") for v in vs]
 
 
 def chime_audio(kind, who="jarvis"):
@@ -200,51 +192,14 @@ class Ducker:
 
 
 class Engines:
-    """Loads each TTS model once. synth(name, text, speed) → (float32 audio, sample rate)."""
-
-    def __init__(self):
-        self._kokoro = None
-        self._piper = {}
-        self._lock = threading.Lock()
-
-    def kokoro(self):
-        with self._lock:
-            if self._kokoro is None:
-                import onnxruntime as ort
-                from kokoro_onnx import Kokoro
-                # 8 threads, no spin-waiting: ~14% slower than the default, a third of the CPU (13 s → 4 s per sentence)
-                so = ort.SessionOptions()
-                so.intra_op_num_threads = 8
-                so.add_session_config_entry("session.intra_op.allow_spinning", "0")
-                sess = ort.InferenceSession(str(KOKORO_MODEL), so, providers=["CPUExecutionProvider"])
-                self._kokoro = Kokoro.from_session(sess, str(KOKORO_VOICES))
-            return self._kokoro
-
-    def piper(self, model):
-        with self._lock:
-            if model not in self._piper:
-                from piper import PiperVoice
-                path = VOICES_DIR / f"{model}.onnx"
-                if not path.exists():
-                    path = VOICES_DIR / f"{FALLBACK_PIPER}.onnx"
-                self._piper[model] = PiperVoice.load(str(path))
-            return self._piper[model]
+    """synth(name, text, speed) → (float32 audio, sample rate) from whichever engine speaks that voice
+    (core/tts). A name no engine claims goes to piper (which falls back to its default model)."""
 
     def synth(self, name, text, speed):
-        if is_kokoro(name):
-            k = self.kokoro()
-            lang = "en-gb" if name.startswith("b") else "en-us"
-            audio, sr = k.create(text, voice=name, speed=max(0.5, min(2.0, speed)), lang=lang)
-            return np.asarray(audio, np.float32), sr
-        from piper import SynthesisConfig
-        model, _, speaker = name.partition(":")
-        v = self.piper(model)
-        sid = (v.config.speaker_id_map or {}).get(speaker) if speaker else None
-        # volume 0.7: piper hits full scale and clips; lower noise scales cut its vocoder buzz
-        syn = SynthesisConfig(speaker_id=sid, length_scale=1.0 / max(0.5, min(2.0, speed)),
-                              volume=0.7, noise_scale=0.4, noise_w_scale=0.6)
-        audio = np.concatenate([c.audio_float_array for c in v.synthesize(text, syn_config=syn)] or [np.zeros(1)])
-        return audio.astype(np.float32), v.config.sample_rate
+        try:
+            return tts.synth(name, text, speed)
+        except LookupError:
+            return tts.synth("piper/" + name, text, speed)
 
 
 def bt_connected(mac):
@@ -521,24 +476,31 @@ class Voice:
 
     def params(self, who=None):
         """(voice, effect preset, speed, pitch) for who's talking (core/persona.py; default: the current
-        persona). JARVIS: jarvisVoice / jarvisSpeed / jarvisPitch; FRIDAY: her own three. Shared effect."""
+        persona). JARVIS: jarvisVoice / jarvisSpeed / jarvisPitch / jarvisEffect; FRIDAY: her own voice, speed
+        and pitch, and fridayEffect when it's set (else jarvisEffect)."""
         try:
             name, speed, pitch = persona.voice_params(self.cfg, who)
         except KeyError:
             name, speed, pitch = "bm_george", 1.0, 0.0
         name = self.overrides.get("voice", name)
-        fx = effects.preset(self._setting("preset", "jarvisEffect", "AUTO"))
+        fx_name = self._setting("preset", "jarvisEffect", "AUTO")
+        if "preset" not in self.overrides and (who or persona.current(self.cfg)) == "friday":
+            try:
+                fx_name = self.cfg["fridayEffect"] or fx_name
+            except KeyError:
+                pass
+        fx = effects.preset(fx_name)
         speed = float(self.overrides.get("speed", speed) or 1.0) * float(fx.get("speed", 1.0))
         pitch = float(self.overrides.get("pitch", pitch) or 0.0) + float(fx.get("pitch", 0.0))
         return name, fx, speed, pitch
 
     # ── rendering ──
     def render(self, text, params=None):
-        """One sentence → (processed float32 audio, sample rate). Kokoro failing falls back to piper."""
+        """One sentence → (processed float32 audio, sample rate). The voice's engine failing falls back to piper."""
         name, fx, speed, pitch = params or self.params()
         cached = len(text.split()) <= CACHE_MAX_WORDS
         if cached:
-            key = hashlib.sha1(json.dumps([name, round(speed, 3), round(pitch, 2), fx, text, KOKORO_MODEL.name,
+            key = hashlib.sha1(json.dumps([name, round(speed, 3), round(pitch, 2), fx, text, tts.cache_tag(name),
                                            effects.NORM_VERSION],
                                           sort_keys=True).encode()).hexdigest()[:20]
             hit = next(CACHE_DIR.glob(f"{key}-*.npy"), None)

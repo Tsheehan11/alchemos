@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import config as C  # noqa: E402
-from core.voice import Voice, is_kokoro, kokoro_voices, piper_voices  # noqa: E402
+from core.voice import Voice, is_kokoro, kokoro_voices, other_voices, piper_voices  # noqa: E402
 
 LINE = "Good evening, sir. All systems are online, and the lights are set to MARK III."
 # FRIDAY audition lines: a greeting, a status line with numbers, a quick casual one
@@ -110,7 +110,8 @@ def main():
         import json
         from core import effects
         british = [v for v in kokoro_voices() if v.startswith("bm_")] + [v for v in kokoro_voices() if v.startswith("bf_")]
-        print(json.dumps({"voices": british + piper_voices(), "female": female_voices(), "effects": ["AUTO"] + list(effects.presets()),
+        # any other TTS engine's voices (core/tts, "<engine>/<voice>") are offered for both personas
+        print(json.dumps({"voices": british + piper_voices() + other_voices(), "female": female_voices() + other_voices(), "effects": ["AUTO"] + list(effects.presets()),
                           "speakers": bt_speakers()}))
         return
 

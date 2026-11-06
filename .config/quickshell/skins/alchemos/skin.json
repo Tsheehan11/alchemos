@@ -60,6 +60,10 @@
         {"name": "VERMILION", "glyph": "🜓", "h": 8, "s": 0.92, "l": 0.56}, 
         {"name": "COCHINEAL", "glyph": "🝈", "h": 345, "s": 0.78, "l": 0.64}
     ], "compound": true, "joiner": "-"},
+    "voices": {
+        "jarvis": { "voice": "bm_george", "speed": 0.94, "pitch": -0.5, "effect": "CHAMBER" },
+        "friday": { "voice": "af_nicole", "speed": 0.97, "pitch": 0.0, "effect": "RESONANT" }
+    },
     "personas": {
         "jarvis": { "name": "ORRIN",  "call": "Orrin",  "dotted": "O.R.R.I.N",   "glyph": "☉", "idle": "☉", "starting": "☉", "accent": "#ffc04a" },
         "friday": { "name": "SELENE", "call": "Selene", "dotted": "S.E.L.E.N.E", "glyph": "☽", "idle": "☽", "starting": "☽", "accent": "#d4dde8" }

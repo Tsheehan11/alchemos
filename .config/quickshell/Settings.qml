@@ -675,6 +675,14 @@ PanelWindow {
                     property var voices: ["bm_george"]
                     property var femaleVoices: ["bf_emma"]  // FRIDAY: English female Kokoro voices (jarvis-voices --list)
                     property var effects: ["AUTO", "CLEAN", "HOLOGRAM", "SUIT"]
+                    readonly property var effectHints: ({ AUTO: "SUIT on headphones, HOLOGRAM on speakers", CLEAN: "No processing",
+                        HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet",
+                        CHAMBER: "A small stone room: warm, a little hard-walled", RESONANT: "A faint metallic ring under the voice",
+                        ALEMBIC: "Band-limited, glassy, a very short echo" })
+                    function fridayFx(dir) {
+                        const v = cycle(["SAME"].concat(effects.filter(e => e !== "AUTO")), Theme.cfg.fridayEffect || "SAME", dir);
+                        return v === "SAME" ? "" : v;
+                    }
                     property var speakers: []          // [{mac, name}] paired Bluetooth speakers (not headphones)
                     property var integrations: []      // `jarvis integrations --json`: [{key, name, label, auth, connected, state, detail}]
                     property var spotify: ({})         // `jarvis spotify status --json`: {connected, user, premium, client, missing, detail}
@@ -733,7 +741,16 @@ PanelWindow {
                     Stepper { width: parent.width; visible: Theme.cfg.jarvisSpeaker !== ""; label: "Bluetooth speaker volume"; hint: JarvisState.callOf("jarvis") + "'s level on the room speaker · SAME follows VOICE VOLUME"; preview: Theme.cfg.jarvisSpeakerVolume >= 0; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisSpeakerVolume < 0 ? "SAME" : Theme.cfg.jarvisSpeakerVolume + "%"; onDec: Theme.cfg.jarvisSpeakerVolume = Theme.cfg.jarvisSpeakerVolume < 0 ? -1 : Theme.cfg.jarvisSpeakerVolume <= 0 ? -1 : Math.max(0, Theme.cfg.jarvisSpeakerVolume - 5); onInc: Theme.cfg.jarvisSpeakerVolume = Theme.cfg.jarvisSpeakerVolume < 0 ? Theme.cfg.jarvisVoiceVolume : Math.min(100, Theme.cfg.jarvisSpeakerVolume + 5) }
                     Stepper { width: parent.width; label: JarvisState.nameOf("jarvis") + " speech rate"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
                     Stepper { width: parent.width; label: JarvisState.nameOf("jarvis") + " pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: jarvisPage.preview(); valueText: (Theme.cfg.jarvisPitch > 0 ? "+" : "") + Theme.cfg.jarvisPitch.toFixed(1); onDec: Theme.cfg.jarvisPitch = Math.max(-3, Theme.cfg.jarvisPitch - 0.5); onInc: Theme.cfg.jarvisPitch = Math.min(2, Theme.cfg.jarvisPitch + 0.5) }
-                    Stepper { width: parent.width; label: "Voice effect"; hint: ({ AUTO: "SUIT on headphones, HOLOGRAM on speakers", CLEAN: "No processing", HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet" })[Theme.cfg.jarvisEffect] || "Custom preset · ~/.config/jarvis/effects.json"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisEffect; onDec: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, -1); onInc: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, 1) }
+                    Stepper { width: parent.width; label: "Voice effect"; hint: jarvisPage.effectHints[Theme.cfg.jarvisEffect] || "Custom preset · ~/.config/jarvis/effects.json"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisEffect; onDec: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, -1); onInc: Theme.cfg.jarvisEffect = jarvisPage.cycle(jarvisPage.effects, Theme.cfg.jarvisEffect, 1) }
+                    // the second persona's own effect (fridayEffect); SAME = the one above
+                    Stepper {
+                        width: parent.width; label: JarvisState.nameOf("friday") + " effect"
+                        hint: Theme.cfg.fridayEffect === "" ? "Same as the voice effect above" : (jarvisPage.effectHints[Theme.cfg.fridayEffect] || "Custom preset · ~/.config/jarvis/effects.json")
+                        preview: true; onPlay: jarvisPage.previewFriday()
+                        valueText: Theme.cfg.fridayEffect || "SAME"
+                        onDec: Theme.cfg.fridayEffect = jarvisPage.fridayFx(-1)
+                        onInc: Theme.cfg.fridayEffect = jarvisPage.fridayFx(1)
+                    }
                     Stepper { width: parent.width; label: "Speaker without headphones"; hint: "Used when the output is the laptop speakers or a monitor · headphones, headsets and USB audio keep " + JarvisState.callOf("jarvis"); preview: Theme.cfg.jarvisSpeaker !== ""; onPlay: jarvisPage.preview(); valueText: jarvisPage.speakerName(Theme.cfg.jarvisSpeaker); onDec: Theme.cfg.jarvisSpeaker = jarvisPage.cycle([""].concat(jarvisPage.speakers.map(s => s.mac)), Theme.cfg.jarvisSpeaker, -1); onInc: Theme.cfg.jarvisSpeaker = jarvisPage.cycle([""].concat(jarvisPage.speakers.map(s => s.mac)), Theme.cfg.jarvisSpeaker, 1) }
                     // INPUT DEVICE: Jarvis's own wake-word mic (jarvis.py Mic), not the system default input
                     readonly property var micChoices: ["auto", "default"].concat(Audio.inputs.map(n => n.name))

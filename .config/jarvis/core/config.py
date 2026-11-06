@@ -32,6 +32,7 @@ DEFAULTS = {
     "skin": "alchemos",                 # the HUD's skin (quickshell/Skin.qml): names the personas (core/persona.py)
     "jarvisPersona": "jarvis",          # jarvis | friday: who answers by default (core/persona.py); same brain,
                                         # tools, memory and threads, different name, voice and manner
+    "fridayEffect": "",                 # FRIDAY's own effect preset; "" = the same as jarvisEffect
     "fridayVoice": "bf_emma",          # FRIDAY's Kokoro voice (jarvis-voices --friday to audition)
     "fridaySpeed": 1.15,                # FRIDAY's own speech rate (JARVIS keeps jarvisSpeed / jarvisPitch)
     "fridayPitch": 0.0,
