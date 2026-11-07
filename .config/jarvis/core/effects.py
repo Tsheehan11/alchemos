@@ -1,8 +1,12 @@
 """
 The effect chain on every Jarvis line, in-process with pedalboard (no sox, no
 extra processes): pitch → band limits → warm EQ → drive → compressor → chorus →
-small-room reverb → limiter. Presets live in effects.json (CLEAN, HOLOGRAM, SUIT;
-AUTO = SUIT on headphones, HOLOGRAM on speakers); every knob there can be edited, and Settings → JARVIS adds its pitch on top.
+small-room reverb → limiter. Presets live in effects.json (CLEAN, HOLOGRAM, SUIT, CHAMBER, RESONANT, ALEMBIC);
+every knob there can be edited, and Settings → JARVIS adds its pitch on top.
+
+AUTO picks a preset by where the voice is going (output_kind(): headphones / speaker / bt_speaker), per
+skin and per persona: skin.json "voiceRouting": { jarvis: { headphones, speaker, btSpeaker }, friday: {…} }.
+What a skin leaves out is BASE_ROUTING (SUIT on headphones, HOLOGRAM on any speaker: AUTO as it always was).
 Costs ~6 ms per sentence, ~75 ms with the pitch shifter on.
 
 Loudness is matched on both sides of the chain (BS.1770-style K-weighted, gated LUFS per sentence):
@@ -31,7 +35,7 @@ MAX_GAIN_DB = 24.0     # never boost more than this (near-silent input)
 NORM_VERSION = 1       # part of the tts-cache key: bump when the levelling changes
 
 _boards = {}
-_auto = {"at": 0.0, "name": DEFAULT_PRESET}
+_auto = {"at": 0.0, "kind": "speaker"}
 _presets = {"mtime": None, "data": {}}
 
 
@@ -46,24 +50,44 @@ def presets():
     return _presets["data"]
 
 
-def on_headphones():
-    """Is the default output personal (headphones / a headset) rather than a room speaker?
-    Personal: anything that says headphone / headset (Bluetooth, the jack), and any USB audio
-    device: USB headsets and dongles report a plain "USB Audio" card with an "analog-output-speaker"
-    port and no form factor, so the name can't be trusted. Room: the laptop speakers, HDMI /
-    DisplayPort monitors, and Bluetooth speakers (the Google Home reports "unknown")."""
+# AUTO's picks where a skin gives none (the legacy skin gives none: its AUTO is unchanged)
+BASE_ROUTING = {"headphones": "SUIT", "speaker": "HOLOGRAM", "bt_speaker": "HOLOGRAM"}
+_ROUTING_KEYS = {"headphones": "headphones", "speaker": "speaker", "bt_speaker": "btSpeaker"}
+
+
+def classify(sink):
+    """One pactl sink → "headphones" | "bt_speaker" | "speaker".
+    Personal: anything that says headphone / headset (Bluetooth, the jack), and any USB audio device: USB
+    headsets and dongles report a plain "USB Audio" card with an "analog-output-speaker" port and no form
+    factor, so the name can't be trusted. A Bluetooth sink that isn't a headset is a Bluetooth speaker
+    (the Google Home reports "unknown"). Everything else (the laptop speakers, HDMI / DisplayPort
+    monitors) is a speaker."""
+    p = sink.get("properties", {})
+    hints = " ".join(str(x) for x in (p.get("device.form_factor"), p.get("device.icon_name"), sink.get("active_port")))
+    if re.search(r"head(phone|set)", hints, re.I) or p.get("device.bus") == "usb":
+        return "headphones"
+    if p.get("device.bus") == "bluetooth" or str(p.get("device.api", "")).startswith("bluez"):
+        return "bt_speaker"
+    return "speaker"
+
+
+def output_kind():
+    """What the default output is (classify()); "speaker" if it can't be read."""
     try:
         default = subprocess.run(["pactl", "get-default-sink"], capture_output=True, text=True, timeout=2).stdout.strip()
         sinks = json.loads(subprocess.run(["pactl", "-f", "json", "list", "sinks"], capture_output=True,
                                           text=True, timeout=2).stdout)
     except (OSError, ValueError, subprocess.TimeoutExpired):
-        return False
+        return "speaker"
     for s in sinks:
         if s.get("name") == default:
-            p = s.get("properties", {})
-            hints = " ".join(str(x) for x in (p.get("device.form_factor"), p.get("device.icon_name"), s.get("active_port")))
-            return bool(re.search(r"head(phone|set)", hints, re.I)) or p.get("device.bus") == "usb"
-    return False
+            return classify(s)
+    return "speaker"
+
+
+def on_headphones():
+    """Is the default output personal (headphones / a headset) rather than a room speaker?"""
+    return output_kind() == "headphones"
 
 
 def forget_auto():
@@ -71,17 +95,33 @@ def forget_auto():
     _auto["at"] = 0.0
 
 
-def resolve(name):
-    """AUTO → SUIT on headphones, HOLOGRAM on speakers (checked at most every 3 s)."""
+def routing(who="jarvis", cfg=None):
+    """AUTO's picks for who in the skin the HUD shows: {headphones, speaker, bt_speaker} → preset name."""
+    from . import persona
+    try:
+        mine = ((persona.skin_data(cfg).get("voiceRouting") or {}).get("friday" if who == "friday" else "jarvis")) or {}
+    except Exception:
+        mine = {}
+    known = presets()
+    out = dict(BASE_ROUTING)
+    for kind, key in _ROUTING_KEYS.items():
+        pick = str(mine.get(key) or "").upper()
+        if pick and (pick in known or not known):
+            out[kind] = pick
+    return out
+
+
+def resolve(name, who="jarvis", cfg=None):
+    """AUTO → routing(who)[output kind] (the output checked at most every 3 s); any other name as it is."""
     if name != "AUTO":
         return name
     if time.monotonic() - _auto["at"] > 3:
-        _auto.update(at=time.monotonic(), name="SUIT" if on_headphones() else "HOLOGRAM")
-    return _auto["name"]
+        _auto.update(at=time.monotonic(), kind=output_kind())
+    return routing(who, cfg)[_auto.get("kind", "speaker")]
 
 
-def preset(name):
-    name = resolve(name)
+def preset(name, who="jarvis", cfg=None):
+    name = resolve(name, who, cfg)
     p = presets()
     return p.get(name) or p.get(DEFAULT_PRESET) or {}
 

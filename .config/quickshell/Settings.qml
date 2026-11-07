@@ -674,12 +674,17 @@ PanelWindow {
                     property var voices: ["bm_george"]
                     property var femaleVoices: ["bf_emma"]  // FRIDAY: English female Kokoro voices (jarvis-voices --list)
                     property var effects: ["AUTO", "CLEAN", "HOLOGRAM", "SUIT"]
-                    readonly property var effectHints: ({ AUTO: "SUIT on headphones, HOLOGRAM on speakers", CLEAN: "No processing",
+                    // AUTO: what the skin's routing picks for each output (core/effects.py routing())
+                    function autoHint(who) {
+                        const r = Skin.voiceRouting(who);
+                        return "Headphones " + r.headphones + " · speakers " + r.speaker + " · Bluetooth speaker " + r.btSpeaker;
+                    }
+                    readonly property var effectHints: ({ AUTO: autoHint("jarvis"), CLEAN: "No processing",
                         HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet",
                         CHAMBER: "A small stone room: warm, a little hard-walled", RESONANT: "A faint metallic ring under the voice",
                         ALEMBIC: "Band-limited, glassy, a very short echo" })
                     function fridayFx(dir) {
-                        const v = cycle(["SAME"].concat(effects.filter(e => e !== "AUTO")), Theme.cfg.fridayEffect || "SAME", dir);
+                        const v = cycle(["SAME"].concat(effects), Theme.cfg.fridayEffect || "SAME", dir);
                         return v === "SAME" ? "" : v;
                     }
                     property var speakers: []          // [{mac, name}] paired Bluetooth speakers (not headphones)
@@ -744,7 +749,7 @@ PanelWindow {
                     // the second persona's own effect (fridayEffect); SAME = the one above
                     Stepper {
                         width: parent.width; label: JarvisState.nameOf("friday") + " effect"
-                        hint: Theme.cfg.fridayEffect === "" ? "Same as the voice effect above" : (jarvisPage.effectHints[Theme.cfg.fridayEffect] || "Custom preset · ~/.config/jarvis/effects.json")
+                        hint: Theme.cfg.fridayEffect === "" ? "Same as the voice effect above" : Theme.cfg.fridayEffect === "AUTO" ? jarvisPage.autoHint("friday") : (jarvisPage.effectHints[Theme.cfg.fridayEffect] || "Custom preset · ~/.config/jarvis/effects.json")
                         preview: true; onPlay: jarvisPage.previewFriday()
                         valueText: Theme.cfg.fridayEffect || "SAME"
                         onDec: Theme.cfg.fridayEffect = jarvisPage.fridayFx(-1)

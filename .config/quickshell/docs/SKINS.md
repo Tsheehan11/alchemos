@@ -52,6 +52,7 @@ Installed now:
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `stark-cursor/src`) | `stark-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
+| `voiceRouting` | what the AUTO effect picks per persona and output: `{ jarvis: { headphones, speaker, btSpeaker }, friday: {…} }` (base: SUIT on headphones, HOLOGRAM on any speaker; ALCHEMOS: ORRIN CHAMBER / ALEMBIC / RESONANT, SELENE RESONANT / ALEMBIC / RESONANT) | `jarvis/core/effects.py` routing(), Settings hint |
 
 ### Style tokens
 

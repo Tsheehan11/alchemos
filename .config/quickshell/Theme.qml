@@ -60,7 +60,7 @@ Singleton {
             property int jarvisVoiceVolume: 60        // VOICE VOLUME 0–100 %: Jarvis's voice + chime, a gain after its effects; other audio untouched
             property int jarvisSpeakerVolume: -1      // own level on the Bluetooth speaker, 0–100 %; -1 = same as VOICE VOLUME
             property real jarvisPitch: 0.0            // semitones, on top of the effect preset
-            property string jarvisEffect: "AUTO"      // AUTO = SUIT on headphones, HOLOGRAM on speakers; presets in ~/.config/jarvis/effects.json
+            property string jarvisEffect: "AUTO"      // AUTO = the skin's pick for the output (skin.json voiceRouting); presets in ~/.config/jarvis/effects.json
             property bool jarvisSpeak: true           // spoken replies (the toast shows them either way)
             property bool jarvisDuck: true            // lower the music while Jarvis talks
             property int jarvisFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)

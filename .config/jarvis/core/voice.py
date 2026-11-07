@@ -477,7 +477,8 @@ class Voice:
     def params(self, who=None):
         """(voice, effect preset, speed, pitch) for who's talking (core/persona.py; default: the current
         persona). JARVIS: jarvisVoice / jarvisSpeed / jarvisPitch / jarvisEffect; FRIDAY: her own voice, speed
-        and pitch, and fridayEffect when it's set (else jarvisEffect)."""
+        and pitch, and fridayEffect when it's set (else jarvisEffect). AUTO resolves through the skin's routing for
+        whoever is talking (core/effects.py routing())."""
         try:
             name, speed, pitch = persona.voice_params(self.cfg, who)
         except KeyError:
@@ -489,7 +490,7 @@ class Voice:
                 fx_name = self.cfg["fridayEffect"] or fx_name
             except KeyError:
                 pass
-        fx = effects.preset(fx_name)
+        fx = effects.preset(fx_name, who or persona.current(self.cfg), self.cfg)     # AUTO: this persona's routing
         speed = float(self.overrides.get("speed", speed) or 1.0) * float(fx.get("speed", 1.0))
         pitch = float(self.overrides.get("pitch", pitch) or 0.0) + float(fx.get("pitch", 0.0))
         return name, fx, speed, pitch

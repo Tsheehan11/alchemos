@@ -64,6 +64,9 @@ Singleton {
         style: {},
         namer: null,
         voices: null,
+        // AUTO's effect per output (core/effects.py BASE_ROUTING; skin.json voiceRouting per persona)
+        voiceRouting: { jarvis: { headphones: "SUIT", speaker: "HOLOGRAM", btSpeaker: "HOLOGRAM" },
+                        friday: { headphones: "SUIT", speaker: "HOLOGRAM", btSpeaker: "HOLOGRAM" } },
         hidden: false
     })
     // Default implementations, used when a skin doesn't override them
@@ -157,6 +160,11 @@ Singleton {
     // stark-cursor/build.sh: the skin's busy-cursor template folder ("" = the default art)
     readonly property string cursorDir: resolved.own.cursor && resolved.id !== "base" ? Quickshell.shellPath("skins/" + resolved.id + "/" + resolved.own.cursor) : ""
 
+    // AUTO's effect per output for who: the skin's voiceRouting over the base's
+    function voiceRouting(who) {
+        const w = who === "friday" ? "friday" : "jarvis";
+        return Object.assign({}, base.voiceRouting[w], ((resolved.own.voiceRouting || {})[w]) || {});
+    }
     function persona(who) { return data.personas[who === "friday" ? "friday" : "jarvis"]; }
     function glyphFor(presetName) {
         const p = presets.find(x => x.name === presetName);
