@@ -53,6 +53,24 @@ Singleton {
     readonly property bool metalRule: pick("metalRule", false)      // a brushed-metal rule beside headings
     readonly property real surface: pick("surface", 0)              // 0 = hologram glass, 1 = stone / ink plate (opacity unchanged)
 
+    // ── Numerals and icons ──
+    readonly property string numerals: pick("numerals", "arabic")    // arabic | roman: workspaces, launcher keys, the carousel
+    function numeral(n) {
+        n = Math.floor(Number(n));
+        if (numerals !== "roman" || !(n > 0) || n > 3999) return String(n);
+        const t = [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+        let out = "";
+        for (const [v, r] of t) while (n >= v) { out += r; n -= v; }
+        return out;
+    }
+    // name → an SVG in the skin's folder (SkinIcon.qml recolours it). No entry = the base's text / glyph,
+    // drawn as it always was. Names: cpu gpu ram temp battery wifi wifi-off bluetooth volume volume-mute
+    // mic mic-off vpn bell power
+    readonly property var icons: pick("icons", ({}))
+    function hasIcon(name) { return typeof icons[name] === "string" && icons[name] !== ""; }
+    // extra status icons in the bar's right end, in order (wifi bluetooth volume mic bell); [] = none
+    readonly property var barIndicators: pick("barIndicators", [])
+
     // the background's darkness decides which grain strength applies
     readonly property real grainNow: Theme.luma(Theme.bg) < 0.004 ? grainDark : grain
     readonly property bool engraved: frame === "engraved"

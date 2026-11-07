@@ -64,9 +64,9 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 12
         Text {
-            text: String(look.panel.modelData)
+            text: Style.numeral(look.panel.modelData)
             color: look.panel.front ? Theme.text : Theme.textSoft
-            font.family: Style.fonts.numeric; font.pixelSize: 24; font.letterSpacing: 4
+            font.family: Style.numerals === "roman" ? Style.fonts.display : Style.fonts.numeric; font.pixelSize: 22; font.weight: Font.DemiBold; font.letterSpacing: 4
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter

@@ -102,7 +102,15 @@ PanelWindow {
                 g.strokeStyle = Qt.rgba(c.r, c.g, c.b, 0.35);
                 g.beginPath(); g.arc(cx, cy, r - 8, 0, Math.PI * 2); g.stroke();
             }
+            SkinIcon {
+                id: osdIcon
+                anchors.centerIn: parent
+                name: osd.isVol ? (OsdState.muted || OsdState.value === 0 ? "volume-mute" : "volume") : "brightness"
+                level: osd.shown; size: 26
+                color: osd.accent
+            }
             Text {
+                visible: !osdIcon.present
                 anchors.centerIn: parent
                 text: osd.icon
                 color: osd.accent

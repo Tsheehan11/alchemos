@@ -97,12 +97,14 @@ PanelWindow {
                         border.color: parent.active ? Theme.p(0.5) : Theme.p(0.2)
                     }
 
-                    Text {
+                    Text {      // the skin's numerals (ALCHEMOS: Roman)
                         anchors.centerIn: parent
-                        text: parent.ws
+                        readonly property bool roman: Style.numerals === "roman"
+                        text: Style.numeral(parent.ws)
                         color: parent.active ? Theme.text : Theme.textSoft
-                        font.family: Style.fonts.body
-                        font.pixelSize: 11
+                        font.family: roman ? Style.fonts.label : Style.fonts.body
+                        font.pixelSize: !roman ? 11 : text.length > 2 ? 8 : 10
+                        font.weight: roman ? Font.DemiBold : Font.Normal
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -147,17 +149,33 @@ PanelWindow {
                 // ☽ SELENE; legacy ◉ ◌ ○ JARVIS, ◈ ◇ FRIDAY), in its accent; then ON / OFF / ON (LAPTOP, …)
                 text: (JarvisState.online ? JarvisState.glyph : JarvisState.toggleOn ? JarvisState.glyphStarting : JarvisState.glyphIdle) + " " + JarvisState.name + " " + JarvisState.stateLabel.toUpperCase()
                 color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : JarvisState.accent) : Theme.faint
-                font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1
+                font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 1
             }
-            Text { text: "CPU " + Math.round(SysStats.cpu * 100) + "%"; color: bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
-            Text { text: "GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"); color: bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
-            Text { text: "RAM " + Math.round(SysStats.ram * 100) + "%"; color: bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
-            Text { text: "BAT " + Math.round(SysStats.battery * 100) + "%"; color: SysStats.charging ? "#7cf5c1" : bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
+            // readings: the skin's icon + label + value, or "CPU 34%" as always (BarStat.qml)
+            BarStat { icon: "cpu"; label: "CPU"; value: Math.round(SysStats.cpu * 100) + "%"; color: bar.dim }
+            BarStat { icon: "gpu"; label: "GPU"; value: SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"; color: bar.dim }
+            BarStat { icon: "ram"; label: "RAM"; value: Math.round(SysStats.ram * 100) + "%"; color: bar.dim }
+            BarStat {
+                icon: "battery"; label: "BAT"; showLabel: false
+                value: Math.round(SysStats.battery * 100) + "%"; level: SysStats.battery; charging: SysStats.charging
+                color: SysStats.charging ? "#7cf5c1" : bar.dim
+            }
             Text {
-                visible: VPN.connected || VPN.busy || VPN.blocked
+                visible: (VPN.connected || VPN.busy || VPN.blocked) && !Style.hasIcon("vpn")
                 text: String.fromCodePoint(0xF0582) + " " + (VPN.blocked ? "VPN DOWN · BLOCKED" : VPN.busy ? "VPN…" : (VPN.current.countryCode || "VPN"))
                 color: VPN.blocked ? "#ff5f5f" : VPN.busy ? Theme.secondary : bar.cyan
                 font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
+            }
+            Row {        // the skin's ward icon instead of the nerd glyph
+                visible: (VPN.connected || VPN.busy || VPN.blocked) && Style.hasIcon("vpn")
+                spacing: 5
+                readonly property color tone: VPN.blocked ? "#ff5f5f" : VPN.busy ? Theme.secondary : bar.cyan
+                SkinIcon { anchors.verticalCenter: parent.verticalCenter; name: "vpn"; color: parent.tone; size: 15 }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: VPN.blocked ? "DOWN · BLOCKED" : VPN.busy ? "…" : (VPN.current.countryCode || "VPN")
+                    color: parent.tone; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
+                }
             }
             // Hyprland 0.57 (the unplug-crash fix) out or installed: HyprFix.qml
             Text { visible: bar.isMain && HyprFix.pending; text: HyprFix.label; color: Theme.secondary; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
@@ -167,7 +185,28 @@ PanelWindow {
                 visible: GameMode.active
                 text: String.fromCodePoint(0xF0170) + (GameMode.batteryWarn ? " COMBAT · BATTERY" : " COMBAT")
                 color: GameMode.batteryWarn ? "#ff5f5f" : Theme.secondary
-                font.family: Style.fonts.label; font.pixelSize: 12; font.bold: true; font.letterSpacing: 2
+                font.family: Style.fonts.body; font.pixelSize: 12; font.bold: true; font.letterSpacing: 2
+            }
+            // the skin's status icons (Style.barIndicators; none in the base look)
+            Repeater {
+                model: Style.barIndicators
+                delegate: SkinIcon {
+                    required property string modelData
+                    anchors.verticalCenter: parent.verticalCenter
+                    readonly property var st: ({
+                        wifi: { name: Indicators.wifi > 0 ? "wifi" : "wifi-off", level: Indicators.wifi, dim: Indicators.wifi <= 0 },
+                        bluetooth: { name: "bluetooth", level: 1, dim: !Indicators.btConnected, hide: !Indicators.btOn },
+                        volume: { name: Indicators.muted ? "volume-mute" : "volume", level: Indicators.volume, dim: Indicators.muted },
+                        mic: { name: Indicators.micMuted ? "mic-off" : "mic", level: 1, dim: false, hide: !Indicators.micMuted },
+                        bell: { name: "bell", level: 1, dim: Indicators.dnd }
+                    }[modelData] || { name: modelData, level: 1, dim: false })
+                    name: st.name; level: st.level
+                    visible: !st.hide
+                    color: st.dim ? Theme.faint : Theme.textSoft
+                    size: 16
+                    Component.onCompleted: Indicators.show(modelData, 1)
+                    Component.onDestruction: Indicators.show(modelData, -1)
+                }
             }
             // the skin's mark: ALCHEMOS the sign of the metal in use (☉ for a custom preset), legacy ◈
             Text { text: Skin.text.mark || Skin.glyphFor(Theme.cfg.preset) || "☉"; color: bar.cyan; font.family: Style.fonts.glyph; font.pixelSize: 13 }

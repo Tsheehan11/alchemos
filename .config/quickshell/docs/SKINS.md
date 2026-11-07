@@ -60,6 +60,9 @@ Installed now:
 | `mono` | JetBrainsMono Nerd Font | data, labels, body text |
 | `display`, `displayCaps`, `displayScale` | mono, false, 1 | headings: face, small caps, size |
 | `fonts` | every role = `mono` (display = `display`) | font roles: `display`, `numeric` (clocks, big numbers), `label` (short caps labels), `body` (running text), `mono` (data), `glyph` (a lone mark; base Noto Sans, the face Qt fell back to), `signs` / `signs2` (featured signs), `field` (hyprlock's password field; base Sans). Every Text names one (`tools/fontcheck/fontcheck.py`, part of the skin check); hyprlock's labels take `label` / `numeric` |
+| `numerals` | `arabic` | `arabic` · `roman`: workspace seals, launcher keys, carousel numbers (`Style.numeral(n)`); readouts stay Arabic |
+| `icons` | `{}` | name → SVG in the skin folder (`SkinIcon.qml`: `currentColor` takes the colour; `{{l1}}`–`{{l3}}` level arcs, `{{fy}}` a fill's top, `{{on}}`, `{{chg}}`). Names: cpu gpu ram temp battery wifi wifi-off bluetooth volume volume-mute mic mic-off vpn bell power. Without one, the base's text / glyph stays |
+| `barIndicators` | `[]` | extra status icons at the bar's right end, in order: wifi bluetooth volume mic bell (live state: `Indicators.qml`) |
 | `tabular` | false | the numeric face has proportional figures: `NumText` reserves the widest width so numbers don't shift |
 | `frame` | `holo` | `holo` corner brackets · `engraved` double line with notched corners |
 | `texture` | `holo` | `holo` scanlines / grid · `grain` · `none` |

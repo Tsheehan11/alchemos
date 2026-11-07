@@ -119,13 +119,13 @@ PanelWindow {
 
                 Repeater {
                     model: [
-                        { label: "WI-FI", sub: cc.wifiOn ? (cc.ssid || "on") : "off", on: cc.wifiOn,
+                        { label: "WI-FI", icon: cc.wifiOn ? "wifi" : "wifi-off", sub: cc.wifiOn ? (cc.ssid || "on") : "off", on: cc.wifiOn,
                           act: () => cc.run("nmcli radio wifi " + (cc.wifiOn ? "off" : "on")) },
-                        { label: "BLUETOOTH", sub: cc.btOn ? "on" : "off", on: cc.btOn,
+                        { label: "BLUETOOTH", icon: "bluetooth", sub: cc.btOn ? "on" : "off", on: cc.btOn,
                           act: () => cc.run("bluetoothctl power " + (cc.btOn ? "off" : "on")) },
-                        { label: "MUTE", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
+                        { label: "MUTE", icon: cc.muted ? "volume-mute" : "volume", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
                           act: () => { if (cc.sink && cc.sink.audio) cc.sink.audio.muted = !cc.muted; } },
-                        { label: JarvisState.assistant, on: JarvisState.toggleOn,
+                        { label: JarvisState.assistant, icon: JarvisState.toggleOn ? "mic" : "mic-off", on: JarvisState.toggleOn,
                           sub: !JarvisState.toggleOn ? (JarvisState.docked ? "off" : "off · laptop")
                              : JarvisState.laptopMode ? "on · laptop, until dock change"
                              : JarvisState.online ? "on · listening" : "on · starting…",
@@ -144,13 +144,22 @@ PanelWindow {
                         color: modelData.on ? Theme.p(0.2) : Theme.d(0.9)
                         border.color: modelData.on ? cc.cyan : Theme.p(0.3)
                         border.width: 1
-                        Column {
+                        // the skin's icon for the tile (none in the base look: the text keeps its place)
+                        SkinIcon {
+                            id: tileIcon
                             anchors.left: parent.left; anchors.leftMargin: 14
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: modelData.icon || ""
+                            size: 20
+                            color: modelData.on ? cc.cyan : Theme.faint
+                        }
+                        Column {
+                            anchors.left: parent.left; anchors.leftMargin: 14 + (tileIcon.present ? tileIcon.size + 10 : 0)
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
                             Text { text: modelData.label; color: modelData.on ? Theme.text : cc.dim; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2 }
                             Text {
-                                text: modelData.sub; width: (body.width - 10) / 2 - 28; elide: Text.ElideRight
+                                text: modelData.sub; width: (body.width - 10) / 2 - 28 - (tileIcon.present ? tileIcon.size + 10 : 0); elide: Text.ElideRight
                                 color: modelData.on ? cc.cyan : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                             }
                         }
@@ -180,8 +189,15 @@ PanelWindow {
                         duration: 900; loops: Animation.Infinite; easing.type: Easing.InOutSine
                     }
                 }
-                Column {
+                SkinIcon {
+                    id: vpnIcon
                     anchors.left: parent.left; anchors.leftMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "vpn"; size: 20
+                    color: VPN.blocked ? "#ff5f5f" : vpnTile.on ? cc.cyan : vpnTile.busy ? cc.amber : Theme.faint
+                }
+                Column {
+                    anchors.left: parent.left; anchors.leftMargin: 14 + (vpnIcon.present ? vpnIcon.size + 10 : 0)
                     anchors.right: chips.left; anchors.rightMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 3

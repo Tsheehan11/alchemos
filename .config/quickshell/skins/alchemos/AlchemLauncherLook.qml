@@ -288,9 +288,9 @@ Item {
                     font.family: Style.fonts.display; font.pixelSize: node.app.name.length > 6 ? 9 : 11
                     font.weight: Font.DemiBold; font.letterSpacing: 1
                 }
-                Text {       // the app's key (1–9, 0)
+                Text {       // the app's key (1–9, 0), in the skin's numerals
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: !node.app.available ? "N/A" : node.index < 10 ? String((node.index + 1) % 10) : ""
+                    text: !node.app.available ? "N/A" : node.index < 9 ? Style.numeral(node.index + 1) : node.index === 9 ? "0" : ""
                     color: look.ember; font.family: Style.fonts.label; font.pixelSize: 8; opacity: 0.85
                 }
             }
