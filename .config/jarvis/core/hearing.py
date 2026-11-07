@@ -40,10 +40,14 @@ _FUZZY = rf"(?:{_NAME}|j\w{{2,6}}s|joe\W{{0,2}}(?:vis|fuss)\w*|john)"           
 # Jarvis"), because Friday is also a day he says all the time ("what's due on a Friday", "oh Friday's busy").
 _FGREET = r"(?:hey|hay|hi|okay|ok|yo|hello)"
 _FRIDAY = r"(?:friday|fri day|fryday|frida|fridey)"
-WAKE_PREFIX = re.compile(rf"^\W*(?:(?:{_GREET}\W+)+{_FUZZY}|{_NAME}|(?:{_FGREET}\W+)+{_FRIDAY}|{_FRIDAY}(?=\s*,))\b\W*", re.I)
+# "Hey Orrin" / "Hey Selene" (the ALCHEMOS names' wake words, tools/wakeword/): the same rule as Friday,
+# with how whisper may spell them ("Hey Oren", "Hey Erin", "Hey Celine", "Hey Selena").
+_SKIN = r"(?:orrin|orin|oren|orren|oran|erin|aaron|selene|selena|celine|selina|seline|celene|saleen|selenie)"
+_NAMED = rf"(?:{_FRIDAY}|{_SKIN})"
+WAKE_PREFIX = re.compile(rf"^\W*(?:(?:{_GREET}\W+)+{_FUZZY}|{_NAME}|(?:{_FGREET}\W+)+{_NAMED}|{_NAMED}(?=\s*,))\b\W*", re.I)
 
 
-WAKE_INSIDE = re.compile(rf"\b(?:(?:{_GREET}\W+)+{_FUZZY}|(?:{_FGREET}\W+)+{_FRIDAY})\b\W*", re.I)
+WAKE_INSIDE = re.compile(rf"\b(?:(?:{_GREET}\W+)+{_FUZZY}|(?:{_FGREET}\W+)+{_NAMED})\b\W*", re.I)
 
 
 def strip_wake(text, anywhere=False):

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Training environment for a custom openWakeWord model ("hey friday"), CPU only.
+# Training environment for custom openWakeWord models (hey friday, hey orrin, hey selene), CPU only.
 # Everything big lives in ~/.local/share/jarvis/wake-train (untracked): its own venv
 # (torch etc. stay out of Jarvis's venv), piper-sample-generator + its LibriTTS-R model,
 # room impulse responses, background audio, and the precomputed negative features.
@@ -69,7 +69,18 @@ if [ ! -s "$VAL" ] || [ "$(stat -c %s "$VAL")" -lt 184836608 ]; then
     curl -L --fail -C - -o "$VAL" "$HF/davidscripka/openwakeword_features/resolve/main/validation_set_features.npy"
 fi
 
-# negative training features: first NEG_GB of ACAV100M
+# negative training features. ACAV=full (pipeline.py): all 17 GB / 2000 h, resumable (curl -C -), header as is.
+if [ "${ACAV:-}" = full ]; then
+    FULL=data/acav100m_full.npy
+    URL="$HF/davidscripka/openwakeword_features/resolve/main/openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
+    SIZE=$(curl -sIL "$URL" | tr -d '\r' | awk 'tolower($1)=="content-length:"{n=$2} END{print n}')
+    if [ ! -s "$FULL" ] || [ "$(stat -c %s "$FULL")" -lt "${SIZE:-1}" ]; then
+        curl -sS -L --fail -C - --retry 20 --retry-delay 30 -o "$FULL.part" "$URL"   # quiet: the log is line based
+        mv "$FULL.part" "$FULL"
+    fi
+    $PY -c "import numpy as np; a = np.load('$FULL', mmap_mode='r'); print('ACAV100M windows:', a.shape)"
+fi
+# negative training features: first NEG_GB of ACAV100M (the hey_friday run)
 NEG=data/acav100m_part.npy
 if [ ! -s "$NEG" ]; then
     BYTES=$(( NEG_GB * 1024 * 1024 * 1024 ))

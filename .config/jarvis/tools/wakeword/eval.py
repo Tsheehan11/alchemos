@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-How good is the trained "hey friday" model, measured the way Jarvis listens (score ≥ threshold, then the
+How good is a trained wake word model (--word hey_orrin; default hey_friday), measured the way Jarvis listens (score ≥ threshold, then the
 model is reset, so one utterance fires once):
 
   recall             held-out positive clips (speakers / voices training never saw), with the training
@@ -14,7 +14,9 @@ Picks the threshold (highest recall, at least MIN_RECALL, with ≤ MAX_FP_H fals
 validation set, none on the desk recordings, ≤ 5 % adversarial accepts) and with --install puts the model where Jarvis loads it:
 ~/.local/share/jarvis/wake/hey_friday.onnx + hey_friday.json {threshold, …}.
 
-  ~/.config/jarvis/.venv/bin/python tools/wakeword/eval.py [--install]
+  ~/.config/jarvis/.venv/bin/python tools/wakeword/eval.py --word hey_orrin [--report] [--install]
+
+--report writes $W/out/<word>/eval.json (what `jarvis wake status` and `jarvis wake enable` read).
 """
 import argparse
 import json
@@ -29,7 +31,8 @@ import numpy as np
 
 W = Path(os.environ.get("WAKE_TRAIN_DIR", Path.home() / ".local/share/jarvis/wake-train"))
 OUT = W / "out"
-MODEL = OUT / "hey_friday.onnx"
+MODEL = OUT / "hey_friday.onnx"   # main() points it at --word
+WORD = "hey_friday"
 REC = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "jarvis/rec"
 DEST = Path.home() / ".local/share/jarvis/wake"
 THRESHOLDS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
@@ -94,6 +97,7 @@ def desk(thresholds):
     from openwakeword.model import Model
     files = sorted(REC.glob("*.wav"))
     m = Model(wakeword_models=["hey_jarvis", str(MODEL)], inference_framework="onnx")
+    key = MODEL.stem
     total_s, fired, jarvis_files = 0.0, {t: 0 for t in thresholds}, 0
     worst = []
     for f in files:
@@ -109,7 +113,7 @@ def desk(thresholds):
         fs, js = [], []
         for i in range(0, len(a) - 1279, 1280):
             p = m.predict(a[i:i + 1280])
-            fs.append(p.get("hey_friday", 0.0))
+            fs.append(p.get(key, 0.0))
             js.append(p.get("hey_jarvis", 0.0))
         fs = np.array(fs)
         if max(js or [0]) >= 0.4:
@@ -125,13 +129,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--install", action="store_true")
     ap.add_argument("--no-desk", action="store_true")
+    ap.add_argument("--word", default="hey_friday")
+    ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
+    global MODEL, WORD
+    WORD, MODEL = a.word, OUT / f"{a.word}.onnx"
     if not MODEL.exists():
         sys.exit(f"no model at {MODEL} (run tools/wakeword/train.sh)")
     t0 = time.time()
     sess, name = session()
     n_in = sess.get_inputs()[0].shape[1]
-    feat = OUT / "hey_friday"
+    feat = OUT / WORD
 
     pos = clip_max(sess, name, np.load(feat / "positive_features_test.npy"))
     adv = clip_max(sess, name, np.load(feat / "negative_features_test.npy"))
@@ -147,24 +155,27 @@ def main():
     if not a.no_desk and REC.exists():
         hours, fired, nfiles, jf, worst = desk(THRESHOLDS)
         report["desk"] = {"hours": round(hours, 2), "files": nfiles, "files_hey_jarvis_fired": jf,
-                          "friday_false_triggers": fired, "highest": worst}
+                          "false_triggers": fired, "highest": worst}
     ok = [t for t in THRESHOLDS if rows[t]["fp_per_hour"] <= MAX_FP_H and rows[t]["adversarial"] <= 0.05
           and rows[t]["recall"] >= MIN_RECALL
-          and report.get("desk", {}).get("friday_false_triggers", {}).get(t, 0) == 0]
+          and report.get("desk", {}).get("false_triggers", {}).get(t, 0) == 0]
     pick = max(ok, key=lambda t: (rows[t]["recall"], -t)) if ok else None
     report["threshold"] = pick
     report["eval_s"] = round(time.time() - t0)
+    report["word"], report["date"] = WORD, time.strftime("%Y-%m-%d %H:%M")
     print(json.dumps(report, indent=1))
+    if a.report:
+        (feat / "eval.json").write_text(json.dumps(report, indent=1) + "\n")
     if a.install:
         if pick is None:
             sys.exit("no threshold meets the bar: not installing (Jarvis keeps both personas on \"hey Jarvis\")")
         DEST.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(MODEL, DEST / "hey_friday.onnx")
-        (DEST / "hey_friday.json").write_text(json.dumps({
+        shutil.copy2(MODEL, DEST / f"{WORD}.onnx")
+        (DEST / f"{WORD}.json").write_text(json.dumps({
             "threshold": pick, "recall": rows[pick]["recall"], "fp_per_hour": round(rows[pick]["fp_per_hour"], 3),
-            "adversarial": rows[pick]["adversarial"], "desk": report.get("desk", {}).get("friday_false_triggers", {}).get(pick),
+            "adversarial": rows[pick]["adversarial"], "desk": report.get("desk", {}).get("false_triggers", {}).get(pick),
             "desk_hours": report.get("desk", {}).get("hours"), "trained": time.strftime("%Y-%m-%d")}, indent=1) + "\n")
-        print(f"installed → {DEST / 'hey_friday.onnx'} (threshold {pick})")
+        print(f"installed → {DEST / (WORD + '.onnx')} (threshold {pick})")
 
 
 if __name__ == "__main__":

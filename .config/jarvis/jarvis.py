@@ -91,6 +91,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["calendar"]:
     sys.path.insert(0, str(JARVIS_DIR / "mcp"))
     import google_api                      # log / undo of Jarvis's calendar writes
     sys.exit(google_api.calendar_cli(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["wake"]:
+    from core import wake                  # status / record / test / enable / disable custom wake words
+    sys.exit(wake.cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["feed"]:
     from core import feed                  # calendar / due / weather data for the HUD widgets (no Claude)
     sys.exit(feed.main(sys.argv[2:]))
@@ -119,11 +122,10 @@ from core import config as C  # noqa: E402
 
 # ── Wake word / speech-to-text ──────────────────
 WAKEWORD = "hey_jarvis"
-# "hey friday": a custom openWakeWord model (tools/wakeword/), loaded when it's there. Its own threshold
-# sits next to it (hey_friday.json, from tools/wakeword/eval.py). Without it both personas answer
-# "hey Jarvis" (the active one does).
-FRIDAY_WAKE = C.DATA_DIR / "wake/hey_friday.onnx"
-WAKE_PERSONA = {"hey_jarvis": "jarvis", "hey_friday": "friday"}
+# Custom openWakeWord models (tools/wakeword/, installed by `jarvis wake enable`): DATA_DIR/wake/<word>.onnx,
+# each with its threshold + persona in <word>.json (core/wake.installed()). "hey Jarvis" is always loaded
+# as well and stays the fallback; a persona without a word of its own answers it (the active one does).
+WAKE_PERSONA = {"hey_jarvis": "jarvis"}         # load() adds the installed words
 NEAR_MISS = 0.15           # wake scores above this (but under THRESHOLD) are traced as near misses
 THRESHOLD = 0.4            # real "hey Jarvis" at the desk peaks at 0.83-1.0; nothing else got past 0.25
 BARGE_THRESHOLD = 0.3      # over its own voice (which never scored above 0.21) "hey Jarvis" is harder to hear
@@ -834,7 +836,7 @@ class VoiceLoop:
         self.announcer = None
         self.near = 0.0                                   # peak of a wake score that didn't reach THRESHOLD
         self.spec = None                                  # listen()'s early transcription, if still valid
-        self.thresholds = {WAKEWORD: THRESHOLD}           # per wake model (load() adds hey_friday)
+        self.thresholds = {WAKEWORD: THRESHOLD}           # per wake model (load() adds the custom words)
         self.woke_as = None
 
     def load(self):
@@ -846,15 +848,18 @@ class VoiceLoop:
             log("JARVIS: laptop mode (switched on undocked): no academic sync, watchers or room speaker")
         log("JARVIS: loading models…")
         openwakeword.utils.download_models([WAKEWORD])
-        models, self.thresholds = [WAKEWORD], {WAKEWORD: THRESHOLD}
-        if FRIDAY_WAKE.exists():
-            models.append(str(FRIDAY_WAKE))
-            try:
-                self.thresholds["hey_friday"] = float(json.loads(FRIDAY_WAKE.with_suffix(".json").read_text())["threshold"])
-            except (OSError, ValueError, KeyError, TypeError):
-                self.thresholds["hey_friday"] = 0.5
-            log(f"JARVIS: \"hey Friday\" wake word loaded (threshold {self.thresholds['hey_friday']})")
-        self.wake = Model(wakeword_models=models, inference_framework="onnx")
+        from core import wake
+        models, self.thresholds, verifiers = [WAKEWORD], {WAKEWORD: THRESHOLD}, {}
+        for w in wake.installed():
+            models.append(w["path"])
+            self.thresholds[w["name"]] = w["threshold"]
+            WAKE_PERSONA[w["name"]] = w["persona"]
+            if w["verifier"]:
+                verifiers[w["name"]] = w["verifier"]
+            log(f"JARVIS: wake word {w['name']} loaded for {w['persona']} (threshold {w['threshold']}"
+                f"{', custom verifier' if w['verifier'] else ''})")
+        kw = {"custom_verifier_models": verifiers, "custom_verifier_threshold": wake.VERIFIER_THRESHOLD} if verifiers else {}
+        self.wake = Model(wakeword_models=models, inference_framework="onnx", **kw)
         self.woke_as = None            # persona the last wake word named (None: only "hey Jarvis" is known)
         self.vad = VAD()
         self.stt = hearing.STT(WHISPER_MODEL)
@@ -867,7 +872,7 @@ class VoiceLoop:
         from core.status import Status
         self.status = self.j.status = Status(log=log)
         self.mic.status_cb = self.status.mic
-        self.status.set("wake", ["jarvis"] + (["friday"] if "hey_friday" in self.thresholds else []))
+        self.status.set("wake", list(dict.fromkeys(["jarvis"] + [WAKE_PERSONA[k] for k in self.thresholds if k != WAKEWORD])))
         atexit.register(self.status.close)
         try:
             self.status.usage(self.j.brain)

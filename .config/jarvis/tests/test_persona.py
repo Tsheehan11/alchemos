@@ -134,7 +134,10 @@ from core.hearing import strip_wake  # noqa: E402
 for raw, want in [("Hey Friday, dim the lights.", "dim the lights."), ("Friday, switch to Jarvis.", "switch to Jarvis."),
                   ("Hey Friday.", ""), ("Hey Jarvis, switch to Friday.", "switch to Friday."),
                   ("What is due on a Friday?", "What is due on a Friday?"), ("Oh Friday is busy.", "Oh Friday is busy."),
-                  ("Friday night plans?", "Friday night plans?"), ("Hey Joe, visit volume up.", "volume up.")]:
+                  ("Friday night plans?", "Friday night plans?"), ("Hey Joe, visit volume up.", "volume up."),
+                  ("Hey Orrin, dim the lights.", "dim the lights."), ("Hey Oren. What time is it?", "What time is it?"),
+                  ("Hey Selene, play music.", "play music."), ("Hey Celine, pause.", "pause."), ("Selene, stop.", "stop."),
+                  ("Erin said hi.", "Erin said hi."), ("Orange juice on the list.", "Orange juice on the list.")]:
     check(f"strip {raw!r}", strip_wake(raw), want)
 
 # ── HUD text is styled, the IPC function names aren't ──

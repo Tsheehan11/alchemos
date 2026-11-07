@@ -5,12 +5,13 @@ runs (no pickled models): piper's en_US-libritts_r-medium ONNX voice (904 LibriT
 the same speaker set piper-sample-generator uses) for ~75 %, Kokoro's English voices and random
 blends of two of them (new "speakers") for the rest. Varied speed and noise, a few prosody variants.
 
-Writes 16 kHz mono WAVs into $W/out/hey_friday/{positive,negative}_{train,test}; train.py's
---generate_clips then sees enough clips and skips its own generator, and --augment_clips /
---train_model run as usual. Held-out speakers: test clips use speakers / voices train never sees.
+Writes 16 kHz mono WAVs into $W/out/<word>/{positive,negative}_{train,test} (counts, phrases, voice
+weights and pitch range from words/<word>.yml via wordcfg.py). Held-out speakers: test clips use
+speakers / voices train never sees. Resumable: each folder is topped up to its count, and a clip is
+written under a .tmp name and renamed, so a crash never leaves a truncated WAV behind.
 
 Run with Jarvis's venv (it has piper + kokoro-onnx):
-  ~/.config/jarvis/.venv/bin/python tools/wakeword/gen_clips.py [--n 8000 --n-val 2000 --workers 6]
+  ~/.config/jarvis/.venv/bin/python tools/wakeword/gen_clips.py --word hey_orrin [--workers 12]
 """
 import argparse
 import os
@@ -26,17 +27,11 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent.parent))
-W = Path(os.environ.get("WAKE_TRAIN_DIR", Path.home() / ".local/share/jarvis/wake-train"))
-OUT = W / "out/hey_friday"
+sys.path.insert(0, str(HERE))
+import wordcfg  # noqa: E402
+
+W = wordcfg.W
 LIBRITTS = W / "data/piper/en_US-libritts_r-medium.onnx"
-
-POSITIVE = ["hey friday", "hey friday", "hey friday", "hey, friday", "hey friday!", "hey friday?", "hey friday."]
-
-
-def negatives():
-    import yaml
-    cfg = yaml.safe_load((HERE / "hey_friday.yml").read_text())
-    return cfg["custom_negative_phrases"]
 
 
 def kokoro_names():
@@ -71,8 +66,9 @@ def to16k(a, sr):
 
 
 def render(job):
-    """job: (path, text, engine, voice spec, speed, seed) → seconds of audio (0 on failure)."""
-    path, text, engine, spec, speed, seed = job
+    """job: (path, text, engine, voice spec, speed, pitch, seed) → seconds of audio (0 on failure).
+    pitch: resample factor (> 1 = higher and shorter, formants move with it, like a smaller speaker)."""
+    path, text, engine, spec, speed, pitch, seed = job
     rng = random.Random(seed)
     k, p = _engines()
     try:
@@ -87,55 +83,70 @@ def render(job):
             style = k.get_voice_style(a_name) * (1 - w) + k.get_voice_style(b_name) * w if b_name else a_name
             lang = "en-gb" if a_name.startswith("b") else "en-us"
             a, sr = k.create(text, voice=style, speed=speed, lang=lang)
-        a = to16k(np.asarray(a, np.float32), sr)
+        a = to16k(np.asarray(a, np.float32), int(round(sr * pitch)))
         peak = np.abs(a).max() or 1.0
         a = a / peak * rng.uniform(0.3, 0.9)
-        with wave.open(str(path), "wb") as f:
+        tmp = path.with_suffix(".tmp")
+        with wave.open(str(tmp), "wb") as f:
             f.setnchannels(1); f.setsampwidth(2); f.setframerate(16000)
             f.writeframes((a * 32767).astype(np.int16).tobytes())
+        os.replace(tmp, path)
         return len(a) / 16000
     except Exception as e:
         print(f"clip failed ({engine} {spec}): {e}", flush=True)
         return 0.0
 
 
-def jobs_for(folder, texts, n, split, rng):
-    """split: train speakers = LibriTTS ids not ≡ 0 (mod 7) + 80 % of Kokoro voices; test = the rest."""
+def jobs_for(folder, texts, n, split, rng, cfg):
+    """split: train speakers = LibriTTS ids not ≡ 0 (mod 7) + 80 % of Kokoro voices; test = the rest.
+    The favourite voices (his picks) always train and get favourite_share of the Kokoro clips."""
     kv = kokoro_names()
+    fav = [v for v in cfg.get("favourite_voices", []) if v in kv]
     rng_v = random.Random(7)
-    kv_test = set(rng_v.sample(kv, max(3, len(kv) // 5)))
+    rest = [v for v in kv if v not in fav]
+    kv_test = set(rng_v.sample(rest, max(3, len(rest) // 5)))
     kv_pool = [v for v in kv if (v in kv_test) == (split == "test")]
+    fav = fav if split == "train" else []
+    k_share, f_share, p_rng = cfg.get("kokoro_share", 0.25), cfg.get("favourite_share", 0.0), cfg.get("pitch_range", 0.0)
     lib = [i for i in range(904) if (i % 7 == 0) == (split == "test")]
     folder.mkdir(parents=True, exist_ok=True)
+    for t in folder.glob("*.tmp"):
+        t.unlink()
     have = len(list(folder.glob("*.wav")))
     out = []
     for _ in range(max(0, n - have)):
         text = rng.choice(texts)
         speed = rng.uniform(0.8, 1.3)
-        if rng.random() < 0.75:
+        if rng.random() >= k_share:
             job = ("piper", rng.choice(lib))
+        elif fav and rng.random() < f_share:
+            a = rng.choice(fav)          # his pick, pure or lightly blended
+            b = rng.choice(kv_pool) if rng.random() < 0.3 else None
+            job = ("kokoro", (a, b, rng.uniform(0.1, 0.35) if b else 0.0))
         else:
             a = rng.choice(kv_pool)
             b = rng.choice(kv_pool) if rng.random() < 0.6 else None
             job = ("kokoro", (a, b, rng.uniform(0.2, 0.8) if b else 0.0))
-        out.append((folder / (uuid.uuid4().hex + ".wav"), text, job[0], job[1], speed, rng.random()))
+        pitch = 1.0 + rng.uniform(-p_rng, p_rng)
+        out.append((folder / (uuid.uuid4().hex + ".wav"), text, job[0], job[1], speed, pitch, rng.random()))
     return out
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n", type=int, default=8000)
-    ap.add_argument("--n-val", type=int, default=2000)
+    ap.add_argument("--word", default="hey_friday")
     ap.add_argument("--workers", type=int, default=6)
     args = ap.parse_args()
     if not LIBRITTS.exists():
         sys.exit(f"missing {LIBRITTS} (setup.sh downloads it)")
-    rng = random.Random(1234)
-    neg = negatives()
-    jobs = (jobs_for(OUT / "positive_train", POSITIVE, args.n, "train", rng)
-            + jobs_for(OUT / "positive_test", POSITIVE, args.n_val, "test", rng)
-            + jobs_for(OUT / "negative_train", neg, args.n, "train", rng)
-            + jobs_for(OUT / "negative_test", neg, args.n_val, "test", rng))
+    cfg = wordcfg.load(args.word)
+    out = W / "out" / args.word
+    rng = random.Random(1234 + len(list(out.glob("*/*.wav"))))      # a resumed run doesn't redo the same draws
+    pos, neg = cfg["positive_texts"], cfg["custom_negative_phrases"]
+    jobs = (jobs_for(out / "positive_train", pos, cfg["n_positive_train"], "train", rng, cfg)
+            + jobs_for(out / "positive_test", pos, cfg["n_positive_test"], "test", rng, cfg)
+            + jobs_for(out / "negative_train", neg, cfg["n_negative_train"], "train", rng, cfg)
+            + jobs_for(out / "negative_test", neg, cfg["n_negative_test"], "test", rng, cfg))
     rng.shuffle(jobs)
     t0 = time.time()
     print(f"{len(jobs)} clips to render with {args.workers} workers", flush=True)

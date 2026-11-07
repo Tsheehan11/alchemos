@@ -1,0 +1,28 @@
+# AlchemOS: unattended "hey Orrin" / "hey Selene" wake-word training (~/.config/jarvis/tools/wakeword/pipeline.py).
+# Enabled while training is unfinished, so it resumes after a reboot or crash; the pipeline disables it
+# when both words are done. It pauses itself on battery, undocked or in combat mode (SIGSTOP, then SIGCONT).
+#   jarvis wake status                     one line: stage, progress, ETA
+#   ~/.local/share/jarvis/wake-train/train.log
+#   systemctl --user stop jarvis-wake-train      (resumes from the last checkpoint on the next start)
+[Unit]
+Description=AlchemOS wake-word training (hey Orrin, hey Selene)
+After=network-online.target
+StartLimitIntervalSec=3600
+StartLimitBurst=6
+
+[Service]
+Type=exec
+WorkingDirectory=%h/.local/share/jarvis/wake-train
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.config/jarvis/.venv/bin/python %h/.config/jarvis/tools/wakeword/pipeline.py
+Restart=on-failure
+RestartSec=60
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=batch
+KillMode=control-group
+TimeoutStopSec=30
+SyslogIdentifier=wake-train
+
+[Install]
+WantedBy=default.target
