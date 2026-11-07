@@ -25,6 +25,7 @@ Usage:
   stark-govee home [--clear]            remember the current network as home
   stark-govee override <hud> <strip>    send <strip> whenever the theme uses <hud>
   stark-govee override <hud> --clear    remove one (no args: list them)
+  stark-govee calibrate [--show|--reset] test colours on the strip, nudge r/g/b per hue, saved as hue_balance
   stark-govee oneshot <name>            play an animation without the daemon
   stark-govee scan
 """
@@ -50,7 +51,11 @@ DEFAULTS = {
     "music_gain": 1.0,
     "silence_seconds": 3.0,    # auto mode drops back to theme after this much silence
     "gamma": 2.2,              # LED hue correction: screen colours look washed/purple without it
+                               # (a number, or [r, g, b] for a gamma per channel)
     "white_balance": [1.0, 1.0, 1.0],  # per-channel trim (r, g, b) if whites look tinted
+    # hue-dependent channel balance (stark-govee calibrate): {"hue°": [r, g, b] gains}, every 15°, linearly
+    # interpolated round the colour wheel, scaled by saturation (whites/greys untouched), brightness kept.
+    # Absent = HUE_BALANCE below; hues not listed = [1, 1, 1].
     "require_docked": True,    # only light up with an external monitor connected
     "home_gateways": [],       # router MACs that count as home (set with: stark-govee home)
     "strip_overrides": {},     # {"#hudcolour": "#stripcolour"} for colours LEDs render badly
@@ -205,12 +210,64 @@ def wait_for_route(ip, timeout):
     return False
 
 
-def correct(c, gamma, wb):
-    """Gamma-correct the hue while keeping brightness (the max channel) linear."""
+# The strip's blue emitters read far stronger than its red ones: with gamma alone, a little blue in a
+# pink or magenta turns it purple, and a little green/blue in a red turns it pink (the reason for the
+# first strip_overrides). Starting point, tuned with `stark-govee calibrate`.
+HUE_BALANCE = {0: (1.0, 0.5, 0.45), 15: (1.0, 0.65, 0.6), 30: (1.0, 0.85, 0.85),
+               300: (1.0, 1.0, 0.85), 315: (1.0, 0.92, 0.7), 330: (1.0, 0.85, 0.6), 345: (1.0, 0.75, 0.6)}
+HUE_STEP = 15
+SAT_FULL = 0.6       # saturation from which a hue gets its whole correction (less: proportionally less)
+
+
+def _hue_sat(c):
+    mx, mn = max(c), min(c)
+    if mx <= 0 or mx == mn:
+        return 0.0, 0.0
+    r, g, b = c
+    d = mx - mn
+    h = ((g - b) / d) % 6 if mx == r else (b - r) / d + 2 if mx == g else (r - g) / d + 4
+    return h * 60.0, d / mx
+
+
+def hue_table(raw):
+    """{"330": [r, g, b], …} (config) or HUE_BALANCE → a full knot list, one per HUE_STEP degrees."""
+    src = HUE_BALANCE if raw is None else raw
+    knots = []
+    for k in range(0, 360, HUE_STEP):
+        v = src.get(k, src.get(str(k))) if isinstance(src, dict) else None
+        try:
+            knots.append(tuple(float(x) for x in v)[:3] if v is not None and len(v) >= 3 else (1.0, 1.0, 1.0))
+        except (TypeError, ValueError):
+            knots.append((1.0, 1.0, 1.0))
+    return knots
+
+
+def hue_gain(h, knots):
+    """Channel gains at hue h (degrees): linear between the two neighbouring knots."""
+    f = (h % 360) / HUE_STEP
+    i = int(f) % len(knots)
+    j = (i + 1) % len(knots)
+    t = f - int(f)
+    return tuple(a + (b - a) * t for a, b in zip(knots[i], knots[j]))
+
+
+def correct(c, gamma, wb, knots=None):
+    """Gamma-correct the hue while keeping brightness (the max channel) linear, then the hue-dependent
+    channel balance (scaled by saturation; the brightest channel keeps its level), then white balance."""
     m = max(c)
     if m <= 0:
         return (0, 0, 0)
-    return tuple(m * ((x / m) ** gamma) * g for x, g in zip(c, wb))
+    gs = gamma if isinstance(gamma, (tuple, list)) else (gamma,) * 3
+    out = [m * ((x / m) ** g) for x, g in zip(c, gs)]
+    if knots:
+        h, sat = _hue_sat(c)
+        w = min(1.0, sat / SAT_FULL)
+        if w > 0:
+            gain = [1 + (k - 1) * w for k in hue_gain(h, knots)]
+            top = max(range(3), key=lambda i: out[i])
+            norm = gain[top] or 1.0
+            out = [x * k / norm for x, k in zip(out, gain)]
+    return tuple(x * g for x, g in zip(out, wb))
 
 
 # ---------- "docked at home" gate ----------
@@ -320,12 +377,17 @@ def wait_ready(cfg, ip, timeout, check_strip):
 
 
 def _calib(cfg):
+    """→ (gamma (number or [r, g, b]), white balance, hue-balance knots)."""
+    knots = hue_table(cfg.get("hue_balance"))
     try:
-        g = float(cfg.get("gamma", 2.2))
+        g = cfg.get("gamma", 2.2)
+        g = tuple(clamp(float(x), 1.0, 3.5) for x in g)[:3] if isinstance(g, (list, tuple)) else clamp(float(g), 1.0, 3.5)
+        if isinstance(g, tuple) and len(g) != 3:
+            g = 2.2
         wb = tuple(float(x) for x in cfg.get("white_balance", (1, 1, 1)))[:3]
-        return clamp(g, 1.0, 3.5), wb if len(wb) == 3 else (1.0, 1.0, 1.0)
+        return g, wb if len(wb) == 3 else (1.0, 1.0, 1.0), knots
     except (TypeError, ValueError):
-        return 2.2, (1.0, 1.0, 1.0)
+        return 2.2, (1.0, 1.0, 1.0), knots
 
 
 def _seg_cfg(cfg):
@@ -363,9 +425,9 @@ def make_strip(cfg, ip):
 
 
 class Strip:
-    def __init__(self, ip, max_fps, gamma=2.2, wb=(1.0, 1.0, 1.0), overrides=None,
+    def __init__(self, ip, max_fps, gamma=2.2, wb=(1.0, 1.0, 1.0), knots=None, overrides=None,
                  segments=15, stream=True):
-        self.gamma, self.wb = gamma, tuple(wb)
+        self.gamma, self.wb, self.knots = gamma, tuple(wb), knots
         self.ip = ip
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.min_dt = 1.0 / max(1, max_fps)
@@ -390,10 +452,14 @@ class Strip:
             return False  # off-network / no route: stay silent
 
     def _px(self, c):
-        """Per-colour override, then gamma: applied to every pixel we send."""
+        """Per-colour override, then gamma + hue balance: applied to every pixel we send. An overridden
+        colour was picked by eye under gamma alone, so it skips the hue balance (it looks as it did)."""
         c = tuple(int(round(clamp(x, 0, 255))) for x in c)
-        c = self.ov.get(c, c)
-        return tuple(int(round(clamp(x, 0, 255))) for x in correct(c, self.gamma, self.wb))
+        o = self.ov.get(c)
+        if o is None and c in self.ov.values():      # theme_colors() already swapped it in
+            o = c
+        out = correct(o, self.gamma, self.wb) if o is not None else correct(c, self.gamma, self.wb, self.knots)
+        return tuple(int(round(clamp(x, 0, 255))) for x in out)
 
     def power(self, on):
         self.send("turn", {"value": 1 if on else 0})
@@ -877,7 +943,7 @@ class Daemon:
         self.theme = load_json(THEME, DEFAULT_THEME)
         if self.cfg.get("ip"):
             self.strip.ip = os.environ.get("GOVEE_IP") or self.cfg["ip"]
-        self.strip.gamma, self.strip.wb = _calib(self.cfg)
+        self.strip.gamma, self.strip.wb, self.strip.knots = _calib(self.cfg)
         self.strip.ov = overrides_rgb(self.cfg)
         n, stream, self.seg_fps, self.speed = _seg_cfg(self.cfg)
         if n != self.nseg:
@@ -1400,6 +1466,8 @@ def main(argv):
             sys.exit("usage: stark-govee override <hud> <strip>")
         update_config(strip_overrides=ov)
         _poke()
+    elif cmd == "calibrate":
+        calibrate(args)
     elif cmd == "scan":
         for d in scan():
             print(f"{d.get('sku')}  {d['ip']}  {d.get('device')}")
@@ -1412,6 +1480,129 @@ def _poke():
         ask("reload", timeout=2)
     except OSError:
         pass
+
+
+# ---------- calibrate ----------
+CAL_TESTS = [("red", "#ff0000"), ("orange", "#ff7a00"), ("gold", "#ffc04a"), ("green", "#20ff40"),
+             ("cyan", "#00dcff"), ("blue", "#2040ff"), ("violet", "#9a5cff"), ("magenta", "#ff00ff"),
+             ("pink", "#ff6b8a"), ("hot pink", "#ff2a8a"), ("rose", "#ff4f6e"), ("white", "#ffffff")]
+CAL_STEP = 1.12
+
+
+def _knots_cfg(knots):
+    """Only the knots that differ from neutral, as config JSON."""
+    return {str(i * HUE_STEP): [round(x, 3) for x in k] for i, k in enumerate(knots)
+            if any(abs(x - 1) > 1e-3 for x in k)}
+
+
+def calibrate(args):
+    """Show test colours on the strip (through the daemon in manual mode, else directly) next to a swatch
+    in the terminal; nudge r/g/b until the strip matches. Saves hue_balance (and white_balance for white)."""
+    cfg = load_json(CONFIG, DEFAULTS)
+    if "--reset" in args:
+        c = load_json(CONFIG, {})
+        c.pop("hue_balance", None)
+        save_json(CONFIG, c)
+        _poke()
+        print("hue balance back to the built-in starting point")
+        return
+    knots = hue_table(cfg.get("hue_balance"))
+    gamma, wb, _ = _calib(cfg)
+    wb = list(wb)
+    theme = load_json(THEME, DEFAULT_THEME)
+    tests = list(CAL_TESTS)
+    for key in ("primary", "accent"):
+        try:
+            h = _norm(theme.get(key) or "")
+            if h not in [t[1] for t in tests]:
+                tests.insert(0, (f"theme {key}", h))
+        except ValueError:
+            pass
+    sw = lambda rgb: "\x1b[48;2;%d;%d;%dm          \x1b[0m" % tuple(int(x) for x in rgb)
+    show = lambda c: tuple(int(round(clamp(x, 0, 255))) for x in correct(c, gamma, wb, knots))
+    if "--show" in args:
+        for name, h in tests:
+            c = hex_to_rgb(h)
+            print(f"{sw(c)} {name:13} {h} → strip {show(c)}")
+        return
+    try:
+        daemon = json.loads(ask("status", timeout=2))
+    except (OSError, ValueError):
+        daemon = None
+    if daemon and daemon.get("parked"):
+        sys.exit("the daemon has the strip parked (not docked at home): dock first")
+    strip = None
+    if not daemon:
+        if not cfg.get("ip"):
+            sys.exit("no strip configured (stark-govee setup)")
+        strip = make_strip(cfg, os.environ.get("GOVEE_IP") or cfg["ip"])
+        strip.power(True)
+    before = {k: load_json(CONFIG, {}).get(k) for k in ("mode", "manual_color")}
+
+    def push(h):
+        if strip:
+            strip.gamma, strip.wb, strip.knots = gamma, tuple(wb), knots
+            strip.rgb(hex_to_rgb(h), force=True)
+        else:
+            update_config(mode="manual", manual_color=h, hue_balance=_knots_cfg(knots), white_balance=[round(x, 3) for x in wb])
+            _poke()
+
+    def save():
+        update_config(hue_balance=_knots_cfg(knots), white_balance=[round(x, 3) for x in wb])
+
+    print("Compare the strip with the swatch (it's the HUD colour). Type nudges, then Enter:\n"
+          "  r+ r- g+ g- b+ b-   (doubled = twice: b--)   Enter alone = looks right, next\n"
+          "  0 = reset this hue   s = skip   q = save and quit   x = quit without saving\n"
+          "  The brightest channel keeps its level: + on it lowers the others.\n")
+    saved = False
+    try:
+        i = 0
+        while i < len(tests):
+            name, h = tests[i]
+            c = hex_to_rgb(h)
+            push(h)
+            ans = input(f"[{i + 1}/{len(tests)}] {sw(c)} {name:13} {h} → strip {show(c)}  > ").strip().lower()
+            if ans in ("", "s"):
+                i += 1
+                continue
+            if ans == "q":
+                break
+            if ans == "x":
+                print("not saved")
+                return
+            hue, sat = _hue_sat(c)
+            if ans == "0":
+                if sat == 0:
+                    wb[:] = [1.0, 1.0, 1.0]
+                else:
+                    base = hue_table(None)
+                    f = hue % 360 / HUE_STEP
+                    for j in {int(f) % len(knots), (int(f) + 1) % len(knots)}:
+                        knots[j] = base[j]
+                continue
+            for tok in ans.split():
+                if len(tok) < 2 or tok[0] not in "rgb" or set(tok[1:]) - set("+-"):
+                    print(f"  ? {tok}")
+                    continue
+                ch = "rgb".index(tok[0])
+                f = CAL_STEP ** (tok.count("+") - tok.count("-"))
+                if sat == 0:                       # white / grey: the per-channel white balance
+                    wb[ch] = clamp(wb[ch] * f, 0.2, 1.5)
+                    continue
+                pos = hue % 360 / HUE_STEP
+                lo, t = int(pos) % len(knots), pos - int(pos)
+                for j, use in ((lo, t < 0.95), ((lo + 1) % len(knots), t > 0.05)):
+                    if use:
+                        k = list(knots[j])
+                        k[ch] = clamp(k[ch] * f, 0.05, 3.0)
+                        knots[j] = tuple(k)
+        save()
+        saved = True
+        print("saved: hue_balance " + json.dumps(_knots_cfg(knots)) + f", white_balance {[round(x, 3) for x in wb]}")
+    finally:
+        if not strip:
+            update_config(**{k: v for k, v in before.items() if v is not None})
+            _poke()
 
 
 if __name__ == "__main__":
