@@ -19,8 +19,25 @@ ShellRoot {
         ["scene-other", 1280, 800, root.comp("scene"), { doorP: 1, isMain: false }],
         ["scene-opening", 1280, 800, root.comp("scene"), { doorP: 0.6, msgP: 1, message: "WELCOME", submessage: "SKINCHECK", spin: 30, ignite: 0.5 }],
         ["transition", 900, 700, root.comp("transition"), { p: 0.5 }],
-        ["primitives", 760, 560, primitives, {}]
+        ["primitives", 760, 560, primitives, {}],
+        // the HUD's own windows (pin.py makes them Items): [.., props at creation, { arm, settle }]
+        ["background", 1600, 1000, "GridBackground.qml", { modelData: root.screenOf(1600, 1000) }, {}],
+        ["background-live", 1600, 1000, "GridBackground.qml", { modelData: root.screenOf(1600, 1000) },
+            { arm: () => { Perf.time = 13.7; Perf.liveAll = true; }, settle: 1100 }],
+        ["bar", 1600, 34, "Bar.qml", { modelData: root.screenOf(1600, 34) }, {}],
+        ["launcher", 1600, 940, "Launcher.qml", { modelData: root.screenOf(1600, 940) }, { arm: () => LauncherState.open = true, settle: 1500 }],
+        ["launcher-alt", 1600, 940, "Launcher.qml", { modelData: root.screenOf(1600, 940) },
+            { arm: () => { Theme.presetIndex = Math.min(5, Skin.presets.length - 1); LauncherState.open = true; }, settle: 1500 }],
+        ["carousel", 1600, 1000, "Overview.qml", { modelData: root.screenOf(1600, 1000) }, { arm: () => LauncherState.overviewOpen = true, settle: 1200 }],
+        ["osd", 420, 96, "Osd.qml", { modelData: root.screenOf(420, 96) }, {}],
+        ["control", 900, 1000, "ControlCenter.qml", { modelData: root.screenOf(900, 1000), wifiOn: true, ssid: "HOME-5G", btOn: true, brightness: 0.7, powerProfile: "balanced" }, { arm: () => LauncherState.controlOpen = true }]
     ]
+    function screenOf(w, h) { return { name: "DP-1", x: 0, y: 0, width: w, height: h }; }
+    // put back what an entry's arm() changed
+    function disarm() {
+        Perf.liveAll = false; Perf.time = 0; Theme.presetIndex = 0;
+        LauncherState.open = false; LauncherState.overviewOpen = false; LauncherState.controlOpen = false;
+    }
     property int i: -1
     property string loading: ""
     function next() {
@@ -28,11 +45,21 @@ ShellRoot {
         if (i >= gallery.length) { root.checkNamer(); console.log("SKINCHECK done"); Qt.quit(); return; }
         const g = gallery[i];
         if (!g[3] || (Quickshell.env("SKINCHECK_SKIP") || "").split(",").indexOf(g[0]) >= 0) { console.log("SKINCHECK skip " + g[0]); next(); return; }
+        root.disarm();
         stage.width = g[1]; stage.height = g[2];
         root.loading = g[0];
-        ld.props = g[4];
-        if (typeof g[3].createObject === "function") { ld.source = ""; ld.sourceComponent = g[3]; }
-        else { ld.sourceComponent = undefined; ld.source = g[3]; }
+        const opt = g[5];
+        settle.interval = opt && opt.settle ? opt.settle : 700;
+        if (opt) {                    // a window: its required properties at creation, then arm() opens it
+            ld.props = ({});
+            ld.sourceComponent = undefined; ld.source = "";
+            ld.setSource(Qt.resolvedUrl(g[3]), g[4]);
+            if (opt.arm) Qt.callLater(opt.arm);
+        } else {
+            ld.props = g[4];
+            if (typeof g[3].createObject === "function") { ld.source = ""; ld.sourceComponent = g[3]; }
+            else { ld.sourceComponent = undefined; ld.source = g[3]; }
+        }
         settle.restart();
     }
     Timer { interval: 400; running: true; onTriggered: root.next() }
@@ -81,7 +108,7 @@ ShellRoot {
     }
 
     PanelWindow {
-        WlrLayershell.layer: WlrLayer.Background
+        WlrLayershell.layer: WlrLayer.Overlay       // Background gets no frames under a fullscreen window
         WlrLayershell.namespace: "skincheck"
         exclusionMode: ExclusionMode.Ignore
         anchors { top: true; left: true }

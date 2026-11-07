@@ -16,6 +16,9 @@ trap 'rm -rf "$work"' EXIT
 rsync -a --exclude '.git' --exclude 'baseline' --exclude 'tools' "$hud/" "$work/hud/"
 cp "$here"/mocks/*.qml "$work/hud/"
 cp "$here/shell.qml" "$work/hud/shell.qml"
+cp "$here/WinStub.qml" "$work/hud/"
+# the HUD's windows as plain Items, pinned (pin.py)
+python3 -I "$here/pin.py" "$work"/hud/*.qml
 # a fixed time, so clocks render the same every run
 grep -rl 'SystemClock {' "$work/hud" --include='*.qml' | xargs -r sed -i -E \
     's/SystemClock \{ *id: *([a-zA-Z]+)[^}]*\}/QtObject { id: \1; property date date: new Date(2026, 0, 1, 10, 8, 30) }/' 

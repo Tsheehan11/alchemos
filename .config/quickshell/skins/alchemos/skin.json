@@ -13,6 +13,7 @@
     "aliases": { "SOLAR": "AURUM", "ARCTIC": "ARGENT", "MARK III": "IRON", "MATRIX": "VERDIGRIS", "STARK": "MERCURY", "VIBRANIUM": "LEAD" },
     "glyphs": { "ring": ["☉", "☽", "♂", "♀", "☿", "♄"], "sun": "☉" },
     "cursor": "cursor",
+    "components": { "backdrop": "AlchemBackdrop.qml" },
     "style": {
         "display": "Cinzel",
         "displayScale": 1,

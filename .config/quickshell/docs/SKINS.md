@@ -29,8 +29,13 @@ Installed now:
 2. Fill in what you want to change. `_template/skin.json` lists every key with a note (`"//…"` keys are notes).
 3. Switch to it: `qs ipc call skin set nebula`, or Settings → APPEARANCE → SKIN (shown once there is a choice).
 4. Run the check: `~/.config/quickshell/tools/skincheck/check_skins.sh` (also part of `check_all.sh`
-   and the pre-commit hook). It renders the skin's clock, lock scene, transition and the shared
-   primitives offscreen and fails on any QML error or a missing file. `SKINCHECK_KEEP=<dir>` keeps the PNGs.
+   and the pre-commit hook). It renders the skin's clock, lock scene, transition, the shared
+   primitives and the HUD's own windows (background still and live, bar, launcher in two presets,
+   carousel, OSD, control center) offscreen and fails on any QML error or a missing file.
+   `SKINCHECK_KEEP=<dir>` keeps the PNGs. The windows render as plain Items with fixed state:
+   `tools/skincheck/pin.py` rewrites them in the check's temp copy (`PanelWindow` → `WinStub`,
+   Hyprland and the state singletons → `mocks/`, `Math.random()` → a fixed value per call site,
+   endless spins stopped), so a baseline only changes when the look does.
 
 ## What a skin provides
 
@@ -43,7 +48,7 @@ Installed now:
 | `text` | the HUD's wording: bar, panel titles, lock / unlock messages, hyprlock title and denied text, lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
-| `components` | `clock`, `scene`, `transition`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
+| `components` | `clock`, `scene`, `transition`, `backdrop`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `stark-cursor/src`) | `stark-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
@@ -68,10 +73,17 @@ Components read `Style.<token>`; nothing outside `Style.qml`, `Skin.qml` and `sk
 
 ### Component overrides
 
-Start from the default (`AlchemCircle.qml`, `VaultScene.qml`, `TransmuteTransition.qml`), keep its
-properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
+Start from the default (`AlchemCircle.qml`, `VaultScene.qml`, `TransmuteTransition.qml`,
+`HoloBackdrop.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
 reach the HUD's singletons. Components are loaded through `Qt.resolvedUrl` inside the shell; never
 build a `file://` URL to them (it would load a second copy of every singleton).
+
+**backdrop** (the desktop background, hosted by `GridBackground.qml` in a background-layer window)
+gets `modelData` (the screen), `t` (seconds off the shared Perf clock, frozen while it shouldn't
+animate: windows over it, locked, combat mode, battery saver), `live`, `res` (1, or 0.5 on the laptop
+panel and in battery saver: draw textures at that scale, the iGPU's memory is system RAM) and
+`activity` (0..1, the assistant at work, else CPU load). Draw anything heavy once into a texture and
+only move it with `t`; never run an animation of its own. ALCHEMOS: `skins/alchemos/AlchemBackdrop.qml`.
 
 ## How switching works
 
