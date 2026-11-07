@@ -48,7 +48,7 @@ Installed now:
 | `text` | the HUD's wording: bar, panel titles, lock / unlock messages, hyprlock title and denied text, lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
-| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
+| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `stark-cursor/src`) | `stark-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
@@ -74,7 +74,7 @@ Components read `Style.<token>`; nothing outside `Style.qml`, `Skin.qml` and `sk
 ### Component overrides
 
 Start from the default (`AlchemCircle.qml`, `VaultScene.qml`, `TransmuteTransition.qml`,
-`HoloBackdrop.qml`, `HoloLauncherLook.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
+`HoloBackdrop.qml`, `HoloLauncherLook.qml`, `HoloCarouselStage.qml`, `HoloCarouselPanel.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
 reach the HUD's singletons. Components are loaded through `Qt.resolvedUrl` inside the shell; never
 build a `file://` URL to them (it would load a second copy of every singleton).
 
@@ -90,6 +90,14 @@ geometry, the spiral open, launching and the hit areas over the nodes) gets `win
 current, spread, t, visible, branchOf / tierOf / nodeSize / branchCount) and `core` (cx, cy, nx(i),
 ny(i): where app i is now) as required properties, and may set `openMs` / `openEasing` (how the spiral
 opens) and `opened()` (called as it opens). ALCHEMOS: `skins/alchemos/AlchemLauncherLook.qml`.
+
+**carouselStage** / **carouselPanel** (the Super+Tab carousel; `Overview.qml` keeps the ring geometry,
+keys, clicks and the front panel's glow layer): the stage draws the floor and header under the panels
+and gets `ov` (ids, n, pos, step, ringR, ringRy, panelW, cx, cy, appear, focusedHere, modelData = the
+screen); a panel draws one workspace inside its placed, turned box and gets `ov` and `panel`
+(modelData = workspace id, index, front, current, wins, peeked, mon, k), and may set `glowColor`,
+`glowBlur`, `glowOpacity`. Put `CarouselWindows { ov; panel }` inside it for the window previews (it
+holds the capture-safety rules). ALCHEMOS: `skins/alchemos/AlchemCarousel*.qml`.
 
 ## How switching works
 

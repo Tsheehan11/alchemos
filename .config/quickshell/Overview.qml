@@ -1,4 +1,5 @@
-// Holographic workspace overview (Super + Tab).
+// Workspace overview (Super + Tab). How it looks is the skin's: Skin.component("carouselStage") (floor,
+// header) and ("carouselPanel") (each workspace; the base ones are the hologram, HoloCarousel*.qml).
 // Each screen's workspaces stand in a full 3D ring that you look down onto —
 // every panel stays visible, and the ring turns endlessly in either direction.
 // Docked: each monitor's 3. Laptop only: all of them.
@@ -83,36 +84,13 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: LauncherState.closeAll(); onWheel: w => ov.turn(w.angleDelta.y < 0 ? 1 : -1) }
     }
 
-    // Projector floor: ellipse rings under the carousel
-    Item {
-        x: ov.cx - width / 2; y: ov.cy + ov.ringRy + ov.panelW * 0.32 - height / 2
-        width: ov.ringR * 2.6; height: width
-        opacity: 0.55 * ov.appear
-        transform: Rotation { origin.x: ov.ringR * 1.3; origin.y: ov.ringR * 1.3; axis { x: 1; y: 0; z: 0 } angle: 78; distanceToPlane: 100000 }
-        Ring { anchors.centerIn: parent; radius: ov.ringR * 1.25; thickness: 2; value: 1; trackColor: "transparent" }
-        Ring { anchors.centerIn: parent; radius: ov.ringR * 1.15; thickness: 8; value: 1; dashed: true; dash: [0.3, 2]; color: Theme.p(0.4); trackColor: "transparent"; rotation: -ov.pos * ov.step }
-        Ring { anchors.centerIn: parent; radius: ov.ringR * 0.9; thickness: 1; value: 1; color: Theme.secondary; dashed: true; dash: [8, 6]; trackColor: "transparent"; rotation: ov.pos * ov.step }
-    }
-
-    // Header
-    Column {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 70
-        spacing: 6
-        opacity: ov.appear
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "WORKSPACES // " + (Roles.docked ? ov.modelData.name : "ALL")
-            color: Theme.primary
-            font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 6
-        }
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            visible: ov.focusedHere
-            text: "← → TURN   ·   ENTER SELECT   ·   1–9 JUMP   ·   ESC CLOSE"
-            color: Theme.dim
-            font.family: ov.mono; font.pixelSize: 10; font.letterSpacing: 3
-        }
+    // ── Stage: floor and header (the skin's) ──
+    Loader {
+        id: stage
+        anchors.fill: parent
+        readonly property url want: Skin.component("carouselStage")
+        onWantChanged: setSource(want, { ov: ov })
+        Component.onCompleted: setSource(want, { ov: ov })
     }
 
     Item {
@@ -163,121 +141,24 @@ PanelWindow {
                 angle: -Math.sin(panel.rad) * 38
             }
 
-            // Glow
+            // Glow (its colour and strength are the look's)
             layer.enabled: panel.front
             layer.effect: MultiEffect {
                 shadowEnabled: true
-                shadowColor: Theme.primary
-                shadowBlur: 0.7
-                shadowOpacity: 0.7
+                shadowColor: pl.item && pl.item.glowColor !== undefined ? pl.item.glowColor : Theme.primary
+                shadowBlur: pl.item && pl.item.glowBlur !== undefined ? pl.item.glowBlur : 0.7
+                shadowOpacity: pl.item && pl.item.glowOpacity !== undefined ? pl.item.glowOpacity : 0.7
                 shadowHorizontalOffset: 0; shadowVerticalOffset: 0
                 blurMax: 32
             }
 
-            // Glass
-            Rectangle {
+            // ── The panel's look (the skin's) ──
+            Loader {
+                id: pl
                 anchors.fill: parent
-                color: Theme.d(0.82)
-                border.color: panel.front ? Theme.primary : Theme.p(0.45)
-                border.width: panel.front ? 2 : 1
-                clip: true
-
-                // Window previews (dimmed while Peek hides them)
-                Repeater {
-                    model: panel.wins
-                    delegate: Item {
-                        required property var modelData
-                        opacity: panel.peeked ? 0.4 : 1
-                        readonly property var wm: OverviewData.monitorById(modelData.monitor) || panel.mon
-                        x: (modelData.at[0] - wm.x) * panel.k
-                        y: (modelData.at[1] - wm.y) * panel.k
-                        width: Math.max(8, modelData.size[0] * panel.k)
-                        height: Math.max(8, modelData.size[1] * panel.k)
-
-                        // Fallback tile: icon + title (shows if a live preview isn't available)
-                        Rectangle {
-                            anchors.fill: parent
-                            color: Theme.p(0.08)
-                            border.color: Theme.p(0.5)
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 4
-                                Image {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    readonly property string src: OverviewData.iconFor(modelData.class)
-                                    source: src
-                                    visible: src !== ""
-                                    width: 36; height: 36; sourceSize: Qt.size(72, 72)
-                                }
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: (modelData.class || "").toUpperCase()
-                                    color: Theme.textSoft
-                                    font.family: ov.mono; font.pixelSize: 10; font.letterSpacing: 1
-                                }
-                            }
-                        }
-                        // Live preview (captured once when the overview opens). Never for a
-                        // window on no monitor or while screens settle (OverviewData.capturable):
-                        // that capture segfaults Hyprland 0.56.2. The fallback tile shows instead.
-                        ScreencopyView {
-                            anchors.fill: parent
-                            captureSource: ov.visible && OverviewData.capturable(modelData) ? OverviewData.toplevelFor(modelData.address) : null
-                            live: false
-                            opacity: 0.92
-                        }
-                        Rectangle { anchors.fill: parent; color: "transparent"; border.color: Theme.p(0.6); border.width: 1 }
-                    }
-                }
-
-                // Empty workspace
-                Text {
-                    anchors.centerIn: parent
-                    visible: panel.wins.length === 0
-                    text: "EMPTY"
-                    color: Theme.p(0.45)
-                    font.family: ov.mono; font.pixelSize: 16; font.letterSpacing: 8
-                }
-
-                // Hologram scanlines
-                Column {
-                    anchors.fill: parent
-                    Repeater {
-                        model: Math.ceil(panel.height / 4)
-                        Rectangle { width: panel.width; height: 4; color: index % 2 === 0 ? Theme.p(0.05) : "transparent" }
-                    }
-                }
-            }
-
-            // Corner brackets
-            Repeater {
-                model: 4
-                delegate: Item {
-                    required property int index
-                    width: 18; height: 18
-                    x: index % 2 === 0 ? -5 : panel.width - 13
-                    y: index < 2 ? -5 : panel.height - 13
-                    Rectangle { width: 18; height: 2; color: panel.front ? Theme.secondary : Theme.primary; y: index < 2 ? 0 : 16 }
-                    Rectangle { width: 2; height: 18; color: panel.front ? Theme.secondary : Theme.primary; x: index % 2 === 0 ? 0 : 16 }
-                }
-            }
-
-            // Label under the panel
-            Row {
-                anchors.top: parent.bottom; anchors.topMargin: 14
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 12
-                Text {
-                    text: "WS " + String(panel.modelData).padStart(2, "0")
-                    color: panel.front ? Theme.text : Theme.textSoft
-                    font.family: ov.mono; font.pixelSize: 18; font.letterSpacing: 4
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: panel.wins.length + (panel.wins.length === 1 ? " WINDOW" : " WINDOWS") + (panel.peeked ? "  ·  PEEK" : "") + (panel.current ? "  ·  ACTIVE" : "")
-                    color: panel.current ? Theme.secondary : Theme.dim
-                    font.family: ov.mono; font.pixelSize: 11; font.letterSpacing: 2
-                }
+                readonly property url want: Skin.component("carouselPanel")
+                onWantChanged: setSource(want, { ov: ov, panel: panel })
+                Component.onCompleted: setSource(want, { ov: ov, panel: panel })
             }
 
             MouseArea {
