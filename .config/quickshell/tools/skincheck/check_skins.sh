@@ -21,6 +21,8 @@ rsync -a --exclude '.git' --exclude 'baseline' --exclude 'tools' "$hud/" "$work/
 cp "$here"/mocks/*.qml "$work/hud/"
 cp "$here/shell.qml" "$work/hud/shell.qml"
 cp "$here/WinStub.qml" "$work/hud/"
+# the real skin-switch transition logic, under another name (the mock IgniteState stays for the renders)
+cp "$hud/IgniteState.qml" "$work/hud/IgniteProbe.qml"
 # the HUD's windows as plain Items, pinned (pin.py)
 python3 -I "$here/pin.py" "$work"/hud/*.qml
 # a fixed time, so clocks render the same every run

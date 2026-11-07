@@ -85,6 +85,11 @@ def skin_data(cfg=None):
     return _read(skin(cfg)) or {}
 
 
+def os_name_of(sid):
+    """A skin's desktop name by id (the incoming skin during a switch, before settings.json says so)."""
+    return (_read(sid) or {}).get("osName") or BASE["osName"]
+
+
 def os_name(cfg=None):
     """The desktop's name as the skin shows it: 'AlchemOS' (legacy 'STARK OS')."""
     return skin_data(cfg).get("osName") or BASE["osName"]

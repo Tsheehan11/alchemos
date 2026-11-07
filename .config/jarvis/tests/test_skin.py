@@ -66,6 +66,16 @@ check("action ok", (r.get("ok"), r.get("skin")), (True, "legacy"))
 check("action call", calls[-1], ["qs", "ipc", "call", "skin", "set", "legacy"])
 A._run = lambda cmd, timeout=6: (calls.append(cmd) or (0, "skin alchemos", ""))
 check("toggle call", (A.set_skin("toggle").get("skin"), calls[-1][-1]), ("alchemos", "toggle"))
+# the reply names the INCOMING skin, even while settings.json still says the old one (the HUD writes it later)
+from core import persona as P  # noqa: E402
+_skin_was = P.skin
+P.skin = lambda cfg=None: "legacy"
+check("reply names the incoming skin", A.set_skin("toggle").get("say"), f"{P.os_name_of('alchemos')} skin, sir.")
+check("incoming skin is AlchemOS", P.os_name_of("alchemos"), "AlchemOS")
+P.skin = lambda cfg=None: "alchemos"
+A._run = lambda cmd, timeout=6: (0, "skin legacy", "")
+check("reply for legacy", A.set_skin("toggle").get("say"), "Legacy skin, sir.")
+P.skin = _skin_was
 A._run = lambda cmd, timeout=6: (0, "legacy skin not installed", "")
 check("not installed", A.set_skin("legacy"), {"ok": False, "error": "legacy skin not installed"})
 check("bad name", A.set_skin("chrome").get("ok"), False)

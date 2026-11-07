@@ -1278,7 +1278,7 @@ def set_skin(name):
         return {"ok": False, "error": res or "the HUD didn't switch"}
     now = res.split()[1]
     from core import persona
-    label = persona.os_name() if now != "legacy" else "Legacy"
+    label = persona.os_name_of(now) if now != "legacy" else "Legacy"     # the incoming skin's name, not settings.json's
     return {"ok": True, "skin": now, "say": f"{label} skin, sir."}
 
 

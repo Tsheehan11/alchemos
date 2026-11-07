@@ -1,6 +1,6 @@
 pragma Singleton
 // Drives Ignite.qml on every screen: one animation at a time.
-//   skin()            the new skin's transition component (Skin.component("transition"))
+//   skin(to)          the incoming skin's transition component (Skin.component("transition"))
 //   preset(p)         the ignite flare in the preset's colour, with its glyph
 import QtQuick
 import Quickshell
@@ -22,12 +22,15 @@ Singleton {
     // 0 fps (battery saver at static, or locked): only a short tint
     readonly property bool lite: Perf.fps === 0
 
-    function skin() {
+    // to: the incoming skin. Its wording, by id (never Skin.text: that is still the outgoing skin's until
+    // the incoming skin's file has been read)
+    function skin(to) {
         if (GameMode.quiet) return;
+        const t = Skin.textOf(to || Skin.current);
         root.mode = "skin";
         root.color = Theme.primary;
-        root.title = Skin.text.transitionTitle || "";
-        root.sub = Skin.text.transitionSub || "";
+        root.title = t.transitionTitle || "";
+        root.sub = t.transitionSub || "";
         root.glyph = "";
         run.duration = root.lite ? 350 : 1900;
         root.arm();
@@ -67,10 +70,24 @@ Singleton {
         easing.type: Easing.Linear
         onFinished: { root.playing = false; root.p = 0; tail.restart(); }
     }
+    // A switch plays once the incoming skin has landed (Skin.current === to: its colours, its transition
+    // component, its wording), not when it is asked for: Skin.switched fires before its file is read.
+    property string pending: ""
     Connections {
         target: Skin
-        function onSwitched(to) { Qt.callLater(root.skin); }    // after the new skin's colours are in
+        function onSwitched(to) {
+            root.pending = to;
+            if (Skin.current === to) Qt.callLater(root.land); else landLate.restart();
+        }
+        function onCurrentChanged() { if (root.pending !== "" && Skin.current === root.pending) Qt.callLater(root.land); }
     }
+    function land() {
+        if (root.pending === "") return;
+        const to = root.pending;
+        root.pending = ""; landLate.stop();
+        root.skin(to);
+    }
+    Timer { id: landLate; interval: 1500; onTriggered: root.land() }     // the file never came: play anyway
     Connections {
         target: Theme
         function onPresetApplied(p) { root.preset(p); }

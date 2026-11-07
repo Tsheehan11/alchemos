@@ -40,6 +40,6 @@ Singleton {
     readonly property string activeName: preset.name || "CUSTOM"
     readonly property string activeSign: presetIndex < 0 ? "🜾" : (preset.glyph || "")
     function signFor(n) { return n === "BISMUTH" ? "🜾" : Skin.glyphFor(n); }
-    function switchSkin(from, to) {}
+    function switchSkin(from, to) { cfg = Object.assign({}, cfg, { skin: to }); }     // the gallery's switch check
     signal presetApplied(var preset)
 }

@@ -114,5 +114,11 @@ look, plays the new skin's transition, then pushes the theme to Hyprland, hyprlo
 are redrawn, their key includes the skin), kitty, VS Code, Heroic, the cursor and the Govee strip.
 The assistant picks up the names on its next turn (a names tag, so its prompt cache stays warm).
 
-`qs ipc call skin get | set <id> | toggle | list` · Jarvis `set_skin` · the app search's hidden word
-toggles the hidden skin.
+`qs ipc call skin get | set <id> | toggle | swap | list` · Jarvis `set_skin` · the app search's hidden word
+toggles the hidden skin. Once there's a second skin to pick (the hidden one after its first unlock:
+`Skin.switchable`, the same rule as Settings' SKIN row): the control center's SKIN tile, the power
+menu's SWITCH SKIN and Super+Shift+K (`skin swap`, which never unlocks) toggle too.
+
+The transition plays once the incoming skin has landed (`Skin.current` is the new id), with its own
+wording (`Skin.textOf(id)`); the skin check switches skins at the end of each run and fails if the
+title isn't the incoming skin's. The assistant's reply names the incoming skin too.

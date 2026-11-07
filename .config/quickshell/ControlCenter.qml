@@ -137,7 +137,11 @@ PanelWindow {
                              : GameMode.active ? (GameMode.manual ? "engaged · manual" : "engaged · " + (GameMode.games[0] || "gamemode"))
                              : Theme.cfg.gameAuto ? "auto-detect" : "off",
                           act: () => GameMode.toggle() }
-                    ]
+                    ].concat(!Skin.switchable ? [] : [
+                        // the other skin, once it's on offer (Skin.switchable; Super+Shift+K does the same)
+                        { label: "SKIN", on: false, sub: Skin.labelOf(Skin.current) + " → " + Skin.labelOf(Skin.other),
+                          act: () => { LauncherState.closeAll(); Skin.toggle(false); } }
+                    ])
                     delegate: Rectangle {
                         required property var modelData
                         width: (body.width - 10) / 2; height: 62

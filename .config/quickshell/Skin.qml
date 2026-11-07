@@ -165,6 +165,11 @@ Singleton {
         const w = who === "friday" ? "friday" : "jarvis";
         return Object.assign({}, base.voiceRouting[w], ((resolved.own.voiceRouting || {})[w]) || {});
     }
+    // A skin's wording (its skin.json text over BASE) by id, whether or not it is the one in use yet
+    function textOf(id) {
+        const d = id === root.current ? root.own : (installed[id] || {});
+        return Object.assign({}, base.text, d.text || {});
+    }
     function persona(who) { return data.personas[who === "friday" ? "friday" : "jarvis"]; }
     function glyphFor(presetName) {
         const p = presets.find(x => x.name === presetName);
@@ -198,6 +203,11 @@ Singleton {
     // what Settings lists: every skin, hidden ones once unlocked
     readonly property var listed: Object.keys(installed).filter(id => !installed[id].hidden || Theme.cfg.skinUnlocked)
         .sort((a, b) => (a === root.defaultSkin ? -1 : b === root.defaultSkin ? 1 : a.localeCompare(b)))
+    // a second skin is on offer (the hidden one only after its first unlock): the same rule as Settings'
+    // SKIN row. The control center's SKIN tile, the power menu's SWITCH SKIN and Super+Shift+K follow it.
+    readonly property bool switchable: listed.length > 1
+    // the skin a toggle goes to
+    readonly property string other: isLegacy || !legacyAvailable ? defaultSkin : hiddenSkin
     function labelOf(id) { return (installed[id] && installed[id].label) || id.toUpperCase(); }
     // compatibility with the two-skin API
     readonly property bool legacyAvailable: !!installed[hiddenSkin] || current === hiddenSkin
@@ -251,6 +261,12 @@ Singleton {
         }
         function toggle(): string {
             const why = root.toggle(true);
+            return why || "skin " + root.asked;
+        }
+        // Super+Shift+K: toggle, but only once there is a choice (never unlocks the hidden skin)
+        function swap(): string {
+            if (!root.switchable) return "no other skin yet";
+            const why = root.toggle(false);
             return why || "skin " + root.asked;
         }
     }

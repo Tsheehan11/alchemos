@@ -29,8 +29,8 @@ ShellRoot {
         ["launcher-alt", 1600, 940, "Launcher.qml", { modelData: root.screenOf(1600, 940) },
             { arm: () => { Theme.presetIndex = Math.min(5, Skin.presets.length - 1); LauncherState.open = true; }, settle: 1500 }],
         ["carousel", 1600, 1000, "Overview.qml", { modelData: root.screenOf(1600, 1000) }, { arm: () => LauncherState.overviewOpen = true, settle: 1200 }],
-        ["bar-custom", 1600, 34, "Bar.qml", { modelData: root.screenOf(1600, 34) }, { arm: () => Theme.presetIndex = -1 }],
-        ["clock-custom", 480, 560, root.comp("clock"), { t: 0, animated: false }, { arm: () => Theme.presetIndex = -1 }],
+        ["bar-custom", 1600, 34, "Bar.qml", { modelData: root.screenOf(1600, 34) }, { pre: () => Theme.presetIndex = -1, settle: 1000 }],
+        ["clock-custom", 480, 560, root.comp("clock"), { t: 0, animated: false }, { pre: () => Theme.presetIndex = -1, settle: 1000 }],
         ["osd", 420, 96, "Osd.qml", { modelData: root.screenOf(420, 96) }, {}],
         ["control", 900, 1000, "ControlCenter.qml", { modelData: root.screenOf(900, 1000), wifiOn: true, ssid: "HOME-5G", btOn: true, brightness: 0.7, powerProfile: "balanced" }, { arm: () => LauncherState.controlOpen = true }]
     ]
@@ -44,7 +44,7 @@ ShellRoot {
     property string loading: ""
     function next() {
         i++;
-        if (i >= gallery.length) { root.checkNamer(); console.log("SKINCHECK done"); Qt.quit(); return; }
+        if (i >= gallery.length) { root.checkNamer(); root.checkSwitch(() => { console.log("SKINCHECK done"); Qt.quit(); }); return; }
         const g = gallery[i];
         if (!g[3] || (Quickshell.env("SKINCHECK_SKIP") || "").split(",").indexOf(g[0]) >= 0) { console.log("SKINCHECK skip " + g[0]); next(); return; }
         root.disarm();
@@ -55,6 +55,7 @@ ShellRoot {
         if (opt) {                    // a window: its required properties at creation, then arm() opens it
             ld.props = ({});
             ld.sourceComponent = undefined; ld.source = "";
+            if (opt.pre) opt.pre();          // state set before the item exists (no recolour mid-animation)
             ld.setSource(typeof g[3] === "string" ? Qt.resolvedUrl(g[3]) : g[3], g[4]);
             if (opt.arm) Qt.callLater(opt.arm);
         } else {
@@ -65,6 +66,35 @@ ShellRoot {
         settle.restart();
     }
     Timer { interval: 400; running: true; onTriggered: root.next() }
+    // A skin switch shows the INCOMING skin's transition wording: the real IgniteState logic (copied in as
+    // IgniteProbe by check_skins.sh) watches Skin.switched; switch to the other skin and read its title.
+    property var afterSwitch: null
+    property int switchTries: 0
+    property string switchTo: ""
+    function checkSwitch(after) {
+        const from = Skin.current;
+        const to = from === "legacy" ? "alchemos" : (Skin.installed.legacy ? "legacy" : "");
+        if (typeof IgniteProbe === "undefined" || !to || !Skin.installed[to]) { console.log("SKINCHECK skip switch"); after(); return; }
+        IgniteProbe.title = ""; IgniteProbe.mode = "";
+        root.afterSwitch = after; root.switchTo = to; root.switchTries = 0;
+        const why = Skin.set(to, true);
+        if (why) { console.log("SKINCHECK FAIL switch: " + why); after(); return; }
+        switchPoll.start();
+    }
+    Timer {
+        id: switchPoll; interval: 100; repeat: true
+        onTriggered: {
+            const d = Skin.installed[root.switchTo] || {};
+            const want = (d.text || {}).transitionTitle || Skin.base.text.transitionTitle || "";
+            if (IgniteProbe.mode === "skin" || ++root.switchTries > 40) {
+                stop();
+                if (IgniteProbe.mode !== "skin") console.log("SKINCHECK FAIL switch: no transition played");
+                else if (IgniteProbe.title !== want) console.log("SKINCHECK FAIL switch → " + root.switchTo + ": title \"" + IgniteProbe.title + "\", want \"" + want + "\" (the incoming skin's)");
+                else console.log("SKINCHECK ok switch → " + root.switchTo + ": " + (want || "(no title)"));
+                root.afterSwitch();
+            }
+        }
+    }
     // the skin's preset namer: a suggestion for every colour, ≤ 14 characters, never a taken name
     function checkNamer() {
         if (typeof Namer === "undefined") return;

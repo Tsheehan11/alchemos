@@ -22,17 +22,21 @@ PanelWindow {
 
     readonly property var items: [
         { key: "lock",     label: "LOCK",      glyph: Skin.text.lockGlyph, confirm: false },
-        { key: "sleep",    label: "SLEEP",     glyph: "☾", confirm: false },
+        { key: "sleep",    label: "SLEEP",     glyph: "☾", confirm: false }
+    ].concat(!Skin.switchable ? [] : [      // once there's a second skin (Skin.switchable)
+        { key: "skin",     label: "SWITCH SKIN", glyph: "⇄", confirm: false }
+    ]).concat([
         { key: "logout",   label: "LOG OUT",   glyph: "⇥", confirm: true },
         { key: "reboot",   label: "RESTART",   glyph: "⟳", confirm: true },
         { key: "shutdown", label: "SHUT DOWN", glyph: "⏻", confirm: true }
-    ]
-    property int sel: 4
+    ])
+    readonly property int shutdownIndex: items.length - 1
+    property int sel: shutdownIndex
     property string confirming: ""        // key awaiting confirmation
     property real appear: 0
 
     onVisibleChanged: {
-        if (visible) { sel = 4; confirming = ""; appearAnim.restart(); keys.forceActiveFocus(); }
+        if (visible) { sel = shutdownIndex; confirming = ""; appearAnim.restart(); keys.forceActiveFocus(); }
     }
     NumberAnimation { id: appearAnim; target: pm; property: "appear"; from: 0; to: 1; duration: 260; easing.type: Easing.OutCubic }
 
@@ -42,6 +46,7 @@ PanelWindow {
         LauncherState.closeAll();
         if (it.key === "lock") LockState.requestLock();
         else if (it.key === "sleep") Quickshell.execDetached(["stark-govee", "suspend"]);
+        else if (it.key === "skin") Skin.toggle(false);
         else LockState.power(it.key);
     }
     Timer { id: autoCancel; interval: 8000; onTriggered: pm.confirming = "" }
