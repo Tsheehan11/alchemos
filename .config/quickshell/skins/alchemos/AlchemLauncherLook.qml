@@ -20,7 +20,7 @@ Item {
 
     readonly property color metal: Theme.primary
     readonly property color ember: Theme.secondary
-    readonly property string symbols: "Noto Sans Symbols"
+    readonly property string symbols: Style.fonts.signs
     readonly property var metals: Skin.glyphs.ring && Skin.glyphs.ring.length ? Skin.glyphs.ring : ["☉", "☽", "♂", "♀", "☿", "♄"]
     readonly property real sp: Math.min(1, Math.max(0, win.spread))
     function lighten(c, k) { return Qt.rgba(c.r + (1 - c.r) * k, c.g + (1 - c.g) * k, c.b + (1 - c.b) * k, 1); }
@@ -179,20 +179,20 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "SUMMON"; color: Theme.dim
-                font.family: Style.display; font.pixelSize: 9; font.letterSpacing: 4
+                font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 4
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: Math.min(implicitWidth, 120); horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
                 text: look.win.current.name.toUpperCase()
                 color: look.win.current.available ? Theme.text : Theme.faint
-                font.family: Style.display; font.pixelSize: look.win.current.name.length > 7 ? 15 : 19
+                font.family: Style.fonts.display; font.pixelSize: look.win.current.name.length > 7 ? 15 : 19
                 font.weight: Font.DemiBold; font.letterSpacing: 2
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: look.win.current.available ? "TYPE TO SEEK" : "NOT INSTALLED"
-                color: look.ember; font.family: Style.display; font.pixelSize: 7; font.letterSpacing: 3
+                color: look.ember; font.family: Style.fonts.label; font.pixelSize: 7; font.letterSpacing: 3
             }
         }
     }
@@ -219,7 +219,7 @@ Item {
             text: group ? "· " + group.toUpperCase() + " ·" : ""
             color: hot ? look.ember : Theme.dim
             opacity: look.sp * (hot ? 1 : 0.7)
-            font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 4
+            font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 4
             z: 5
         }
     }
@@ -285,13 +285,13 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: Math.min(implicitWidth, node.size - 16); horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
                     text: node.app.name.toUpperCase(); color: node.sel ? Theme.text : Theme.textSoft
-                    font.family: Style.display; font.pixelSize: node.app.name.length > 6 ? 9 : 11
+                    font.family: Style.fonts.display; font.pixelSize: node.app.name.length > 6 ? 9 : 11
                     font.weight: Font.DemiBold; font.letterSpacing: 1
                 }
                 Text {       // the app's key (1–9, 0)
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: !node.app.available ? "N/A" : node.index < 10 ? String((node.index + 1) % 10) : ""
-                    color: look.ember; font.family: Style.display; font.pixelSize: 8; opacity: 0.85
+                    color: look.ember; font.family: Style.fonts.label; font.pixelSize: 8; opacity: 0.85
                 }
             }
         }

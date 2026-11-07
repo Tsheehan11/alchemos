@@ -24,7 +24,6 @@ PanelWindow {
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: Style.mono
     readonly property int maxResults: 8
 
     property string query: ""
@@ -126,13 +125,13 @@ PanelWindow {
                 Text {
                     text: "SEARCH // APPLICATIONS"
                     color: win.cyan
-                    font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 3
+                    font.family: Style.fonts.display; font.pixelSize: 11; font.letterSpacing: 3
                 }
                 Text {
                     anchors.right: parent.right
                     text: win.results.length + " / " + win.allApps.length
                     color: win.dim
-                    font.family: win.mono; font.pixelSize: 11
+                    font.family: Style.fonts.body; font.pixelSize: 11
                 }
             }
 
@@ -149,7 +148,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "›"
                     color: win.amber
-                    font.family: win.mono; font.pixelSize: 22
+                    font.family: Style.fonts.body; font.pixelSize: 22
                 }
                 TextInput {
                     id: input
@@ -158,7 +157,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.text
                     selectionColor: Theme.p(0.4)
-                    font.family: win.mono; font.pixelSize: 18
+                    font.family: Style.fonts.body; font.pixelSize: 18
                     cursorDelegate: Rectangle {
                         width: 2; color: win.cyan
                         SequentialAnimation on opacity {
@@ -240,7 +239,7 @@ PanelWindow {
                                         anchors.centerIn: parent
                                         text: (row.modelData.name || "?").charAt(0).toUpperCase()
                                         color: win.cyan
-                                        font.family: win.mono; font.pixelSize: 15
+                                        font.family: Style.fonts.body; font.pixelSize: 15
                                     }
                                 }
                             }
@@ -251,7 +250,7 @@ PanelWindow {
                                 Text {
                                     text: row.modelData.name
                                     color: row.sel ? Theme.text : Theme.textSoft
-                                    font.family: win.mono; font.pixelSize: 15
+                                    font.family: Style.fonts.body; font.pixelSize: 15
                                 }
                                 Text {
                                     visible: text !== ""
@@ -259,7 +258,7 @@ PanelWindow {
                                     width: 480
                                     elide: Text.ElideRight
                                     color: win.dim
-                                    font.family: win.mono; font.pixelSize: 11
+                                    font.family: Style.fonts.body; font.pixelSize: 11
                                 }
                             }
                         }
@@ -270,7 +269,7 @@ PanelWindow {
                             visible: row.sel
                             text: "ENTER ⏎"
                             color: win.amber
-                            font.family: win.mono; font.pixelSize: 10; font.letterSpacing: 1
+                            font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
                         }
 
                         MouseArea {
@@ -287,7 +286,7 @@ PanelWindow {
                     visible: win.results.length === 0
                     text: "NO MATCHES"
                     color: win.dim
-                    font.family: win.mono; font.pixelSize: 12; font.letterSpacing: 2
+                    font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 2
                     topPadding: 8; bottomPadding: 8
                 }
             }
@@ -296,7 +295,7 @@ PanelWindow {
             Text {
                 text: "↑↓ SELECT   ·   ENTER LAUNCH   ·   ESC CLOSE"
                 color: Theme.faint
-                font.family: win.mono; font.pixelSize: 10; font.letterSpacing: 2
+                font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2
             }
         }
     }

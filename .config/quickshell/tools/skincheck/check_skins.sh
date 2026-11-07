@@ -10,6 +10,10 @@ here=$hud/tools/skincheck
 quiet=""; baseline=""
 [[ ${1:-} == -q ]] && quiet=1
 [[ ${1:-} == --baseline ]] && baseline=${2:?skin id}
+# every Text names a font role (nothing falls back to a face the system picks)
+if ! fc=$(python3 -I "$hud/tools/fontcheck/fontcheck.py" "$hud"); then
+    echo "FAIL fonts: Texts without a Style.fonts role"; echo "$fc" | head -8 | sed 's/^/    /'; echo "RED: fonts"; exit 1
+fi
 work=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/skincheck.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 # a copy of the HUD with the mocks over the state singletons and the gallery as its shell

@@ -22,7 +22,7 @@ WidgetBody {
         text: params.text || "Empty note · double-click to write"
         color: params.text ? Theme.text : Theme.faint
         wrapMode: Text.Wrap
-        font.family: w.mono; font.pixelSize: 14
+        font.family: Style.fonts.body; font.pixelSize: 14
         lineHeight: 1.15
     }
     TextEdit {
@@ -31,7 +31,7 @@ WidgetBody {
         width: 280
         color: Theme.text; selectionColor: Theme.p(0.4)
         wrapMode: TextEdit.Wrap
-        font.family: w.mono; font.pixelSize: 14
+        font.family: Style.fonts.body; font.pixelSize: 14
         Keys.onReturnPressed: e => { if (e.modifiers & Qt.ShiftModifier) e.accepted = false; else w.save(); }
         Keys.onEnterPressed: w.save()
         Keys.onEscapePressed: w.editing = false

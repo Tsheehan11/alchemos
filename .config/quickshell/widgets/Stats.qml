@@ -50,13 +50,13 @@ WidgetBody {
                 delegate: Item {
                     required property var modelData
                     width: 270; height: 18
-                    Text { text: modelData.k; color: Theme.dim; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: modelData.k; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
                     HoloBar {
                         x: 52; width: 140; height: 8; anchors.verticalCenter: parent.verticalCenter
                         value: modelData.v; animated: w.live
                         color: modelData.hot ? Theme.secondary : Theme.primary
                     }
-                    Text { anchors.right: parent.right; text: modelData.t; color: modelData.hot ? Theme.secondary : Theme.text; font.family: w.mono; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                    Text { anchors.right: parent.right; text: modelData.t; color: modelData.hot ? Theme.secondary : Theme.text; font.family: Style.fonts.body; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
                 }
             }
         }
@@ -89,11 +89,11 @@ WidgetBody {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter; y: 36
                         text: modelData.t; color: modelData.hot ? Theme.secondary : Theme.text
-                        font.family: w.mono; font.pixelSize: 22
+                        font.family: Style.fonts.body; font.pixelSize: 22
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter; y: 112
-                        text: modelData.k; color: Theme.dim; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 3
+                        text: modelData.k; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 3
                     }
                 }
             }
@@ -109,8 +109,8 @@ WidgetBody {
                 delegate: Item {
                     required property var modelData
                     width: 580; height: 40
-                    Text { y: 2; text: modelData.k; color: Theme.dim; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2 }
-                    Text { anchors.right: parent.right; y: 2; text: modelData.t; color: Theme.text; font.family: w.mono; font.pixelSize: 11 }
+                    Text { y: 2; text: modelData.k; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2 }
+                    Text { anchors.right: parent.right; y: 2; text: modelData.t; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11 }
                     Graph {
                         y: 16; width: 580; height: 24
                         values: modelData.vals; maxValue: modelData.max
@@ -130,7 +130,7 @@ WidgetBody {
                 ]
                 delegate: Text {
                     required property string modelData
-                    text: modelData; color: Theme.textSoft; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 1
+                    text: modelData; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 1
                 }
             }
         }

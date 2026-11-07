@@ -59,6 +59,8 @@ Installed now:
 | --- | --- | --- |
 | `mono` | JetBrainsMono Nerd Font | data, labels, body text |
 | `display`, `displayCaps`, `displayScale` | mono, false, 1 | headings: face, small caps, size |
+| `fonts` | every role = `mono` (display = `display`) | font roles: `display`, `numeric` (clocks, big numbers), `label` (short caps labels), `body` (running text), `mono` (data), `glyph` (a lone mark; base Noto Sans, the face Qt fell back to), `signs` / `signs2` (featured signs), `field` (hyprlock's password field; base Sans). Every Text names one (`tools/fontcheck/fontcheck.py`, part of the skin check); hyprlock's labels take `label` / `numeric` |
+| `tabular` | false | the numeric face has proportional figures: `NumText` reserves the widest width so numbers don't shift |
 | `frame` | `holo` | `holo` corner brackets · `engraved` double line with notched corners |
 | `texture` | `holo` | `holo` scanlines / grid · `grain` · `none` |
 | `grain`, `grainDark` | 0, 0 | grain strength 0..1; `grainDark` applies on very dark presets |

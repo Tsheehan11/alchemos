@@ -33,7 +33,7 @@ WidgetBody {
         text: w.alert ? "TIME'S UP" : w.fmt(w.remaining)
         color: w.alert ? Theme.secondary : Theme.text
         opacity: w.alert ? w.flash : 1
-        font.family: w.mono; font.pixelSize: w.alert ? 34 : 44; font.weight: Font.Light
+        font.family: Style.fonts.numeric; font.pixelSize: w.alert ? 34 : 44; font.weight: Font.Light
     }
     HoloBar {       // time left
         y: 59; width: 250; height: 8; ticks: 10
@@ -43,6 +43,6 @@ WidgetBody {
     }
     Text {
         y: 70; text: w.alert ? "CLOSE WITH ×" : Math.round(w.duration / 60) + " MIN"
-        color: Theme.faint; font.family: w.mono; font.pixelSize: 10; font.letterSpacing: 2
+        color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 2
     }
 }

@@ -8,7 +8,6 @@ Column {
     spacing: 12
     signal releaseFocus()
 
-    readonly property string mono: Style.mono
     readonly property var screenNames: ({ main: "MAIN MONITOR", diag: "SECOND MONITOR", media: "LAPTOP SCREEN" })
     readonly property var zones: [["", "LOCAL"], ["America/New_York", "NEW YORK"], ["America/Los_Angeles", "LOS ANGELES"],
                                   ["Europe/London", "LONDON"], ["Europe/Paris", "PARIS"], ["Asia/Tokyo", "TOKYO"],
@@ -40,7 +39,7 @@ Column {
 
     Toggle { width: parent.width; label: "Desktop widgets"; hint: "Clocks, timers, now playing, stats and notes · \"Hey Jarvis, show a clock on monitor 2\""; checked: Theme.cfg.showWidgets; onToggled: Theme.cfg.showWidgets = !Theme.cfg.showWidgets }
 
-    Text { text: "ADD A WIDGET"; color: Theme.dim; font.family: page.mono; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 6 }
+    Text { text: "ADD A WIDGET"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 6 }
     Stepper { width: parent.width; label: "Type"; valueText: page.type.toUpperCase(); onDec: page.type = page.cycle(Widgets.types, page.type, -1); onInc: page.type = page.cycle(Widgets.types, page.type, 1) }
     Stepper { width: parent.width; label: "Screen"; hint: Roles.docked ? "" : "Undocked: the laptop has its own layout; widgets on the monitors come back when you dock"; valueText: page.screenNames[page.screen]; onDec: page.screen = page.cycle(Widgets.roles, page.screen, -1); onInc: page.screen = page.cycle(Widgets.roles, page.screen, 1) }
     Stepper { width: parent.width; label: "Position"; hint: "Where it starts; drag it anywhere after"; valueText: page.position.toUpperCase().replace("-", " "); onDec: page.position = page.cycle(Widgets.positions, page.position, -1); onInc: page.position = page.cycle(Widgets.positions, page.position, 1) }
@@ -55,10 +54,10 @@ Column {
         HudInput { id: noteText; visible: page.type === "note"; width: 320; placeholder: "note text"; maximumLength: 600; onAccepted: page.add(); onCancelled: page.releaseFocus() }
         SmallButton { text: "ADD"; onClicked: page.add() }
     }
-    Text { visible: page.result !== ""; text: page.result; color: page.result.startsWith("✓") ? Theme.dim : Theme.secondary; font.family: page.mono; font.pixelSize: 11 }
+    Text { visible: page.result !== ""; text: page.result; color: page.result.startsWith("✓") ? Theme.dim : Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 11 }
 
-    Text { text: "ON SCREEN NOW · " + Widgets.items.length; color: Theme.dim; font.family: page.mono; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 10 }
-    Text { visible: Widgets.items.length === 0; text: "No widgets. Add one above, or ask " + JarvisState.callOf("jarvis") + "."; color: Theme.faint; font.family: page.mono; font.pixelSize: 12 }
+    Text { text: "ON SCREEN NOW · " + Widgets.items.length; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 10 }
+    Text { visible: Widgets.items.length === 0; text: "No widgets. Add one above, or ask " + JarvisState.callOf("jarvis") + "."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
     Repeater {
         model: Widgets.items
         delegate: Rectangle {
@@ -72,14 +71,14 @@ Column {
                 width: parent.width - 360; elide: Text.ElideRight
                 text: modelData.type.toUpperCase() + (modelData.params.label ? " · " + modelData.params.label.toUpperCase() : "")
                       + (modelData.type === "note" && modelData.params.text ? " · " + modelData.params.text : "")
-                color: Theme.text; font.family: page.mono; font.pixelSize: 13
+                color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 13
             }
             Text {
                 anchors.right: btns.left; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
                 readonly property var sc: Widgets.screenOfItem(modelData)
                 text: sc ? (page.screenNames[Widgets.roleOf(sc)] || sc.name).split(" ")[0] + " · " + Widgets.slotOf(modelData).toUpperCase().replace("-", " ")
                          : "HIDDEN · MONITOR UNPLUGGED"
-                color: Theme.dim; font.family: page.mono; font.pixelSize: 11
+                color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
             }
             Row {
                 id: btns
@@ -98,5 +97,5 @@ Column {
         ConfirmButton { label: "CLOSE ALL WIDGETS"; onConfirmed: { Widgets.clear("all"); page.result = "✓ All widgets closed"; } }
         SmallButton { text: "EDIT WIDGET TYPES"; onClicked: { Quickshell.execDetached(["kate", Quickshell.env("HOME") + "/.config/quickshell/widgets"]); LauncherState.closeAll(); } }
     }
-    Text { width: parent.width; wrapMode: Text.Wrap; text: "Saved in ~/.config/quickshell/widgets.json · a new type is one QML file in quickshell/widgets/"; color: Theme.faint; font.family: page.mono; font.pixelSize: 11 }
+    Text { width: parent.width; wrapMode: Text.Wrap; text: "Saved in ~/.config/quickshell/widgets.json · a new type is one QML file in quickshell/widgets/"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
 }

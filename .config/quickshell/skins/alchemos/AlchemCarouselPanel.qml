@@ -30,7 +30,7 @@ Item {
             anchors.centerIn: parent
             visible: look.panel.wins.length === 0
             text: "VACANT"; color: Theme.p(0.45)
-            font.family: Style.display; font.pixelSize: 16; font.letterSpacing: 8
+            font.family: Style.fonts.display; font.pixelSize: 16; font.letterSpacing: 8
         }
         Image {
             anchors.fill: parent
@@ -54,7 +54,7 @@ Item {
                 anchors.centerIn: parent
                 text: (Style.corners || [])[index] || ""
                 color: look.panel.front ? look.ember : Theme.primary
-                font.family: "Noto Sans Symbols"; font.pixelSize: 10
+                font.family: Style.fonts.signs; font.pixelSize: 10
             }
         }
     }
@@ -66,13 +66,13 @@ Item {
         Text {
             text: String(look.panel.modelData)
             color: look.panel.front ? Theme.text : Theme.textSoft
-            font.family: Style.display; font.pixelSize: 22; font.weight: Font.DemiBold; font.letterSpacing: 4
+            font.family: Style.fonts.numeric; font.pixelSize: 24; font.letterSpacing: 4
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: look.panel.wins.length + (look.panel.wins.length === 1 ? " WINDOW" : " WINDOWS") + (look.panel.peeked ? "  ·  PEEK" : "") + (look.panel.current ? "  ·  ACTIVE" : "")
             color: look.panel.current ? look.ember : Theme.dim
-            font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 2
+            font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
         }
     }
 }

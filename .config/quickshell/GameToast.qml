@@ -25,7 +25,6 @@ PanelWindow {
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
     mask: Region {}
 
-    readonly property string mono: Style.mono
     readonly property bool on: GameMode.active
     readonly property color accent: GameMode.batteryWarn ? "#ff5f5f" : (on ? Theme.secondary : Theme.primary)
     readonly property string sub: !on ? "SYSTEMS RESTORED · HUD ONLINE"
@@ -77,7 +76,7 @@ PanelWindow {
                 anchors.centerIn: parent
                 text: String.fromCodePoint(toast.on ? 0xF0170 : 0xF0297)   // crosshairs / gamepad
                 color: toast.accent
-                font.family: toast.mono; font.pixelSize: 26
+                font.family: Style.fonts.body; font.pixelSize: 26
             }
         }
 
@@ -89,13 +88,13 @@ PanelWindow {
             Text {
                 text: toast.on ? "COMBAT MODE ENGAGED" : "COMBAT MODE DISENGAGED"
                 color: toast.on ? Theme.text : Theme.textSoft
-                font.family: toast.mono; font.pixelSize: 19; font.bold: true; font.letterSpacing: 3
+                font.family: Style.fonts.label; font.pixelSize: 19; font.bold: true; font.letterSpacing: 3
             }
             Text {
                 width: parent.width; elide: Text.ElideRight
                 text: toast.sub
                 color: toast.accent
-                font.family: toast.mono; font.pixelSize: 11; font.letterSpacing: 2
+                font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
             }
             // Status bar
             Row {

@@ -17,6 +17,9 @@
                     "carouselStage": "AlchemCarouselStage.qml", "carouselPanel": "AlchemCarouselPanel.qml" },
     "style": {
         "display": "Cinzel",
+        "fonts": { "display": "Cinzel", "label": "Cinzel", "numeric": "Marcellus", "body": "JetBrainsMono Nerd Font",
+                   "mono": "JetBrainsMono Nerd Font", "glyph": "Noto Sans Symbols", "signs": "Noto Sans Symbols", "field": "Cinzel" },
+        "tabular": true,
         "displayScale": 1,
         "frame": "engraved",
         "texture": "grain",

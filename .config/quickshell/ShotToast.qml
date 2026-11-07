@@ -28,7 +28,6 @@ PanelWindow {
     // Out of the next shot's way (Shot.qml)
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }
 
-    readonly property string mono: Style.mono
     readonly property color accent: ok ? Theme.primary : "#ff5f5f"
 
     Rectangle {
@@ -81,7 +80,7 @@ PanelWindow {
                 anchors.centerIn: parent
                 visible: !toast.ok
                 text: String.fromCodePoint(0xF0100)   // camera-off
-                color: toast.accent; font.family: toast.mono; font.pixelSize: 34
+                color: toast.accent; font.family: Style.fonts.body; font.pixelSize: 34
             }
             MouseArea { id: thumbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: toast.ok; onClicked: Shot.openShot() }
         }
@@ -93,19 +92,19 @@ PanelWindow {
             spacing: 5
             Text {
                 text: toast.ok ? (Shot.last.annotating ? "CAPTURE // ANNOTATE" : "CAPTURE SAVED") : "CAPTURE FAILED"
-                color: Theme.text; font.family: toast.mono; font.pixelSize: 15; font.bold: true; font.letterSpacing: 3
+                color: Theme.text; font.family: Style.fonts.label; font.pixelSize: 15; font.bold: true; font.letterSpacing: 3
             }
             Text {
                 width: parent.width; elide: Text.ElideMiddle
                 text: toast.ok ? Shot.last.name : (Shot.last.error || "")
-                color: toast.accent; font.family: toast.mono; font.pixelSize: 11
+                color: toast.accent; font.family: Style.fonts.body; font.pixelSize: 11
                 wrapMode: toast.ok ? Text.NoWrap : Text.Wrap; maximumLineCount: 2
             }
             Text {
                 visible: toast.ok
                 text: (Shot.last.width || 0) + "×" + (Shot.last.height || 0) + " · " + String(Shot.last.mode || "").toUpperCase()
                       + (Shot.last.copied ? " · CLIPBOARD" : " · NOT COPIED")
-                color: Theme.dim; font.family: toast.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
             }
         }
 
@@ -123,7 +122,7 @@ PanelWindow {
             anchors.top: parent.top; anchors.topMargin: 8
             text: "✕"
             color: closeMa.containsMouse ? Theme.text : Theme.faint
-            font.family: toast.mono; font.pixelSize: 13
+            font.family: Style.fonts.body; font.pixelSize: 13
             MouseArea { id: closeMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Shot.dismiss() }
         }
     }

@@ -10,7 +10,6 @@ Item {
     default property alias content: body.data
 
     readonly property color cyan: Theme.primary
-    readonly property string mono: Style.mono
 
     Rectangle {
         visible: !Style.engraved
@@ -38,7 +37,7 @@ Item {
         x: 14; y: 10
         text: f.title
         color: f.cyan
-        font.family: f.mono; font.pixelSize: 11; font.letterSpacing: 3
+        font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 3
     }
     // engraved: the title in the display face with a metal rule up to the detail
     Heading {
@@ -54,7 +53,7 @@ Item {
         y: 10
         text: f.detail
         color: Theme.dim
-        font.family: f.mono; font.pixelSize: 11
+        font.family: Style.fonts.body; font.pixelSize: 11
     }
 
     Item {

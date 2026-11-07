@@ -18,7 +18,6 @@ Item {
     property real activity: 0
 
     readonly property int step: 40
-    readonly property string mono: Style.mono
 
     readonly property bool holo: Style.texture === "holo"      // grid, data streams, scanline (base look)
 
@@ -173,7 +172,7 @@ Item {
         anchors.rightMargin: 28; anchors.bottomMargin: 24
         horizontalAlignment: Text.AlignRight
         color: Theme.p(0.28)
-        font.family: bg.mono; font.pixelSize: 11
+        font.family: Style.fonts.body; font.pixelSize: 11
         lineHeight: 1.3
         function word() { return (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0).toString(16).toUpperCase().padStart(8, "0"); }
         function gen() {
@@ -192,15 +191,15 @@ Item {
         x: 28; y: 58
         spacing: 4
         opacity: 0.4
-        Text { text: (bg.holo ? "SYS.GRID // " : Skin.text.os + " // ") + (bg.live ? "ONLINE" : "STANDBY"); color: Theme.primary; font.family: bg.mono; font.pixelSize: 11; font.letterSpacing: 2 }
+        Text { text: (bg.holo ? "SYS.GRID // " : Skin.text.os + " // ") + (bg.live ? "ONLINE" : "STANDBY"); color: Theme.primary; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2 }
         Text {
             readonly property int level: Math.round(SysStats.wifi * 8)
             text: "WIFI   " + "▮".repeat(level) + "▯".repeat(8 - level) + "  " + Math.round(SysStats.wifi * 100) + "%"
-            color: Theme.primary; font.family: bg.mono; font.pixelSize: 11
+            color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 11
         }
         Text {
             text: "NET    ↓ " + SysStats.fmtRate(SysStats.rxRate) + "   ↑ " + SysStats.fmtRate(SysStats.txRate)
-            color: Theme.primary; font.family: bg.mono; font.pixelSize: 11
+            color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 11
         }
     }
 }

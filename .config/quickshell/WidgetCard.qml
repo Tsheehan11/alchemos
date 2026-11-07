@@ -19,7 +19,6 @@ Item {
     readonly property var scr: surface.scr
     readonly property bool pinned: it ? it.pinned === true : false
     readonly property real k: resizing ? liveK : Widgets.scaleOf(it)
-    readonly property string mono: Style.mono
     readonly property bool calm: PowerMode.saver || Perf.fps <= 0      // no edit animations
 
     // ── where it goes (screen pixels) ──
@@ -203,7 +202,7 @@ Item {
                 text: (body.item ? body.item.title : (wc.it ? wc.it.type.toUpperCase() : ""))
                 color: wc.accent
                 style: Text.Outline; styleColor: wc.haloColor
-                font.family: wc.mono; font.pixelSize: 10; font.letterSpacing: 3
+                font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 3
             }
             Text {
                 visible: !buttons.visible
@@ -212,7 +211,7 @@ Item {
                 text: (wc.pinned ? "◆ " : "") + (body.item ? body.item.detail : "")
                 color: Theme.dim
                 style: Text.Outline; styleColor: wc.haloColor
-                font.family: wc.mono; font.pixelSize: 10; font.letterSpacing: 2
+                font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 2
             }
             Row {
                 id: buttons
@@ -221,12 +220,12 @@ Item {
                 spacing: 2
                 Rectangle {
                     width: 22; height: 20; color: "transparent"; border.width: pinMa.containsMouse ? 1 : 0; border.color: Theme.p(0.5)
-                    Text { anchors.centerIn: parent; text: wc.pinned ? "◆" : "◇"; color: wc.pinned ? Theme.secondary : Theme.dim; font.family: wc.mono; font.pixelSize: 12 }
+                    Text { anchors.centerIn: parent; text: wc.pinned ? "◆" : "◇"; color: wc.pinned ? Theme.secondary : Theme.dim; font.family: Style.fonts.body; font.pixelSize: 12 }
                     MouseArea { id: pinMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.pin(wc.wid, !wc.pinned) }
                 }
                 Rectangle {
                     width: 22; height: 20; color: "transparent"; border.width: closeMa.containsMouse ? 1 : 0; border.color: Theme.s(0.7)
-                    Text { anchors.centerIn: parent; text: "×"; color: closeMa.containsMouse ? Theme.text : Theme.dim; font.family: wc.mono; font.pixelSize: 15 }
+                    Text { anchors.centerIn: parent; text: "×"; color: closeMa.containsMouse ? Theme.text : Theme.dim; font.family: Style.fonts.body; font.pixelSize: 15 }
                     MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Widgets.remove(wc.wid) }
                 }
             }

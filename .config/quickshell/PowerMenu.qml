@@ -20,7 +20,6 @@ PanelWindow {
     color: "transparent"
     Binding { target: pm.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
-    readonly property string mono: Style.mono
     readonly property var items: [
         { key: "lock",     label: "LOCK",      glyph: Skin.text.lockGlyph, confirm: false },
         { key: "sleep",    label: "SLEEP",     glyph: "☾", confirm: false },
@@ -77,7 +76,7 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             text: pm.confirming ? "CONFIRM // " + pm.items[pm.sel].label + "?" : "POWER // SELECT"
             color: pm.confirming ? Theme.secondary : Theme.primary
-            font.family: Style.display; font.pixelSize: 15; font.letterSpacing: 6
+            font.family: Style.fonts.display; font.pixelSize: 15; font.letterSpacing: 6
         }
 
         Row {
@@ -125,7 +124,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: tile.modelData.glyph
                             color: tile.asking ? Theme.secondary : (tile.on ? Theme.text : Theme.textSoft)
-                            font.pixelSize: 40
+                            font.family: Style.fonts.glyph; font.pixelSize: 40
                         }
                     }
                     Text {
@@ -133,7 +132,7 @@ PanelWindow {
                         y: 140
                         text: tile.asking ? "CLICK AGAIN" : tile.modelData.label
                         color: tile.asking ? Theme.secondary : (tile.on ? Theme.text : Theme.textSoft)
-                        font.family: pm.mono; font.pixelSize: 13; font.letterSpacing: 3
+                        font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 3
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -150,7 +149,7 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             text: pm.confirming ? "ENTER CONFIRM   ·   ESC CANCEL" : "← → CHOOSE   ·   ENTER SELECT   ·   ESC CLOSE"
             color: Theme.dim
-            font.family: pm.mono; font.pixelSize: 10; font.letterSpacing: 3
+            font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 3
         }
     }
 }

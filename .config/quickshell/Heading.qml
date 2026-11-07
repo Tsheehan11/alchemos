@@ -18,7 +18,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: h.text
         color: h.color
-        font.family: Style.display
+        font.family: Style.fonts.display
         font.pixelSize: Style.display !== Style.mono ? Math.round(h.size * 1.18 * Style.displayScale) : h.size
         font.capitalization: Style.displayCaps ? Font.SmallCaps : Font.MixedCase
         font.letterSpacing: Style.display !== Style.mono ? 2 : 3

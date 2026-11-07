@@ -8,7 +8,7 @@ import QtQuick.Effects
 Text {
     id: t
     property real glow: 0
-    font.family: text.indexOf("☉") >= 0 ? "Noto Sans Symbols 2" : "Noto Sans Symbols"
+    font.family: text.indexOf("☉") >= 0 ? Style.fonts.signs2 : Style.fonts.signs
     renderType: Text.QtRendering
     layer.enabled: glow > 0.02
     layer.effect: MultiEffect {

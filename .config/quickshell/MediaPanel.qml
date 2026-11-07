@@ -33,7 +33,6 @@ PanelWindow {
     }
     readonly property color amber: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: Style.mono
 
     // Prefer Spotify, then anything playing, then any player
     readonly property var player: {
@@ -88,7 +87,7 @@ PanelWindow {
         x: 0; y: 0
         text: "AUDIO // " + (media.hasPlayer ? (media.player.identity || "PLAYER").toUpperCase() : "NO SIGNAL") + (media.dj ? "  ·  DJ" : "")
         color: media.cyan
-        font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 4
+        font.family: Style.fonts.display; font.pixelSize: 13; font.letterSpacing: 4
     }
 
     // ── Album art inside progress rings ──
@@ -153,7 +152,7 @@ PanelWindow {
                 visible: !media.hasPlayer || !media.player.trackArtUrl
                 text: "♪"
                 color: media.cyan
-                font.pixelSize: 72
+                font.family: Style.fonts.glyph; font.pixelSize: 72
                 opacity: 0.6
             }
         }
@@ -170,14 +169,14 @@ PanelWindow {
             width: parent.width
             text: media.hasPlayer ? (media.player.trackTitle || "Unknown track") : "Nothing playing"
             color: Theme.text
-            font.family: media.mono; font.pixelSize: 34
+            font.family: Style.fonts.body; font.pixelSize: 34
             elide: Text.ElideRight
         }
         Text {
             width: parent.width
             text: media.hasPlayer ? (media.player.trackArtist || "") : "Open Spotify to start the deck"
             color: media.dim
-            font.family: media.mono; font.pixelSize: 19
+            font.family: Style.fonts.body; font.pixelSize: 19
             elide: Text.ElideRight
         }
         Text {
@@ -185,7 +184,7 @@ PanelWindow {
             visible: media.hasPlayer && (media.player.trackAlbum || "") !== ""
             text: media.hasPlayer ? (media.player.trackAlbum || "") : ""
             color: Theme.faint
-            font.family: media.mono; font.pixelSize: 14
+            font.family: Style.fonts.body; font.pixelSize: 14
             elide: Text.ElideRight
         }
 
@@ -207,8 +206,8 @@ PanelWindow {
             }
             Item {
                 width: parent.width; height: 16
-                Text { text: media.hasPlayer ? media.fmt(media.player.position) : "0:00"; color: media.dim; font.family: media.mono; font.pixelSize: 12 }
-                Text { anchors.right: parent.right; text: media.hasPlayer ? media.fmt(media.player.length) : "0:00"; color: media.dim; font.family: media.mono; font.pixelSize: 12 }
+                Text { text: media.hasPlayer ? media.fmt(media.player.position) : "0:00"; color: media.dim; font.family: Style.fonts.body; font.pixelSize: 12 }
+                Text { anchors.right: parent.right; text: media.hasPlayer ? media.fmt(media.player.length) : "0:00"; color: media.dim; font.family: Style.fonts.body; font.pixelSize: 12 }
             }
         }
 
@@ -232,7 +231,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: modelData.glyph
                         color: Theme.text
-                        font.pixelSize: modelData.big ? 30 : 20
+                        font.family: Style.fonts.glyph; font.pixelSize: modelData.big ? 30 : 20
                     }
                     MouseArea {
                         id: ma
@@ -253,7 +252,7 @@ PanelWindow {
         Text {
             text: "VOL " + Math.round(media.volume * 100) + "%   ·   SCROLL TO ADJUST"
             color: media.amber
-            font.family: media.mono; font.pixelSize: 12; font.letterSpacing: 2
+            font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
             opacity: 0.85
         }
 
@@ -271,11 +270,11 @@ PanelWindow {
                     color: JarvisFeed.djBuilding ? media.amber : media.cyan
                     opacity: Perf.live(media.modelData) ? 0.55 + 0.45 * Math.sin(Perf.time * 3) : 1
                 }
-                Text { text: "DJ MODE"; color: media.cyan; font.family: media.mono; font.pixelSize: 13; font.letterSpacing: 3 }
+                Text { text: "DJ MODE"; color: media.cyan; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 3 }
                 Text {
                     width: media.width - 500 - 130; elide: Text.ElideRight
                     text: JarvisFeed.djBuilding && !JarvisFeed.djOn ? "BUILDING SET…" : (JarvisFeed.dj.set || "").toUpperCase()
-                    color: Theme.text; font.family: media.mono; font.pixelSize: 13; font.letterSpacing: 2
+                    color: Theme.text; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2
                 }
             }
             Text {
@@ -283,7 +282,7 @@ PanelWindow {
                        "CHATTER " + (JarvisFeed.dj.chatter || "rare").toUpperCase(),
                        JarvisFeed.dj.remote && JarvisFeed.dj.device ? "ON " + JarvisFeed.dj.device.toUpperCase() : "",
                        JarvisFeed.djBuilding && JarvisFeed.djOn ? "RESHAPING…" : ""].filter(x => x).join("  ·  ")
-                color: Theme.faint; font.family: media.mono; font.pixelSize: 11; font.letterSpacing: 2
+                color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
             }
             Repeater {
                 model: (JarvisFeed.dj.next || []).slice(0, 3)
@@ -291,12 +290,12 @@ PanelWindow {
                     required property var modelData
                     required property int index
                     spacing: 10
-                    Text { text: "0" + (index + 1); color: media.amber; font.family: media.mono; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: "0" + (index + 1); color: media.amber; font.family: Style.fonts.body; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                     Text {
                         width: media.width - 500 - 34; elide: Text.ElideRight
                         text: modelData.title + (modelData.artist ? "  ·  " + modelData.artist : "")
                         color: index === 0 ? Theme.textSoft : Theme.dim
-                        font.family: media.mono; font.pixelSize: 13
+                        font.family: Style.fonts.body; font.pixelSize: 13
                     }
                 }
             }

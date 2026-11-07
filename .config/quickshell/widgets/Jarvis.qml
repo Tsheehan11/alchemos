@@ -66,19 +66,19 @@ WidgetBody {
         spacing: 3
         Text {
             text: w.labels[w.mode]
-            color: w.tone; font.family: w.mono; font.pixelSize: 15; font.letterSpacing: 3
+            color: w.tone; font.family: Style.fonts.label; font.pixelSize: 15; font.letterSpacing: 3
         }
         Text {
             visible: w.now !== ""
             width: parent.width; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.Wrap
             text: "“" + w.now + "”"
-            color: Theme.text; font.family: w.mono; font.pixelSize: 11
+            color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11
         }
         Text {
             visible: JarvisState.tools.length > 0 && JarvisState.phase !== "idle"
             width: parent.width; elide: Text.ElideRight
             text: "› " + (JarvisState.tools[JarvisState.tools.length - 1] || "")
-            color: Theme.dim; font.family: w.mono; font.pixelSize: 10; font.letterSpacing: 1
+            color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
         }
         Item { width: 1; height: 3 }
         Repeater {      // background tasks: steps used of the task's budget, what it's on now
@@ -88,8 +88,8 @@ WidgetBody {
                 width: 248; spacing: 1
                 Row {
                     spacing: 6
-                    Text { text: modelData.status === "running" ? "▸" : "…"; color: Theme.secondary; font.family: w.mono; font.pixelSize: 11 }
-                    Text { width: 236; elide: Text.ElideRight; text: modelData.title; color: Theme.textSoft; font.family: w.mono; font.pixelSize: 11 }
+                    Text { text: modelData.status === "running" ? "▸" : "…"; color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 11 }
+                    Text { width: 236; elide: Text.ElideRight; text: modelData.title; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11 }
                 }
                 HoloBar {
                     visible: modelData.status === "running"
@@ -101,7 +101,7 @@ WidgetBody {
                     text: modelData.status === "queued" ? "QUEUED"
                         : modelData.waiting ? "WAITING FOR YOUR YES · " + modelData.waiting
                         : "STEP " + (modelData.steps || 0) + (modelData.now ? " · " + modelData.now : "")
-                    color: modelData.waiting ? Theme.secondary : Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1
+                    color: modelData.waiting ? Theme.secondary : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                 }
             }
         }
@@ -109,18 +109,18 @@ WidgetBody {
             visible: w.last.text !== undefined && w.now === ""
             width: parent.width; elide: Text.ElideRight
             text: "LAST · " + (w.last.text || "")
-            color: Theme.dim; font.family: w.mono; font.pixelSize: 10
+            color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10
         }
         Text {
             visible: w.last.ts !== undefined && w.now === ""
             text: (w.last.tier ? String(w.last.tier).split(":").pop().toUpperCase() + " · " : "") + w.ago(w.last.ts || 0)
-            color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+            color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
         }
         Text {
             visible: !JarvisState.running && !JarvisState.online
             width: parent.width; wrapMode: Text.Wrap
             text: JarvisState.docked ? "Switched off · Settings → " + JarvisState.assistant : "Off on the laptop · Control center to switch on"
-            color: Theme.faint; font.family: w.mono; font.pixelSize: 10
+            color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
         }
     }
 }

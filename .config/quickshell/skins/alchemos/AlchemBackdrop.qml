@@ -30,7 +30,7 @@ Item {
     readonly property real rad: Math.min(height * 0.47, width * 0.36)        // the great circle
     readonly property real cx: width * 0.6
     readonly property real cy: height * 0.52
-    readonly property string glyphFont: "Noto Sans Symbols"
+    readonly property string glyphFont: Style.fonts.signs
     readonly property var metals: Skin.glyphs.ring && Skin.glyphs.ring.length ? Skin.glyphs.ring : ["☉", "☽", "♂", "♀", "☿", "♄"]
 
     function rng(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -435,7 +435,7 @@ Item {
     // status readout, as the hologram had one: in the display face, quiet
     Column {
         x: 28; y: 58; spacing: 4; opacity: 0.42
-        Text { text: Skin.text.os + "  ·  " + (sc.live ? "THE WORK PROCEEDS" : "AT REST"); color: Theme.primary; font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 3 }
-        Text { text: "ÆTHER   " + Math.round(SysStats.wifi * 100) + "%"; color: Theme.primary; font.family: Style.mono; font.pixelSize: 11 }
+        Text { text: Skin.text.os + "  ·  " + (sc.live ? "THE WORK PROCEEDS" : "AT REST"); color: Theme.primary; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 3 }
+        Text { text: "ÆTHER   " + Math.round(SysStats.wifi * 100) + "%"; color: Theme.primary; font.family: Style.fonts.label; font.pixelSize: 11 }
     }
 }

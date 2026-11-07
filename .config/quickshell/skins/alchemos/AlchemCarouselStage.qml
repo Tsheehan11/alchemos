@@ -10,7 +10,7 @@ Item {
     id: look
     required property var ov
     anchors.fill: parent
-    readonly property string symbols: "Noto Sans Symbols"
+    readonly property string symbols: Style.fonts.signs
     readonly property var metals: Skin.glyphs.ring && Skin.glyphs.ring.length ? Skin.glyphs.ring : ["☉", "☽", "♂", "♀", "☿", "♄"]
 
     Image {
@@ -78,14 +78,14 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "THE WORKS  ·  " + (Roles.docked ? look.ov.modelData.name : "ALL")
             color: Theme.primary
-            font.family: Style.display; font.pixelSize: 15; font.letterSpacing: 6
+            font.family: Style.fonts.display; font.pixelSize: 15; font.letterSpacing: 6
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: look.ov.focusedHere
             text: "← → TURN   ·   ENTER SELECT   ·   1–9 JUMP   ·   ESC CLOSE"
             color: Theme.dim
-            font.family: Style.display; font.pixelSize: 10; font.letterSpacing: 3
+            font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 3
         }
     }
 }

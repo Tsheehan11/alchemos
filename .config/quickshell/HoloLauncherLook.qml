@@ -144,7 +144,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "LAUNCH"
                     color: Theme.dim
-                    font.family: win.mono; font.pixelSize: 9; font.letterSpacing: 3
+                    font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 3
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -153,7 +153,7 @@ Item {
                     elide: Text.ElideRight
                     text: win.current.name
                     color: win.current.available ? "#ffffff" : Theme.faint
-                    font.family: win.mono; font.pixelSize: win.current.name.length > 6 ? 14 : 18
+                    font.family: Style.fonts.body; font.pixelSize: win.current.name.length > 6 ? 14 : 18
                     font.capitalization: Font.AllUppercase
                     font.letterSpacing: 1
                 }
@@ -161,7 +161,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: win.current.available ? "TYPE TO SEARCH" : "NOT INSTALLED"
                     color: win.amber
-                    font.family: win.mono; font.pixelSize: 7; font.letterSpacing: 2
+                    font.family: Style.fonts.body; font.pixelSize: 7; font.letterSpacing: 2
                 }
             }
         }
@@ -190,7 +190,7 @@ Item {
                 font.capitalization: Font.AllUppercase
                 color: hot ? win.amber : Theme.dim
                 opacity: Math.min(1, win.spread) * (hot ? 1 : 0.6)
-                font.family: win.mono; font.pixelSize: 11; font.letterSpacing: 4
+                font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 4
                 z: 5
             }
         }
@@ -266,7 +266,7 @@ Item {
                         elide: Text.ElideRight
                         text: node.app.name
                         color: node.sel ? "#ffffff" : Theme.textSoft
-                        font.family: win.mono
+                        font.family: Style.fonts.body
                         font.pixelSize: node.app.name.length > 6 ? 10 : 12
                         font.capitalization: Font.AllUppercase
                         font.letterSpacing: 1
@@ -275,7 +275,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: !node.app.available ? "N/A" : node.index < 10 ? (node.index + 1) % 10 : ""   // keys 1–9, 0
                         color: node.tint
-                        font.family: win.mono; font.pixelSize: 9
+                        font.family: Style.fonts.body; font.pixelSize: 9
                         opacity: 0.8
                     }
                 }

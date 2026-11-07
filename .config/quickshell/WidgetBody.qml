@@ -19,7 +19,6 @@ Item {
     readonly property bool big: size === "large" || size === "huge"
     readonly property var params: widget ? widget.params : ({})
     readonly property bool saver: PowerMode.saver
-    readonly property string mono: Style.mono
     function clicked() {}                // a click on the card that wasn't a drag
     function doubleClicked() {}
     function setParams(fields) { if (widget) Widgets.setParams(widget.id, fields); }

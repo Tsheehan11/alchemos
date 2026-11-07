@@ -5,7 +5,6 @@ import Quickshell
 Column {
     id: ap
     spacing: 14
-    readonly property string mono: Style.mono
 
     component DeviceRow: Rectangle {
         id: row
@@ -22,20 +21,20 @@ Column {
             elide: Text.ElideRight
             text: (row.current ? "◉  " : "○  ") + Audio.label(row.node)
             color: row.current ? Theme.text : Theme.textSoft
-            font.family: Style.mono; font.pixelSize: 13
+            font.family: Style.fonts.body; font.pixelSize: 13
         }
         Text {
             id: tag
             anchors.right: parent.right; anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             text: row.current ? "IN USE" : ""
-            color: Theme.secondary; font.family: Style.mono; font.pixelSize: 10; font.letterSpacing: 2
+            color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2
         }
         MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: row.picked() }
     }
 
     // ── Output ──
-    Text { text: "OUTPUT"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+    Text { text: "OUTPUT"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
     Repeater {
         model: Audio.outputs
         delegate: DeviceRow {
@@ -59,8 +58,8 @@ Column {
     }
 
     // ── Input ──
-    Text { text: "MICROPHONE"; color: Theme.dim; font.family: ap.mono; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 8 }
-    Text { visible: Audio.inputs.length === 0; text: "No microphones found"; color: Theme.faint; font.family: ap.mono; font.pixelSize: 12 }
+    Text { text: "MICROPHONE"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 8 }
+    Text { visible: Audio.inputs.length === 0; text: "No microphones found"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
     Repeater {
         model: Audio.inputs
         delegate: DeviceRow {
@@ -87,8 +86,8 @@ Column {
     }
 
     // ── Apps ──
-    Text { text: "APPS"; color: Theme.dim; font.family: ap.mono; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 8 }
-    Text { visible: Audio.apps.length === 0; text: "Nothing is playing sound right now"; color: Theme.faint; font.family: ap.mono; font.pixelSize: 12 }
+    Text { text: "APPS"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 8 }
+    Text { visible: Audio.apps.length === 0; text: "Nothing is playing sound right now"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
     Repeater {
         model: Audio.apps
         delegate: Slider {

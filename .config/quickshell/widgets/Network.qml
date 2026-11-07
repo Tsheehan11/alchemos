@@ -35,13 +35,13 @@ WidgetBody {
         Ring { anchors.centerIn: parent; radius: 32; thickness: 2; value: 1; animated: false; color: Qt.rgba(w.vpnTone.r, w.vpnTone.g, w.vpnTone.b, 0.8); trackColor: "transparent"; dashed: !VPN.connected; dash: [3, 5]
                rotation: VPN.busy && w.live && !w.saver ? w.t * 120 : 0 }
         Ring { anchors.centerIn: parent; radius: 24; thickness: 3; value: Math.max(0.001, SysStats.wifi); animated: w.live; color: Theme.primary; gauge: true }
-        Text { anchors.centerIn: parent; text: VPN.connected ? "⛨" : "◌"; color: w.vpnTone; font.pixelSize: 18 }
+        Text { anchors.centerIn: parent; text: VPN.connected ? "⛨" : "◌"; color: w.vpnTone; font.family: Style.fonts.glyph; font.pixelSize: 18 }
     }
     Column {
         x: 82; width: 218; spacing: 2
-        Text { width: 218; elide: Text.ElideRight; text: (VPN.connected || VPN.busy ? (VPN.current.name || "VPN") + " · " + (VPN.where() || VPN.state) : "VPN OFF").toUpperCase(); color: w.vpnTone; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2 }
-        Text { width: 218; elide: Text.ElideRight; text: (w.ssid || "NO WI-FI") + (SysStats.wifi > 0 ? " · " + Math.round(SysStats.wifi * 100) + "%" : ""); color: Theme.textSoft; font.family: w.mono; font.pixelSize: 12 }
-        Text { text: "↓ " + SysStats.fmtRate(SysStats.rxRate) + "   ↑ " + SysStats.fmtRate(SysStats.txRate); color: Theme.dim; font.family: w.mono; font.pixelSize: 10 }
+        Text { width: 218; elide: Text.ElideRight; text: (VPN.connected || VPN.busy ? (VPN.current.name || "VPN") + " · " + (VPN.where() || VPN.state) : "VPN OFF").toUpperCase(); color: w.vpnTone; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2 }
+        Text { width: 218; elide: Text.ElideRight; text: (w.ssid || "NO WI-FI") + (SysStats.wifi > 0 ? " · " + Math.round(SysStats.wifi * 100) + "%" : ""); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
+        Text { text: "↓ " + SysStats.fmtRate(SysStats.rxRate) + "   ↑ " + SysStats.fmtRate(SysStats.txRate); color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10 }
         Graph { width: 218; height: 26; values: SysStats.rxHistory; maxValue: 0; lineColor: Theme.primary; fillColor: Theme.pc(0.1) }
     }
 }

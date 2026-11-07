@@ -23,7 +23,6 @@ PanelWindow {
     color: "transparent"
     Binding { target: win.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
-    readonly property string mono: Style.mono
 
     Rectangle {
         Engraving { visible: Style.engraved; fillAlpha: 0.96; corners: []; emberColor: Theme.secondary }     // engraved skins: the plate (Engraving.qml)
@@ -48,8 +47,8 @@ PanelWindow {
             anchors.left: parent.left; anchors.leftMargin: 22
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
-            Text { text: "KEEP THESE DISPLAY SETTINGS?"; color: Theme.text; font.family: win.mono; font.pixelSize: 15; font.letterSpacing: 2 }
-            Text { text: "Reverting in " + Displays.countdown + " s  ·  Enter = keep, Esc = revert"; color: Theme.dim; font.family: win.mono; font.pixelSize: 11 }
+            Text { text: "KEEP THESE DISPLAY SETTINGS?"; color: Theme.text; font.family: Style.fonts.label; font.pixelSize: 15; font.letterSpacing: 2 }
+            Text { text: "Reverting in " + Displays.countdown + " s  ·  Enter = keep, Esc = revert"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
         }
         Row {
             anchors.right: parent.right; anchors.rightMargin: 18

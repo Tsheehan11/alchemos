@@ -28,7 +28,6 @@ Item {
     property real dim: 0
 
     readonly property real halfH: height / 2
-    readonly property string mono: Style.mono
     readonly property bool painted: upperDoor.painted && lowerDoor.painted
     readonly property var metals: Skin.glyphs.ring || []       // the skin's signs (ALCHEMOS: the six metals); none = bare seal
     readonly property int count: metals.length
@@ -256,14 +255,14 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: scene.message.slice(0, Math.ceil(scene.msgP * scene.message.length))
                 color: Theme.text
-                font.family: scene.mono; font.pixelSize: scene.message.length > 11 ? 17 : 22; font.letterSpacing: 4
+                font.family: Style.fonts.display; font.pixelSize: scene.message.length > 11 ? 17 : 22; font.letterSpacing: 4
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: scene.submessage
                 opacity: Math.max(0, (scene.msgP - 0.5) * 2)
                 color: Theme.secondary
-                font.family: scene.mono; font.pixelSize: 8; font.letterSpacing: 2
+                font.family: Style.fonts.label; font.pixelSize: 8; font.letterSpacing: 2
             }
         }
     }

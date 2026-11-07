@@ -11,7 +11,6 @@ Column {
     id: dp
     spacing: 16
 
-    readonly property string mono: Style.mono
     readonly property string laptop: "eDP-1"
 
     property var mons: []          // hyprctl monitors all -j
@@ -171,18 +170,18 @@ Column {
     }
 
     // ── Active profile ──
-    Text { text: "DISPLAY PROFILE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+    Text { text: "DISPLAY PROFILE"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
     Column {
         width: parent.width
         spacing: 6
         Text {
             width: parent.width; elide: Text.ElideRight
             text: Profiles.name + (Profiles.saved ? "" : "  ·  DEFAULTS")
-            color: Theme.primary; font.family: dp.mono; font.pixelSize: 15; font.letterSpacing: 2
+            color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 15; font.letterSpacing: 2
         }
         Text {
             width: parent.width; wrapMode: Text.WordWrap
-            color: Theme.textSoft; font.family: dp.mono; font.pixelSize: 12
+            color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12
             text: {
                 const p = Profiles.current;
                 if (!p) return "";
@@ -192,7 +191,7 @@ Column {
         }
         Text {
             width: parent.width; wrapMode: Text.WordWrap
-            color: Theme.faint; font.family: dp.mono; font.pixelSize: 11
+            color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
             text: "Chosen by what's plugged in, and applied by itself when that changes. APPLY + KEEP below saves into this profile only."
         }
     }
@@ -204,11 +203,11 @@ Column {
     Text {
         visible: Profiles.status !== ""
         text: Profiles.status
-        color: Theme.secondary; font.family: dp.mono; font.pixelSize: 12
+        color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 12
     }
 
     // ── Layout mode ──
-    Text { text: "WHAT THE SCREENS SHOW"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+    Text { text: "WHAT THE SCREENS SHOW"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
     Row {
         spacing: 10
         visible: dp.hasExternal
@@ -225,7 +224,7 @@ Column {
     Text {
         width: parent.width
         wrapMode: Text.WordWrap
-        color: Theme.textSoft; font.family: dp.mono; font.pixelSize: 12
+        color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12
         text: !dp.hasExternal ? "Only the laptop screen is connected. Plug in the monitors to get extend / mirror / external-only."
             : dp.layout === "extend" ? "Every screen is its own desktop. MOVE LEFT / RIGHT below sets the order."
             : dp.layout === "mirror" ? "Every screen shows the main monitor (same picture everywhere)."
@@ -267,16 +266,16 @@ Column {
                 Column {
                     anchors.centerIn: parent
                     spacing: 2
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: box.modelData === dp.laptop ? "LAPTOP" : "MONITOR " + (dp.order.filter(n => n !== dp.laptop).indexOf(box.modelData) + 1); color: Theme.text; font.family: dp.mono; font.pixelSize: 12 }
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: dp.edits[box.modelData] ? dp.edits[box.modelData].mode.split("@")[0] + " · " + dp.aspect(dp.edits[box.modelData].mode) : ""; color: Theme.dim; font.family: dp.mono; font.pixelSize: 10 }
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: dp.roleLabel(box.modelData); color: Theme.secondary; font.family: dp.mono; font.pixelSize: 10; font.letterSpacing: 2 }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: box.modelData === dp.laptop ? "LAPTOP" : "MONITOR " + (dp.order.filter(n => n !== dp.laptop).indexOf(box.modelData) + 1); color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 12 }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: dp.edits[box.modelData] ? dp.edits[box.modelData].mode.split("@")[0] + " · " + dp.aspect(dp.edits[box.modelData].mode) : ""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10 }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: dp.roleLabel(box.modelData); color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2 }
                 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dp.selName = box.modelData }
             }
         }
         Text {
             anchors.bottom: parent.bottom; anchors.right: parent.right; anchors.margins: 8
-            text: "CLICK A SCREEN TO EDIT IT"; color: Theme.faint; font.family: dp.mono; font.pixelSize: 9; font.letterSpacing: 2
+            text: "CLICK A SCREEN TO EDIT IT"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 2
         }
     }
 
@@ -288,11 +287,11 @@ Column {
 
         Text {
             text: dp.sel ? (dp.sel.name === dp.laptop ? "LAPTOP SCREEN" : dp.sel.description.toUpperCase()) + "  ·  " + dp.sel.name : ""
-            color: Theme.primary; font.family: dp.mono; font.pixelSize: 13; font.letterSpacing: 2
+            color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 13; font.letterSpacing: 2
             width: parent.width; elide: Text.ElideRight
         }
         // What this screen's HUD shows: live, no APPLY / KEEP
-        Text { text: "HUD ON THIS SCREEN  ·  APPLIES NOW"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+        Text { text: "HUD ON THIS SCREEN  ·  APPLIES NOW"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
         Repeater {
             model: dp.roleRows(dp.selName)
             delegate: Row {
@@ -304,7 +303,7 @@ Column {
                     width: 150; anchors.verticalCenter: parent.verticalCenter
                     text: roleRow.modelData.label + (roleRow.modelData.now ? "  · NOW" : "")
                     color: roleRow.modelData.now ? Theme.primary : Theme.dim
-                    font.family: dp.mono; font.pixelSize: 11; font.letterSpacing: 2
+                    font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2
                 }
                 Repeater {
                     model: Roles.picks
@@ -319,7 +318,7 @@ Column {
         }
         Text {
             width: parent.width; wrapMode: Text.WordWrap
-            color: Theme.faint; font.family: dp.mono; font.pixelSize: 11
+            color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
             text: (dp.layout === "mirror" ? "Mirrored screens show what the source screen is set to. " : "")
                 + (dp.pickFor(dp.selName) === "auto"
                    ? "AUTO (◇) goes by position: left monitor CLOCK, middle STATS, laptop MUSIC, others NONE. Showing " + dp.showsFor(dp.selName).toUpperCase() + " now. "
@@ -377,6 +376,6 @@ Column {
     Text {
         visible: dp.status !== ""
         text: dp.status
-        color: Theme.secondary; font.family: dp.mono; font.pixelSize: 12
+        color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 12
     }
 }

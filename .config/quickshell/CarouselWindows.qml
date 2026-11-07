@@ -10,7 +10,7 @@ Item {
     id: cw
     required property var ov
     required property var panel
-    property string font: ov.mono
+    property string font: Style.fonts.body
     anchors.fill: parent
 
                 // Window previews (dimmed while Peek hides them)

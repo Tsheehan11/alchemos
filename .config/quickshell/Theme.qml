@@ -361,8 +361,9 @@ Singleton {
         // isn't swapped again. 8fb4c4 = muted text (placeholder, battery) → the HUD's label colour.
         const swap = { "4fd8ff": hex(primary), "ffb347": hex(secondary), "05090f": hex(bg), "8fb4c4": hex(dim),
                        "__HOME__": Quickshell.env("HOME"), "__BACKGROUNDS__": blocks.join("\n"), "__MAIN__": main,
-                       "__LOCKTITLE__": Skin.text.lockTitle, "__DENIED__": Skin.text.denied };
-        return t.replace(/4fd8ff|ffb347|05090f|8fb4c4|__HOME__|__BACKGROUNDS__|__MAIN__|__LOCKTITLE__|__DENIED__/g, m => swap[m]);
+                       "__LOCKTITLE__": Skin.text.lockTitle, "__DENIED__": Skin.text.denied,
+                       "__FONT_LABEL__": Style.fonts.label, "__FONT_NUMERIC__": Style.fonts.numeric, "__FONT_FIELD__": Style.fonts.field };
+        return t.replace(/4fd8ff|ffb347|05090f|8fb4c4|__HOME__|__BACKGROUNDS__|__MAIN__|__LOCKTITLE__|__DENIED__|__FONT_LABEL__|__FONT_NUMERIC__|__FONT_FIELD__/g, m => swap[m]);
     }
     function pushLockConf() {
         const conf = lockConf();

@@ -24,7 +24,6 @@ PanelWindow {
     readonly property bool lite: IgniteState.lite
     readonly property color tint: IgniteState.color
     readonly property real r0: Math.min(width, height) * 0.24
-    readonly property string mono: Style.mono
     function tc(a) { return Qt.rgba(tint.r, tint.g, tint.b, a); }
 
     // Frame probe: one log line per screen per animation (frame intervals as this window saw them)
@@ -128,12 +127,12 @@ PanelWindow {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: IgniteState.title.slice(0, Math.ceil(win.seg(0.15, 0.45) * IgniteState.title.length))
-            color: Theme.text; font.family: win.mono; font.pixelSize: 22; font.letterSpacing: 6
+            color: Theme.text; font.family: Style.fonts.display; font.pixelSize: 22; font.letterSpacing: 6
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: IgniteState.sub
-            color: win.tc(1); font.family: win.mono; font.pixelSize: 10; font.letterSpacing: 3
+            color: win.tc(1); font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 3
             opacity: win.seg(0.4, 0.6)
         }
     }

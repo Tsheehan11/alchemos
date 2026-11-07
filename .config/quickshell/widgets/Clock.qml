@@ -47,21 +47,21 @@ WidgetBody {
         spacing: 2
         Row {
             spacing: 6
-            Text {
+            NumText {
                 text: Qt.formatDateTime(w.shown, Theme.cfg.clock24 ? "HH:mm" : "h:mm")
                 color: Theme.text
-                font.family: w.mono; font.pixelSize: 46; font.weight: Font.Light
+                font.family: Style.fonts.numeric; font.pixelSize: 46; font.weight: Font.Light
             }
             Column {
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 8
-                Text { visible: !Theme.cfg.clock24; text: Qt.formatDateTime(w.shown, "AP"); color: Theme.secondary; font.family: w.mono; font.pixelSize: 13 }
-                Text { visible: !w.saver; text: Qt.formatDateTime(w.shown, ":ss"); color: Theme.dim; font.family: w.mono; font.pixelSize: 15 }
+                Text { visible: !Theme.cfg.clock24; text: Qt.formatDateTime(w.shown, "AP"); color: Theme.secondary; font.family: Style.fonts.label; font.pixelSize: 13 }
+                NumText { visible: !w.saver; text: Qt.formatDateTime(w.shown, ":ss"); color: Theme.dim; font.family: Style.fonts.numeric; font.pixelSize: 15 }
             }
         }
         Text {
             text: Qt.formatDateTime(w.shown, "dddd · d MMM").toUpperCase()
             color: Theme.dim
-            font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2
+            font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
         }
     }
 
@@ -109,6 +109,6 @@ WidgetBody {
         visible: w.analog
         y: 178; width: 172; horizontalAlignment: Text.AlignHCenter
         text: Qt.formatDateTime(w.shown, Theme.cfg.clock24 ? "HH:mm · ddd" : "h:mm AP · ddd").toUpperCase()
-        color: Theme.dim; font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2
+        color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
     }
 }

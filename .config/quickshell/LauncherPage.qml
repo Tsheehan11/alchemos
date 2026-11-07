@@ -6,7 +6,6 @@ import Quickshell
 Column {
     id: lp
     spacing: 14
-    readonly property string mono: Style.mono
     property string editing: ""        // id of the app whose edit panel is open
     property string adding: ""         // "" | "app" | "custom"
     property string note: ""           // last result, shown under the buttons
@@ -35,19 +34,19 @@ Column {
     // ── Header ──
     Item {
         width: parent.width; height: 22
-        Text { text: "RADIAL LAUNCHER"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 3; anchors.verticalCenter: parent.verticalCenter }
+        Text { text: "RADIAL LAUNCHER"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; anchors.verticalCenter: parent.verticalCenter }
         Text {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             text: LauncherApps.list.length + " / " + LauncherApps.maxApps + " APPS"
             color: LauncherApps.full ? Theme.secondary : Theme.dim
-            font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2
+            font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2
         }
     }
     Text {
         width: parent.width
         wrapMode: Text.WordWrap
         text: "Super + Space. Apps fill the ring in launch order, in pairs: the first of each pair sits by the core, the second flows out from it. Keys 1–9 and 0 launch the first ten."
-        color: Theme.faint; font.family: lp.mono; font.pixelSize: 11
+        color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
     }
 
     // ── Add / reset (above the list, so the panels open where you can see them) ──
@@ -64,14 +63,14 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             visible: LauncherApps.full
             text: "Ring is full (" + LauncherApps.maxApps + " max) — remove one to add another"
-            color: Theme.secondary; font.family: lp.mono; font.pixelSize: 11
+            color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 11
         }
     }
     Text {
         visible: lp.note !== ""
         text: lp.note
         color: lp.note.startsWith("✕") ? Theme.secondary : Theme.primary
-        font.family: lp.mono; font.pixelSize: 12
+        font.family: Style.fonts.body; font.pixelSize: 12
     }
 
     // ── Add app: search installed apps ──
@@ -132,16 +131,16 @@ Column {
                     Item {
                         width: 26; height: 26
                         Image { anchors.fill: parent; source: hit.iconSrc; sourceSize: Qt.size(64, 64); visible: hit.iconSrc !== "" && status === Image.Ready }
-                        Text { anchors.centerIn: parent; visible: hit.iconSrc === ""; text: (hit.modelData.name || "?").charAt(0); color: Theme.primary; font.family: lp.mono; font.pixelSize: 13 }
+                        Text { anchors.centerIn: parent; visible: hit.iconSrc === ""; text: (hit.modelData.name || "?").charAt(0); color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 13 }
                     }
-                    Text { text: hit.modelData.name; color: Theme.text; font.family: lp.mono; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: hit.modelData.genericName || ""; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: hit.modelData.name; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: hit.modelData.genericName || ""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                 }
                 Text {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
                     text: hit.already ? "ON THE RING" : "ADD"
                     color: hit.already ? Theme.faint : Theme.secondary
-                    font.family: lp.mono; font.pixelSize: 10; font.letterSpacing: 2
+                    font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2
                 }
                 MouseArea { id: hitMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: picker.pick(hit.modelData) }
             }
@@ -149,7 +148,7 @@ Column {
         Text {
             visible: picker.results.length === 0
             text: "No installed app matches “" + search.text + "”"
-            color: Theme.faint; font.family: lp.mono; font.pixelSize: 12
+            color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12
         }
     }
 
@@ -167,23 +166,23 @@ Column {
         }
         Row {
             spacing: 10
-            Text { width: 80; text: "COMMAND"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+            Text { width: 80; text: "COMMAND"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
             HudInput { id: cExec; width: 480; placeholder: "kitty -e btop   ·   code ~/cs137   ·   ~/bin/script.sh"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
         }
         Row {
             spacing: 10
-            Text { width: 80; text: "NAME"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+            Text { width: 80; text: "NAME"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
             HudInput { id: cName; width: 220; maximumLength: 16; placeholder: "blank = command name"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
         }
         Row {
             spacing: 10
-            Text { width: 80; text: "ICON"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+            Text { width: 80; text: "ICON"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
             HudInput { id: cIcon; width: 360; placeholder: "theme icon name or file path (optional)"; onAccepted: custom.commit(); onCancelled: lp.finishAdding() }
             Image { width: 28; height: 28; anchors.verticalCenter: parent.verticalCenter; sourceSize: Qt.size(64, 64); source: LauncherApps.iconSource(cIcon.text.trim()) }
         }
         Text {
             text: "Runs through Hyprland, so it keeps running if the HUD restarts. ~ works in paths."
-            color: Theme.faint; font.family: lp.mono; font.pixelSize: 10
+            color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
         }
         Row {
             spacing: 10
@@ -226,9 +225,9 @@ Column {
                         Text {
                             text: String(row.index + 1).padStart(2, "0")
                             color: row.inner ? Theme.primary : Theme.secondary
-                            font.family: lp.mono; font.pixelSize: 13; font.letterSpacing: 1
+                            font.family: Style.fonts.body; font.pixelSize: 13; font.letterSpacing: 1
                         }
-                        Text { text: lp.tierText(row.index); color: Theme.faint; font.family: lp.mono; font.pixelSize: 9; font.letterSpacing: 1 }
+                        Text { text: lp.tierText(row.index); color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
                     }
 
                     // Icon (or initial)
@@ -253,7 +252,7 @@ Column {
                                 anchors.centerIn: parent
                                 text: (row.modelData.name || "?").charAt(0).toUpperCase()
                                 color: row.inner ? Theme.primary : Theme.secondary
-                                font.family: lp.mono; font.pixelSize: 14
+                                font.family: Style.fonts.body; font.pixelSize: 14
                             }
                         }
                     }
@@ -269,14 +268,14 @@ Column {
                             Text {
                                 text: row.modelData.name
                                 color: row.modelData.available ? Theme.text : Theme.faint
-                                font.family: lp.mono; font.pixelSize: 14; font.letterSpacing: 1
+                                font.family: Style.fonts.body; font.pixelSize: 14; font.letterSpacing: 1
                                 font.capitalization: Font.AllUppercase
                             }
                             Text {
                                 visible: row.inner && row.modelData.group !== ""
                                 text: "◆ " + row.modelData.group
                                 color: Theme.dim
-                                font.family: lp.mono; font.pixelSize: 10; font.letterSpacing: 2
+                                font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2
                                 font.capitalization: Font.AllUppercase
                                 anchors.verticalCenter: parent.verticalCenter
                             }
@@ -284,7 +283,7 @@ Column {
                                 visible: !row.modelData.available
                                 text: "MISSING"
                                 color: Theme.secondary
-                                font.family: lp.mono; font.pixelSize: 10; font.letterSpacing: 2
+                                font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -293,7 +292,7 @@ Column {
                             elide: Text.ElideRight
                             text: lp.detailText(row.modelData)
                             color: Theme.dim
-                            font.family: lp.mono; font.pixelSize: 11
+                            font.family: Style.fonts.body; font.pixelSize: 11
                         }
                     }
 
@@ -365,20 +364,20 @@ Column {
 
                     Row {
                         spacing: 10
-                        Text { width: 70; text: "NAME"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+                        Text { width: 70; text: "NAME"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
                         HudInput { id: eName; width: 220; maximumLength: 16; placeholder: "LABEL"; onAccepted: editor.commit(); onCancelled: editor.cancel() }
-                        Text { width: 60; text: "BRANCH"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+                        Text { width: 60; text: "BRANCH"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
                         HudInput { id: eGroup; width: 120; maximumLength: 8; placeholder: "e.g. DEV"; onAccepted: editor.commit(); onCancelled: editor.cancel() }
                     }
                     Row {
                         spacing: 10
                         visible: row.modelData.kind === "command"
-                        Text { width: 70; text: "COMMAND"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+                        Text { width: 70; text: "COMMAND"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
                         HudInput { id: eExec; width: editor.width - 80; placeholder: "kitty -e btop"; onAccepted: editor.commit(); onCancelled: editor.cancel() }
                     }
                     Row {
                         spacing: 10
-                        Text { width: 70; text: "ICON"; color: Theme.dim; font.family: lp.mono; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
+                        Text { width: 70; text: "ICON"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
                         HudInput {
                             id: eIcon; width: 360
                             placeholder: row.modelData.kind === "desktop" ? "blank = the app's own icon" : "theme icon name or file path"
@@ -393,7 +392,7 @@ Column {
                     Text {
                         visible: row.inner
                         text: "BRANCH is the label drawn on this app's branch (only apps on the inner ring show one)."
-                        color: Theme.faint; font.family: lp.mono; font.pixelSize: 10
+                        color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
                     }
                     Row {
                         spacing: 10

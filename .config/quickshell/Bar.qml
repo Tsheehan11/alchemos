@@ -21,7 +21,6 @@ PanelWindow {
 
     readonly property color cyan: Theme.primary
     readonly property color dim: Theme.dim
-    readonly property string mono: Style.mono
 
     anchors { top: true; left: true; right: true }
     implicitHeight: 34
@@ -70,7 +69,7 @@ PanelWindow {
             anchors.verticalCenter: parent.verticalCenter
             text: bar.isMain ? Skin.text.os : bar.modelData.name
             color: bar.isMain ? bar.cyan : bar.dim
-            font.family: bar.isMain ? Style.display : bar.mono
+            font.family: bar.isMain ? Style.fonts.display : Style.fonts.label
             font.pixelSize: bar.isMain && Style.display !== Style.mono ? 15 : 13
             font.bold: bar.isMain
             font.letterSpacing: 2
@@ -102,7 +101,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: parent.ws
                         color: parent.active ? Theme.text : Theme.textSoft
-                        font.family: bar.mono
+                        font.family: Style.fonts.body
                         font.pixelSize: 11
                     }
                     MouseArea {
@@ -116,12 +115,12 @@ PanelWindow {
     }
 
     // Center: clock
-    Text {
+    NumText {
         anchors.centerIn: parent
         text: Qt.formatDateTime(clock.date, GameMode.quiet ? (Theme.cfg.clock24 ? "hh:mm" : "h:mm AP")
                                                           : (Theme.cfg.clock24 ? "hh:mm:ss" : "h:mm:ss AP"))
         color: Theme.textSoft
-        font.family: bar.mono
+        font.family: Style.fonts.numeric
         font.pixelSize: 13
         font.letterSpacing: 2
     }
@@ -148,30 +147,30 @@ PanelWindow {
                 // ☽ SELENE; legacy ◉ ◌ ○ JARVIS, ◈ ◇ FRIDAY), in its accent; then ON / OFF / ON (LAPTOP, …)
                 text: (JarvisState.online ? JarvisState.glyph : JarvisState.toggleOn ? JarvisState.glyphStarting : JarvisState.glyphIdle) + " " + JarvisState.name + " " + JarvisState.stateLabel.toUpperCase()
                 color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : JarvisState.accent) : Theme.faint
-                font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1
+                font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1
             }
-            Text { text: "CPU " + Math.round(SysStats.cpu * 100) + "%"; color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
-            Text { text: "GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"); color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
-            Text { text: "RAM " + Math.round(SysStats.ram * 100) + "%"; color: bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
-            Text { text: "BAT " + Math.round(SysStats.battery * 100) + "%"; color: SysStats.charging ? "#7cf5c1" : bar.dim; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 1 }
+            Text { text: "CPU " + Math.round(SysStats.cpu * 100) + "%"; color: bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
+            Text { text: "GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"); color: bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
+            Text { text: "RAM " + Math.round(SysStats.ram * 100) + "%"; color: bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
+            Text { text: "BAT " + Math.round(SysStats.battery * 100) + "%"; color: SysStats.charging ? "#7cf5c1" : bar.dim; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 1 }
             Text {
                 visible: VPN.connected || VPN.busy || VPN.blocked
                 text: String.fromCodePoint(0xF0582) + " " + (VPN.blocked ? "VPN DOWN · BLOCKED" : VPN.busy ? "VPN…" : (VPN.current.countryCode || "VPN"))
                 color: VPN.blocked ? "#ff5f5f" : VPN.busy ? Theme.secondary : bar.cyan
-                font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2
+                font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
             }
             // Hyprland 0.57 (the unplug-crash fix) out or installed: HyprFix.qml
-            Text { visible: bar.isMain && HyprFix.pending; text: HyprFix.label; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
-            Text { visible: PowerMode.saver; text: "SAVER"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
-            Text { visible: Peek.active; text: "PEEK"; color: Theme.secondary; font.family: bar.mono; font.pixelSize: 12; font.letterSpacing: 2 }
+            Text { visible: bar.isMain && HyprFix.pending; text: HyprFix.label; color: Theme.secondary; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
+            Text { visible: PowerMode.saver; text: "SAVER"; color: Theme.secondary; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
+            Text { visible: Peek.active; text: "PEEK"; color: Theme.secondary; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
             Text {
                 visible: GameMode.active
                 text: String.fromCodePoint(0xF0170) + (GameMode.batteryWarn ? " COMBAT · BATTERY" : " COMBAT")
                 color: GameMode.batteryWarn ? "#ff5f5f" : Theme.secondary
-                font.family: bar.mono; font.pixelSize: 12; font.bold: true; font.letterSpacing: 2
+                font.family: Style.fonts.label; font.pixelSize: 12; font.bold: true; font.letterSpacing: 2
             }
             // the skin's mark: ALCHEMOS the sign of the metal in use (☉ for a custom preset), legacy ◈
-            Text { text: Skin.text.mark || Skin.glyphFor(Theme.cfg.preset) || "☉"; color: bar.cyan; font.pixelSize: 13 }
+            Text { text: Skin.text.mark || Skin.glyphFor(Theme.cfg.preset) || "☉"; color: bar.cyan; font.family: Style.fonts.glyph; font.pixelSize: 13 }
         }
 
         MouseArea {

@@ -20,7 +20,6 @@ PanelWindow {
     color: "transparent"
     Binding { target: mk.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
-    readonly property string mono: Style.mono
     property string step: ""                 // "" (pick a type) | timer | clock | note
     onVisibleChanged: { step = ""; if (visible) keys.forceActiveFocus(); }
 
@@ -81,8 +80,8 @@ PanelWindow {
                     Column {
                         anchors.centerIn: parent
                         spacing: 6
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.g; color: modelData.settings ? Theme.dim : Theme.primary; font.family: mk.mono; font.pixelSize: 22 }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.n; color: Theme.textSoft; font.family: mk.mono; font.pixelSize: 9; font.letterSpacing: 1.5 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.g; color: modelData.settings ? Theme.dim : Theme.primary; font.family: Style.fonts.body; font.pixelSize: 22 }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.n; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1.5 }
                     }
                     MouseArea {
                         id: tileMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

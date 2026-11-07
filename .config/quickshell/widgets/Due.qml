@@ -34,14 +34,14 @@ WidgetBody {
         }
         Column {
             anchors.centerIn: parent
-            Text { anchors.horizontalCenter: parent.horizontalCenter; text: w.first ? String(w.first.days) : "—"; color: Theme.text; font.family: w.mono; font.pixelSize: 20 }
-            Text { anchors.horizontalCenter: parent.horizontalCenter; text: w.first ? (w.first.days === 1 ? "DAY" : "DAYS") : ""; color: Theme.dim; font.family: w.mono; font.pixelSize: 8; font.letterSpacing: 2 }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; text: w.first ? String(w.first.days) : "—"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 20 }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; text: w.first ? (w.first.days === 1 ? "DAY" : "DAYS") : ""; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 8; font.letterSpacing: 2 }
         }
     }
     Column {
         id: list
         x: 88; width: 232; spacing: 4
-        Text { visible: w.all.length === 0; text: (JarvisFeed.agenda || {}).updated ? "ALL CLEAR" : "READING TRACKER…"; color: Theme.faint; font.family: w.mono; font.pixelSize: 12; font.letterSpacing: 2 }
+        Text { visible: w.all.length === 0; text: (JarvisFeed.agenda || {}).updated ? "ALL CLEAR" : "READING TRACKER…"; color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
         Repeater {
             model: w.items
             delegate: Column {
@@ -51,11 +51,11 @@ WidgetBody {
                     width: 232; elide: Text.ElideRight
                     text: modelData.label || (modelData.course + " " + modelData.title)
                     color: modelData.days < 0 ? Theme.secondary : modelData.days <= 1 ? Theme.text : Theme.textSoft
-                    font.family: w.mono; font.pixelSize: 12
+                    font.family: Style.fonts.body; font.pixelSize: 12
                 }
                 Text {
                     text: "▲ " + w.when(modelData) + (modelData.status && modelData.status !== "Not Started" ? " · " + modelData.status.toUpperCase() : "")
-                    color: modelData.days < 0 ? Theme.secondary : Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1
+                    color: modelData.days < 0 ? Theme.secondary : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                 }
             }
         }

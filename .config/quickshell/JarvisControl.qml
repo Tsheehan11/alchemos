@@ -67,7 +67,7 @@ PanelWindow {
             Text {
                 id: tag; anchors.centerIn: parent
                 text: JarvisControlState.text + (JarvisControlState.stopped ? "" : "   ·   SUPER+SHIFT+ESC / \"STOP\" TO STOP")
-                color: frame.tone; font.family: Style.mono; font.pixelSize: 10; font.letterSpacing: 1.2
+                color: frame.tone; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1.2
             }
         }
     }

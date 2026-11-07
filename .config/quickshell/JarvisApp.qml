@@ -24,7 +24,6 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
-    readonly property string mono: Style.mono
     readonly property var link: JarvisLink
     onShownChanged: if (shown) { JarvisState.dismiss(); Qt.callLater(() => input.focusInput()); }
 
@@ -152,11 +151,11 @@ PanelWindow {
                             Text {
                                 width: parent.width; elide: Text.ElideRight
                                 text: (modelData.kind === "task" ? "▣ " : modelData.kind === "quick" ? "· " : "") + modelData.title
-                                color: Theme.text; font.family: app.mono; font.pixelSize: 12
+                                color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 12
                             }
                             Text {
                                 text: (parent.parent.active ? "● ACTIVE  ·  " : "") + app.when(modelData.updated) + "  ·  " + (modelData.n || 0) + " msg"
-                                color: parent.parent.active ? Theme.primary : Theme.faint; font.family: app.mono; font.pixelSize: 10
+                                color: parent.parent.active ? Theme.primary : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
                             }
                         }
                         MouseArea { id: tma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { JarvisLink.openThread(modelData.id); input.focusInput(); } }
@@ -165,7 +164,7 @@ PanelWindow {
                         visible: threadList.count === 0
                         width: parent.width; wrapMode: Text.Wrap
                         text: link.query ? "Nothing matches." : "No conversations yet. Talk to " + JarvisState.callOf("jarvis") + " or type below."
-                        color: Theme.faint; font.family: app.mono; font.pixelSize: 11
+                        color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }
             }
@@ -198,14 +197,14 @@ PanelWindow {
                                       : link.shownThread.kind === "task" ? "▣ TASK THREAD"
                                       : midHead.active ? "● ACTIVE · NEW MESSAGES GO HERE" : "OLDER THREAD · RESUME TO CONTINUE IT"
                                 color: midHead.active ? Theme.primary : Theme.dim
-                                font.family: app.mono; font.pixelSize: 9; font.letterSpacing: 1
+                                font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                             }
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - 260; elide: Text.ElideRight
                             text: link.shownThread ? link.shownThread.title.toUpperCase() : ""
-                            color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                            color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 2
                         }
                     }
                     SmallButton {
@@ -240,7 +239,7 @@ PanelWindow {
                                 elide: cf.plan ? Text.ElideNone : Text.ElideRight
                                 wrapMode: cf.plan ? Text.Wrap : Text.NoWrap
                                 text: (cf.modelData.title ? cf.modelData.title.toUpperCase() + " · " : "") + cf.modelData.prompt
-                                color: Theme.text; font.family: app.mono; font.pixelSize: 12; lineHeight: 1.15
+                                color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 12; lineHeight: 1.15
                             }
                             Row {
                                 anchors.right: parent.right; anchors.rightMargin: 6
@@ -283,13 +282,13 @@ PanelWindow {
                             text: (me ? "YOU" : JarvisState.nameOf(modelData.persona)) + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
                                   + (!me && modelData.tier ? "  ·  " + modelData.tier.toUpperCase() : "")
                             color: me ? Theme.dim : Theme.primary
-                            font.family: app.mono; font.pixelSize: 10; font.letterSpacing: 1
+                            font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
                         }
                         Text {
                             width: parent.width; wrapMode: Text.Wrap
                             text: modelData.text
                             color: me ? Theme.text : Theme.textSoft
-                            font.family: app.mono; font.pixelSize: 13
+                            font.family: Style.fonts.body; font.pixelSize: 13
                             textFormat: Text.PlainText
                         }
                         Flow {
@@ -304,7 +303,7 @@ PanelWindow {
                                     Text {
                                         id: chip; anchors.centerIn: parent
                                         text: "◆ " + (modelData.length > 70 ? modelData.slice(0, 70) + "…" : modelData)
-                                        color: Theme.dim; font.family: app.mono; font.pixelSize: 10
+                                        color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10
                                     }
                                 }
                             }
@@ -314,7 +313,7 @@ PanelWindow {
                         visible: msgList.count === 0
                         anchors.centerIn: parent
                         text: link.connected ? "Ask " + JarvisState.callOf(JarvisState.persona) + " anything, or switch to TASK for a background job." : JarvisState.callOf("jarvis") + " is offline. History stays readable."
-                        color: Theme.faint; font.family: app.mono; font.pixelSize: 12
+                        color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12
                     }
                     // scroll position
                     Rectangle {
@@ -339,7 +338,7 @@ PanelWindow {
                     width: parent.width; height: 16; elide: Text.ElideRight
                     text: link.busy ? "◇ " + (JarvisState.phase === "listening" ? "LISTENING" : "WORKING") + (link.liveTool ? "  ·  " + link.liveTool : "")
                                       + (link.busyText ? "  ·  " + link.busyText : "") : ""
-                    color: Theme.primary; font.family: app.mono; font.pixelSize: 11
+                    color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 11
                     SequentialAnimation on opacity {
                         running: link.busy; loops: Animation.Infinite
                         NumberAnimation { to: 0.35; duration: 600 }
@@ -383,7 +382,7 @@ PanelWindow {
                     height: visible ? implicitHeight : 0
                     Text {
                         text: "WATCHERS  ·  " + app.watchLive + "/3"
-                        color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                        color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 2
                     }
                     Repeater {
                         model: app.watchShown
@@ -410,7 +409,7 @@ PanelWindow {
                                     Rectangle {
                                         width: wchip.implicitWidth + 10; height: 16
                                         color: Qt.rgba(wcard.tone.r, wcard.tone.g, wcard.tone.b, 0.15); border.color: wcard.tone
-                                        Text { id: wchip; anchors.centerIn: parent; text: wcard.chipText; color: wcard.tone; font.family: app.mono; font.pixelSize: 9; font.letterSpacing: 1 }
+                                        Text { id: wchip; anchors.centerIn: parent; text: wcard.chipText; color: wcard.tone; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
                                         SequentialAnimation on opacity {
                                             running: wcard.chipText === "WATCHING" && app.visible; loops: Animation.Infinite
                                             NumberAnimation { to: 0.45; duration: 900 }
@@ -420,27 +419,27 @@ PanelWindow {
                                     Text {
                                         width: parent.width - wchip.implicitWidth - 18; elide: Text.ElideRight
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: wcard.w.label; color: Theme.text; font.family: app.mono; font.pixelSize: 11
+                                        text: wcard.w.label; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11
                                         textFormat: Text.PlainText
                                     }
                                 }
                                 Text {
                                     width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
-                                    text: "For: " + wcard.w.condition; color: Theme.textSoft; font.family: app.mono; font.pixelSize: 11
+                                    text: "For: " + wcard.w.condition; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11
                                     textFormat: Text.PlainText
                                 }
                                 Text {
                                     width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
                                     visible: text !== ""
                                     text: wcard.w.result || wcard.w.note || ""
-                                    color: wcard.w.status === "done" ? Theme.secondary : Theme.dim; font.family: app.mono; font.pixelSize: 10
+                                    color: wcard.w.status === "done" ? Theme.secondary : Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10
                                     textFormat: Text.PlainText
                                 }
                                 Text {
                                     visible: wcard.live
                                     text: "every " + Math.round(wcard.w.interval) + "s  ·  " + app.span(Math.max(0, wcard.w.expires - app.now)) + " left  ·  "
                                           + wcard.w.calls + (wcard.w.calls === 1 ? " Claude look" : " Claude looks")
-                                    color: Theme.faint; font.family: app.mono; font.pixelSize: 10
+                                    color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
                                 }
                                 Row {
                                     visible: wcard.live && link.connected
@@ -458,7 +457,7 @@ PanelWindow {
                         width: parent.width - helpBtn.width - 8; elide: Text.ElideRight
                         anchors.verticalCenter: parent.verticalCenter
                         text: "TASKS  ·  " + app.runningTasks + "/2 RUNNING"
-                        color: Theme.primary; font.family: app.mono; font.pixelSize: 12; font.letterSpacing: 2
+                        color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 2
                     }
                     SmallButton {
                         id: helpBtn
@@ -478,7 +477,7 @@ PanelWindow {
                         id: helpText
                         x: 10; y: 10; width: parent.width - 20
                         wrapMode: Text.Wrap; textFormat: Text.StyledText
-                        color: Theme.textSoft; font.family: app.mono; font.pixelSize: 11; lineHeight: 1.15
+                        color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11; lineHeight: 1.15
                         text: "<b>A task is a job " + JarvisState.callOf("jarvis") + " does in the background</b> while you carry on: many steps "
                             + "(up to 40 tool calls), its own thread, and a spoken note when it's done. Two run at once.<br><br>"
                             + "<b>Start one</b><br>"
@@ -525,7 +524,7 @@ PanelWindow {
                                         id: chip; anchors.centerIn: parent
                                         text: ({waiting: "NEEDS YOUR YES", running: "RUNNING", queued: "QUEUED", done: "DONE",
                                                 failed: "FAILED", cancelled: "CANCELLED", interrupted: "INTERRUPTED"})[card.state_] || card.state_.toUpperCase()
-                                        color: card.tone; font.family: app.mono; font.pixelSize: 9; font.letterSpacing: 1
+                                        color: card.tone; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                                     }
                                     SequentialAnimation on opacity {
                                         running: app.visible && (card.state_ === "running" || card.state_ === "waiting"); loops: Animation.Infinite
@@ -535,7 +534,7 @@ PanelWindow {
                                 }
                                 Text {
                                     width: parent.width - chip.implicitWidth - 18; elide: Text.ElideRight
-                                    text: card.t.title; color: Theme.text; font.family: app.mono; font.pixelSize: 12
+                                    text: card.t.title; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 12
                                 }
                             }
                             // progress: steps used of the budget, with a sweep while it works
@@ -556,7 +555,7 @@ PanelWindow {
                             }
                             Text {
                                 width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
-                                font.family: app.mono; font.pixelSize: 10
+                                font.family: Style.fonts.body; font.pixelSize: 10
                                 color: card.state_ === "waiting" ? Theme.secondary : Theme.dim
                                 text: {
                                     const t = card.t, steps = t.steps + (t.steps === 1 ? " step" : " steps");
@@ -605,13 +604,13 @@ PanelWindow {
                             width: logList.width; wrapMode: Text.Wrap
                             text: (modelData.kind === "step" ? "◆ " : modelData.kind === "error" ? "✕ " : modelData.kind === "note" ? "· " : "") + modelData.text
                             color: modelData.kind === "error" ? Theme.secondary : modelData.kind === "text" ? Theme.textSoft : Theme.dim
-                            font.family: app.mono; font.pixelSize: 11
+                            font.family: Style.fonts.body; font.pixelSize: 11
                             textFormat: Text.PlainText
                         }
                         Text {
                             visible: logList.count === 0
                             text: app.selTask ? "No log yet." : "Select a task to see its log."
-                            color: Theme.faint; font.family: app.mono; font.pixelSize: 11
+                            color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                         }
                     }
                 }

@@ -37,7 +37,7 @@ Item {
                     visible: panel.wins.length === 0
                     text: "EMPTY"
                     color: Theme.p(0.45)
-                    font.family: ov.mono; font.pixelSize: 16; font.letterSpacing: 8
+                    font.family: Style.fonts.body; font.pixelSize: 16; font.letterSpacing: 8
                 }
 
                 // Hologram scanlines
@@ -71,13 +71,13 @@ Item {
                 Text {
                     text: "WS " + String(panel.modelData).padStart(2, "0")
                     color: panel.front ? Theme.text : Theme.textSoft
-                    font.family: ov.mono; font.pixelSize: 18; font.letterSpacing: 4
+                    font.family: Style.fonts.body; font.pixelSize: 18; font.letterSpacing: 4
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: panel.wins.length + (panel.wins.length === 1 ? " WINDOW" : " WINDOWS") + (panel.peeked ? "  ·  PEEK" : "") + (panel.current ? "  ·  ACTIVE" : "")
                     color: panel.current ? Theme.secondary : Theme.dim
-                    font.family: ov.mono; font.pixelSize: 11; font.letterSpacing: 2
+                    font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2
                 }
             }
 }

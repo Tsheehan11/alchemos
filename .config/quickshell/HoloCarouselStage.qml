@@ -37,14 +37,14 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "WORKSPACES // " + (Roles.docked ? ov.modelData.name : "ALL")
             color: Theme.primary
-            font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 6
+            font.family: Style.fonts.display; font.pixelSize: 13; font.letterSpacing: 6
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: ov.focusedHere
             text: "← → TURN   ·   ENTER SELECT   ·   1–9 JUMP   ·   ESC CLOSE"
             color: Theme.dim
-            font.family: ov.mono; font.pixelSize: 10; font.letterSpacing: 3
+            font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 3
         }
     }
 }

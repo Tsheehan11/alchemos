@@ -11,8 +11,33 @@ Singleton {
     function pick(key, base) { return t[key] !== undefined && t[key] !== null ? t[key] : base; }
 
     // ── Type ──
-    readonly property string mono: pick("mono", "JetBrainsMono Nerd Font")       // data, labels, body text
+    readonly property string mono: pick("mono", "JetBrainsMono Nerd Font")       // the base face (every role's default)
     readonly property string display: pick("display", mono)                        // panel / section headings
+    // Font roles: every Text names one (Style.fonts.<role>; tools/fontcheck.py checks), so nothing falls
+    // back to whatever face the system picks. A skin sets them under style.fonts; any it leaves out is
+    // the base face (display: the display token), so the base look is all one mono face.
+    //   display  headings, titles            numeric  clocks, big numbers, percentages
+    //   label    short caps labels, buttons   body     running text, names, descriptions
+    //   mono     data, code, hex, paths       glyph    a lone mark or arrow (♪ ▾ ◈): the face Qt fell back to
+    //   signs    featured signs (☉ ☽ ♂ ♀ ☿ ♄, alchemical 🜁…; SigilText)     signs2  …☉ (Symbols has no ☉)
+    //   field    the lock screen's password field (hyprlock's own default: Sans)
+    readonly property var fonts: {
+        const f = pick("fonts", {});
+        return {
+            display: f.display || display,
+            numeric: f.numeric || mono,
+            label: f.label || mono,
+            body: f.body || mono,
+            mono: f.mono || mono,
+            glyph: f.glyph || "Noto Sans",
+            signs: f.signs || "Noto Sans Symbols",
+            signs2: f.signs2 || "Noto Sans Symbols 2",
+            field: f.field || "Sans"
+        };
+    }
+    readonly property string symbols: fonts.signs
+    // the numeric face has proportional figures: NumText lays digits in fixed cells so numbers don't jitter
+    readonly property bool tabular: pick("tabular", false)
     readonly property bool displayCaps: pick("displayCaps", false)                 // headings in small caps (as typed) vs as is
     readonly property real displayScale: pick("displayScale", 1)                   // heading size multiplier
 

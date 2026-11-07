@@ -28,12 +28,12 @@ WidgetBody {
 
     Row {
         spacing: 2
-        Text { text: w.fmt(w.elapsed); color: w.running ? Theme.text : Theme.textSoft; font.family: w.mono; font.pixelSize: 40; font.weight: Font.Light }
+        NumText { text: w.fmt(w.elapsed); color: w.running ? Theme.text : Theme.textSoft; font.family: Style.fonts.numeric; font.pixelSize: 40; font.weight: Font.Light }
         Text {
             visible: w.live || !w.running
             anchors.baseline: parent.children[0].baseline
             text: "." + Math.floor(w.elapsed % 1000 / 100)
-            color: Theme.dim; font.family: w.mono; font.pixelSize: 20
+            color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 20
         }
     }
     Row {

@@ -29,20 +29,20 @@ WidgetBody {
             gradient: Gradient { GradientStop { position: 0; color: Theme.p(0.0) } GradientStop { position: 1; color: Theme.p(0.7) } }
             transform: Rotation { origin.x: 0.75; origin.y: 38; angle: w.t * 40 }
         }
-        Text { anchors.centerIn: parent; text: w.has ? w.glyph(w.now.sky) : "◌"; color: Theme.text; font.family: w.mono; font.pixelSize: 28 }
+        Text { anchors.centerIn: parent; text: w.has ? w.glyph(w.now.sky) : "◌"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 28 }
     }
     Column {
         x: 96; width: 204; spacing: 2
         Row {
             spacing: 8
-            Text { text: w.has ? w.now.temp_c + "°" : "—"; color: Theme.text; font.family: w.mono; font.pixelSize: 34; font.weight: Font.Light }
+            Text { text: w.has ? w.now.temp_c + "°" : "—"; color: Theme.text; font.family: Style.fonts.numeric; font.pixelSize: 34; font.weight: Font.Light }
             Column {
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 6
-                Text { text: w.has ? String(w.now.sky).toUpperCase() : "NO DATA"; color: Theme.primary; font.family: w.mono; font.pixelSize: 10; font.letterSpacing: 2 }
-                Text { text: w.has ? "FEELS " + w.now.feels_like_c + "° · " + w.now.wind_kmh + " KM/H" : ""; color: Theme.dim; font.family: w.mono; font.pixelSize: 9 }
+                Text { text: w.has ? String(w.now.sky).toUpperCase() : "NO DATA"; color: Theme.primary; font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 2 }
+                Text { text: w.has ? "FEELS " + w.now.feels_like_c + "° · " + w.now.wind_kmh + " KM/H" : ""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 9 }
             }
         }
-        Text { text: "TODAY     " + w.line(w.wx.today); color: Theme.textSoft; font.family: w.mono; font.pixelSize: 10 }
-        Text { text: "TOMORROW  " + w.line(w.wx.tomorrow); color: Theme.faint; font.family: w.mono; font.pixelSize: 10 }
+        Text { text: "TODAY     " + w.line(w.wx.today); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 10 }
+        Text { text: "TOMORROW  " + w.line(w.wx.tomorrow); color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10 }
     }
 }

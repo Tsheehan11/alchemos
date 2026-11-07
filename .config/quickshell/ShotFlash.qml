@@ -24,7 +24,6 @@ PanelWindow {
     mask: Region {}
 
     readonly property color c: Theme.primary
-    readonly property string mono: Style.mono
 
     Connections {
         target: Shot
@@ -106,7 +105,7 @@ PanelWindow {
                 id: readout
                 anchors.centerIn: parent
                 text: "CAPTURED · " + (Shot.last.width || 0) + "×" + (Shot.last.height || 0)
-                color: fx.c; font.family: fx.mono; font.pixelSize: 11; font.letterSpacing: 2
+                color: fx.c; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
             }
         }
     }

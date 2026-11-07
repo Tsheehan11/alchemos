@@ -61,18 +61,18 @@ WidgetBody {
                     anchors.fill: art; fillMode: Image.Tile; smooth: false; opacity: 0.7
                     source: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAADCAYAAABS3WWCAAAADElEQVR4nGNgQAZRAABpAFvrZBgXAAAAAElFTkSuQmCC"
                 }
-                Text { visible: art.status !== Image.Ready; anchors.centerIn: parent; text: "♪"; color: Theme.p(0.6); font.pixelSize: 24 }
+                Text { visible: art.status !== Image.Ready; anchors.centerIn: parent; text: "♪"; color: Theme.p(0.6); font.family: Style.fonts.glyph; font.pixelSize: 24 }
             }
             Column {
                 width: 256; spacing: 2
                 anchors.verticalCenter: parent.verticalCenter
-                Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackTitle || "Unknown track") : "Nothing playing"; color: Theme.text; font.family: w.mono; font.pixelSize: 14 }
-                Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackArtist || "") : ""; color: Theme.dim; font.family: w.mono; font.pixelSize: 11 }
+                Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackTitle || "Unknown track") : "Nothing playing"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
+                Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackArtist || "") : ""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
                 Text {
                     width: parent.width; elide: Text.ElideRight; topPadding: 3
                     text: w.on ? Skin.text.lockGlyph + " " + (w.dj.set || "SET").toUpperCase() : w.building ? Skin.text.lockGlyph + " BUILDING A SET…" : "◇ DJ MODE OFF"
                     color: w.on || w.building ? Theme.primary : Theme.faint
-                    font.family: w.mono; font.pixelSize: 11; font.letterSpacing: 2
+                    font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
                 }
             }
         }
@@ -87,7 +87,7 @@ WidgetBody {
             width: 340; elide: Text.ElideRight
             text: [(w.dj.mood || "").toUpperCase(), w.dj.keep ? "VIBE HELD" : "", w.dj.remote && w.dj.device ? "ON " + w.dj.device.toUpperCase() : "",
                    w.building ? "RESHAPING…" : "", w.dj.left ? w.dj.left + " LEFT" : ""].filter(x => x).join(" · ")
-            color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+            color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
         }
         Repeater {
             model: w.next
@@ -95,11 +95,11 @@ WidgetBody {
                 required property var modelData
                 required property int index
                 spacing: 8
-                Text { text: "0" + (index + 1); color: Theme.secondary; font.family: w.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "0" + (index + 1); color: Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     width: 314; elide: Text.ElideRight
                     text: modelData.title + (modelData.artist ? "  ·  " + modelData.artist : "")
-                    color: index === 0 ? Theme.textSoft : Theme.dim; font.family: w.mono; font.pixelSize: 11
+                    color: index === 0 ? Theme.textSoft : Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
                     opacity: 1 - index * 0.18
                 }
             }
@@ -108,7 +108,7 @@ WidgetBody {
             visible: !w.on && !w.building && (w.dj.note || "") !== ""
             width: 340; elide: Text.ElideRight
             text: "LAST SET ENDED · " + (w.dj.note || "").toUpperCase()
-            color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+            color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
         }
 
         // ── controls ──
@@ -130,7 +130,7 @@ WidgetBody {
             Text {
                 anchors.verticalCenter: parent.verticalCenter; leftPadding: 6
                 text: w.has ? w.fmt(w.player.position) + " / " + w.fmt(w.player.length) : ""
-                color: Theme.faint; font.family: w.mono; font.pixelSize: 10
+                color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
             }
         }
     }

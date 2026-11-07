@@ -22,7 +22,6 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
-    readonly property string mono: Style.mono
     readonly property var tabs: ["NETWORK", "BLUETOOTH", "DISPLAY", "AUDIO", "APPEARANCE", "HUD", "WIDGETS", "JARVIS", "LAUNCHER", "SYSTEM"]
     property string status: ""            // last action result, shown at the bottom
 
@@ -104,7 +103,7 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData === "JARVIS" ? JarvisState.assistant : modelData     // the tab id stays JARVIS
                         color: parent.on ? Theme.text : Theme.textSoft
-                        font.family: st.mono; font.pixelSize: 13; font.letterSpacing: 3
+                        font.family: Style.fonts.body; font.pixelSize: 13; font.letterSpacing: 3
                     }
                     MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: LauncherState.settingsTab = modelData }
                 }
@@ -149,7 +148,7 @@ PanelWindow {
                     }
 
                     // VPN (VPN.qml / stark-vpn)
-                    Text { text: "VPN"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "VPN"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 8
                         visible: VPN.providers.length > 1
@@ -173,7 +172,7 @@ PanelWindow {
                                 text: VPN.state === "disabled" ? "Not set up"
                                     : VPN.state.charAt(0).toUpperCase() + VPN.state.slice(1)
                                 color: VPN.blocked ? "#ff5f5f" : VPN.connected ? Theme.primary : VPN.busy ? Theme.secondary : Theme.textSoft
-                                font.family: st.mono; font.pixelSize: 13
+                                font.family: Style.fonts.body; font.pixelSize: 13
                             }
                             Text {
                                 text: VPN.current.error ? "✕ " + VPN.current.error
@@ -183,7 +182,7 @@ PanelWindow {
                                     : VPN.current.type === "protonvpn" ? "Fastest free server · LAN (Govee, printers) stays reachable"
                                     : VPN.current.auth === "terminal" ? "Connect opens a login window · password + Duo each time, nothing saved" : ""
                                 color: VPN.current.error ? "#ff5f5f" : Theme.dim
-                                font.family: st.mono; font.pixelSize: 11
+                                font.family: Style.fonts.body; font.pixelSize: 11
                             }
                         }
                         SmallButton {
@@ -203,7 +202,7 @@ PanelWindow {
                         onToggled: VPN.setKillSwitch(!VPN.killSwitch)
                     }
 
-                    Text { visible: wifi.on; text: "WI-FI NETWORKS"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { visible: wifi.on; text: "WI-FI NETWORKS"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Repeater {
                         model: wifi.on ? wifi.networks : []
                         delegate: Rectangle {
@@ -235,20 +234,20 @@ PanelWindow {
                                 Text {
                                     text: net.modelData.ssid
                                     color: Theme.text
-                                    font.family: st.mono; font.pixelSize: 14
+                                    font.family: Style.fonts.body; font.pixelSize: 14
                                     width: 360; elide: Text.ElideRight
                                 }
                                 Text {
                                     text: (net.modelData.secure ? "🔒 " : "") + (net.modelData.saved ? "SAVED" : "")
                                     color: Theme.dim
-                                    font.family: st.mono; font.pixelSize: 11
+                                    font.family: Style.fonts.body; font.pixelSize: 11
                                 }
                             }
                             Text {
                                 anchors.right: parent.right; anchors.rightMargin: 14; y: 17
                                 text: net.modelData.inUse ? "DISCONNECT" : "CONNECT"
                                 color: net.modelData.inUse ? Theme.secondary : Theme.primary
-                                font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 2
+                                font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2
                                 visible: nma.containsMouse || net.modelData.inUse
                             }
                             MouseArea {
@@ -276,7 +275,7 @@ PanelWindow {
                                     anchors.fill: parent; anchors.margins: 8
                                     echoMode: TextInput.Password
                                     color: Theme.text
-                                    font.family: st.mono; font.pixelSize: 14
+                                    font.family: Style.fonts.body; font.pixelSize: 14
                                     Keys.onReturnPressed: {
                                         st.act(["nmcli", "dev", "wifi", "connect", net.modelData.ssid, "password", text], "Connecting to " + net.modelData.ssid);
                                         text = ""; net.askPw = false;
@@ -312,7 +311,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { visible: bt.on; text: "DEVICES"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { visible: bt.on; text: "DEVICES"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
 
                     Repeater {
                         model: bt.on ? bt.devices : []
@@ -325,11 +324,11 @@ PanelWindow {
                             Column {
                                 x: 14; anchors.verticalCenter: parent.verticalCenter
                                 spacing: 2
-                                Text { text: dev.modelData.name; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                                Text { text: dev.modelData.name; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
                                 Text {
                                     text: dev.modelData.connected ? "CONNECTED" : (dev.modelData.paired ? "PAIRED" : "AVAILABLE")
                                     color: dev.modelData.connected ? Theme.primary : Theme.dim
-                                    font.family: st.mono; font.pixelSize: 10; font.letterSpacing: 2
+                                    font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 2
                                 }
                             }
                             Row {
@@ -403,7 +402,7 @@ PanelWindow {
 
                     // Every installed skin (skins/<id>/); hidden ones (the legacy skin) once unlocked. Only shown
                     // when there's a choice, so with just the default and a still-hidden skin it stays out of sight.
-                    Text { visible: Skin.listed.length > 1; text: "SKIN"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { visible: Skin.listed.length > 1; text: "SKIN"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Flow {
                         visible: Skin.listed.length > 1
                         width: parent.width
@@ -419,7 +418,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "THEME"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "THEME"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Grid {
                         columns: 3
                         columnSpacing: 12; rowSpacing: 12
@@ -441,7 +440,7 @@ PanelWindow {
                                     x: 14; y: 42
                                     text: modelData.name
                                     color: modelData.primary
-                                    font.family: st.mono; font.pixelSize: 12; font.letterSpacing: 3
+                                    font.family: Style.fonts.body; font.pixelSize: 12; font.letterSpacing: 3
                                 }
                                 // the metal's alchemical sign (built-ins that have one)
                                 SigilText {
@@ -461,7 +460,7 @@ PanelWindow {
                                     anchors.rightMargin: 10; anchors.topMargin: 8
                                     text: "◆ USER"
                                     color: modelData.secondary
-                                    font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2
+                                    font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 2
                                 }
                                 ConfirmButton {
                                     visible: modelData.custom === true
@@ -493,7 +492,7 @@ PanelWindow {
                                 anchors.fill: parent; anchors.margins: 7
                                 maximumLength: 14
                                 color: Theme.text
-                                font.family: st.mono; font.pixelSize: 14; font.letterSpacing: 2
+                                font.family: Style.fonts.body; font.pixelSize: 14; font.letterSpacing: 2
                                 font.capitalization: Font.AllUppercase
                                 onTextEdited: look.saveError = ""
                                 Keys.onReturnPressed: look.finishNaming(true)
@@ -511,19 +510,19 @@ PanelWindow {
                             text: look.saveError !== "" ? "✕ " + look.saveError
                                 : (Theme.cfg.customPresets || []).some(c => c.name === Theme.presetName(presetIn.text)) ? "overwrites existing preset" : ""
                             color: look.saveError !== "" ? Theme.secondary : Theme.dim
-                            font.family: st.mono; font.pixelSize: 11
+                            font.family: Style.fonts.body; font.pixelSize: 11
                         }
                     }
 
-                    Text { text: "CUSTOM — MAIN COLOR"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "CUSTOM — MAIN COLOR"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Swatches { selected: Theme.cfg.primary; onPicked: c => { Theme.cfg.primary = c; Theme.cfg.preset = "CUSTOM"; } }
-                    Text { text: "CUSTOM — ACCENT COLOR"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "CUSTOM — ACCENT COLOR"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Swatches { selected: Theme.cfg.secondary; onPicked: c => { Theme.cfg.secondary = c; Theme.cfg.preset = "CUSTOM"; } }
 
                     Column {
                         spacing: 8
-                        Text { text: "AMBIENT LIGHTS"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
-                        Text { text: "Govee strip: AUTO follows the theme and pulses to music when audio plays."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                        Text { text: "AMBIENT LIGHTS"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                        Text { text: "Govee strip: AUTO follows the theme and pulses to music when audio plays."; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -536,7 +535,7 @@ PanelWindow {
                                 }
                             }
                         }
-                        Text { text: "ANIMATION SPEED"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                        Text { text: "ANIMATION SPEED"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -556,7 +555,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Pause effects behind windows"; hint: "Big GPU saver — effects only run on screens you can actually see"; checked: Theme.cfg.pauseBehindWindows; onToggled: Theme.cfg.pauseBehindWindows = !Theme.cfg.pauseBehindWindows }
                     Column {
                         spacing: 8
-                        Text { text: "EFFECTS FRAME RATE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                        Text { text: "EFFECTS FRAME RATE"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -580,7 +579,7 @@ PanelWindow {
                     Column {
                         width: parent.width
                         spacing: 8
-                        Text { text: "CURSOR"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                        Text { text: "CURSOR"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Stepper { width: parent.width; label: "Cursor size"; hint: "24 standard · 32 / 48 for HiDPI screens"; valueText: Theme.cursorStep(0) + " PX"; onDec: Theme.cfg.cursorSize = Theme.cursorStep(-1); onInc: Theme.cfg.cursorSize = Theme.cursorStep(1) }
                         Slider {
                             width: parent.width
@@ -604,7 +603,7 @@ PanelWindow {
 
                     Item {
                         width: parent.width; height: 40
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Unlock greeting name"; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Unlock greeting name"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
                         Rectangle {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                             width: 240; height: 34
@@ -615,7 +614,7 @@ PanelWindow {
                                 anchors.fill: parent; anchors.margins: 8
                                 text: Theme.cfg.greetName
                                 color: Theme.text
-                                font.family: st.mono; font.pixelSize: 14
+                                font.family: Style.fonts.body; font.pixelSize: 14
                                 onEditingFinished: Theme.cfg.greetName = text
                             }
                         }
@@ -652,7 +651,7 @@ PanelWindow {
                         SmallButton { text: "EDIT HUD FILES"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/quickshell")); LauncherState.closeAll(); } }
                         ConfirmButton { label: "RESET LAYOUT"; onConfirmed: Widgets.reset() }
                     }
-                    Text { width: parent.width; wrapMode: Text.Wrap; text: "RESET LAYOUT puts the widgets on connected monitors back in their default spots (sizes kept) · drag a widget anywhere, Shift = no snap, corner handle = size"; color: Theme.faint; font.family: Style.mono; font.pixelSize: 11 }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "RESET LAYOUT puts the widgets on connected monitors back in their default spots (sizes kept) · drag a widget anywhere, Shift = no snap, corner handle = size"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                 }
 
                 // ════════ WIDGETS ════════
@@ -736,7 +735,7 @@ PanelWindow {
                         value: Theme.cfg.jarvisVoiceVolume / 100
                         onMoved: v => { Theme.cfg.jarvisVoiceVolume = Math.round(v * 100); volumePreview.restart(); }
                     }
-                    Text { width: parent.width; wrapMode: Text.Wrap; text: JarvisState.callOf("jarvis") + "'s voice and chime only · music and other apps are untouched · the same level on headphones, speakers and Bluetooth · \"speak louder / quieter\", \"set your volume to 40 percent\""; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: JarvisState.callOf("jarvis") + "'s voice and chime only · music and other apps are untouched · the same level on headphones, speakers and Bluetooth · \"speak louder / quieter\", \"set your volume to 40 percent\""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
                     Timer { id: volumePreview; interval: 450; onTriggered: jarvisPage.preview() }   // speak once the slider settles
                     Stepper { width: parent.width; visible: Theme.cfg.jarvisSpeaker !== ""; label: "Bluetooth speaker volume"; hint: JarvisState.callOf("jarvis") + "'s level on the room speaker · SAME follows VOICE VOLUME"; preview: Theme.cfg.jarvisSpeakerVolume >= 0; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisSpeakerVolume < 0 ? "SAME" : Theme.cfg.jarvisSpeakerVolume + "%"; onDec: Theme.cfg.jarvisSpeakerVolume = Theme.cfg.jarvisSpeakerVolume < 0 ? -1 : Theme.cfg.jarvisSpeakerVolume <= 0 ? -1 : Math.max(0, Theme.cfg.jarvisSpeakerVolume - 5); onInc: Theme.cfg.jarvisSpeakerVolume = Theme.cfg.jarvisSpeakerVolume < 0 ? Theme.cfg.jarvisVoiceVolume : Math.min(100, Theme.cfg.jarvisSpeakerVolume + 5) }
                     Stepper { width: parent.width; label: JarvisState.nameOf("jarvis") + " speech rate"; preview: true; onPlay: jarvisPage.preview(); valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
@@ -775,7 +774,7 @@ PanelWindow {
                     // ROUTER: what the local router learned and how often it answers without Claude
                     // (~/.config/jarvis/core/router_learn.py; `jarvis router stats --json`, polled with INTEGRATIONS)
                     Toggle { width: parent.width; visible: Theme.cfg.jarvisDecisions === "local"; label: "Ask when unsure"; hint: "A near miss gets \"Did you mean …?\" · yes runs it and teaches it, no sends it to Claude"; checked: Theme.cfg.jarvisRouterAsk; onToggled: Theme.cfg.jarvisRouterAsk = !Theme.cfg.jarvisRouterAsk }
-                    Text { visible: Theme.cfg.jarvisDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { visible: Theme.cfg.jarvisDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Process {
                         id: routerStats
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "router", "stats", "--json"]
@@ -795,31 +794,31 @@ PanelWindow {
                                 model: [["LOCAL", "local_pct", "fast path + router + \"yes\""], ["ROUTER", "router_pct", "embedding router"], ["CLAUDE", "claude_pct", "escalated"], ["ASKED", "ask_pct", "did you mean"]]
                                 delegate: Column {
                                     required property var modelData
-                                    Text { text: (routerBox.r[modelData[1]] !== undefined ? Math.round(routerBox.r[modelData[1]]) : "—") + "%"; color: modelData[0] === "CLAUDE" ? Theme.textSoft : Theme.primary; font.family: st.mono; font.pixelSize: 20; font.weight: Font.Light }
-                                    Text { text: modelData[0]; color: Theme.dim; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2 }
+                                    Text { text: (routerBox.r[modelData[1]] !== undefined ? Math.round(routerBox.r[modelData[1]]) : "—") + "%"; color: modelData[0] === "CLAUDE" ? Theme.textSoft : Theme.primary; font.family: Style.fonts.body; font.pixelSize: 20; font.weight: Font.Light }
+                                    Text { text: modelData[0]; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 2 }
                                 }
                             }
                         }
                         Text {
-                            width: parent.width; wrapMode: Text.Wrap; color: Theme.dim; font.family: st.mono; font.pixelSize: 11
+                            width: parent.width; wrapMode: Text.Wrap; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
                             text: parent.r.requests === undefined ? "Reading the router log…"
                                   : "Last 7 days · " + parent.r.requests + " requests · today " + parent.r.today.local_pct + "% local of " + parent.r.today.requests
                                     + " · outcomes +" + parent.r.outcomes.pos + " −" + parent.r.outcomes.neg + " · asked yes " + parent.r.outcomes.ask_yes + " / no " + parent.r.outcomes.ask_no
                                     + (Object.keys(parent.r.offsets || {}).length ? " · tuned: " + Object.keys(parent.r.offsets).map(k => k + " " + (parent.r.offsets[k] > 0 ? "+" : "") + parent.r.offsets[k].toFixed(2)).join(", ") : "")
                         }
                         readonly property var shownEvents: (r.events || []).filter(e => ["promoted", "rejected", "demoted", "deleted", "approved", "threshold", "corrected", "decayed", "forgotten"].indexOf(e.kind) >= 0).slice(0, 6)
-                        Text { visible: parent.shownEvents.length > 0; text: "RECENT"; topPadding: 4; color: Theme.faint; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2 }
+                        Text { visible: parent.shownEvents.length > 0; text: "RECENT"; topPadding: 4; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 2 }
                         Repeater {
                             model: parent.shownEvents
                             delegate: Text {
                                 required property var modelData
-                                width: jarvisPage.width; elide: Text.ElideRight; font.family: st.mono; font.pixelSize: 11
+                                width: jarvisPage.width; elide: Text.ElideRight; font.family: Style.fonts.body; font.pixelSize: 11
                                 color: ["promoted", "approved"].indexOf(modelData.kind) >= 0 ? Theme.primary : ["rejected", "demoted", "deleted", "corrected"].indexOf(modelData.kind) >= 0 ? Theme.secondary : Theme.textSoft
                                 text: jarvisPage.evAge(modelData.ts) + "  " + modelData.kind.toUpperCase() + "  " + (modelData.text ? "\"" + modelData.text + "\" → " : "") + modelData.intent + (modelData.why ? " · " + modelData.why : "")
                             }
                         }
-                        Text { visible: (parent.r.review || []).length > 0; text: "LEARNED · REVIEW"; topPadding: 4; color: Theme.faint; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 2 }
-                        Text { visible: parent.r.review !== undefined && parent.r.review.length === 0; text: "Nothing learned yet · it learns from Claude's simple answers, your corrections and \"yes\" to \"Did you mean…\""; width: jarvisPage.width; wrapMode: Text.Wrap; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                        Text { visible: (parent.r.review || []).length > 0; text: "LEARNED · REVIEW"; topPadding: 4; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 2 }
+                        Text { visible: parent.r.review !== undefined && parent.r.review.length === 0; text: "Nothing learned yet · it learns from Claude's simple answers, your corrections and \"yes\" to \"Did you mean…\""; width: jarvisPage.width; wrapMode: Text.Wrap; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
                         Repeater {
                             // waiting on you first (candidates, rejections), then what's live
                             model: (parent.r.review || []).slice().sort((a, b) => (a.state === "active") - (b.state === "active")).slice(0, 14)
@@ -830,9 +829,9 @@ PanelWindow {
                                     anchors.left: parent.left; anchors.right: reviewBtns.left; anchors.rightMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 2
-                                    Text { width: parent.width; elide: Text.ElideRight; text: "\"" + modelData.text + "\"  →  " + modelData.intent; color: modelData.state === "active" ? Theme.text : Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                                    Text { width: parent.width; elide: Text.ElideRight; text: "\"" + modelData.text + "\"  →  " + modelData.intent; color: modelData.state === "active" ? Theme.text : Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
                                     Text {
-                                        width: parent.width; elide: Text.ElideRight; font.family: st.mono; font.pixelSize: 10
+                                        width: parent.width; elide: Text.ElideRight; font.family: Style.fonts.body; font.pixelSize: 10
                                         color: modelData.state === "rejected" ? Theme.secondary : Theme.dim
                                         text: modelData.state.toUpperCase() + " · #" + modelData.id + " · " + modelData.source + " · seen " + modelData.seen + " · +" + modelData.pos + " −" + modelData.neg + (modelData.why ? " · " + modelData.why : "")
                                     }
@@ -847,7 +846,7 @@ PanelWindow {
                             }
                         }
                         Text {
-                            width: jarvisPage.width; wrapMode: Text.Wrap; color: Theme.faint; font.family: st.mono; font.pixelSize: 9; font.letterSpacing: 1
+                            width: jarvisPage.width; wrapMode: Text.Wrap; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                             text: "APPROVE still has to pass the router eval (0 wrong actions) · learned data stays in ~/.local/share/jarvis · jarvis router stats | review | forget ID | reset-learned"
                         }
                     }
@@ -858,7 +857,7 @@ PanelWindow {
 
                     // Phase-2 integrations: entries in ~/.config/jarvis/servers.json, tokens in the system keyring.
                     // CONNECT opens a terminal running the sign-in flow (`jarvis connect …`).
-                    Text { text: "INTEGRATIONS"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "INTEGRATIONS"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Process {
                         id: integrationList
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "integrations", "--json"]
@@ -876,14 +875,14 @@ PanelWindow {
                                 spacing: 3
                                 Row {
                                     spacing: 10
-                                    Text { text: modelData.name; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                                    Text { text: modelData.name; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
                                     Text {
                                         text: modelData.state
                                         color: modelData.connected ? Theme.primary : Theme.dim
-                                        font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 2
+                                        font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2
                                     }
                                 }
-                                Text { width: parent.width; elide: Text.ElideRight; text: modelData.label + " · " + modelData.detail; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                                Text { width: parent.width; elide: Text.ElideRight; text: modelData.label + " · " + modelData.detail; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
                             }
                             SmallButton {
                                 id: connectBtn
@@ -900,7 +899,7 @@ PanelWindow {
                     Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
                     // Spotify: his own developer app, PKCE sign-in, tokens in the keyring (~/.config/jarvis/mcp/spotify_api.py);
                     // DJ mode runs in the voice process (~/.config/jarvis/core/dj.py).
-                    Text { text: "SPOTIFY"; topPadding: 10; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "SPOTIFY"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Process {
                         id: spotifyStatus
                         command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "spotify", "status", "--json"]
@@ -914,17 +913,17 @@ PanelWindow {
                             spacing: 3
                             Row {
                                 spacing: 10
-                                Text { text: "Spotify"; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
+                                Text { text: "Spotify"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
                                 Text {
                                     text: jarvisPage.spotify.connected ? "CONNECTED" : "NOT CONNECTED"
                                     color: jarvisPage.spotify.connected ? Theme.primary : Theme.dim
-                                    font.family: st.mono; font.pixelSize: 11; font.letterSpacing: 2
+                                    font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 2
                                 }
                             }
                             Text {
                                 width: parent.width; elide: Text.ElideRight
                                 text: (jarvisPage.spotify.user ? jarvisPage.spotify.user + " · " : "") + (jarvisPage.spotify.detail || "Your own developer app · CONNECT walks you through it")
-                                color: Theme.dim; font.family: st.mono; font.pixelSize: 11
+                                color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
                             }
                         }
                         Row {
@@ -966,18 +965,18 @@ PanelWindow {
                         width: parent.width; wrapMode: Text.Wrap
                         text: "MOODS · " + jarvisPage.djMoods.concat(savedMoods.names).join(" · ").toUpperCase()
                               + "\nSay \"DJ for me\", \"play something for studying\", \"more / less like this\", \"save this vibe as …\""
-                        color: Theme.dim; font.family: st.mono; font.pixelSize: 11; lineHeight: 1.3
+                        color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; lineHeight: 1.3
                     }
                     Text {
                         width: parent.width; wrapMode: Text.Wrap
                         text: "CROSSFADE · Spotify's API can't set it: Spotify → Settings → Playback → Crossfade songs (6–8 s suits DJ mode)"
-                        color: Theme.faint; font.family: st.mono; font.pixelSize: 11
+                        color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                     }
-                    Text { text: "WINDOW READING"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "WINDOW READING"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Stepper { width: parent.width; label: "Watch every"; hint: "How often a watcher looks at its window · compared on this machine, Claude only looks when enough changed"; valueText: Theme.cfg.jarvisWatchInterval + " S"; onDec: Theme.cfg.jarvisWatchInterval = Math.max(3, Theme.cfg.jarvisWatchInterval - (Theme.cfg.jarvisWatchInterval > 30 ? 10 : Theme.cfg.jarvisWatchInterval > 10 ? 5 : 1)); onInc: Theme.cfg.jarvisWatchInterval = Math.min(300, Theme.cfg.jarvisWatchInterval + (Theme.cfg.jarvisWatchInterval >= 30 ? 10 : Theme.cfg.jarvisWatchInterval >= 10 ? 5 : 1)) }
                     Column {
                         width: parent.width; spacing: 4
-                        Text { text: "Never read or watch (window titles / apps, comma-separated · Enter to save)"; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                        Text { text: "Never read or watch (window titles / apps, comma-separated · Enter to save)"; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
                         Rectangle {
                             width: parent.width; height: Math.max(32, blockIn.contentHeight + 14)
                             color: Theme.d(0.9)
@@ -987,7 +986,7 @@ PanelWindow {
                                 anchors.fill: parent; anchors.margins: 7
                                 wrapMode: TextEdit.Wrap
                                 color: Theme.text; selectByMouse: true
-                                font.family: st.mono; font.pixelSize: 12
+                                font.family: Style.fonts.body; font.pixelSize: 12
                                 text: (Theme.cfg.jarvisCaptureBlocklist || []).join(", ")
                                 function save() {
                                     const terms = text.split(/[,\n]/).map(t => t.trim().toLowerCase()).filter(t => t !== "");
@@ -999,16 +998,16 @@ PanelWindow {
                                 onActiveFocusChanged: if (!activeFocus) save()
                             }
                         }
-                        Text { width: parent.width; wrapMode: Text.Wrap; text: "Always refused, whatever this says: the lock screen, password / permission / keyring prompts and password managers. " + JarvisState.callOf("jarvis") + " only reads a window you name; captures stay in memory, never on disk, and what's on screen is data, never an instruction."; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
+                        Text { width: parent.width; wrapMode: Text.Wrap; text: "Always refused, whatever this says: the lock screen, password / permission / keyring prompts and password managers. " + JarvisState.callOf("jarvis") + " only reads a window you name; captures stay in memory, never on disk, and what's on screen is data, never an instruction."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                     }
-                    Text { width: parent.width; wrapMode: Text.Wrap; text: "Read-only by default. Sending, creating, deleting or editing anything needs your spoken yes. Email, calendar and document text is treated as data, never as commands. Setup: ~/.config/jarvis/docs"; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "Read-only by default. Sending, creating, deleting or editing anything needs your spoken yes. Email, calendar and document text is treated as data, never as commands. Setup: ~/.config/jarvis/docs"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                     Row {
                         spacing: 10
                         SmallButton { text: "TEST VOICE"; onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "At your service, sir."]) }
                         SmallButton { text: "MISSED COMMANDS"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis --misses")); LauncherState.closeAll(); } }
                         SmallButton { text: "EDIT " + JarvisState.assistant; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/jarvis")); LauncherState.closeAll(); } }
                     }
-                    Text { width: parent.width; wrapMode: Text.Wrap; text: "Claude runs on your Pro login (no API key). Memory: ~/.local/share/jarvis/jarvis.db"; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
+                    Text { width: parent.width; wrapMode: Text.Wrap; text: "Claude runs on your Pro login (no API key). Memory: ~/.local/share/jarvis/jarvis.db"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                 }
 
                 // ════════ LAUNCHER ════════
@@ -1029,16 +1028,16 @@ PanelWindow {
                         title: "ABOUT"
                         Column {
                             spacing: 6
-                            Text { text: Skin.text.os + "  ·  " + sys.distro; color: Theme.text; font.family: st.mono; font.pixelSize: 14 }
-                            Text { text: "Kernel " + sys.kernel + "   ·   " + sys.hypr; color: Theme.dim; font.family: st.mono; font.pixelSize: 12 }
-                            Text { text: "Uptime " + SysStats.fmtUptime(SysStats.uptimeS) + "   ·   " + SysStats.ramTotalGb.toFixed(0) + " GB RAM   ·   " + Math.round(SysStats.diskTotalGb) + " GB disk"; color: Theme.dim; font.family: st.mono; font.pixelSize: 12 }
+                            Text { text: Skin.text.os + "  ·  " + sys.distro; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
+                            Text { text: "Kernel " + sys.kernel + "   ·   " + sys.hypr; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 12 }
+                            Text { text: "Uptime " + SysStats.fmtUptime(SysStats.uptimeS) + "   ·   " + SysStats.ramTotalGb.toFixed(0) + " GB RAM   ·   " + Math.round(SysStats.diskTotalGb) + " GB disk"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 12 }
                         }
                     }
 
                     Column {
                         visible: sys.power !== ""
                         spacing: 8
-                        Text { text: "POWER MODE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                        Text { text: "POWER MODE"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -1053,8 +1052,8 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "FINGERPRINT"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
-                    Text { text: "Unlock the lock screen with your finger (your password always works too)."; color: Theme.textSoft; font.family: st.mono; font.pixelSize: 12 }
+                    Text { text: "FINGERPRINT"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "Unlock the lock screen with your finger (your password always works too)."; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
                     Row {
                         spacing: 10
                         SmallButton { text: "ENROLL A FINGER"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty -e sh -c 'fprintd-enroll; echo; read -p \"Press Enter to close\"'")); LauncherState.closeAll(); } }
@@ -1062,19 +1061,19 @@ PanelWindow {
                         ConfirmButton { label: "REMOVE ALL"; onConfirmed: st.act(["fprintd-delete", Quickshell.env("USER")], "Removing fingerprints") }
                     }
 
-                    Text { text: "SLEEP & SCREEN"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "SLEEP & SCREEN"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Stepper { width: parent.width; label: "Dim the screen after"; valueText: Idle.label(Theme.cfg.idleDim); onDec: Theme.cfg.idleDim = Idle.step(Theme.cfg.idleDim, -1); onInc: Theme.cfg.idleDim = Idle.step(Theme.cfg.idleDim, 1) }
                     Stepper { width: parent.width; label: "Lock after"; valueText: Idle.label(Theme.cfg.idleLock); onDec: Theme.cfg.idleLock = Idle.step(Theme.cfg.idleLock, -1); onInc: Theme.cfg.idleLock = Idle.step(Theme.cfg.idleLock, 1) }
                     Stepper { width: parent.width; label: "Turn screens off after"; valueText: Idle.label(Theme.cfg.idleScreenOff); onDec: Theme.cfg.idleScreenOff = Idle.step(Theme.cfg.idleScreenOff, -1); onInc: Theme.cfg.idleScreenOff = Idle.step(Theme.cfg.idleScreenOff, 1) }
                     Stepper { width: parent.width; label: "Sleep after"; hint: "Closing the lid always sleeps (unless docked)"; valueText: Idle.label(Theme.cfg.idleSleep); onDec: Theme.cfg.idleSleep = Idle.step(Theme.cfg.idleSleep, -1); onInc: Theme.cfg.idleSleep = Idle.step(Theme.cfg.idleSleep, 1) }
 
-                    Text { text: "BATTERY"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "BATTERY"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Text {
                         text: PowerMode.onBattery
                               ? (PowerMode.saver ? "On battery — saver active" : "On battery — saver off")
                               : (SysStats.charging ? "Plugged in — charging" : "Plugged in")
                         color: PowerMode.saver ? Theme.secondary : Theme.textSoft
-                        font.family: st.mono; font.pixelSize: 13
+                        font.family: Style.fonts.body; font.pixelSize: 13
                     }
                     Toggle { width: parent.width; label: "Battery saver when unplugged"; hint: "Applies everything below automatically, undone when you plug in"; checked: Theme.cfg.autoSaver; onToggled: Theme.cfg.autoSaver = !Theme.cfg.autoSaver }
                     Toggle { width: parent.width; label: "Turn off blur and shadows"; hint: "Biggest GPU saving"; checked: Theme.cfg.saverNoBlur; onToggled: Theme.cfg.saverNoBlur = !Theme.cfg.saverNoBlur }
@@ -1082,7 +1081,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Pause " + JarvisState.callOf("jarvis"); hint: "Wake-word listening uses a little CPU all the time"; checked: Theme.cfg.saverStopJarvis; onToggled: Theme.cfg.saverStopJarvis = !Theme.cfg.saverStopJarvis }
                     Column {
                         spacing: 8
-                        Text { text: "EFFECTS ON BATTERY"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                        Text { text: "EFFECTS ON BATTERY"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                         Row {
                             spacing: 10
                             Repeater {
@@ -1097,7 +1096,7 @@ PanelWindow {
                         }
                     }
 
-                    Text { text: "COMBAT MODE"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "COMBAT MODE"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Item {
                         width: parent.width; height: 34
                         Text {
@@ -1106,7 +1105,7 @@ PanelWindow {
                                 : GameMode.active ? "Engaged — " + (GameMode.manual ? "manual" : (GameMode.games.join(", ") || "gamemode"))
                                 : "Standing by"
                             color: GameMode.batteryWarn ? "#ff5f5f" : GameMode.active ? Theme.secondary : Theme.textSoft
-                            font.family: st.mono; font.pixelSize: 13
+                            font.family: Style.fonts.body; font.pixelSize: 13
                         }
                         SmallButton {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -1127,14 +1126,14 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Keep telemetry with windows open"; hint: "Discord etc. on that screen tile beside it instead of hiding it"; checked: Theme.cfg.gameTelemetryBeside; enabled: Theme.cfg.gameKeepPanels && Theme.cfg.gameKeepDiag && Theme.cfg.gameTelemetry; opacity: enabled ? 1 : 0.4; onToggled: Theme.cfg.gameTelemetryBeside = !Theme.cfg.gameTelemetryBeside }
                     Toggle { width: parent.width; label: "Pause " + JarvisState.callOf("jarvis"); hint: "Frees the mic · comes back afterwards if it was on"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
                     Toggle { width: parent.width; label: "Mute notifications"; hint: "Do-not-disturb on mako, swaync or dunst, if one is running"; checked: Theme.cfg.gameNotify; onToggled: Theme.cfg.gameNotify = !Theme.cfg.gameNotify }
-                    Text { text: "Effects, power and notification changes apply the next time it engages."; color: Theme.faint; font.family: st.mono; font.pixelSize: 11 }
+                    Text { text: "Effects, power and notification changes apply the next time it engages."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                     Row {
                         spacing: 10
                         SmallButton { text: "EDIT GAMES LIST"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/stark-game/games.conf")); LauncherState.closeAll(); } }
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/stark-game/games.conf"; color: Theme.dim; font.family: st.mono; font.pixelSize: 11 }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/stark-game/games.conf"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
                     }
 
-                    Text { text: "CONFIG"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "CONFIG"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10
                         SmallButton { text: "HYPRLAND CONFIG"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hyprland.lua ~/.config/hypr/stark/*.lua")); LauncherState.closeAll(); } }
@@ -1142,7 +1141,7 @@ PanelWindow {
                         SmallButton { text: "FULL KDE SETTINGS"; onClicked: { Hyprland.dispatch(Hypr.exec("systemsettings")); LauncherState.closeAll(); } }
                     }
 
-                    Text { text: "SESSION"; color: Theme.dim; font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+                    Text { text: "SESSION"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10
                         SmallButton { text: "LOCK"; onClicked: LockState.requestLock() }
@@ -1161,7 +1160,7 @@ PanelWindow {
             anchors.bottom: parent.bottom
             text: st.status
             color: st.status.startsWith("✕") ? "#ff6b6b" : Theme.secondary
-            font.family: st.mono; font.pixelSize: 12
+            font.family: Style.fonts.body; font.pixelSize: 12
         }
     }
 

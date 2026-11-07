@@ -24,7 +24,6 @@ PanelWindow {
     Binding { target: osd.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
     mask: Region {}
 
-    readonly property string mono: Style.mono
     readonly property bool isVol: OsdState.kind === "volume"
     readonly property bool isRole: OsdState.kind === "role"
     readonly property color accent: isVol && OsdState.muted ? "#ff5f5f" : (isVol || isRole ? Theme.primary : Theme.secondary)
@@ -70,12 +69,12 @@ PanelWindow {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "DISPLAY // " + OsdState.screenName + " SHOWS"
-                color: Theme.dim; font.family: Style.display; font.pixelSize: 11; font.letterSpacing: 3
+                color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: 11; font.letterSpacing: 3
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "◆ " + OsdState.text
-                color: osd.accent; font.family: osd.mono; font.pixelSize: 24; font.bold: true; font.letterSpacing: 4
+                color: osd.accent; font.family: Style.fonts.label; font.pixelSize: 24; font.bold: true; font.letterSpacing: 4
             }
         }
 
@@ -107,7 +106,7 @@ PanelWindow {
                 anchors.centerIn: parent
                 text: osd.icon
                 color: osd.accent
-                font.family: osd.mono; font.pixelSize: 22
+                font.family: Style.fonts.body; font.pixelSize: 22
             }
         }
 
@@ -122,12 +121,12 @@ PanelWindow {
                 width: parent.width; height: 16
                 Text {
                     text: osd.isVol ? (OsdState.muted ? "AUDIO // MUTED" : "AUDIO // OUTPUT") : "DISPLAY // BRIGHTNESS"
-                    color: Theme.dim; font.family: osd.mono; font.pixelSize: 11; font.letterSpacing: 3
+                    color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 3
                 }
                 Text {
                     anchors.right: parent.right
                     text: Math.round(OsdState.value * 100) + "%"
-                    color: osd.accent; font.family: osd.mono; font.pixelSize: 15; font.bold: true
+                    color: osd.accent; font.family: Style.fonts.numeric; font.pixelSize: 15; font.bold: true
                 }
             }
             // Segmented bar

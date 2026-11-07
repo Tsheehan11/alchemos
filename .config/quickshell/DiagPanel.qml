@@ -47,7 +47,6 @@ PanelWindow {
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: Style.mono
 
     Loader {
         id: combat
@@ -65,7 +64,7 @@ PanelWindow {
         Text {
             text: "DIAGNOSTICS // " + diag.modelData.name
             color: diag.cyan
-            font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 4
+            font.family: Style.fonts.display; font.pixelSize: 13; font.letterSpacing: 4
         }
 
         // CPU + GPU graph
@@ -121,7 +120,7 @@ PanelWindow {
                         Text {
                             text: modelData.value
                             color: Theme.text
-                            font.family: diag.mono; font.pixelSize: 17
+                            font.family: Style.fonts.body; font.pixelSize: 17
                         }
                         Rectangle {
                             width: parent.width; height: 4
@@ -145,7 +144,7 @@ PanelWindow {
             Text {
                 text: SysStats.fmtUptime(SysStats.uptimeS)
                 color: Theme.text
-                font.family: diag.mono; font.pixelSize: 17
+                font.family: Style.fonts.body; font.pixelSize: 17
             }
         }
     }

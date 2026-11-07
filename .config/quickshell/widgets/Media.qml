@@ -32,7 +32,7 @@ WidgetBody {
             opacity: 0.92
             fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 128; sourceSize.height: 128
         }
-        Text { visible: art.status !== Image.Ready; anchors.centerIn: parent; text: "♪"; color: Theme.p(0.6); font.pixelSize: 26 }
+        Text { visible: art.status !== Image.Ready; anchors.centerIn: parent; text: "♪"; color: Theme.p(0.6); font.family: Style.fonts.glyph; font.pixelSize: 26 }
         Repeater {     // projected frame: corner ticks only
             model: 4
             delegate: Item {
@@ -51,8 +51,8 @@ WidgetBody {
     Column {
         x: 76; width: 244
         spacing: 2
-        Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackTitle || "Unknown track") : "Nothing playing"; color: Theme.text; font.family: w.mono; font.pixelSize: 14 }
-        Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackArtist || "") : ""; color: Theme.dim; font.family: w.mono; font.pixelSize: 11 }
+        Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackTitle || "Unknown track") : "Nothing playing"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
+        Text { width: parent.width; elide: Text.ElideRight; text: w.has ? (w.player.trackArtist || "") : ""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
         Row {
             spacing: 4
             topPadding: 6
@@ -69,7 +69,7 @@ WidgetBody {
             Text {
                 anchors.verticalCenter: parent.verticalCenter; leftPadding: 8
                 text: w.has ? w.fmt(w.player.position) + " / " + w.fmt(w.player.length) : ""
-                color: Theme.faint; font.family: w.mono; font.pixelSize: 10
+                color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
             }
         }
     }

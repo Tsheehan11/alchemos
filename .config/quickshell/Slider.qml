@@ -13,8 +13,8 @@ Column {
 
     Item {
         width: sl.width; height: 14
-        Text { text: sl.label; color: Theme.dim; font.family: Style.mono; font.pixelSize: 11; font.letterSpacing: 2 }
-        Text { anchors.right: parent.right; text: sl.valueText; color: sl.accent; font.family: Style.mono; font.pixelSize: 11 }
+        Text { text: sl.label; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2 }
+        Text { anchors.right: parent.right; text: sl.valueText; color: sl.accent; font.family: Style.fonts.numeric; font.pixelSize: 11 }
     }
 
     Item {

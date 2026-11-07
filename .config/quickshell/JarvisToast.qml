@@ -33,7 +33,6 @@ PanelWindow {
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
     readonly property int pad: 26
-    readonly property string mono: Style.mono
     readonly property string phase: JarvisState.phase
     readonly property bool hot: phase === "confirm" || phase === "alert" || phase === "error"     // secondary colour
     readonly property color accent: hot ? Theme.secondary : JarvisState.accent     // the persona's (ALCHEMOS gold / silver) at the edge
@@ -263,13 +262,13 @@ PanelWindow {
                     anchors.left: reactor.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
                     text: JarvisState.dotted
                     color: JarvisState.hasAccent ? JarvisState.accent : Theme.primary
-                    font.family: Style.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 4
+                    font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 4
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: (scroller.userScrolled && toast.following ? "SCROLLED · " : "") + toast.phaseLabel
                     color: toast.hot ? Theme.secondary : Theme.dim
-                    font.family: toast.mono; font.pixelSize: 10; font.letterSpacing: 3
+                    font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 3
                 }
             }
 
@@ -310,7 +309,7 @@ PanelWindow {
                 width: parent.width
                 text: "“" + JarvisState.transcript + "”"
                 color: Theme.textSoft
-                font.family: toast.mono; font.pixelSize: 13; font.italic: true
+                font.family: Style.fonts.body; font.pixelSize: 13; font.italic: true
                 wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
             }
 
@@ -327,7 +326,7 @@ PanelWindow {
                         required property string modelData
                         text: "◆ " + modelData
                         color: Theme.secondary
-                        font.family: toast.mono; font.pixelSize: 12; font.letterSpacing: 2
+                        font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
                         opacity: 0; x: -14
                         Component.onCompleted: appear.start()
                         ParallelAnimation {
@@ -344,7 +343,7 @@ PanelWindow {
                 visible: toast.busy && JarvisState.reply === ""
                 text: "▸ " + "· · ·".slice(0, 1 + 2 * dots.n)
                 color: Theme.dim
-                font.family: toast.mono; font.pixelSize: 13
+                font.family: Style.fonts.body; font.pixelSize: 13
                 QtObject { id: dots; property int n: 0 }
                 Timer { running: parent.visible && toast.visible; interval: 280; repeat: true; onTriggered: dots.n = (dots.n + 1) % 3 }
             }
@@ -392,7 +391,7 @@ PanelWindow {
                         readOnly: true; enabled: false           // display only: clicks go to the pop-up
                         cursorVisible: false; cursorDelegate: Item {}
                         color: toast.hot ? Qt.lighter(Theme.secondary, 1.15) : Theme.text
-                        font.family: toast.mono; font.pixelSize: toast.phase === "alert" ? 19 : 16
+                        font.family: Style.fonts.body; font.pixelSize: toast.phase === "alert" ? 19 : 16
                         wrapMode: TextEdit.Wrap
                         layer.enabled: true
                         layer.effect: MultiEffect {
@@ -437,7 +436,7 @@ PanelWindow {
                     gradient: Gradient { GradientStop { position: 0; color: "transparent" } GradientStop { position: 1; color: Theme.d(0.7) } }
                     Text {
                         anchors.right: parent.right; anchors.bottom: parent.bottom
-                        text: "▾"; color: toast.accent; font.pixelSize: 12
+                        text: "▾"; color: toast.accent; font.family: Style.fonts.glyph; font.pixelSize: 12
                     }
                 }
             }

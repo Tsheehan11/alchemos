@@ -11,7 +11,6 @@ Column {
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color warn: "#ff5f5f"
-    readonly property string mono: Style.mono
     readonly property real third: (width - 36) / 3
 
     function ghz(v) { return v > 0 ? v.toFixed(2) + " GHz" : "--"; }
@@ -20,7 +19,7 @@ Column {
     Text {
         text: "COMBAT TELEMETRY // " + tel.screenName
         color: tel.amber
-        font.family: Style.display; font.pixelSize: 13; font.letterSpacing: 4
+        font.family: Style.fonts.display; font.pixelSize: 13; font.letterSpacing: 4
     }
 
     // Game + session
@@ -36,13 +35,13 @@ Column {
                 width: parent.width
                 text: Telemetry.gameName || (GameMode.manual ? "Manual override" : GameMode.games.length ? GameMode.games[0] : "gamemode")
                 color: Theme.text
-                font.family: tel.mono; font.pixelSize: 20
+                font.family: Style.fonts.body; font.pixelSize: 20
                 elide: Text.ElideRight
             }
             Text {
                 text: (GameMode.games.join(", ") || (GameMode.manual ? "manual" : "gamemode")) + "   ·   " + (Object.keys(Perf.gameScreens).join(" ") || "no game window")
                 color: Theme.dim
-                font.family: tel.mono; font.pixelSize: 11
+                font.family: Style.fonts.body; font.pixelSize: 11
             }
         }
     }
@@ -59,14 +58,14 @@ Column {
             Column {
                 width: 150
                 spacing: 6
-                Text { text: Math.round(SysStats.cpu * 100) + "%"; color: Theme.text; font.family: tel.mono; font.pixelSize: 34 }
-                Text { text: "AVG  " + tel.ghz(Telemetry.clockAvgGhz); color: Theme.textSoft; font.family: tel.mono; font.pixelSize: 12 }
-                Text { text: "PEAK " + tel.ghz(Telemetry.clockMaxGhz); color: Theme.textSoft; font.family: tel.mono; font.pixelSize: 12 }
+                Text { text: Math.round(SysStats.cpu * 100) + "%"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 34 }
+                Text { text: "AVG  " + tel.ghz(Telemetry.clockAvgGhz); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
+                Text { text: "PEAK " + tel.ghz(Telemetry.clockMaxGhz); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
                 Item { width: 1; height: 6 }
                 Text {
                     text: Telemetry.cpuThrottling ? "▲ THERMAL THROTTLE" : "● NO THROTTLING"
                     color: Telemetry.cpuThrottling ? tel.warn : Theme.dim
-                    font.family: tel.mono; font.pixelSize: 11; font.letterSpacing: 1
+                    font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 1
                 }
             }
             // Per-core bars
@@ -111,10 +110,10 @@ Column {
             Column {
                 width: 150
                 spacing: 6
-                Text { text: SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"; color: Theme.text; font.family: tel.mono; font.pixelSize: 34 }
+                Text { text: SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 34 }
                 Text {
                     text: Telemetry.gpuMaxMhz <= 0 ? "-- MHz" : Telemetry.gpuMhz + " / " + Telemetry.gpuMaxMhz + " MHz"
-                    color: Theme.textSoft; font.family: tel.mono; font.pixelSize: 12
+                    color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12
                 }
                 Rectangle {
                     width: parent.width; height: 4
@@ -126,7 +125,7 @@ Column {
                     }
                 }
                 // i915 has no temperature sensor for the integrated GPU; it shares the package's
-                Text { text: "TEMP: PKG SENSOR"; color: Theme.faint; font.family: tel.mono; font.pixelSize: 11 }
+                Text { text: "TEMP: PKG SENSOR"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
             }
             Graph {
                 width: parent.width - 168; height: parent.height
@@ -149,13 +148,13 @@ Column {
             Column {
                 width: parent.width
                 spacing: 8
-                Text { text: SysStats.ramUsedGb.toFixed(1) + " / " + SysStats.ramTotalGb.toFixed(0) + " GB"; color: Theme.text; font.family: tel.mono; font.pixelSize: 17 }
+                Text { text: SysStats.ramUsedGb.toFixed(1) + " / " + SysStats.ramTotalGb.toFixed(0) + " GB"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 17 }
                 Rectangle {
                     width: parent.width; height: 4
                     color: Theme.p(0.12)
                     Rectangle { width: parent.width * Math.max(0, Math.min(1, SysStats.ram)); height: parent.height; color: tel.cyan }
                 }
-                Text { text: "SHARED WITH iGPU"; color: Theme.faint; font.family: tel.mono; font.pixelSize: 11 }
+                Text { text: "SHARED WITH iGPU"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
             }
         }
 
@@ -171,16 +170,16 @@ Column {
                     delegate: Text {
                         required property var modelData
                         text: modelData.rpm + " RPM"
-                        color: Theme.text; font.family: tel.mono; font.pixelSize: 17
+                        color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 17
                     }
                 }
-                Text { visible: Telemetry.fans.length === 0; text: "NO FAN SENSOR"; color: Theme.dim; font.family: tel.mono; font.pixelSize: 12 }
+                Text { visible: Telemetry.fans.length === 0; text: "NO FAN SENSOR"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 12 }
                 Repeater {
                     model: Telemetry.temps.slice(0, 3)
                     delegate: Text {
                         required property var modelData
                         text: modelData.label.toUpperCase() + "  " + Math.round(modelData.c) + "°C"
-                        color: Theme.dim; font.family: tel.mono; font.pixelSize: 11
+                        color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }
             }
@@ -197,12 +196,12 @@ Column {
                 Text {
                     text: Telemetry.powerW >= 0 ? Telemetry.powerW.toFixed(1) + " W" : "AC POWER"
                     color: SysStats.discharging ? tel.amber : Theme.text
-                    font.family: tel.mono; font.pixelSize: 17
+                    font.family: Style.fonts.body; font.pixelSize: 17
                 }
                 Text {
                     text: Telemetry.batteryHours > 0 ? tel.hours(Telemetry.batteryHours) + " LEFT"
                         : SysStats.charging ? "CHARGING" : SysStats.discharging ? "ON BATTERY" : "DRAW N/A ON AC"
-                    color: Theme.dim; font.family: tel.mono; font.pixelSize: 11
+                    color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
                 }
                 Rectangle {
                     width: parent.width; height: 4

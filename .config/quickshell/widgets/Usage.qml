@@ -63,17 +63,17 @@ WidgetBody {
                     width: 340; height: 30
                     Text {
                         anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                        text: pw.modelData[1]; color: Theme.dim; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+                        text: pw.modelData[1]; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
                     }
                     Text {
                         x: 62; anchors.bottom: parent.bottom
                         text: Math.round(pw.pct) + "%"; color: pw.tone
-                        font.family: w.mono; font.pixelSize: pw.modelData[0] === "five_hour" ? 26 : 20; font.weight: Font.Light
+                        font.family: Style.fonts.body; font.pixelSize: pw.modelData[0] === "five_hour" ? 26 : 20; font.weight: Font.Light
                     }
                     Text {
                         anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
                         text: w.current ? w.resetText(pw.win.resets_at) : "LAST REPORT · NOT CURRENT"
-                        color: w.current ? Theme.textSoft : Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1
+                        color: w.current ? Theme.textSoft : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                     }
                 }
                 // split bar: JARVIS | CLAUDE CODE | claude.ai + other (estimate, hatched) | free
@@ -107,7 +107,7 @@ WidgetBody {
                 Text {
                     width: 340; wrapMode: Text.Wrap
                     textFormat: Text.StyledText
-                    font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1; color: Theme.dim
+                    font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1; color: Theme.dim
                     text: pw.sp.calibrated === true
                           ? "<font color='" + w.cJarvis + "'>■</font> " + JarvisState.assistant + " " + w.pctText(pw.sp.jarvis) + "%  "
                             + "<font color='" + w.cCode + "'>■</font> CLAUDE CODE " + w.pctText(pw.sp.code) + "%  "
@@ -120,7 +120,7 @@ WidgetBody {
         // ── report status: when, from where; or plainly that there isn't one ──
         Text {
             width: 340; wrapMode: Text.Wrap
-            font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1
+            font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
             color: w.current ? Theme.faint : Theme.secondary
             text: !w.u.updated ? "Reading local usage…"
                   : !w.plan ? "NO PLAN REPORT · " + (w.u.plan_error || "the Claude CLI hasn't reported one yet")
@@ -134,9 +134,9 @@ WidgetBody {
         Column {
             width: 340; spacing: 2
             Row {
-                Text { width: 150; text: "TOKENS IN + OUT"; color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1 }
-                Text { width: 95; text: "TODAY"; color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1 }
-                Text { width: 95; text: "PLAN WEEK"; color: Theme.faint; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1 }
+                Text { width: 150; text: "TOKENS IN + OUT"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
+                Text { width: 95; text: "TODAY"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
+                Text { width: 95; text: "PLAN WEEK"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
             }
             Repeater {
                 model: [["jarvis", JarvisState.assistant], ["code", "CLAUDE CODE"]]
@@ -147,10 +147,10 @@ WidgetBody {
                     Text {
                         width: 150; textFormat: Text.StyledText
                         text: "<font color='" + (modelData[0] === "jarvis" ? w.cJarvis : w.cCode) + "'>■</font> " + modelData[1]
-                        color: Theme.textSoft; font.family: w.mono; font.pixelSize: 11
+                        color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11
                     }
-                    Text { width: 95; text: JarvisFeed.tokens(w.fresh(td)) + (td.requests ? "  ·" + td.requests : ""); color: Theme.text; font.family: w.mono; font.pixelSize: 11 }
-                    Text { width: 95; text: JarvisFeed.tokens(w.fresh(wk)) + (wk.requests ? "  ·" + wk.requests : ""); color: Theme.textSoft; font.family: w.mono; font.pixelSize: 11 }
+                    Text { width: 95; text: JarvisFeed.tokens(w.fresh(td)) + (td.requests ? "  ·" + td.requests : ""); color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11 }
+                    Text { width: 95; text: JarvisFeed.tokens(w.fresh(wk)) + (wk.requests ? "  ·" + wk.requests : ""); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11 }
                 }
             }
             Text {
@@ -158,7 +158,7 @@ WidgetBody {
                 text: "·N = REQUESTS · CACHE R/W TODAY " + JarvisFeed.tokens(((w.today.jarvis || {}).cache_read || 0) + ((w.today.code || {}).cache_read || 0))
                       + " / " + JarvisFeed.tokens(((w.today.jarvis || {}).cache_write || 0) + ((w.today.code || {}).cache_write || 0))
                       + " · CLAUDE.AI HAS NO LOCAL RECORD (ESTIMATED ABOVE)"
-                color: Theme.faint; font.family: w.mono; font.pixelSize: 8; font.letterSpacing: 1
+                color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 8; font.letterSpacing: 1
             }
         }
 
@@ -168,14 +168,14 @@ WidgetBody {
             visible: w.localWeek.pct !== undefined && w.localWeek.pct !== null
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: JarvisState.assistant + " HANDLED LOCALLY"; color: Theme.dim; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 2
+                text: JarvisState.assistant + " HANDLED LOCALLY"; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
             }
             HoloBar { x: 150; width: 70; height: 6; ticks: 4; anchors.verticalCenter: parent.verticalCenter; value: (w.localWeek.pct || 0) / 100; color: Theme.primary }
             Text {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 text: (w.localToday.pct === null || w.localToday.pct === undefined ? "—" : Math.round(w.localToday.pct) + "%") + " TODAY · "
                       + Math.round(w.localWeek.pct || 0) + "% WEEK"
-                color: Theme.text; font.family: w.mono; font.pixelSize: 10
+                color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 10
             }
         }
 
@@ -184,7 +184,7 @@ WidgetBody {
         // ── models actually used ──
         Text {
             width: 340; wrapMode: Text.Wrap
-            font.family: w.mono; font.pixelSize: 10; font.letterSpacing: 1
+            font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
             color: Theme.textSoft
             text: w.modelsToday.length === 0 ? "TODAY: NO CLAUDE REQUESTS"
                   : w.modelsToday.length === 1 ? "TODAY: " + w.modelsToday[0].name.toUpperCase() + " ONLY · " + JarvisFeed.tokens(w.modelsToday[0].tokens)
@@ -196,19 +196,19 @@ WidgetBody {
                 required property var modelData
                 readonly property real share: modelData.tokens / Math.max(1, w.modelsWeek.reduce((a, m) => a + m.tokens, 0))
                 width: 340; height: 14
-                Text { width: 96; text: modelData.name.toUpperCase(); color: Theme.dim; font.family: w.mono; font.pixelSize: 9; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+                Text { width: 96; text: modelData.name.toUpperCase(); color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
                 HoloBar { x: 98; width: 120; height: 6; ticks: 5; anchors.verticalCenter: parent.verticalCenter; value: parent.share; color: modelData.family === "haiku" ? Theme.primary : modelData.family === "opus" ? Theme.secondary : Theme.text }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: JarvisFeed.tokens(modelData.tokens) + " · " + modelData.sources.map(s => s === "code" ? "CODE" : JarvisState.assistant).join("+")
-                    color: Theme.textSoft; font.family: w.mono; font.pixelSize: 9
+                    color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 9
                 }
             }
         }
         Text {
             visible: w.modelsWeek.length > 0
             text: "PLAN WEEK, BY MODEL"
-            color: Theme.faint; font.family: w.mono; font.pixelSize: 8; font.letterSpacing: 2
+            color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 8; font.letterSpacing: 2
         }
     }
 }

@@ -17,11 +17,11 @@ Item {
         anchors.right: sw.left
         anchors.rightMargin: 16
         spacing: 3
-        Text { text: tg.label; color: Theme.text; font.family: Style.mono; font.pixelSize: 14 }
+        Text { text: tg.label; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 14 }
         Text {
             visible: tg.hint !== ""
             text: tg.hint; width: parent.width; elide: Text.ElideRight
-            color: Theme.dim; font.family: Style.mono; font.pixelSize: 11
+            color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11
         }
     }
 

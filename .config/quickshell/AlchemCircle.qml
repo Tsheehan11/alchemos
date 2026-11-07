@@ -18,7 +18,6 @@ Item {
     readonly property color c1: Theme.primary
     readonly property color c2: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: Style.mono
     readonly property var metals: Skin.glyphs.ring || []       // the skin's signs (ALCHEMOS: the six metals); none = bare rings
     readonly property string active: Skin.glyphFor(Theme.cfg.preset)
 
@@ -157,27 +156,29 @@ Item {
         Column {
             anchors.centerIn: parent
             spacing: 4
-            Text {
+            NumText {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Qt.formatDateTime(clock.date, Theme.cfg.clock24 ? "hh:mm" : "h:mm")
                 color: Theme.text
-                font.family: r.mono
+                font.family: Style.fonts.numeric
                 font.pixelSize: 56 * r.k
+                align: Text.AlignHCenter
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Qt.formatDateTime(clock.date, "ddd · dd MMM").toUpperCase()
                 color: r.dim
-                font.family: r.mono
+                font.family: Style.fonts.label
                 font.pixelSize: 13 * r.k
                 font.letterSpacing: 3
             }
-            Text {
+            NumText {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: ":" + Qt.formatDateTime(clock.date, "ss")
                 color: r.c2
-                font.family: r.mono
+                font.family: Style.fonts.numeric
                 font.pixelSize: 12 * r.k
+                align: Text.AlignHCenter
                 opacity: 0.8
             }
         }
@@ -189,9 +190,9 @@ Item {
         anchors.topMargin: 16 * r.k
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 26 * r.k
-        Text { text: "◇ CPU " + Math.round(SysStats.cpu * 100) + "%"; color: r.c1; font.family: r.mono; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
-        Text { text: "◇ RAM " + Math.round(SysStats.ram * 100) + "%"; color: r.dim; font.family: r.mono; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
-        Text { text: "◇ GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"); color: r.c2; font.family: r.mono; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
-        Text { text: "◇ BAT " + Math.round(SysStats.battery * 100) + "%" + (SysStats.charging ? " ⚡" : ""); color: Theme.dim; font.family: r.mono; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
+        Text { text: "◇ CPU " + Math.round(SysStats.cpu * 100) + "%"; color: r.c1; font.family: Style.fonts.body; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
+        Text { text: "◇ RAM " + Math.round(SysStats.ram * 100) + "%"; color: r.dim; font.family: Style.fonts.body; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
+        Text { text: "◇ GPU " + (SysStats.gpuAvailable ? Math.round(SysStats.gpu * 100) + "%" : "--"); color: r.c2; font.family: Style.fonts.body; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
+        Text { text: "◇ BAT " + Math.round(SysStats.battery * 100) + "%" + (SysStats.charging ? " ⚡" : ""); color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 13 * r.k; font.letterSpacing: 1 }
     }
 }

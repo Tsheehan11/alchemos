@@ -54,7 +54,7 @@ WidgetBody {
         Text {
             visible: !w.next
             text: ag.updated ? "NOTHING SCHEDULED" : "LINKING CALENDAR…"
-            color: Theme.faint; font.family: w.mono; font.pixelSize: 12; font.letterSpacing: 2
+            color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
         }
         Column {
             visible: w.next !== null
@@ -63,14 +63,14 @@ WidgetBody {
             Text {
                 width: parent.width; elide: Text.ElideRight
                 text: w.next ? w.next.title : ""
-                color: Theme.text; font.family: w.mono; font.pixelSize: 15
+                color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 15
             }
             Row {
                 spacing: 10
                 Text {
                     text: w.next ? (w.ongoing ? "NOW" : JarvisFeed.until(w.next.start)) : ""
                     color: w.ongoing || (w.next && w.next.start - w.now < 15 * 60000) ? Theme.secondary : Theme.primary
-                    font.family: w.mono; font.pixelSize: 20; font.weight: Font.Light
+                    font.family: Style.fonts.body; font.pixelSize: 20; font.weight: Font.Light
                 }
                 Text {
                     anchors.baseline: parent.children[0].baseline
@@ -78,7 +78,7 @@ WidgetBody {
                                    + Qt.formatDateTime(new Date(w.next.end), Theme.cfg.clock24 ? "HH:mm" : "h:mm AP")
                                    + (w.next.where ? "  · " + w.next.where : "") : ""
                     width: 330 - parent.children[0].width - 10; elide: Text.ElideRight
-                    color: Theme.dim; font.family: w.mono; font.pixelSize: 10
+                    color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10
                 }
             }
             HoloBar {      // ongoing: how far through; else the last hour before it, filling up
@@ -106,25 +106,25 @@ WidgetBody {
                 Text {
                     width: 16; text: w.glyph(modelData)
                     color: parent.isDue ? Theme.secondary : modelData.source === "outlook" ? Theme.dim : Theme.primary
-                    font.family: w.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter
+                    font.family: Style.fonts.body; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
                     x: 16; width: 54; text: w.when(modelData)
                     color: parent.isDue ? Theme.secondary : Theme.dim
-                    font.family: w.mono; font.pixelSize: 10; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter
+                    font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
                     x: 72; width: 330 - 72 - rt.width - 8; elide: Text.ElideRight
                     text: modelData.kind === "due" ? (modelData.label || modelData.title) : modelData.title
                     color: parent.late ? Theme.secondary : Theme.textSoft
-                    font.family: w.mono; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter
+                    font.family: Style.fonts.body; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
                     id: rt
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: w.rightText(modelData)
                     color: parent.late ? Theme.secondary : Theme.faint
-                    font.family: w.mono; font.pixelSize: 10; font.letterSpacing: 1
+                    font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
                 }
             }
         }

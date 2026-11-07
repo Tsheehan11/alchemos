@@ -26,7 +26,6 @@ PanelWindow {
     readonly property color cyan: Theme.primary
     readonly property color amber: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property string mono: Style.mono
 
     // ── Live state ──
     readonly property var sink: Pipewire.defaultAudioSink
@@ -149,10 +148,10 @@ PanelWindow {
                             anchors.left: parent.left; anchors.leftMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
-                            Text { text: modelData.label; color: modelData.on ? Theme.text : cc.dim; font.family: cc.mono; font.pixelSize: 13; font.letterSpacing: 2 }
+                            Text { text: modelData.label; color: modelData.on ? Theme.text : cc.dim; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2 }
                             Text {
                                 text: modelData.sub; width: (body.width - 10) / 2 - 28; elide: Text.ElideRight
-                                color: modelData.on ? cc.cyan : Theme.faint; font.family: cc.mono; font.pixelSize: 11
+                                color: modelData.on ? cc.cyan : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                             }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: modelData.act() }
@@ -188,7 +187,7 @@ PanelWindow {
                     spacing: 3
                     Text {
                         text: "VPN · " + VPN.current.name
-                        color: vpnTile.on ? Theme.text : cc.dim; font.family: cc.mono; font.pixelSize: 13; font.letterSpacing: 2
+                        color: vpnTile.on ? Theme.text : cc.dim; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2
                     }
                     Text {
                         width: parent.width; elide: Text.ElideRight
@@ -197,7 +196,7 @@ PanelWindow {
                             : VPN.state === "disabled" ? "not set up"
                             : VPN.state.toUpperCase() + (VPN.connected && VPN.where() ? " · " + VPN.where() : "")
                         color: VPN.current.error || VPN.blocked ? "#ff5f5f" : vpnTile.on ? cc.cyan : vpnTile.busy ? cc.amber : Theme.faint
-                        font.family: cc.mono; font.pixelSize: 11
+                        font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }
                 MouseArea {
@@ -224,7 +223,7 @@ PanelWindow {
                                 anchors.centerIn: parent
                                 text: modelData.name
                                 color: parent.sel ? Theme.text : cc.dim
-                                font.family: cc.mono; font.pixelSize: 10; font.letterSpacing: 1
+                                font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -249,11 +248,11 @@ PanelWindow {
                     anchors.right: shotChips.left; anchors.rightMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 3
-                    Text { text: "SCREENSHOT"; color: shotMa.containsMouse ? Theme.text : cc.dim; font.family: cc.mono; font.pixelSize: 13; font.letterSpacing: 2 }
+                    Text { text: "SCREENSHOT"; color: shotMa.containsMouse ? Theme.text : cc.dim; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2 }
                     Text {
                         width: parent.width; elide: Text.ElideRight
                         text: Shot.last.ok ? "last · " + Shot.last.name.replace(/^stark-|\.png$/g, "") : "tap · select a region"
-                        color: Theme.faint; font.family: cc.mono; font.pixelSize: 11
+                        color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }
                 MouseArea { id: shotMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Shot.take("region") }
@@ -274,7 +273,7 @@ PanelWindow {
                                 anchors.centerIn: parent
                                 text: modelData[0]
                                 color: chipMa.containsMouse ? Theme.text : cc.dim
-                                font.family: cc.mono; font.pixelSize: 10; font.letterSpacing: 1
+                                font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
                             }
                             MouseArea { id: chipMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Shot.take(modelData[1]) }
                         }
@@ -303,7 +302,7 @@ PanelWindow {
                 visible: cc.powerProfile !== ""
                 width: parent.width
                 spacing: 8
-                Text { text: "POWER"; color: cc.dim; font.family: cc.mono; font.pixelSize: 11; font.letterSpacing: 2 }
+                Text { text: "POWER"; color: cc.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2 }
                 Row {
                     spacing: 8
                     Repeater {
@@ -314,7 +313,7 @@ PanelWindow {
                             width: (body.width - 16) / 3; height: 34
                             color: on ? Theme.s(0.2) : "transparent"
                             border.color: on ? cc.amber : Theme.p(0.3)
-                            Text { anchors.centerIn: parent; text: modelData[1]; color: parent.on ? Theme.text : cc.dim; font.family: cc.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                            Text { anchors.centerIn: parent; text: modelData[1]; color: parent.on ? Theme.text : cc.dim; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1 }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: cc.run("powerprofilesctl set " + modelData[0]) }
                         }
                     }
@@ -325,7 +324,7 @@ PanelWindow {
             Column {
                 width: parent.width
                 spacing: 6
-                Text { text: "OPEN"; color: cc.dim; font.family: cc.mono; font.pixelSize: 11; font.letterSpacing: 2 }
+                Text { text: "OPEN"; color: cc.dim; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2 }
                 Repeater {
                     model: [
                         [Skin.text.os + " settings", "@settings"],
@@ -344,7 +343,7 @@ PanelWindow {
                             anchors.left: parent.left; anchors.leftMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
                             text: "›  " + modelData[0]
-                            color: Theme.textSoft; font.family: cc.mono; font.pixelSize: 13
+                            color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 13
                         }
                         MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: cc.openApp(modelData[1]) }
                     }
