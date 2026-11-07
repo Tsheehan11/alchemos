@@ -147,6 +147,27 @@ Singleton {
             if (typeof out[k] !== "string" || out[k] === "") out[k] = k === "secondary" && p.primary ? p.primary : presets[0][k];
         return out;
     }
+    // The preset wheel (the clock's ring of signs): the skin's signs, then the signs of the custom presets,
+    // the 6 most recently saved plus the one in use, each once. signFor: a preset's sign, built-in or custom.
+    readonly property int customSignMax: 6
+    readonly property var customSigns: {
+        const ring = Skin.glyphs.ring || [];
+        const list = (adapter.customPresets || []).filter(c => c.glyph);
+        let pick = list.slice(-customSignMax);
+        const cur = list.find(c => c.name === adapter.preset);
+        if (cur && pick.indexOf(cur) < 0) pick = pick.slice(1).concat([cur]);
+        const out = [];
+        for (const c of pick) if (ring.indexOf(c.glyph) < 0 && out.indexOf(c.glyph) < 0) out.push(c.glyph);
+        return out;
+    }
+    function signFor(name) {
+        const b = Skin.glyphFor(name);
+        if (b) return b;
+        const c = (adapter.customPresets || []).find(x => x.name === name);
+        return c && c.glyph ? c.glyph : "";
+    }
+    readonly property string activeSign: signFor(adapter.preset)
+    readonly property string activeName: adapter.preset || "CUSTOM"
     function presetName(raw) { return (raw || "").trim().toUpperCase().slice(0, 14); }
     // Every name a new preset can't take: built-ins of every installed skin and the saved custom ones
     function takenNames() { return Skin.reservedNames.concat((adapter.customPresets || []).map(c => c.name)).concat(["CUSTOM"]); }

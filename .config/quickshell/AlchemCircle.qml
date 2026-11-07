@@ -18,8 +18,10 @@ Item {
     readonly property color c1: Theme.primary
     readonly property color c2: Theme.secondary
     readonly property color dim: Theme.dim
-    readonly property var metals: Skin.glyphs.ring || []       // the skin's signs (ALCHEMOS: the six metals); none = bare rings
-    readonly property string active: Skin.glyphFor(Theme.cfg.preset)
+    // the preset wheel: the skin's signs (ALCHEMOS: the six metals), then the custom presets' signs
+    // (Theme.customSigns); a skin with no signs keeps bare rings
+    readonly property var metals: (Skin.glyphs.ring || []).length ? Skin.glyphs.ring.concat(Theme.customSigns) : []
+    readonly property string active: Theme.activeSign
 
     SystemClock { id: clock; precision: SystemClock.Seconds }
 

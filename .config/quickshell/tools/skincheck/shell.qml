@@ -29,6 +29,8 @@ ShellRoot {
         ["launcher-alt", 1600, 940, "Launcher.qml", { modelData: root.screenOf(1600, 940) },
             { arm: () => { Theme.presetIndex = Math.min(5, Skin.presets.length - 1); LauncherState.open = true; }, settle: 1500 }],
         ["carousel", 1600, 1000, "Overview.qml", { modelData: root.screenOf(1600, 1000) }, { arm: () => LauncherState.overviewOpen = true, settle: 1200 }],
+        ["bar-custom", 1600, 34, "Bar.qml", { modelData: root.screenOf(1600, 34) }, { arm: () => Theme.presetIndex = -1 }],
+        ["clock-custom", 480, 560, root.comp("clock"), { t: 0, animated: false }, { arm: () => Theme.presetIndex = -1 }],
         ["osd", 420, 96, "Osd.qml", { modelData: root.screenOf(420, 96) }, {}],
         ["control", 900, 1000, "ControlCenter.qml", { modelData: root.screenOf(900, 1000), wifiOn: true, ssid: "HOME-5G", btOn: true, brightness: 0.7, powerProfile: "balanced" }, { arm: () => LauncherState.controlOpen = true }]
     ]
@@ -53,7 +55,7 @@ ShellRoot {
         if (opt) {                    // a window: its required properties at creation, then arm() opens it
             ld.props = ({});
             ld.sourceComponent = undefined; ld.source = "";
-            ld.setSource(Qt.resolvedUrl(g[3]), g[4]);
+            ld.setSource(typeof g[3] === "string" ? Qt.resolvedUrl(g[3]) : g[3], g[4]);
             if (opt.arm) Qt.callLater(opt.arm);
         } else {
             ld.props = g[4];

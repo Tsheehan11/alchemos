@@ -9,7 +9,7 @@ Singleton {
     property var cfg: ({ skin: Quickshell.env("SKINCHECK_SKIN") || "alchemos", preset: "", reactorScale: 1.0, clock24: true,
                          greetName: "TREVOR", panelOpacity: 0.85, skinUnlocked: true, customPresets: [], jarvisPersona: "jarvis", showGrid: true })
     property int presetIndex: 0         // the gallery picks another preset for a render or two
-    readonly property var preset: (Skin.presets && Skin.presets.length > presetIndex) ? Skin.presets[presetIndex] : ({ primary: "#4fd8ff", secondary: "#ffb347", background: "#05090f" })
+    readonly property var preset: presetIndex < 0 ? customs[0] : (Skin.presets && Skin.presets.length > presetIndex) ? Skin.presets[presetIndex] : ({ primary: "#4fd8ff", secondary: "#ffb347", background: "#05090f" })
     readonly property color primary: preset.primary
     readonly property color secondary: preset.secondary
     readonly property color bg: preset.background
@@ -34,6 +34,12 @@ Singleton {
         return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
     }
     function hex(c) { return c.toString().replace("#", "").slice(-6); }
+    // one saved custom preset with a sign, in use in the "custom" render (presetIndex -1)
+    readonly property var customs: [{ name: "BISMUTH", glyph: "🜾", primary: "#ff6bd6", secondary: "#7fe0ff", background: "#06080b", custom: true }]
+    readonly property var customSigns: (Skin.glyphs.ring || []).length ? ["🜾"] : []
+    readonly property string activeName: preset.name || "CUSTOM"
+    readonly property string activeSign: presetIndex < 0 ? "🜾" : (preset.glyph || "")
+    function signFor(n) { return n === "BISMUTH" ? "🜾" : Skin.glyphFor(n); }
     function switchSkin(from, to) {}
     signal presetApplied(var preset)
 }

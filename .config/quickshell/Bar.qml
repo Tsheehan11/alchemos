@@ -65,6 +65,36 @@ PanelWindow {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 18
 
+        // The corner sign: the active preset's sign and name, on every bar, following each switch.
+        // Engraved skins: a small medallion; the hologram: the skin's mark and the name as text.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 7
+            readonly property string sign: Theme.activeSign || Skin.text.mark || "◆"
+            Rectangle {
+                visible: Style.engraved
+                anchors.verticalCenter: parent.verticalCenter
+                width: 22; height: 22; radius: 11
+                color: Theme.back(0.6)
+                border.color: Theme.p(0.7)
+                Rectangle { anchors.fill: parent; anchors.margins: 2.5; radius: width / 2; color: "transparent"; border.color: Theme.p(0.25) }
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.parent.sign
+                    color: Theme.primary
+                    font.family: Style.fonts.signs; font.pixelSize: 13
+                }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: (Style.engraved ? "" : parent.sign + " ") + Theme.activeName
+                color: bar.cyan
+                font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
+                font.weight: Style.engraved ? Font.DemiBold : Font.Normal
+            }
+            Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 1; height: 16; color: Theme.p(0.3) }
+        }
+
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: bar.isMain ? Skin.text.os : bar.modelData.name
@@ -208,8 +238,6 @@ PanelWindow {
                     Component.onDestruction: Indicators.show(modelData, -1)
                 }
             }
-            // the skin's mark: ALCHEMOS the sign of the metal in use (☉ for a custom preset), legacy ◈
-            Text { text: Skin.text.mark || Skin.glyphFor(Theme.cfg.preset) || "☉"; color: bar.cyan; font.family: Style.fonts.glyph; font.pixelSize: 13 }
         }
 
         MouseArea {

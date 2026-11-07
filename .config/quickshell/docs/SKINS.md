@@ -45,8 +45,8 @@ Installed now:
 | `osName` | what the assistant calls the desktop ("AlchemOS") | `jarvis/core/persona.py` |
 | `presets`, `aliases` | built-in colour presets (`name`, `glyph`, `primary`, `secondary`, `background`) and other names for them | `Theme`, Jarvis `set_theme` |
 | `personas` | display `name` / `call` / `dotted` / `glyph` / `idle` / `starting` / `accent` for `jarvis` and `friday` (ids, wake word and voices stay) | `JarvisState`, `persona.py` |
-| `text` | the HUD's wording: bar, panel titles, lock / unlock messages, hyprlock title and denied text, lock glyph, bar mark, transition title | everywhere via `Skin.text` |
-| `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre | default clock / scene / transition |
+| `text` | the HUD's wording (the bar's corner sign shows the active preset's sign, else `mark`, and its name): bar, panel titles, lock / unlock messages, hyprlock title and denied text, lock glyph, bar mark, transition title | everywhere via `Skin.text` |
+| `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre. The clock's ring (the preset wheel) also carries the custom presets' signs (`Theme.customSigns`: the 6 most recently saved + the one in use) | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
 | `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `stark-cursor/src`) | `stark-cursor/build.sh` |
