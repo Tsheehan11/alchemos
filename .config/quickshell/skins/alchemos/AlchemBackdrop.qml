@@ -3,10 +3,8 @@
 // catch the light in the preset's metal, gold dust and embers drifting up. Activity (the assistant at
 // work, CPU load) brightens the rete and the circle at the centre.
 //
-// CLOCK screens (Roles.shows): the clock is the circle's centrepiece. The great circle moves onto the
-// clock's centre, its own centre pieces (squared circle, rete, the breath of light) give way to the
-// clock, a soft disc of stone under the dial fades the heptagram's strokes there, and the outer rings,
-// planets, star chart, veins and motes frame it. Other roles keep the full circle off-centre.
+// CLOCK screens (Roles.shows): the great circle steps aside for the clock, to the right and about half
+// off screen, its limb just clear of the dial's rim (no overlap). Other roles keep it off-centre.
 //
 // Performance: everything heavy is drawn once into Canvas textures (again only on resize, a preset
 // change or a resolution change); motion is rotation / translation / opacity of those textures off the
@@ -33,14 +31,14 @@ Item {
     readonly property color metal: Theme.primary
     readonly property color ember: Theme.secondary
     readonly property real rad: Math.min(height * 0.47, width * 0.36)        // the great circle
-    // the clock window (HudWindow) is centred on the screen; the skin's clock (AlchemCircle) is
-    // 480 × 560 k-units with its dial (radius 240) in the top 480. Only the role and the setting count,
+    // the clock window (HudWindow) is centred on the screen; the skin's clock (AlchemCircle) has a dial
+    // of radius 240 k-units. Only the role and the setting count,
     // not windows covering it, so opening a window never redraws the stone.
     readonly property bool withClock: !!modelData && Roles.shows(modelData) === "clock" && Theme.cfg.showReactor !== false
     readonly property real clockK: Theme.cfg.reactorScale || 1
     readonly property real clockR: 240 * clockK
-    readonly property real cx: withClock ? width / 2 : width * 0.6
-    readonly property real cy: withClock ? height / 2 - 40 * clockK : height * 0.52
+    readonly property real cx: withClock ? width / 2 + clockR + rad * 0.92 : width * 0.6
+    readonly property real cy: withClock ? height * 0.56 : height * 0.52
     readonly property string glyphFont: Style.fonts.signs
     readonly property var metals: Skin.glyphs.ring && Skin.glyphs.ring.length ? Skin.glyphs.ring : ["☉", "☽", "♂", "♀", "☿", "♄"]
 
@@ -308,30 +306,8 @@ Item {
                 }
             }
         }
-        // under the clock: stone, opaque on the dial, fading out past its rim (above the engravings,
-        // below the planets)
-        Canvas {
-            visible: sc.withClock
-            readonly property real ro: sc.clockR * 1.3
-            width: Math.ceil(ro * 2 * sc.res); height: width
-            x: -ro; y: -ro
-            scale: 1 / sc.res; transformOrigin: Item.TopLeft
-            property color b: Theme.bg
-            onBChanged: requestPaint(); onWidthChanged: requestPaint(); onVisibleChanged: if (visible) requestPaint()
-            onPaint: {
-                const ctx = getContext("2d");
-                ctx.reset();
-                if (!visible || width <= 0) return;
-                const c = width / 2, cb = b;
-                const g = ctx.createRadialGradient(c, c, 0, c, c, c);
-                const col = a => "rgba(" + Math.round(cb.r * 255) + "," + Math.round(cb.g * 255) + "," + Math.round(cb.b * 255) + "," + a + ")";
-                g.addColorStop(0, col(0.82)); g.addColorStop(0.74, col(0.78)); g.addColorStop(0.86, col(0.4)); g.addColorStop(1, col(0));
-                ctx.fillStyle = g; ctx.fillRect(0, 0, width, height);
-            }
-        }
-        // 4. Squared circle: square, triangle, circle (the emblem of the stone); the clock carries its own
+        // 4. Squared circle: square, triangle, circle (the emblem of the stone)
         Engraving {
-            visible: !sc.withClock
             r: sc.rad * 0.46
             rotation: -sc.t * 1.2
             draw: (ctx, c, r) => {
@@ -346,7 +322,6 @@ Item {
         // 5. Rete: the astrolabe's pierced star map (eccentric ecliptic, star pointers), fastest;
         //    it brightens with activity
         Engraving {
-            visible: !sc.withClock
             r: sc.rad * 0.3
             rotation: sc.t * 2.2
             opacity: 0.75 + sc.pulse * 0.25
@@ -365,9 +340,8 @@ Item {
                 }
             }
         }
-        // activity: a soft breath of light in the middle of the circle (the clock's own core shows it there)
+        // activity: a soft breath of light in the middle of the circle
         Rectangle {
-            visible: !sc.withClock
             width: sc.rad * 0.7; height: width; radius: width / 2
             x: -width / 2; y: -height / 2
             color: "transparent"
