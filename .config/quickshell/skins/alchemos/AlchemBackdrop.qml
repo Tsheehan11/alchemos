@@ -3,8 +3,8 @@
 // catch the light in the preset's metal, gold dust and embers drifting up. Activity (the assistant at
 // work, CPU load) brightens the rete and the circle at the centre.
 //
-// CLOCK screens (Roles.shows): the great circle steps aside for the clock, to the right and about half
-// off screen, its limb just clear of the dial's rim (no overlap). Other roles keep it off-centre.
+// The great circle stands to the right, about half off screen, its limb just clear of where the clock's
+// dial sits (centred; on CLOCK screens it's there), the same on every screen.
 //
 // Performance: everything heavy is drawn once into Canvas textures (again only on resize, a preset
 // change or a resolution change); motion is rotation / translation / opacity of those textures off the
@@ -32,13 +32,10 @@ Item {
     readonly property color ember: Theme.secondary
     readonly property real rad: Math.min(height * 0.47, width * 0.36)        // the great circle
     // the clock window (HudWindow) is centred on the screen; the skin's clock (AlchemCircle) has a dial
-    // of radius 240 k-units. Only the role and the setting count,
-    // not windows covering it, so opening a window never redraws the stone.
-    readonly property bool withClock: !!modelData && Roles.shows(modelData) === "clock" && Theme.cfg.showReactor !== false
-    readonly property real clockK: Theme.cfg.reactorScale || 1
-    readonly property real clockR: 240 * clockK
-    readonly property real cx: withClock ? width / 2 + clockR + rad * 0.92 : width * 0.6
-    readonly property real cy: withClock ? height * 0.56 : height * 0.52
+    // of radius 240 k-units
+    readonly property real clockR: 240 * (Theme.cfg.reactorScale || 1)
+    readonly property real cx: width / 2 + clockR + rad * 0.92
+    readonly property real cy: height * 0.56
     readonly property string glyphFont: Style.fonts.signs
     readonly property var metals: Skin.glyphs.ring && Skin.glyphs.ring.length ? Skin.glyphs.ring : ["☉", "☽", "♂", "♀", "☿", "♄"]
 
