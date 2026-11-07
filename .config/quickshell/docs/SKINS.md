@@ -48,7 +48,7 @@ Installed now:
 | `text` | the HUD's wording: bar, panel titles, lock / unlock messages, hyprlock title and denied text, lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
-| `components` | `clock`, `scene`, `transition`, `backdrop`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
+| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `stark-cursor/src`) | `stark-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
@@ -74,7 +74,7 @@ Components read `Style.<token>`; nothing outside `Style.qml`, `Skin.qml` and `sk
 ### Component overrides
 
 Start from the default (`AlchemCircle.qml`, `VaultScene.qml`, `TransmuteTransition.qml`,
-`HoloBackdrop.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
+`HoloBackdrop.qml`, `HoloLauncherLook.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
 reach the HUD's singletons. Components are loaded through `Qt.resolvedUrl` inside the shell; never
 build a `file://` URL to them (it would load a second copy of every singleton).
 
@@ -84,6 +84,12 @@ animate: windows over it, locked, combat mode, battery saver), `live`, `res` (1,
 panel and in battery saver: draw textures at that scale, the iGPU's memory is system RAM) and
 `activity` (0..1, the assistant at work, else CPU load). Draw anything heavy once into a texture and
 only move it with `t`; never run an animation of its own. ALCHEMOS: `skins/alchemos/AlchemBackdrop.qml`.
+
+**launcherLook** (what the Super+Space launcher draws; `Launcher.qml` keeps the keys, the branch
+geometry, the spiral open, launching and the hit areas over the nodes) gets `win` (apps, selected,
+current, spread, t, visible, branchOf / tierOf / nodeSize / branchCount) and `core` (cx, cy, nx(i),
+ny(i): where app i is now) as required properties, and may set `openMs` / `openEasing` (how the spiral
+opens) and `opened()` (called as it opens). ALCHEMOS: `skins/alchemos/AlchemLauncherLook.qml`.
 
 ## How switching works
 

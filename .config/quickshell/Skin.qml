@@ -68,7 +68,7 @@ Singleton {
     })
     // Default implementations, used when a skin doesn't override them
     readonly property var defaults: ({ clock: "AlchemCircle.qml", scene: "VaultScene.qml", transition: "TransmuteTransition.qml",
-                                      backdrop: "HoloBackdrop.qml" })
+                                      backdrop: "HoloBackdrop.qml", launcherLook: "HoloLauncherLook.qml" })
 
     // ── The skin in use (read synchronously) ────
     function parse(text) {

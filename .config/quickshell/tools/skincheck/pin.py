@@ -16,6 +16,8 @@ for f in map(Path, sys.argv[1:]):
     s = f.read_text()
     if "Math.random()" in s:
         s = seeded(s)
+    # endless spins and drifts (in windows and the looks they load): not running
+    s = re.sub(r"((?:RotationAnimation|NumberAnimation) on (?:rotation|t|x) \{[^}]*?running:)[^;\n}]+", r"\1 false", s)
     if not re.search(r"^PanelWindow \{", s, re.M):
         f.write_text(s)
         continue
@@ -26,7 +28,6 @@ for f in map(Path, sys.argv[1:]):
     s = re.sub(r"(?<![.\w])Hyprland\.", "HyprMock.", s)
     s = s.replace("Pipewire.defaultAudioSink", "null")
     s = s.replace("new Date()", "new Date(2026, 0, 1, 10, 8, 30)")
-    # endless spins and drifts, and timers that poll the system: not running
-    s = re.sub(r"((?:RotationAnimation|NumberAnimation) on (?:rotation|t|x) \{[^}]*?running:)[^;\n}]+", r"\1 false", s)
+    # timers that poll the system: not running
     s = re.sub(r"(Timer \{[^}]*?running:)[^;\n}]+(;[^}]*?onTriggered: poll\.running)", r"\1 false\2", s)
     f.write_text(s)
