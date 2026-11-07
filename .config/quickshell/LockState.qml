@@ -74,7 +74,7 @@ Singleton {
         return Quickshell.env("HOME") + "/.config/hypr/stark-lock-bg-" + screenName + ".png";
     }
     function bgKey(size, main) {
-        return ["v4", Skin.current, Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size, main ? "main" : "other"].join(" ");
+        return ["v5", Skin.current, Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size, main ? "main" : "other"].join(" ");
     }
 
     // Snapshot every screen's shut doors, then start the lock screen
@@ -125,7 +125,7 @@ Singleton {
         ScriptAction { script: {
             root.doors = "opening"; root.msgP = 0;
             root.message = Skin.text.unlockMessage;
-            root.submessage = "WELCOME BACK, " + Theme.cfg.greetName.toUpperCase();
+            root.submessage = root.greet(Skin.text.unlockSub);
             root.play("unlock.wav");
         } }
         ParallelAnimation {      // same 900 ms as before: the words type, the signs ignite in turn
@@ -139,14 +139,18 @@ Singleton {
         ScriptAction { script: { root.doors = "open"; root.ignite = 0; Govee.event("unlock"); } }
     }
 
+    // a skin's wording with {name} = the greeting name
+    function greet(s) { return String(s || "").replace("{name}", Theme.cfg.greetName.toUpperCase()); }
+
     // ── Shut down / restart / log out ──
     property string pendingAction: ""
     function power(action) {
         if (powerSeq.running) return;
         LauncherState.closeAll();
         root.pendingAction = action;
-        root.message = action === "reboot" ? "REBOOTING" : (action === "logout" ? "SIGNING OFF" : "SHUTTING DOWN");
-        root.submessage = action === "logout" ? "SEE YOU SOON, " + Theme.cfg.greetName.toUpperCase() : "SAVING STATE // POWERING DOWN SYSTEMS";
+        const w = Skin.text;
+        root.message = action === "reboot" ? w.rebootMessage : (action === "logout" ? w.logoutMessage : w.shutdownMessage);
+        root.submessage = root.greet(action === "logout" ? w.logoutSub : w.powerSub);
         powerSeq.start();
     }
     SequentialAnimation {

@@ -71,6 +71,24 @@ Singleton {
     // extra status icons in the bar's right end, in order (wifi bluetooth volume mic bell); [] = none
     readonly property var barIndicators: pick("barIndicators", [])
 
+    // ── Lock screen ──
+    // The default lock scene's great circle (VaultScene) on a screen h px tall; its outermost ring is
+    // sealRim px further out. hyprlock's text keeps clear of it through lockLayout.
+    function sealRadius(h) { return Math.min(h / 2 * 0.86, 330); }
+    readonly property int sealRim: 18
+    // Where hyprlock puts its text on the main screen: y offsets from the screen's centre (up = +) for
+    // title, clock, date, field (the password box's centre) and prompt (the fingerprint line). A number
+    // is fixed; { "outside": n } is n px beyond the seal's outer ring, above (n > 0) or below (n < 0).
+    // battery: [x, y] from the bottom-right corner (hyprlock's own sign: x < 0 = in from the right).
+    readonly property var lockLayout: Object.assign({ title: 290, clock: 16, date: -34, field: -280, prompt: -335, battery: [-30, 20] },
+                                                     pick("lockLayout", {}))
+    function lockY(key, h) {
+        const v = lockLayout[key];
+        if (typeof v === "number") return Math.round(v);
+        const rim = sealRadius(h) + sealRim, n = Number(v && v.outside) || 0;
+        return Math.round(n >= 0 ? rim + n : -(rim - n));
+    }
+
     // the background's darkness decides which grain strength applies
     readonly property real grainNow: Theme.luma(Theme.bg) < 0.004 ? grainDark : grain
     readonly property bool engraved: frame === "engraved"

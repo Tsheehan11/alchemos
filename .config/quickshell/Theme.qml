@@ -365,26 +365,34 @@ Singleton {
     // monitor (that screen's picture of its shut doors, LockState.bgPath) and the clock /
     // password on the main screen. Rewritten when the colours or the monitors change.
     FileView { id: lockTemplate; path: Quickshell.env("HOME") + "/.config/hypr/hyprlock.template.conf"; watchChanges: true; onFileChanged: { reload(); hyprSync.restart(); } }
-    readonly property string lockMonitors: Quickshell.screens.map(s => s.name + ":" + Roles.role(s)).join(" ") + " " + Skin.current
+    readonly property string lockMonitors: Quickshell.screens.map(s => s.name + ":" + Roles.role(s) + ":" + s.height).join(" ") + " " + Skin.current
     onLockMonitorsChanged: hyprSync.restart()
     function lockConf() {
         const t = lockTemplate.text();
         if (!t) return "";
         const back = "rgb(" + hex(bg) + ")";
         const blocks = ["background {\n    monitor =\n    color = " + back + "\n}"];
-        let main = "";
+        let main = "", mainH = 0;
         for (const s of Quickshell.screens) {
-            if (Roles.role(s) === "main") main = s.name;
+            if (Roles.role(s) === "main") { main = s.name; mainH = s.height; }
             blocks.push("background {\n    monitor = " + s.name + "\n    path = " + LockState.bgPath(s.name) +
                         "\n    color = " + back + "\n}");
         }
         // One pass, so a colour that's swapped in (SOLAR's primary is STARK's secondary)
         // isn't swapped again. 8fb4c4 = muted text (placeholder, battery) → the HUD's label colour.
+        // __Y_*__: where the words sit on the main screen (Style.lockLayout: clear of the skin's seal there;
+        // with no main screen they show on every screen, so the smallest decides).
+        const h = mainH || Math.min(...Quickshell.screens.map(s => s.height));
+        const txt = Skin.text;
         const swap = { "4fd8ff": hex(primary), "ffb347": hex(secondary), "05090f": hex(bg), "8fb4c4": hex(dim),
                        "__HOME__": Quickshell.env("HOME"), "__BACKGROUNDS__": blocks.join("\n"), "__MAIN__": main,
-                       "__LOCKTITLE__": Skin.text.lockTitle, "__DENIED__": Skin.text.denied,
-                       "__FONT_LABEL__": Style.fonts.label, "__FONT_NUMERIC__": Style.fonts.numeric, "__FONT_FIELD__": Style.fonts.field };
-        return t.replace(/4fd8ff|ffb347|05090f|8fb4c4|__HOME__|__BACKGROUNDS__|__MAIN__|__LOCKTITLE__|__DENIED__|__FONT_LABEL__|__FONT_NUMERIC__|__FONT_FIELD__/g, m => swap[m]);
+                       "__LOCKTITLE__": txt.lockTitle, "__DENIED__": txt.denied,
+                       "__FONT_LABEL__": Style.fonts.label, "__FONT_NUMERIC__": Style.fonts.numeric, "__FONT_FIELD__": Style.fonts.field,
+                       "__LOCKPROMPT__": txt.lockPrompt, "__FP_READY__": txt.fprintReady, "__FP_PRESENT__": txt.fprintPresent,
+                       "__Y_TITLE__": Style.lockY("title", h), "__Y_CLOCK__": Style.lockY("clock", h), "__Y_DATE__": Style.lockY("date", h),
+                       "__Y_FIELD__": Style.lockY("field", h), "__Y_PROMPT__": Style.lockY("prompt", h),
+                       "__BATTERY_POS__": Style.lockLayout.battery.join(", ") };
+        return t.replace(new RegExp(Object.keys(swap).join("|"), "g"), m => String(swap[m]));
     }
     function pushLockConf() {
         const conf = lockConf();

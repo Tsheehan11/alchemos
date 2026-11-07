@@ -58,6 +58,11 @@ Singleton {
             os: "HUD", control: "HUD // CONTROL", settings: "HUD // SETTINGS",
             lockMessage: "LOCKING", lockSub: "", unlockMessage: "UNLOCKED", lockTitle: "LOCKED", denied: "TRY AGAIN",
             lockGlyph: "◆", mark: "◆", clockName: "Clock",
+            // hyprlock's password box and fingerprint lines; the HUD's unlock / power words ({name} = greetName)
+            lockPrompt: "ENTER PASSPHRASE", fprintReady: "PASSPHRASE OR FINGERPRINT", fprintPresent: "SCANNING…",
+            unlockSub: "WELCOME BACK, {name}", powerTitle: "POWER // SELECT",
+            shutdownMessage: "SHUTTING DOWN", rebootMessage: "REBOOTING", logoutMessage: "SIGNING OFF",
+            powerSub: "SAVING STATE // POWERING DOWN SYSTEMS", logoutSub: "SEE YOU SOON, {name}",
             cursorHint: "The busy cursor turns while apps load · off shows a still frame",
             transitionTitle: "", transitionSub: ""
         },

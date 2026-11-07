@@ -79,7 +79,7 @@ PanelWindow {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: pm.confirming ? "CONFIRM // " + pm.items[pm.sel].label + "?" : "POWER // SELECT"
+            text: pm.confirming ? "CONFIRM // " + pm.items[pm.sel].label + "?" : Skin.text.powerTitle
             color: pm.confirming ? Theme.secondary : Theme.primary
             font.family: Style.fonts.display; font.pixelSize: 15; font.letterSpacing: 6
         }

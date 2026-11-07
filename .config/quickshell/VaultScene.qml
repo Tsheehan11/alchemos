@@ -31,7 +31,7 @@ Item {
     readonly property bool painted: upperDoor.painted && lowerDoor.painted
     readonly property var metals: Skin.glyphs.ring || []       // the skin's signs (ALCHEMOS: the six metals); none = bare seal
     readonly property int count: metals.length
-    readonly property real bigR: Math.min(halfH * 0.86, 330)       // the great circle engraved across both doors
+    readonly property real bigR: Style.sealRadius(height)          // the great circle engraved across both doors (hyprlock's text keeps clear of it: Style.lockLayout)
     readonly property real sealA: Math.max(0, 1 - dim)
 
     function seg(p, a, b) { return Math.max(0, Math.min(1, (p - a) / (b - a))); }
@@ -228,14 +228,14 @@ Item {
                 border.color: Theme.p(0.18)
             }
         }
-        // the sun: big on the other screens; on the main screen a faint one behind the words,
-        // and the fingerprint's flash on both
+        // the sun: big on the other screens; on the main screen only the fingerprint's flash (at rest
+        // hyprlock's clock sits there, and the glyph's ring would cut through the digits)
         SigilText {
             anchors.centerIn: parent
             text: Skin.glyphs.sun || ""
             color: Theme.mix(Theme.primary, "#ffffff", 0.6 * scene.flare)
             font.pixelSize: scene.isMain ? 150 : 64
-            opacity: (scene.isMain ? 0.07 + 0.6 * scene.flare : 0.9) * scene.seg(scene.inscribe, 0.7, 1)
+            opacity: (scene.isMain ? 0.6 * scene.flare : 0.9) * scene.seg(scene.inscribe, 0.7, 1)
             scale: 1 + 0.25 * scene.flare
             glow: scene.isMain ? scene.flare : 0.6 + 0.4 * scene.flare
         }
@@ -247,18 +247,30 @@ Item {
             border.color: Theme.mix(Theme.primary, "#ffffff", 0.5); border.width: 2
             opacity: scene.flare
         }
+        // the words stay inside the centre disc (its inner ring is 220 across): a long one shrinks to fit
         Column {
             anchors.centerIn: parent
+            width: 196
             spacing: 6
             visible: scene.isMain
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: scene.message.slice(0, Math.ceil(scene.msgP * scene.message.length))
-                color: Theme.text
+            Text {            // sized for the whole message, so it doesn't change size as it types in
+                id: fitter
+                visible: false
+                width: parent.width
+                fontSizeMode: Text.HorizontalFit; minimumPixelSize: 12
+                text: scene.message
                 font.family: Style.fonts.display; font.pixelSize: scene.message.length > 11 ? 17 : 22; font.letterSpacing: 4
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
+                text: scene.message.slice(0, Math.ceil(scene.msgP * scene.message.length))
+                color: Theme.text
+                font.family: Style.fonts.display; font.pixelSize: fitter.fontInfo.pixelSize; font.letterSpacing: 4
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
                 text: scene.submessage
                 opacity: Math.max(0, (scene.msgP - 0.5) * 2)
                 color: Theme.secondary

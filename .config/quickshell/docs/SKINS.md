@@ -45,7 +45,7 @@ Installed now:
 | `osName` | what the assistant calls the desktop ("AlchemOS") | `jarvis/core/persona.py` |
 | `presets`, `aliases` | built-in colour presets (`name`, `glyph`, `primary`, `secondary`, `background`) and other names for them | `Theme`, Jarvis `set_theme` |
 | `personas` | display `name` / `call` / `dotted` / `glyph` / `idle` / `starting` / `accent` for `jarvis` and `friday` (ids, wake word and voices stay) | `JarvisState`, `persona.py` |
-| `text` | the HUD's wording (the bar's corner sign shows the active preset's sign, else `mark`, and its name): bar, panel titles, lock / unlock messages, hyprlock title and denied text, lock glyph, bar mark, transition title | everywhere via `Skin.text` |
+| `text` | the HUD's wording (the bar's corner sign shows the active preset's sign, else `mark`, and its name): bar, panel titles, lock / unlock / power-down messages (`{name}` = the greeting name), power menu title, hyprlock title, denied text, placeholder (`lockPrompt`) and fingerprint lines (`fprintReady`, `fprintPresent`), lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre. The clock's ring (the preset wheel) also carries the custom presets' signs (`Theme.customSigns`: the 6 most recently saved + the one in use) | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
 | `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
@@ -74,6 +74,7 @@ Installed now:
 | `gauge` | `ring` | `ring` · `astrolabe` |
 | `metalRule` | false | a brushed-metal rule beside headings, in the preset's colour |
 | `surface` | 0 | 0 glass … 1 stone plate (opacity unchanged) |
+| `lockLayout` | `{ title: 290, clock: 16, date: -34, field: -280, prompt: -335, battery: [-30, 20] }` | where hyprlock's words sit on the main screen: y offsets from its centre (up = +); `{ "outside": n }` = n px beyond the lock seal's outer ring (`Style.sealRadius(h) + sealRim`, the default scene's great circle), above (n > 0) or below (n < 0), so they keep clear of it at any screen height. `battery`: [x, y] from the bottom-right corner. Filled into `hyprlock.template.conf`'s `__Y_*__` / `__BATTERY_POS__` by Theme |
 
 Components read `Style.<token>`; nothing outside `Style.qml`, `Skin.qml` and `skins/` names a skin.
 

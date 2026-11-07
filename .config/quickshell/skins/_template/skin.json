@@ -32,10 +32,14 @@
         "os": "HUD", "control": "HUD // CONTROL", "settings": "HUD // SETTINGS",
         "lockMessage": "LOCKING", "lockSub": "", "unlockMessage": "UNLOCKED", "lockTitle": "LOCKED", "denied": "TRY AGAIN",
         "lockGlyph": "◆", "mark": "◆", "clockName": "Clock",
+        "lockPrompt": "ENTER PASSPHRASE", "fprintReady": "PASSPHRASE OR FINGERPRINT", "fprintPresent": "SCANNING…",
+        "unlockSub": "WELCOME BACK, {name}", "powerTitle": "POWER // SELECT",
+        "shutdownMessage": "SHUTTING DOWN", "rebootMessage": "REBOOTING", "logoutMessage": "SIGNING OFF",
+        "powerSub": "SAVING STATE // POWERING DOWN SYSTEMS", "logoutSub": "SEE YOU SOON, {name}",
         "cursorHint": "The busy cursor turns while apps load · off shows a still frame",
         "transitionTitle": "", "transitionSub": ""
     },
-    "//text": "the HUD's wording: bar name, panel titles, lock / unlock messages, the hyprlock title and denied text, glyphs on the lock buttons and the bar's corner (mark \"\" = the preset's glyph), the skin transition's title",
+    "//text": "the HUD's wording: bar name, panel titles, lock / unlock messages, the hyprlock title, denied text, password placeholder and fingerprint lines, the unlock / power-down words and the power menu's title ({name} = the greeting name), glyphs on the lock buttons and the bar's corner (mark \"\" = the preset's glyph), the skin transition's title",
 
     "style": {
         "mono": "JetBrainsMono Nerd Font",
