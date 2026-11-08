@@ -14,10 +14,13 @@ WidgetBody {
     readonly property var glyphs: [["thunder", "\ue31d"], ["snow", "\ue31a"], ["freezing", "\ue3ad"], ["drizzle", "\ue31b"], ["shower", "\ue319"],
                                    ["rain", "\ue318"], ["fog", "\ue313"], ["overcast", "\ue312"], ["partly", "\ue302"], ["clear", "\ue30d"]]
     function glyph(sky) { sky = String(sky || "").toLowerCase(); const g = glyphs.find(x => sky.indexOf(x[0]) >= 0); return g ? g[1] : "\ue312"; }
-    function line(d) { return d ? d.high_c + "° / " + d.low_c + "°  " + String(d.sky).toUpperCase() + (d.rain_chance_pct ? "  ☂ " + d.rain_chance_pct + "%" : "") : ""; }
+    function temps(d) { return d ? d.high_c + "° / " + d.low_c + "°" : ""; }
+    function rain(d) { return d && d.rain_chance_pct ? "☂ " + d.rain_chance_pct + "%" : ""; }
 
-    implicitWidth: 300
-    implicitHeight: 92
+    // the words decide the width (at least the old 300); the sky names elide past skyMax
+    readonly property int skyMax: 132
+    implicitWidth: Math.max(300, Math.ceil(info.x + info.implicitWidth))
+    implicitHeight: Math.max(92, Math.ceil(info.implicitHeight))
 
     Item {
         width: 84; height: 84
@@ -32,17 +35,37 @@ WidgetBody {
         Text { anchors.centerIn: parent; text: w.has ? w.glyph(w.now.sky) : "◌"; color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 28 }
     }
     Column {
-        x: 96; width: 204; spacing: 2
+        id: info
+        x: 96; spacing: 2
         Row {
             spacing: 8
             Text { text: w.has ? w.now.temp_c + "°" : "—"; color: Theme.text; font.family: Style.fonts.numeric; font.pixelSize: 34; font.weight: Font.Light }
             Column {
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 6
-                Text { text: w.has ? String(w.now.sky).toUpperCase() : "NO DATA"; color: Theme.primary; font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 2 }
+                Text { text: w.has ? String(w.now.sky).toUpperCase() : "NO DATA"; width: Math.min(implicitWidth, w.skyMax + 40); elide: Text.ElideRight
+                       color: Theme.primary; font.family: Style.fonts.label; font.pixelSize: 10; font.letterSpacing: 2 }
                 Text { text: w.has ? "FEELS " + w.now.feels_like_c + "° · " + w.now.wind_kmh + " KM/H" : ""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 9 }
             }
         }
-        Text { text: "TODAY     " + w.line(w.wx.today); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 10 }
-        Text { text: "TOMORROW  " + w.line(w.wx.tomorrow); color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10 }
+        // TODAY / TOMORROW in columns: label · high / low · sky · rain
+        Grid {
+            columns: 4; columnSpacing: 8; rowSpacing: 2
+            Repeater {
+                model: [["TODAY", w.wx.today, Theme.textSoft], ["TOMORROW", w.wx.tomorrow, Theme.faint]]
+                delegate: Repeater {
+                    required property var modelData
+                    readonly property var row: modelData
+                    model: row[1] ? [row[0], w.temps(row[1]), String(row[1].sky).toUpperCase(), w.rain(row[1])] : []
+                    delegate: Text {
+                        required property string modelData
+                        required property int index
+                        text: modelData
+                        width: index === 2 ? Math.min(implicitWidth, w.skyMax) : implicitWidth
+                        elide: Text.ElideRight
+                        color: row[2]; font.family: Style.fonts.body; font.pixelSize: 10
+                    }
+                }
+            }
+        }
     }
 }

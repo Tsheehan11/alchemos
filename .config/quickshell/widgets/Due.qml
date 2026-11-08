@@ -41,7 +41,7 @@ WidgetBody {
     Column {
         id: list
         x: 88; width: 232; spacing: 4
-        Text { visible: w.all.length === 0; text: (JarvisFeed.agenda || {}).updated ? "ALL CLEAR" : "READING TRACKER…"; color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
+        Text { visible: w.all.length === 0; width: parent.width; wrapMode: Text.WordWrap; text: !(JarvisFeed.agenda || {}).updated ? "READING TRACKER…" : JarvisFeed.problem("tracker") || "ALL CLEAR"; color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
         Repeater {
             model: w.items
             delegate: Column {

@@ -50,10 +50,12 @@ WidgetBody {
     Item {
         id: hero
         width: 330
-        height: w.next ? 62 : 30
+        height: w.next ? 62 : Math.max(30, empty.implicitHeight + 8)
         Text {
+            id: empty
             visible: !w.next
-            text: ag.updated ? "NOTHING SCHEDULED" : "LINKING CALENDAR…"
+            width: parent.width; wrapMode: Text.WordWrap
+            text: !ag.updated ? "LINKING CALENDAR…" : JarvisFeed.problem("calendar") || "NOTHING SCHEDULED"
             color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
         }
         Column {

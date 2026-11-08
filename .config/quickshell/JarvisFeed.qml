@@ -59,6 +59,14 @@ Singleton {
     // ── agenda + weather ──
     property var agenda: ({ events: [], due: [], notes: [], updated: 0 })
     property var weather: ({})
+    // why the agenda is empty when a sync failed (agenda.notes from core/feed.py), for the calendar / due widgets
+    function problem(src) {
+        const mine = src === "tracker" ? ["tracker:"] : ["google:", "outlook:", "calendar"];
+        const notes = ((root.agenda || {}).notes || []).filter(n => mine.some(p => String(n).indexOf(p) === 0));
+        if (!notes.length) return "";
+        if (notes.some(n => /invalid_grant|expired or revoked/.test(n))) return "GOOGLE SIGN-IN EXPIRED · RECONNECT IN SETTINGS";
+        return src === "tracker" ? "TRACKER UNREACHABLE" : "CALENDAR UNREACHABLE";
+    }
     FileView {
         id: agendaFile
         path: root.home + "/.local/share/jarvis/feed/agenda.json"
