@@ -230,6 +230,24 @@ def run(cmd, env=None, label=""):
 
 
 # ── stages ───────────────────────────────────────
+def fresh_model(word, since):
+    """out/<word>.onnx written at or after `since`. openWakeWord's train.py saves the ONNX model (what
+    Jarvis loads) and then converts it to TFLite, which needs onnx_tf (not installed); that last step
+    exits 1, so a failed train run can still have produced a good model."""
+    p = W / "out" / f"{word}.onnx"
+    return p.exists() and p.stat().st_size > 0 and p.stat().st_mtime >= since
+
+
+def kept_model(word):
+    """A model from an earlier attempt trained with the config as it is now (out/<word>.yml unchanged)."""
+    import yaml
+    y = W / "out" / f"{word}.yml"
+    try:
+        return y.read_text() == yaml.safe_dump(wordcfg.load(word), sort_keys=False) and fresh_model(word, y.stat().st_mtime)
+    except OSError:
+        return False
+
+
 def mark(word, stage):
     return STATE / f"{word}.{stage}.done"
 
@@ -335,10 +353,17 @@ def main():
                     time.sleep(60)
                     sys.exit(1)
                 (STATE / "acav.done").touch()
+            if st == "train" and kept_model(word):
+                log(f"{word} train: keeping the model from the last attempt (only its TFLite export failed)")
+                mark(word, st).write_text("0\n")
+                continue
             ST.set(state="running", word=word, stage=st, stage_started=time.time(), progress=None, stage_eta=None)
             log(f"== {word} {st}")
             t0 = time.time()
             rc = stage(word, st)
+            if rc != 0 and st == "train" and fresh_model(word, t0):
+                log(f"{word} train exited {rc} after saving {word}.onnx (the TFLite export failed; Jarvis uses the ONNX model): done")
+                rc = 0
             if rc != 0:
                 log(f"{word} {st} exited {rc}: restarting the pipeline in 60 s")
                 time.sleep(60)

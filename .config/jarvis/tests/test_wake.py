@@ -76,5 +76,22 @@ for w, persona in (("hey_orrin", "jarvis"), ("hey_selene", "friday")):
 check("friday cfg", wordcfg.load("hey_friday")["persona"], "friday")
 check("favourites", wordcfg.load("hey_orrin")["favourite_voices"], ["bm_george", "af_nicole"])
 
+# ── pipeline: openWakeWord's train.py exits 1 after saving the ONNX (its TFLite export needs onnx_tf) ──
+import time  # noqa: E402
+import pipeline  # noqa: E402
+o = Path(os.environ["WAKE_TRAIN_DIR"]) / "out"
+o.mkdir(parents=True, exist_ok=True)
+t0 = time.time()
+check("no model yet", pipeline.fresh_model("hey_selene", t0 - 5), False)
+wordcfg.write_train_yml("hey_selene")
+(o / "hey_selene.onnx").write_bytes(b"model")
+check("fresh model", pipeline.fresh_model("hey_selene", t0 - 5), True)
+check("older than the run", pipeline.fresh_model("hey_selene", time.time() + 60), False)
+check("kept: same config", pipeline.kept_model("hey_selene"), True)
+y = o / "hey_selene.yml"
+y.write_text(y.read_text().replace("max_negative_weight:", "max_negative_weight: 1 #"))
+check("not kept: config changed", pipeline.kept_model("hey_selene"), False)
+check("not kept: no model", pipeline.kept_model("hey_orrin"), False)
+
 print("FAILS:", len(FAILS)) if FAILS else print("ok: wake")
 sys.exit(1 if FAILS else 0)

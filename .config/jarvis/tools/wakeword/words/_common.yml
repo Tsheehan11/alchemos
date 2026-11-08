@@ -34,5 +34,5 @@ batch_n_per_class:
 model_type: dnn
 layer_size: 96
 steps: 120000
-max_negative_weight: 1500
+max_negative_weight: 500    # 1500 → hey_orrin 31 % recall at 0 false/h (too cautious); 500 → 41 % at 0.19 (2026-11-08)
 target_false_positives_per_hour: 0.3
