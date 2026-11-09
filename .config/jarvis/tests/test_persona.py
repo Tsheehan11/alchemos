@@ -6,6 +6,7 @@ and the per-message persona in the conversation DB (temp DB). No audio, no Claud
 Run: python tests/test_persona.py"""
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -53,16 +54,19 @@ for line in ["Very well, sir.", "Shall I lock the screen, sir?", "Sorry sir, I d
     check(f"jarvis style {line!r}", P.style(line, "jarvis"), line)
 
 # ── FRIDAY's manner ──
-check("friday stock", P.style("Very well, sir.", "friday"), "You got it.")
-check("friday error", P.style("Something went wrong on my end, sir.", "friday"), "Ugh, something broke on my end, boss.")
-check("friday shall", P.style("Shall I lock the screen, sir?", "friday"), "Want me to lock the screen, boss?")
-check("friday sir anywhere", P.style("Done. Your CPU is at sixty degrees, sir.", "friday"), "Done. Your CPU is at sixty degrees, boss.")
-check("friday sorry", P.style("Sorry sir, Spotify isn't open.", "friday"), "Sorry boss, Spotify isn't open.")
-check("friday greeting", P.style("Good evening, sir. Systems online.", "friday"), "Evening, boss. Systems online.")
+check("friday stock", P.style("Very well, sir.", "friday"), "Very well.")
+check("friday error", P.style("Something went wrong on my end, sir.", "friday"), "Something went wrong on my side.")
+check("friday shall", P.style("Shall I lock the screen, sir?", "friday"), "Shall I lock the screen?")
+check("friday sir anywhere", P.style("Done. Your CPU is at sixty degrees, sir.", "friday"), "Done. Your CPU is at sixty degrees.")
+check("friday sorry", P.style("Sorry sir, Spotify isn't open.", "friday"), "Sorry, Spotify isn't open.")
+check("friday greeting", P.style("Good evening, sir. Systems online.", "friday"), "Good evening. Systems online.")
 check("friday no sir left", "sir" in P.style("Close Firefox, sir?", "friday").lower(), False)
 check("friday keeps 'desire'", P.style("As you desire.", "friday"), "As you desire.")
 # every stock line has a version without "sir"
 check("friday table sir-free", [k for k, v in P.FRIDAY_LINES.items() if "sir" in v.lower()], [])
+check("friday table title-free", [v for v in P.FRIDAY_LINES.values() if re.search(r"\b(sir|boss)\b", v, re.I)], [])
+check("friday no boss from rules", P.style("Very good, sir. Shall I, sir?", "friday"), "Very good. Shall I?")
+check("friday keeps 'Sirius'", P.style("Sirius is bright tonight, sir.", "friday"), "Sirius is bright tonight.")
 
 # ── exchange override ──
 P.begin("friday")
@@ -84,7 +88,7 @@ cfg = C.Config()
 check("active friday", P.active(cfg), "friday")
 check("own switch not re-announced", P.switched(cfg), None)
 check("set friday again unchanged", P.set_active("friday"), False)
-check("switch reply unchanged", P.switch_reply("friday", False), "Already here, boss.")
+check("switch reply unchanged", P.switch_reply("friday", False), "I'm already here.")
 # an outside change (Settings / IPC writes the file)
 d = json.loads(settings.read_text()); d["jarvisPersona"] = "jarvis"; settings.write_text(json.dumps(d))
 os.utime(settings, (os.path.getmtime(settings) + 2,) * 2)
@@ -109,7 +113,7 @@ check("tag jarvis", P.tag("hi", "jarvis"), "hi")
 from core import brain  # noqa: E402
 sp = brain.system_prompt()
 check("prompt keeps JARVIS text", sp.startswith(brain.SYSTEM_PROMPT), True)
-check("prompt has FRIDAY", "[FRIDAY]" in sp and "boss" in sp, True)
+check("prompt has FRIDAY", "[FRIDAY]" in sp and "moon goddess" in sp, True)
 
 # ── fast path ──
 from core import fastpath as F  # noqa: E402
@@ -152,9 +156,9 @@ hud.toast("TIMER", "Your timer is done, sir.")
 hud.tool("THEME → MARK III")
 P.end()
 hud.reply("Very well, sir.")
-check("hud friday reply", sent[0], ("reply", ("You got it.",)))
-check("hud friday error", sent[1], ("error", ("NO NETWORK", "Can't reach the network, boss.")))
-check("hud friday toast", sent[2], ("toast", ("TIMER", "Timer's up, boss.")))
+check("hud friday reply", sent[0], ("reply", ("Very well.",)))
+check("hud friday error", sent[1], ("error", ("NO NETWORK", "I can't reach the network.")))
+check("hud friday toast", sent[2], ("toast", ("TIMER", "Your timer is done.")))
 check("hud tool untouched", sent[3], ("tool", ("THEME → MARK III",)))
 check("hud jarvis reply", sent[4], ("reply", ("Very well, sir.",)))
 hud.answering("friday")
@@ -175,7 +179,7 @@ check("error chime shared", bool(abs(V.chime_audio("error", "jarvis") - V.chime_
 from core import dj  # noqa: E402
 check("dj friday templates sir-free", [t for t in P.DJ_TEMPLATES["friday"] if "sir" in t], [])
 p = dj.PROMPT.format(name=P.call("friday"), voice=P.dj_voice("friday"), vibe="v", adjust="", carry="", lo=1, hi=2, library="")
-check("dj prompt friday", ("You are FRIDAY" in p, 'calls him "boss"' in p, "Jarvis's voice" in p), (True, True, False))
+check("dj prompt friday", ("You are FRIDAY" in p, 'never "sir" or "boss"' in p, "Jarvis's voice" in p), (True, True, False))
 p = dj.PROMPT.format(name=P.call("jarvis"), voice=P.dj_voice("jarvis"), vibe="v", adjust="", carry="", lo=1, hi=2, library="")
 check("dj prompt jarvis unchanged", 'Write DJ lines in Jarvis\'s voice (dry, British, calls him "sir", at most 18 words, no emojis, no hype clichés)' in p, True)
 
@@ -201,7 +205,7 @@ def set_skin(name):
 set_skin("alchemos")
 check("alchemos skin", P.skin(), "alchemos")
 check("alchemos labels", (P.label("jarvis"), P.label("friday"), P.call("jarvis"), P.call("friday")), ("ORRIN", "SELENE", "Orrin", "Selene"))
-check("alchemos announce", P.announce_line("friday"), "Hey boss, SELENE here. ORRIN is taking five.")
+check("alchemos announce", P.announce_line("friday"), "SELENE here. ORRIN is resting.")
 check("alchemos announce jarvis", P.announce_line("jarvis"), "ORRIN here, sir. SELENE's on standby.")
 check("alchemos tag jarvis", P.tag("hi", "jarvis"), "[AlchemOS · ORRIN · SELENE] hi")
 check("alchemos tag friday", P.tag("hi", "friday"), "[AlchemOS · ORRIN · SELENE] [FRIDAY] hi")

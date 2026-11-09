@@ -75,7 +75,7 @@
     },
     "voices": {
         "jarvis": { "voice": "pocket/orrin_2", "speed": 1.0, "pitch": 0.5, "effect": "AUTO" },
-        "friday": { "voice": "pocket/selene_1", "speed": 1.0, "pitch": 0.5, "effect": "AUTO" }
+        "friday": { "voice": "pocket/selene_1", "speed": 1.0, "pitch": 0.3, "effect": "AUTO" }
     },
     "personas": {
         "jarvis": { "name": "ORRIN",  "call": "Orrin",  "dotted": "O.R.R.I.N",   "glyph": "☉", "idle": "☉", "starting": "☉", "accent": "#ffc04a" },

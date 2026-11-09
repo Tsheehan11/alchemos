@@ -53,7 +53,7 @@ Column {
         return v.replace(/^en_GB-/, "").replace(/-(medium|low|high)/, "").replace(/_/g, " ").replace(":", " · ").toUpperCase() + " · PIPER";
     }
     function preview() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "Good evening, sir. All systems are online.", "--as", "jarvis"]); }
-    function previewFriday() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "Hey boss, " + JarvisState.nameOf("friday") + " here. All systems are green.", "--as", "friday"]); }
+    function previewFriday() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", JarvisState.nameOf("friday") + " here. All is quiet and well.", "--as", "friday"]); }
     function cycle(list, cur, dir) { const i = list.indexOf(cur); return list[((i < 0 ? 0 : i) + dir + list.length) % list.length]; }
     onVisibleChanged: if (visible) voiceList.running = true
     Process {
