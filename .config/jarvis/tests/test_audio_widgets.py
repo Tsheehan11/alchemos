@@ -95,18 +95,20 @@ cfg = Cfg(jarvisMic="auto", jarvisMicBluetooth=False)
 mic = JV.Mic(cfg)
 check("auto: no wired headset, BT off → DMIC", mic.pick()[0], "alsa_input.Mic1__source")
 cfg["jarvisMicBluetooth"] = True
-check("auto: BT allowed → BT headset", mic.pick()[0], "bluez_input.80:99")
+check("auto: BT headset never picked by AUTO", mic.pick()[0], "alsa_input.Mic1__source")
 cfg["jarvisMicBluetooth"] = False
 INS[0]["available"] = True
-check("auto: wired headset plugged → headset", mic.pick()[0], "alsa_input.Headset__source")
+check("auto: wired headset plugged → still the laptop mic", mic.pick()[0], "alsa_input.Mic1__source")
 cfg["jarvisMicBluetooth"] = True
-check("auto: wired beats BT", mic.pick()[0], "alsa_input.Headset__source")
+check("auto: laptop mic over wired and BT", mic.pick()[0], "alsa_input.Mic1__source")
 cfg["jarvisMic"] = "default"
 check("default", mic.pick()[0], "")
 cfg["jarvisMic"] = ""
 check("legacy empty = default", mic.pick()[0], "")
 cfg["jarvisMic"] = "alsa_input.gone"
-check("pinned but missing → auto's pick", mic.pick()[0], "alsa_input.Headset__source")
+check("pinned but missing → auto's pick (laptop)", mic.pick()[0], "alsa_input.Mic1__source")
+cfg["jarvisMic"] = "alsa_input.Headset__source"
+check("headset only when picked by name", mic.pick()[0], "alsa_input.Headset__source")
 cfg["jarvisMic"] = "alsa_input.Mic1__source"
 check("pinned", mic.pick()[0], "alsa_input.Mic1__source")
 

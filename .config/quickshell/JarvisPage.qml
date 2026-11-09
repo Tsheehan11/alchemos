@@ -195,13 +195,12 @@ Column {
         // INPUT DEVICE: Jarvis's own wake-word mic (jarvis.py Mic), not the system default input
         Stepper {
             width: parent.width; label: "Input device"
-            hint: (Theme.cfg.jarvisMic === "auto" ? "Headset mic while one is plugged in, else the laptop mic · " : "")
+            hint: (Theme.cfg.jarvisMic === "auto" ? "Laptop mic; pick the headset here to use it · " : "")
                   + (JarvisFeed.mic.label ? "listening on " + JarvisFeed.mic.label : JarvisState.running ? "" : "used when " + JarvisState.callOf("jarvis") + " is on")
             valueText: jarvisPage.micName(Theme.cfg.jarvisMic)
             onDec: Theme.cfg.jarvisMic = jarvisPage.cycle(jarvisPage.micChoices, Theme.cfg.jarvisMic === "" ? "default" : Theme.cfg.jarvisMic, -1)
             onInc: Theme.cfg.jarvisMic = jarvisPage.cycle(jarvisPage.micChoices, Theme.cfg.jarvisMic === "" ? "default" : Theme.cfg.jarvisMic, 1)
         }
-        Toggle { width: parent.width; visible: Theme.cfg.jarvisMic === "auto"; label: "AUTO uses Bluetooth headset mics"; hint: "Off: Bluetooth headphones keep full music quality (their mic switches them to call quality while " + JarvisState.callOf("jarvis") + " listens)"; checked: Theme.cfg.jarvisMicBluetooth; onToggled: Theme.cfg.jarvisMicBluetooth = !Theme.cfg.jarvisMicBluetooth }
         Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.jarvisFollowup > 0 ? Theme.cfg.jarvisFollowup + " S" : "OFF"; onDec: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, -1); onInc: Theme.cfg.jarvisFollowup = jarvisPage.cycle(jarvisPage.follows, Theme.cfg.jarvisFollowup, 1) }
     }
 

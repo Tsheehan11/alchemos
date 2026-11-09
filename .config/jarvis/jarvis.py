@@ -642,11 +642,11 @@ class Mic:
     """pw-record → 80 ms chunks on a queue (a reader thread keeps the pipe drained).
 
     Which microphone: Settings → JARVIS → INPUT DEVICE (jarvisMic):
-      "auto"     a wired / USB headset mic while one is plugged in, else the laptop's digital mic
-                 (a Bluetooth headset mic only with jarvisMicBluetooth on: holding it open switches
-                 the headphones from A2DP to call quality for as long as Jarvis listens)
+      "auto"     the laptop's digital mic, always: the headset stays plugged in most of the time, so its
+                 mic is used only when it's picked here by name (and a Bluetooth one would switch the
+                 headphones from A2DP to call quality for as long as Jarvis listens)
       "default"  (or "") the system default input
-      a node     that PipeWire source, while it exists (else AUTO's pick)
+      a node     that PipeWire source (e.g. the headset), while it exists (else AUTO's pick)
     A watcher (pactl subscribe, no polling) re-picks on any source / card change and every few
     seconds for a settings change; a new pick restarts pw-record in place. The queue isn't flushed,
     and the voice loop's 2 s pre-wake buffer lives in VoiceLoop, so neither is lost."""
@@ -675,11 +675,6 @@ class Mic:
             hit = next((d for d in devs if d["name"] == want), None)
             if hit:
                 return hit["name"], hit["label"]
-        bt_ok = bool(self.cfg["jarvisMicBluetooth"])
-        heads = [d for d in devs if d["kind"] == "headphones" and (bt_ok or not d["bluetooth"])]
-        heads.sort(key=lambda d: d["bluetooth"])          # a wired / USB headset before Bluetooth
-        if heads:
-            return heads[0]["name"], heads[0]["label"]
         dmic = [d for d in devs if d["kind"] == "laptop"]
         dmic.sort(key=lambda d: not re.search(r"digital|mic1", d["name"] + d["label"], re.I))
         if dmic:
