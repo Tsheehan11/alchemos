@@ -31,7 +31,9 @@ Column {
     readonly property var effectHints: ({ AUTO: autoHint("jarvis"), CLEAN: "No processing",
         HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet",
         CHAMBER: "A small stone room: warm, a little hard-walled", RESONANT: "A faint metallic ring under the voice",
-        ALEMBIC: "Band-limited, glassy, a very short echo" })
+        ALEMBIC: "Band-limited, glassy, a very short echo",
+        CHAMBER_SUBTLE: "CHAMBER at a quarter of the colour", RESONANT_SUBTLE: "RESONANT at a quarter of the colour",
+        ALEMBIC_SUBTLE: "ALEMBIC at a quarter of the colour, full band" })
     function fridayFx(dir) {
         const v = cycle(["SAME"].concat(effects), Theme.cfg.fridayEffect || "SAME", dir);
         return v === "SAME" ? "" : v;
@@ -44,6 +46,10 @@ Column {
     function speakerName(mac) { const s = speakers.find(x => x.mac === mac); return mac === "" ? "OFF" : (s ? s.name : mac).toUpperCase(); }
     function voiceName(v) {
         if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
+        // "<engine>/<voice>" (core/tts): Pocket's designed voices end in a take number (orrin_2) → "ORRIN · POCKET DESIGNED"
+        const m = /^([a-z0-9]+)\/(.+)$/.exec(v);
+        if (m && m[1] !== "piper") return /_\d+$/.test(m[2]) ? m[2].replace(/_\d+$/, "").toUpperCase() + " · " + m[1].toUpperCase() + " DESIGNED"
+                                                           : m[2].replace(/_/g, " ").toUpperCase() + " · " + m[1].toUpperCase();
         return v.replace(/^en_GB-/, "").replace(/-(medium|low|high)/, "").replace(/_/g, " ").replace(":", " · ").toUpperCase() + " · PIPER";
     }
     function preview() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "Good evening, sir. All systems are online.", "--as", "jarvis"]); }

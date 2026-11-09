@@ -6,8 +6,14 @@ never sees "16:07" (it read "sixteen zero seven" with a pause at the colon), "82
   normalize("Timer due at 16:39, 32% done") → "Timer due at four thirty-nine PM, thirty-two percent done"
   sentences(text) → split only at real sentence ends (not decimals, times, "Mr.", "e.g.")
 
+Pronunciation: Pocket TTS has no phoneme input, so hard words are respelled here, before any engine sees them:
+course codes ("MATH 135" → "Math one thirty-five", "CS 137" → "C S one thirty-seven") and the editable table in
+pronunciations.json (artist names and the like: "QUANTRELL" → "Quantrell"), matched as whole words, case-sensitive.
+
 Tests: tests/test_speech.py (python tests/test_speech.py).
 """
+import json
+import os
 import re
 
 ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
@@ -35,6 +41,52 @@ UNITS = [  # (pattern after a number, singular, plural)
 ]
 ABBREV = {"e.g.": "for example", "i.e.": "that is", "etc.": "et cetera", "vs.": "versus", "vs": "versus",
           "approx.": "about", "Dr.": "Doctor", "Mr.": "Mister", "Mrs.": "Missus", "Ms.": "Miz", "St.": "Saint"}
+
+
+PRONUNCIATIONS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pronunciations.json")
+_pron = {"mtime": None, "rx": None, "map": {}}
+# Capitals before a 3-digit number that are not a course subject
+NOT_SUBJECTS = {"AM", "PM", "GB", "MB", "KB", "TB", "CPU", "GPU", "RAM", "SSD", "USB", "HDMI", "FPS", "DPI", "RPM",
+                "HDR", "SDR", "RTX", "GTX", "RX", "PS", "MHZ", "GHZ", "KM", "MPH", "UTC", "EST", "EDT", "AD", "BC"}
+
+
+def respellings():
+    """pronunciations.json → {written: spoken}, reloaded when the file changes. Keys starting with "_" are notes."""
+    try:
+        m = os.path.getmtime(PRONUNCIATIONS)
+    except OSError:
+        _pron.update(mtime=None, rx=None, map={})
+        return {}
+    if m != _pron["mtime"]:
+        try:
+            with open(PRONUNCIATIONS) as f:
+                data = {k: v for k, v in json.load(f).items() if not k.startswith("_") and isinstance(v, str) and k}
+        except (OSError, ValueError, AttributeError):
+            data = {}
+        rx = re.compile(r"(?<!\w)(?:" + "|".join(re.escape(k) for k in sorted(data, key=len, reverse=True)) + r")(?!\w)") if data else None
+        _pron.update(mtime=m, rx=rx, map=data)
+    return _pron["map"]
+
+
+def _respell(t):
+    respellings()
+    return _pron["rx"].sub(lambda m: _pron["map"][m.group(0)], t) if _pron["rx"] else t
+
+
+def course_number(digits):
+    """'135' → 'one thirty-five', '105' → 'one oh five', '100' → 'one hundred' (how course numbers are said)."""
+    h, rest = int(digits[0]), int(digits[1:])
+    return f"{number(h)} hundred" if rest == 0 else f"{number(h)} oh {number(rest)}" if rest < 10 else f"{number(h)} {number(rest)}"
+
+
+def _courses(t):
+    def say(m):
+        subj, num = m.group(1), m.group(2)
+        if subj in NOT_SUBJECTS:
+            return m.group(0)
+        name = " ".join(subj) if len(subj) <= 3 else subj.title()
+        return f"{name} {course_number(num)}" + (f" {m.group(3)}" if m.group(3) else "")
+    return re.sub(r"\b([A-Z]{2,6}) ?(\d{3})([A-Z])?\b", say, t)
 
 
 # ── numbers ──
@@ -187,7 +239,9 @@ def _words(t):
 
 
 def normalize(text):
-    t = _symbols(text)
+    t = _respell(text)
+    t = _courses(t)
+    t = _symbols(t)
     t = _words(t)
     t = _times(t)
     t = _dates(t)

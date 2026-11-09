@@ -1,0 +1,7 @@
+{
+    "_help": "How Orrin and Selene should say a word: written form (exact, case-sensitive, whole word) → respelling. Applied before every TTS engine (core/speech.py). Reloaded on change; no restart needed.",
+    "QUANTRELL": "Quantrell",
+    "Slayyyter": "Slayter",
+    "EsDeeKid": "Es Dee Kid",
+    "Her's": "Hers"
+}

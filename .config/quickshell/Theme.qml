@@ -111,7 +111,7 @@ Singleton {
             property string skin: "alchemos"            // alchemos | legacy (needs the private skins/legacy overlay)
             property bool skinUnlocked: false           // the SKIN row shows in Settings → APPEARANCE
             property var skinPresets: ({})              // each skin's last look: { skin: { name, primary, secondary, background } }
-            property int skinVersion: 0                 // 1 = STARK OS presets moved to their metals; 2 = voices per skin; 3 = ALCHEMOS voice picks (migrateSkins)
+            property int skinVersion: 0                 // 1 = STARK OS presets moved to their metals; 2 = voices per skin; 3 = ALCHEMOS voice picks; 4 = ALCHEMOS Pocket voices, Orrin/Selene designed (migrateSkins)
             property var skinVoices: ({})               // each skin's last voices: { skin: { jarvisVoice, jarvisSpeed, … } } (voiceKeys)
         }
     }
@@ -198,13 +198,23 @@ Singleton {
     // Once: settings from before skins. A STARK OS preset in use becomes its metal (MARK III → IRON) and is
     // kept as the legacy skin's look; a custom look stays as it is, for both skins.
     function migrateSkins() {
+        if (adapter.skinVersion === 3) {
+            // v4: ALCHEMOS moved to Pocket TTS (pocket/orrin_2, pocket/selene_1, speed 1): drop its saved record so
+            // the new defaults apply; Kokoro speeds tuned for the old voices would rush the new ones
+            const sv = Object.assign({}, adapter.skinVoices || {});
+            delete sv.alchemos;
+            adapter.skinVoices = sv;
+            adapter.skinVersion = 4;
+            applySkinVoiceDefaults();
+            return;
+        }
         if (adapter.skinVersion === 2) {
             // v3: ALCHEMOS's voices were picked (audition): drop the record saved for it before there were any
             // (and a stray one under "base"), so its defaults apply
             const sv = Object.assign({}, adapter.skinVoices || {});
             delete sv.alchemos; delete sv.base;
             adapter.skinVoices = sv;
-            adapter.skinVersion = 3;
+            adapter.skinVersion = 4;
             applySkinVoiceDefaults();
             return;
         }
@@ -213,7 +223,7 @@ Singleton {
             const sv = Object.assign({}, adapter.skinVoices || {});
             if (!sv.legacy) sv.legacy = voiceRecord();
             adapter.skinVoices = sv;
-            if (adapter.skinVersion >= 1) { adapter.skinVersion = 3; applySkinVoiceDefaults(); return; }
+            if (adapter.skinVersion >= 1) { adapter.skinVersion = 4; applySkinVoiceDefaults(); return; }
         }
         if (adapter.skinVersion >= 1) { applySkinVoiceDefaults(); return; }
         const alch = Skin.current === "alchemos" ? Skin.own : (Skin.installed.alchemos || {});
@@ -232,7 +242,7 @@ Singleton {
             sp.alchemos = old;
         }
         adapter.skinPresets = sp;
-        adapter.skinVersion = 3;
+        adapter.skinVersion = 4;
         applySkinVoiceDefaults();
     }
     // ── Voices per skin ─────────────────────────

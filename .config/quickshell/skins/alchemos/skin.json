@@ -70,12 +70,12 @@
         {"name": "COCHINEAL", "glyph": "🝈", "h": 345, "s": 0.78, "l": 0.64}
     ], "compound": true, "joiner": "-"},
     "voiceRouting": {
-        "jarvis": { "headphones": "CHAMBER", "speaker": "ALEMBIC", "btSpeaker": "RESONANT" },
-        "friday": { "headphones": "RESONANT", "speaker": "ALEMBIC", "btSpeaker": "RESONANT" }
+        "jarvis": { "headphones": "CHAMBER_SUBTLE", "speaker": "ALEMBIC_SUBTLE", "btSpeaker": "RESONANT_SUBTLE" },
+        "friday": { "headphones": "RESONANT_SUBTLE", "speaker": "ALEMBIC_SUBTLE", "btSpeaker": "RESONANT_SUBTLE" }
     },
     "voices": {
-        "jarvis": { "voice": "bm_george", "speed": 0.94, "pitch": -0.5, "effect": "AUTO" },
-        "friday": { "voice": "af_nicole", "speed": 0.97, "pitch": 0.0, "effect": "AUTO" }
+        "jarvis": { "voice": "pocket/orrin_2", "speed": 1.0, "pitch": 0.5, "effect": "AUTO" },
+        "friday": { "voice": "pocket/selene_1", "speed": 1.0, "pitch": 0.5, "effect": "AUTO" }
     },
     "personas": {
         "jarvis": { "name": "ORRIN",  "call": "Orrin",  "dotted": "O.R.R.I.N",   "glyph": "☉", "idle": "☉", "starting": "☉", "accent": "#ffc04a" },

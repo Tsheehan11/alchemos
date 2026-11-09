@@ -8,7 +8,13 @@ already talking (Claude's reply streams in sentence by sentence), each is
 rendered in the background and written to one pw-play stream. The stream is
 opened as soon as Jarvis knows what you said, so Bluetooth is awake and the
 first syllable isn't clipped. A long first sentence is split at its first comma
-so the first sound comes sooner. Short stock lines are cached on disk.
+so the first sound comes sooner.
+
+Pacing: a live reply (Claude's, streamed: utterance(live=True)) is rendered sentence by sentence; a fixed line
+(everything else: stock replies, timers, errors, prompts, DJ lines) of up to WHOLE_MAX_WORDS words is rendered
+whole, in one go (better phrasing), and cached on disk. Every render has its leading and trailing silence trimmed
+to TRIM_LEAD_S / TRIM_TAIL_S before the effects (which add their own TAIL_S pause). The stock lines are
+pre-rendered for both personas in the background, and again after a voice or effect change.
 
 Voice names pick the engine (core/tts/__init__.py): Kokoro voices as-is (bm_george, bm_fable…); piper
 voices by model file, with a speaker for multi-speaker models (en_GB-semaine-medium:obadiah); any other
@@ -40,12 +46,17 @@ from .config import DATA_DIR
 from .tts.kokoro import KOKORO_DIR, KOKORO_MODEL, KOKORO_VOICES  # noqa: F401  (tools/wakeword uses these)
 from .tts.piper import FALLBACK as FALLBACK_PIPER
 CACHE_DIR = DATA_DIR / "tts-cache"
-CACHE_MAX_WORDS = 6        # sentences this short get cached on disk
+CACHE_MAX_WORDS = 6        # live sentences this short get cached on disk
+WHOLE_MAX_WORDS = 20       # fixed lines up to this long are rendered (and cached) whole
+TRIM_LEAD_S = 0.06         # silence kept before the first sound of a render...
+TRIM_TAIL_S = 0.12         # ...and after the last (engines pad differently; this evens the pacing out)
+PACING = "trim1"           # part of the cache key: bump when trimming/whole-line rendering changes
 CACHE_MAX_FILES = 400
 COMMON = ["Right away, sir.", "Done, sir.", "Very well, sir.", "Very good, sir.", "Online.",
           "You're welcome, sir.", "Goodnight, sir.", "Your timer is done, sir.", "Nothing's playing, sir.",
           "Sorry sir, I didn't catch that.", "I'm having trouble reaching the network, sir."]
 
+WARM_PERSONAS = ("jarvis", "friday")    # Orrin and Selene: both are a wake word away
 RATE = 24000               # the output stream's rate (Kokoro's); piper audio is resampled to it
 DUCK_SPEAK = 0.3           # other audio while Jarvis talks (fraction of its volume)
 DUCK_LISTEN = 0.2          # ...and while it listens, so a song isn't taken for a command
@@ -62,6 +73,17 @@ NO_RESTORE = "state.restore-props = false"
 
 def clean(text):
     return speech.normalize(text)
+
+
+def trim(audio, sr, lead=TRIM_LEAD_S, tail=TRIM_TAIL_S):
+    """Cut leading/trailing silence down to `lead` / `tail` seconds (an envelope 3 % of the peak counts as sound)."""
+    if len(audio) < sr // 10:
+        return audio
+    env = np.convolve(np.abs(audio), np.ones(240) / 240, "same")
+    idx = np.flatnonzero(env > max(env.max() * 0.03, 1e-4))
+    if not len(idx):
+        return audio
+    return audio[max(0, idx[0] - int(lead * sr)): min(len(audio), idx[-1] + int(tail * sr))]
 
 
 def first_split(parts):
@@ -324,9 +346,10 @@ class Utterance:
     """One spoken reply. add() sentences any time (even while it's talking), finish()
     when there's no more, wait() until it's done. Opens the output stream right away."""
 
-    def __init__(self, voice, target=None):
+    def __init__(self, voice, target=None, live=False):
         self.v = voice
         self.target = target          # a sink to play on instead of the usual pick (DJ lines: where the music is)
+        self.live = live              # Claude's streamed reply: per sentence; otherwise short lines render whole
         self.texts = queue.Queue()
         self.audio = queue.Queue()
         self.stopped = threading.Event()
@@ -348,12 +371,20 @@ class Utterance:
         if self.who is None:
             self.who = persona.current(self.v.cfg)
             self.params = self.v.params(self.who)
-        parts = speech.sentences(speech.normalize(persona.style(text, self.who)))
+        line = speech.normalize(persona.style(text, self.who))
+        if not line:
+            return
+        if not self.live and len(line.split()) <= WHOLE_MAX_WORDS:      # a fixed line: one render, cached
+            self.texts.put((line, None, True))
+            self.chars += len(line) + 1
+            self.n_added += 1
+            return
+        parts = speech.sentences(line)
         split = False
         if self.n_added == 0:
             parts, split = first_split(parts)
         for i, p in enumerate(parts):
-            self.texts.put((p, COMMA_GAP_S if split and i == 0 else None))
+            self.texts.put((p, COMMA_GAP_S if split and i == 0 else None, None))
             self.chars += len(p) + 1
         self.n_added += len(parts)
 
@@ -376,9 +407,9 @@ class Utterance:
             item = self.texts.get()
             if item is None:
                 break
-            text, gap = item
+            text, gap, cache = item
             try:
-                audio, sr = self.v.render(text, self.params)
+                audio, sr = self.v.render(text, self.params, cache=cache)
                 audio = resample(audio, sr, RATE)
                 if gap is not None:      # comma split: shorter pause than a full stop
                     audio = audio[:max(0, len(audio) - int((effects.TAIL_S - gap) * RATE))]
@@ -496,13 +527,14 @@ class Voice:
         return name, fx, speed, pitch
 
     # ── rendering ──
-    def render(self, text, params=None):
-        """One sentence → (processed float32 audio, sample rate). The voice's engine failing falls back to piper."""
+    def render(self, text, params=None, cache=None):
+        """One sentence (or a whole fixed line) → (processed float32 audio, sample rate). The voice's engine failing
+        falls back to piper. cache: True/False, or None = only if it's short (CACHE_MAX_WORDS)."""
         name, fx, speed, pitch = params or self.params()
-        cached = len(text.split()) <= CACHE_MAX_WORDS
+        cached = len(text.split()) <= CACHE_MAX_WORDS if cache is None else cache
         if cached:
             key = hashlib.sha1(json.dumps([name, round(speed, 3), round(pitch, 2), fx, text, tts.cache_tag(name),
-                                           effects.NORM_VERSION],
+                                           effects.NORM_VERSION, PACING],
                                           sort_keys=True).encode()).hexdigest()[:20]
             hit = next(CACHE_DIR.glob(f"{key}-*.npy"), None)
             if hit:
@@ -516,7 +548,7 @@ class Voice:
             self.log(f"JARVIS: {name} failed ({type(e).__name__}: {e}), using piper")
             audio, sr = self.engines.synth(FALLBACK_PIPER, text, speed)
             cached = False
-        out = effects.apply(audio, sr, fx, pitch)
+        out = effects.apply(trim(np.asarray(audio, np.float32), sr), sr, fx, pitch)
         if cached:
             try:
                 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -532,21 +564,26 @@ class Voice:
             f.unlink(missing_ok=True)
 
     def warm(self):
-        """Load the model now and pre-render the stock phrases (in the background)."""
-        who = persona.active(self.cfg)
-        params = self.params(who)
-        sig = json.dumps(params, sort_keys=True)
+        """Load the model now and pre-render the stock phrases whole, for both personas (in the background, pausing
+        while anything is being said so a live reply never queues behind it)."""
+        jobs = [(who, self.params(who)) for who in WARM_PERSONAS]
+        sig = json.dumps(jobs, sort_keys=True)
         if sig == self._warmed:
             return
         self._warmed = sig
 
         def run():
-            for t in [persona.style(t, who) for t in COMMON]:
-                try:
-                    self.render(clean(t), params)
-                except Exception as e:
-                    self.log(f"JARVIS: voice warm-up failed: {e}")
-                    return
+            for who, params in jobs:
+                for t in COMMON:
+                    while self.speaking:
+                        time.sleep(0.5)
+                    if self._warmed != sig:          # settings changed again: a newer warm-up takes over
+                        return
+                    try:
+                        self.render(clean(persona.style(t, who)), params, cache=True)
+                    except Exception as e:
+                        self.log(f"JARVIS: voice warm-up failed: {e}")
+                        return
         threading.Thread(target=run, daemon=True).start()
 
     # ── playback ──
@@ -571,10 +608,11 @@ class Voice:
             + (["--target", target] if target else []) + ["-"],
             stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def utterance(self, target=None):
+    def utterance(self, target=None, live=False):
         """Start a reply now (opens the output); add sentences to it as they come. target: a sink name
-        to play on instead of the usual pick (DJ lines go where Spotify is playing)."""
-        u = Utterance(self, target)
+        to play on instead of the usual pick (DJ lines go where Spotify is playing). live: Claude's streamed
+        reply (rendered per sentence); otherwise each add() of up to WHOLE_MAX_WORDS words renders whole."""
+        u = Utterance(self, target, live)
         with self._lock:
             self._current = u
         return u

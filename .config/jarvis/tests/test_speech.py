@@ -5,6 +5,13 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from core.speech import normalize, sentences  # noqa: E402
+import json, tempfile  # noqa: E402
+import core.speech as _speech  # noqa: E402
+# The respelling cases use their own table, so editing pronunciations.json never turns these red
+_pron = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+json.dump({"_help": "test", "QUANTRELL": "Quantrell", "Slayyyter": "Slayter", "EsDeeKid": "Es Dee Kid", "Her's": "Hers"}, _pron)
+_pron.close()
+_speech.PRONUNCIATIONS = _pron.name
 
 CASES = [
     ("It's 16:07, sir.", "It's four oh seven PM, sir."),
@@ -37,6 +44,14 @@ CASES = [
     ("Load is 5 percent (fine).", "Load is five percent, fine."),
     ("Opening UW CS e.g. the student server.", "Opening U W C S for example the student server."),
     ("It costs $4.99 & ships in 2025.", "It costs four point nine nine dollars and ships in twenty twenty-five."),
+    # pronunciation (Pocket has no phonemes): course codes, capitals, pronunciations.json respellings
+    ("Your MATH 135 assignment is due Friday.", "Your Math one thirty-five assignment is due Friday."),
+    ("CS 137 posted new marks on LEARN.", "C S one thirty-seven posted new marks on Learn."),
+    ("ECE 105 and STAT 230.", "E C E one oh five and Stat two thirty."),
+    ("PHYS 121L lab, SE 100 talk.", "Phys one twenty-one L lab, S E one hundred talk."),
+    ("CPU 100 percent, 135 km left.", "CPU one hundred percent, one hundred thirty-five kilometres left."),
+    ("Now playing QUANTRELL, then Her's.", "Now playing Quantrell, then Hers."),
+    ("Up next: EsDeeKid and Slayyyter.", "Up next, Es Dee Kid and Slayter."),
 ]
 SPLITS = [
     ("It's four oh seven PM, sir. Shall I set a timer?", 2),

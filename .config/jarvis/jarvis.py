@@ -1349,7 +1349,7 @@ class VoiceLoop:
             # The output opens now (Bluetooth wakes while Jarvis thinks); Claude's sentences go
             # into it as they stream in, so the first one plays before the reply is finished.
             speak = self.cfg["jarvisSpeak"]
-            u = self.voice.utterance() if speak else None
+            u = self.voice.utterance(live=True) if speak else None      # Claude streams: per sentence
             streamed = []
 
             def on_sentence(sentence):
