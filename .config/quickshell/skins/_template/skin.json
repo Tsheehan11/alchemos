@@ -61,7 +61,7 @@
     "//style": "tokens for the shared components (Style.qml). mono: data and body; display (+ displayCaps, displayScale): headings. frame: holo | engraved. texture: holo (scanlines / grid) | grain | none, grain / grainDark its strength 0..1 (grainDark on very dark presets). glow: halo multiplier. corners: four glyphs for engraved frames' corner notches. divider: glyph at a divider's centre. gauge: ring | astrolabe. metalRule: brushed-metal rule beside headings. surface: 0 glass … 1 stone plate. The values here are the base look.",
 
     "components": {},
-    "//components": "optional overrides, files in this folder: { \"clock\": \"MyClock.qml\", \"scene\": \"MyLock.qml\", \"transition\": \"MyTransition.qml\", \"notifCard\": \"MyNotif.qml\" }. Start from the defaults (AlchemCircle.qml, VaultScene.qml, TransmuteTransition.qml) and keep their properties. Put `import \"../..\"` under `import QtQuick`.",
+    "//components": "optional overrides, files in this folder: { \"clock\": \"MyClock.qml\", \"scene\": \"MyLock.qml\", \"transition\": \"MyTransition.qml\", \"notifCard\": \"MyNotif.qml\", \"shotEffect\": \"MyShot.qml\" }. Start from the defaults (AlchemCircle.qml, VaultScene.qml, TransmuteTransition.qml) and keep their properties. Put `import \"../..\"` under `import QtQuick`.",
 
     "namer": null,
     "//namer": "SAVE AS PRESET's suggestions: { \"entries\": [{ \"name\": \"COBALT\", \"glyph\": \"\", \"h\": 215, \"s\": 0.7, \"l\": 0.45 }, …], \"compound\": true, \"joiner\": \"-\" }. h in degrees, s and l 0..1; the nearest entry to the primary colour wins, compound pairs it with the accent's. null = plain colour names (RED, TEAL, SILVER…).",

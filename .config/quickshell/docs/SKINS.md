@@ -48,7 +48,7 @@ Installed now:
 | `text` | the HUD's wording (`host`: the diagnostics wall's user@host name; the bar's corner sign shows the active preset's sign, else `mark`, and its name): bar, panel titles, lock / unlock / power-down messages (`{name}` = the greeting name), power menu title, hyprlock title, denied text, placeholder (`lockPrompt`) and fingerprint lines (`fprintReady`, `fprintPresent`), lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre. The clock's ring (the preset wheel) also carries the custom presets' signs (`Theme.customSigns`: the 6 most recently saved + the one in use) | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
-| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`, `notifCard`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
+| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`, `notifCard`, `shotEffect`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `alchemos-cursor/src`) | `alchemos-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
@@ -81,7 +81,7 @@ Components read `Style.<token>`; nothing outside `Style.qml`, `Skin.qml` and `sk
 ### Component overrides
 
 Start from the default (`AlchemCircle.qml`, `VaultScene.qml`, `TransmuteTransition.qml`,
-`HoloBackdrop.qml`, `HoloLauncherLook.qml`, `HoloCarouselStage.qml`, `HoloCarouselPanel.qml`, `HoloNotifCard.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
+`HoloBackdrop.qml`, `HoloLauncherLook.qml`, `HoloCarouselStage.qml`, `HoloCarouselPanel.qml`, `HoloNotifCard.qml`, `HoloShotEffect.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
 reach the HUD's singletons. Components are loaded through `Qt.resolvedUrl` inside the shell; never
 build a `file://` URL to them (it would load a second copy of every singleton).
 
@@ -118,6 +118,20 @@ the urgency's metal (low quicksilver, normal the preset's metal, critical molten
 medallion whose ring inscribes itself on arrival with ORRIN's ☉ / SELENE's ☽ for their own messages,
 and a dissolve on the way out (`assets/dissolve.png` as a threshold mask). The skin check renders
 `notifications` and `notifications-calm`.
+
+**shotEffect** (what plays after a screenshot is saved; `Shot.qml` hides the HUD, `alchemos-shot`
+captures, then `ShotFlash.qml` hosts this on every monitor the shot covers) gets `box` (this screen's part
+of the shot, in its coordinates), `t` (0 → 1), `last` (the capture's JSON), `frame` (`source` + `clip`: the
+saved PNG cropped to this screen, to play on a frozen image), `calm` (battery saver) and `main` (the
+screen holding most of the shot), and sets `durationMs` and `calmMs` (0 = nothing in battery saver). The
+capture is finished before it starts, so nothing it draws can end up in the shot or delay it. Draw with
+GPU items (Rectangle, Shape, Image, gradients): a monitor-sized Canvas repaints on the GUI thread and
+stalls. The base (LEGACY) is the hologram scan: flash, brackets, scan line, CAPTURED · W×H. ALCHEMOS:
+`skins/alchemos/AlchemShotEffect.qml`: the region dims while a transmutation circle inscribes itself
+(rim, corner element signs, inscribed circle), a molten-gold (warm presets) or quicksilver (cool) front
+sweeps across and fixes the image (coagula), the preset's sign stamps a COAGULATUM seal, then the frozen
+image gives way to the live screen; battery saver: the seal alone. The skin check renders `shot-trace`,
+`shot-sweep`, `shot-seal` and `shot-calm`.
 
 ## How switching works
 

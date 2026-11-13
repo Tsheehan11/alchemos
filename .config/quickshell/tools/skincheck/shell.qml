@@ -34,6 +34,10 @@ ShellRoot {
         ["osd", 420, 96, "Osd.qml", { modelData: root.screenOf(420, 96) }, {}],
         ["notifications", 440, 560, notifs, { calm: false }],
         ["notifications-calm", 440, 560, notifs, { calm: true }],
+        ["shot-trace", 900, 560, shotFx, { t: 0.22 }],
+        ["shot-sweep", 900, 560, shotFx, { t: 0.55 }],
+        ["shot-seal", 900, 560, shotFx, { t: 0.8 }],
+        ["shot-calm", 900, 560, shotFx, { t: 0.5, calm: true }],
         ["control", 900, 1000, "ControlCenter.qml", { modelData: root.screenOf(900, 1000), wifiOn: true, ssid: "HOME-5G", btOn: true, brightness: 0.7, powerProfile: "balanced" }, { arm: () => LauncherState.controlOpen = true }]
     ]
     function screenOf(w, h) { return { name: "DP-1", x: 0, y: 0, width: w, height: h }; }
@@ -62,6 +66,8 @@ ShellRoot {
             if (opt.arm) Qt.callLater(opt.arm);
         } else {
             ld.props = g[4];
+            // the same inline Component twice in a row (different props): unload first so it loads again
+            if (ld.sourceComponent === g[3]) ld.sourceComponent = undefined;
             if (typeof g[3].createObject === "function") { ld.source = ""; ld.sourceComponent = g[3]; }
             else { ld.sourceComponent = undefined; ld.source = g[3]; }
         }
@@ -116,6 +122,25 @@ ShellRoot {
         }
     }
 
+    // the skin's screenshot effect at fixed moments, over a plain stage (no frozen frame)
+    Component {
+        id: shotFx
+        Item {
+            id: sf
+            property real t: 0
+            property bool calm: false
+            Loader {
+                anchors.fill: parent
+                source: Skin.component("shotEffect")
+                onLoaded: {
+                    item.box = { x: 40, y: 40, w: 820, h: 480 };
+                    item.last = { ok: true, width: 1640, height: 960 };
+                    item.t = Qt.binding(() => sf.t);
+                    item.calm = Qt.binding(() => sf.calm);
+                }
+            }
+        }
+    }
     // the skin's notification card in each urgency, a group, an ORRIN / SELENE message with actions
     Component {
         id: notifs
