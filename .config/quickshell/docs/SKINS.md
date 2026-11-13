@@ -44,7 +44,7 @@ Installed now:
 | `label`, `hidden` | name on the SKIN row; listed only after unlocking | `Skin.listed` |
 | `osName` | what the assistant calls the desktop ("AlchemOS") | `jarvis/core/persona.py` |
 | `presets`, `aliases` | built-in colour presets (`name`, `glyph`, `primary`, `secondary`, `background`) and other names for them | `Theme`, Jarvis `set_theme` |
-| `personas` | display `name` / `call` / `dotted` / `glyph` / `idle` / `starting` / `accent` for `jarvis` and `friday` (ids, wake word and voices stay) | `JarvisState`, `persona.py` |
+| `personas` | display `name` / `call` / `dotted` / `glyph` / `idle` / `starting` / `accent` for `jarvis` and `friday` (ids, wake word and voices stay) | `OrrinState`, `persona.py` |
 | `text` | the HUD's wording (the bar's corner sign shows the active preset's sign, else `mark`, and its name): bar, panel titles, lock / unlock / power-down messages (`{name}` = the greeting name), power menu title, hyprlock title, denied text, placeholder (`lockPrompt`) and fingerprint lines (`fprintReady`, `fprintPresent`), lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre. The clock's ring (the preset wheel) also carries the custom presets' signs (`Theme.customSigns`: the 6 most recently saved + the one in use) | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |

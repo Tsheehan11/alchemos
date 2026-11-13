@@ -2,7 +2,7 @@
 Whole-account Claude usage for the HUD's CLAUDE // USAGE widget, without spending a token.
 
   jarvis usage            one refresh, prints the summary JSON
-  jarvis usage --watch    what the HUD runs while a usage widget is up (quickshell JarvisFeed.qml):
+  jarvis usage --watch    what the HUD runs while a usage widget is up (quickshell OrrinFeed.qml):
                           local logs every LOG_S, the plan report every PLAN_S
   jarvis usage --plan     just the plan report (debug)
 

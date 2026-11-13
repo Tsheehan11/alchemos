@@ -1,4 +1,4 @@
-// Claude usage for the whole account, not just Jarvis (JarvisFeed.claude ← usage.json from `jarvis usage --watch`,
+// Claude usage for the whole account, not just Jarvis (OrrinFeed.claude ← usage.json from `jarvis usage --watch`,
 // ~/.config/jarvis/core/usage.py; no tokens spent on any of it):
 //   headline   the Pro plan's 5-hour and weekly %, with reset times: the Claude CLI's /usage report, polled every
 //              5 min (click the widget for now). Older than 15 min → shown as stale, never as current.
@@ -15,7 +15,7 @@ import ".."
 
 WidgetBody {
     id: w
-    readonly property var u: JarvisFeed.claude || ({})
+    readonly property var u: OrrinFeed.claude || ({})
     readonly property var plan: u.plan || null
     readonly property bool current: plan !== null && !plan.stale
     readonly property var today: u.today || ({})
@@ -34,11 +34,11 @@ WidgetBody {
     alert: current && ((plan.five_hour || {}).pct || 0) >= 90
     implicitWidth: 340
     implicitHeight: col.height
-    function clicked() { JarvisFeed.usageNow(); }
+    function clicked() { OrrinFeed.usageNow(); }
 
     function fresh(r) { return r ? (r.input || 0) + (r.output || 0) : 0; }
     function clock(sec) { return Qt.formatDateTime(new Date(sec * 1000), Theme.cfg.clock24 ? "HH:mm" : "h:mm AP"); }
-    function resetText(sec) { return sec ? "RESETS " + JarvisFeed.until(sec * 1000).replace(/^IN /, "IN ") : ""; }
+    function resetText(sec) { return sec ? "RESETS " + OrrinFeed.until(sec * 1000).replace(/^IN /, "IN ") : ""; }
     function pctText(v) { return v < 10 && v > 0 ? v.toFixed(1) : String(Math.round(v)); }
 
     Column {
@@ -109,7 +109,7 @@ WidgetBody {
                     textFormat: Text.StyledText
                     font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1; color: Theme.dim
                     text: pw.sp.calibrated === true
-                          ? "<font color='" + w.cJarvis + "'>■</font> " + JarvisState.assistant + " " + w.pctText(pw.sp.jarvis) + "%  "
+                          ? "<font color='" + w.cJarvis + "'>■</font> " + OrrinState.assistant + " " + w.pctText(pw.sp.jarvis) + "%  "
                             + "<font color='" + w.cCode + "'>■</font> CLAUDE CODE " + w.pctText(pw.sp.code) + "%  "
                             + "<font color='" + w.cOther + "'>▨</font> CLAUDE.AI + OTHER DEVICES ~" + w.pctText(pw.sp.other) + "% (ESTIMATE)"
                           : "SPLIT · CALIBRATING (needs a window with some local use)"
@@ -139,7 +139,7 @@ WidgetBody {
                 Text { width: 95; text: "PLAN WEEK"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
             }
             Repeater {
-                model: [["jarvis", JarvisState.assistant], ["code", "CLAUDE CODE"]]
+                model: [["jarvis", OrrinState.assistant], ["code", "CLAUDE CODE"]]
                 delegate: Row {
                     required property var modelData
                     readonly property var td: w.today[modelData[0]] || ({})
@@ -149,14 +149,14 @@ WidgetBody {
                         text: "<font color='" + (modelData[0] === "jarvis" ? w.cJarvis : w.cCode) + "'>■</font> " + modelData[1]
                         color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11
                     }
-                    Text { width: 95; text: JarvisFeed.tokens(w.fresh(td)) + (td.requests ? "  ·" + td.requests : ""); color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11 }
-                    Text { width: 95; text: JarvisFeed.tokens(w.fresh(wk)) + (wk.requests ? "  ·" + wk.requests : ""); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11 }
+                    Text { width: 95; text: OrrinFeed.tokens(w.fresh(td)) + (td.requests ? "  ·" + td.requests : ""); color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11 }
+                    Text { width: 95; text: OrrinFeed.tokens(w.fresh(wk)) + (wk.requests ? "  ·" + wk.requests : ""); color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11 }
                 }
             }
             Text {
                 width: 340; wrapMode: Text.Wrap
-                text: "·N = REQUESTS · CACHE R/W TODAY " + JarvisFeed.tokens(((w.today.jarvis || {}).cache_read || 0) + ((w.today.code || {}).cache_read || 0))
-                      + " / " + JarvisFeed.tokens(((w.today.jarvis || {}).cache_write || 0) + ((w.today.code || {}).cache_write || 0))
+                text: "·N = REQUESTS · CACHE R/W TODAY " + OrrinFeed.tokens(((w.today.jarvis || {}).cache_read || 0) + ((w.today.code || {}).cache_read || 0))
+                      + " / " + OrrinFeed.tokens(((w.today.jarvis || {}).cache_write || 0) + ((w.today.code || {}).cache_write || 0))
                       + " · CLAUDE.AI HAS NO LOCAL RECORD (ESTIMATED ABOVE)"
                 color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 8; font.letterSpacing: 1
             }
@@ -168,7 +168,7 @@ WidgetBody {
             visible: w.localWeek.pct !== undefined && w.localWeek.pct !== null
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: JarvisState.assistant + " HANDLED LOCALLY"; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
+                text: OrrinState.assistant + " HANDLED LOCALLY"; color: Theme.dim; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
             }
             HoloBar { x: 150; width: 70; height: 6; ticks: 4; anchors.verticalCenter: parent.verticalCenter; value: (w.localWeek.pct || 0) / 100; color: Theme.primary }
             Text {
@@ -187,8 +187,8 @@ WidgetBody {
             font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
             color: Theme.textSoft
             text: w.modelsToday.length === 0 ? "TODAY: NO CLAUDE REQUESTS"
-                  : w.modelsToday.length === 1 ? "TODAY: " + w.modelsToday[0].name.toUpperCase() + " ONLY · " + JarvisFeed.tokens(w.modelsToday[0].tokens)
-                  : "TODAY: " + w.modelsToday.map(m => m.name.toUpperCase() + " " + JarvisFeed.tokens(m.tokens)).join(" · ")
+                  : w.modelsToday.length === 1 ? "TODAY: " + w.modelsToday[0].name.toUpperCase() + " ONLY · " + OrrinFeed.tokens(w.modelsToday[0].tokens)
+                  : "TODAY: " + w.modelsToday.map(m => m.name.toUpperCase() + " " + OrrinFeed.tokens(m.tokens)).join(" · ")
         }
         Repeater {
             model: w.modelsWeek
@@ -200,7 +200,7 @@ WidgetBody {
                 HoloBar { x: 98; width: 120; height: 6; ticks: 5; anchors.verticalCenter: parent.verticalCenter; value: parent.share; color: modelData.family === "haiku" ? Theme.primary : modelData.family === "opus" ? Theme.secondary : Theme.text }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: JarvisFeed.tokens(modelData.tokens) + " · " + modelData.sources.map(s => s === "code" ? "CODE" : JarvisState.assistant).join("+")
+                    text: OrrinFeed.tokens(modelData.tokens) + " · " + modelData.sources.map(s => s === "code" ? "CODE" : OrrinState.assistant).join("+")
                     color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 9
                 }
             }

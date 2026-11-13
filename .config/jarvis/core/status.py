@@ -1,7 +1,7 @@
 """
 Jarvis's state for the HUD's desktop widgets: $XDG_RUNTIME_DIR/jarvis/status.json.
 
-The voice process keeps it current; quickshell JarvisFeed.qml reads it with a FileView that
+The voice process keeps it current; quickshell OrrinFeed.qml reads it with a FileView that
 watches the file (inotify), so nothing polls. Written only when something changed, coalesced
 (at most one write per 0.4 s), atomically (tmp + rename).
 
@@ -12,7 +12,7 @@ watches the file (inotify), so nothing polls. Written only when something change
    "usage": {"session": usage_since(started), "today": usage_since(midnight),
              "plan": {"five_hour": {"pct", "resets_at"}, "seven_day": {…}, "at"}}}   (plan only if Claude reported it)
 
-Listening / thinking / speaking aren't in here: the HUD already has them (JarvisState, IPC).
+Listening / thinking / speaking aren't in here: the HUD already has them (OrrinState, IPC).
 """
 import datetime as _dt
 import json

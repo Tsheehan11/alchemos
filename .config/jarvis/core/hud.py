@@ -1,4 +1,4 @@
-"""Talk to the Quickshell HUD (JarvisState via `qs ipc call jarvis …`). Silent if it isn't running."""
+"""Talk to the Quickshell HUD (OrrinState via `qs ipc call jarvis …`). Silent if it isn't running."""
 import json
 import queue
 import subprocess
@@ -24,7 +24,7 @@ def call(fn, *args):
 
 # ── what the toast shows right now, so a restarted HUD can pick it up ──
 # Jarvis runs as its own service (stark-jarvis.service); Quickshell can restart under it. A fresh
-# JarvisState answers the heartbeat with "resync" and gets this snapshot back (JarvisState.restore).
+# OrrinState answers the heartbeat with "resync" and gets this snapshot back (OrrinState.restore).
 # Only the live phases come back on screen; a finished reply isn't shown again.
 _lock = threading.Lock()
 _snap = {"phase": "idle", "transcript": "", "reply": "", "tools": [], "paused": False, "answering": ""}

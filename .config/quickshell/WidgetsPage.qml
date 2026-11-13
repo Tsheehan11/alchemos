@@ -57,7 +57,7 @@ Column {
     Text { visible: page.result !== ""; text: page.result; color: page.result.startsWith("✓") ? Theme.dim : Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 11 }
 
     Text { text: "ON SCREEN NOW · " + Widgets.items.length; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 10 }
-    Text { visible: Widgets.items.length === 0; text: "No widgets. Add one above, or ask " + JarvisState.callOf("jarvis") + "."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
+    Text { visible: Widgets.items.length === 0; text: "No widgets. Add one above, or ask " + OrrinState.callOf("jarvis") + "."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
     Repeater {
         model: Widgets.items
         delegate: Rectangle {

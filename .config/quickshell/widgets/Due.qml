@@ -6,14 +6,14 @@ import ".."
 
 WidgetBody {
     id: w
-    readonly property var all: (JarvisFeed.agenda || {}).due_all || (JarvisFeed.agenda || {}).due || []
+    readonly property var all: (OrrinFeed.agenda || {}).due_all || (OrrinFeed.agenda || {}).due || []
     readonly property int count: size === "huge" ? 10 : size === "large" ? 7 : size === "small" ? 3 : 5
     readonly property var items: all.slice(0, count)
     readonly property var first: all.find(d => d.days >= 0) || null
     readonly property int late: all.filter(d => d.days < 0).length
     title: "DUE // TRACKER"
     detail: late ? late + " OVERDUE" : all.length ? all.length + " OPEN" : ""
-    function doubleClicked() { JarvisFeed.refresh(); }
+    function doubleClicked() { OrrinFeed.refresh(); }
     function when(d) { return d.days < 0 ? (-d.days) + " D LATE" : d.days === 0 ? "TONIGHT" : d.days === 1 ? "TOMORROW" : d.days + " DAYS"; }
 
     implicitWidth: 320
@@ -41,7 +41,7 @@ WidgetBody {
     Column {
         id: list
         x: 88; width: 232; spacing: 4
-        Text { visible: w.all.length === 0; width: parent.width; wrapMode: Text.WordWrap; text: !(JarvisFeed.agenda || {}).updated ? "READING TRACKER…" : JarvisFeed.problem("tracker") || "ALL CLEAR"; color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
+        Text { visible: w.all.length === 0; width: parent.width; wrapMode: Text.WordWrap; text: !(OrrinFeed.agenda || {}).updated ? "READING TRACKER…" : OrrinFeed.problem("tracker") || "ALL CLEAR"; color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2 }
         Repeater {
             model: w.items
             delegate: Column {

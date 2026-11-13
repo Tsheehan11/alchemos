@@ -101,7 +101,7 @@ PanelWindow {
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 18
                         anchors.verticalCenter: parent.verticalCenter
-                        text: modelData === "JARVIS" ? JarvisState.assistant : modelData     // the tab id stays JARVIS
+                        text: modelData === "JARVIS" ? OrrinState.assistant : modelData     // the tab id stays JARVIS
                         color: parent.on ? Theme.text : Theme.textSoft
                         font.family: Style.fonts.body; font.pixelSize: 13; font.letterSpacing: 3
                     }
@@ -644,7 +644,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Audio deck"; hint: "MUSIC screens"; checked: Theme.cfg.showMedia; onToggled: Theme.cfg.showMedia = !Theme.cfg.showMedia }
                     Toggle { width: parent.width; label: "Hide panels behind windows"; hint: "Clock, diagnostics and audio deck only show on screens with no windows open"; checked: Theme.cfg.hideHudBehindWindows; onToggled: Theme.cfg.hideHudBehindWindows = !Theme.cfg.hideHudBehindWindows }
                     Toggle { width: parent.width; label: "Volume & brightness pop-up"; hint: "Shows on the screen you're using"; checked: Theme.cfg.osd; onToggled: Theme.cfg.osd = !Theme.cfg.osd }
-                    Toggle { width: parent.width; label: JarvisState.callOf("jarvis"); hint: (!JarvisState.toggleOn ? (JarvisState.docked ? "Off" : "Off on the laptop · switch on for now (until the next dock change)") : JarvisState.laptopMode ? "On (laptop, until dock change) · no academic sync, watchers or room speaker; stops under 20 % on battery" : JarvisState.paused ? "On · paused for combat mode" : JarvisState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"); checked: JarvisState.toggleOn; onToggled: JarvisState.toggle() }
+                    Toggle { width: parent.width; label: OrrinState.callOf("jarvis"); hint: (!OrrinState.toggleOn ? (OrrinState.docked ? "Off" : "Off on the laptop · switch on for now (until the next dock change)") : OrrinState.laptopMode ? "On (laptop, until dock change) · no academic sync, watchers or room speaker; stops under 20 % on battery" : OrrinState.paused ? "On · paused for combat mode" : OrrinState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"); checked: OrrinState.toggleOn; onToggled: OrrinState.toggle() }
                     Row {
                         spacing: 10
                         SmallButton { text: "RELOAD HUD"; onClicked: Quickshell.reload(true) }
@@ -662,7 +662,7 @@ PanelWindow {
                 }
 
                 // ════════ JARVIS ════════
-                JarvisPage {
+                OrrinPage {
                     visible: LauncherState.settingsTab === "JARVIS"
                     width: parent.width
                 }
@@ -735,7 +735,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Battery saver when unplugged"; hint: "Applies everything below automatically, undone when you plug in"; checked: Theme.cfg.autoSaver; onToggled: Theme.cfg.autoSaver = !Theme.cfg.autoSaver }
                     Toggle { width: parent.width; label: "Turn off blur and shadows"; hint: "Biggest GPU saving"; checked: Theme.cfg.saverNoBlur; onToggled: Theme.cfg.saverNoBlur = !Theme.cfg.saverNoBlur }
                     Toggle { width: parent.width; label: "Laptop screen at 48 Hz"; hint: "Instead of 60 Hz"; checked: Theme.cfg.saverLowRefresh; onToggled: Theme.cfg.saverLowRefresh = !Theme.cfg.saverLowRefresh }
-                    Toggle { width: parent.width; label: "Pause " + JarvisState.callOf("jarvis"); hint: "Wake-word listening uses a little CPU all the time"; checked: Theme.cfg.saverStopJarvis; onToggled: Theme.cfg.saverStopJarvis = !Theme.cfg.saverStopJarvis }
+                    Toggle { width: parent.width; label: "Pause " + OrrinState.callOf("jarvis"); hint: "Wake-word listening uses a little CPU all the time"; checked: Theme.cfg.saverStopJarvis; onToggled: Theme.cfg.saverStopJarvis = !Theme.cfg.saverStopJarvis }
                     Column {
                         spacing: 8
                         Text { text: "EFFECTS ON BATTERY"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
@@ -781,7 +781,7 @@ PanelWindow {
                     Toggle { width: parent.width; label: "Keep stats panel"; hint: "CPU, GPU, RAM, network · refreshes every 2.5 s"; checked: Theme.cfg.gameKeepDiag; enabled: Theme.cfg.gameKeepPanels; opacity: enabled ? 1 : 0.4; onToggled: Theme.cfg.gameKeepDiag = !Theme.cfg.gameKeepDiag }
                     Toggle { width: parent.width; label: "Combat telemetry layout"; hint: "Per-core CPU, clocks, temps, iGPU, fans, power, game disk · main screen if the game is on the stats one"; checked: Theme.cfg.gameTelemetry; enabled: Theme.cfg.gameKeepPanels && Theme.cfg.gameKeepDiag; opacity: enabled ? 1 : 0.4; onToggled: Theme.cfg.gameTelemetry = !Theme.cfg.gameTelemetry }
                     Toggle { width: parent.width; label: "Keep telemetry with windows open"; hint: "Discord etc. on that screen tile beside it instead of hiding it"; checked: Theme.cfg.gameTelemetryBeside; enabled: Theme.cfg.gameKeepPanels && Theme.cfg.gameKeepDiag && Theme.cfg.gameTelemetry; opacity: enabled ? 1 : 0.4; onToggled: Theme.cfg.gameTelemetryBeside = !Theme.cfg.gameTelemetryBeside }
-                    Toggle { width: parent.width; label: "Pause " + JarvisState.callOf("jarvis"); hint: "Frees the mic · comes back afterwards if it was on"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
+                    Toggle { width: parent.width; label: "Pause " + OrrinState.callOf("jarvis"); hint: "Frees the mic · comes back afterwards if it was on"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
                     Toggle { width: parent.width; label: "Mute notifications"; hint: "Do-not-disturb on mako, swaync or dunst, if one is running"; checked: Theme.cfg.gameNotify; onToggled: Theme.cfg.gameNotify = !Theme.cfg.gameNotify }
                     Text { text: "Effects, power and notification changes apply the next time it engages."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                     Row {

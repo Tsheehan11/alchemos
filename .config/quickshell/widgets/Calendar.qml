@@ -1,5 +1,5 @@
 // Agenda: the next events from his main Google Calendar and the Outlook ICS feed, merged with the SE
-// tracker's due dates, with live countdowns. Data: JarvisFeed (jarvis feed → agenda.json; it syncs every
+// tracker's due dates, with live countdowns. Data: OrrinFeed (jarvis feed → agenda.json; it syncs every
 // few minutes and right after Jarvis edits the calendar or the tracker). Double-click: sync now.
 // params: {"due": false} leaves the tracker out; size large / huge shows more.
 //   ◆ Google   ◇ Outlook   ◈ both   ▲ due (tracker)
@@ -8,8 +8,8 @@ import ".."
 
 WidgetBody {
     id: w
-    readonly property var ag: JarvisFeed.agenda || ({})
-    readonly property double now: JarvisFeed.now
+    readonly property var ag: OrrinFeed.agenda || ({})
+    readonly property double now: OrrinFeed.now
     readonly property bool withDue: params.due !== false
     readonly property int count: size === "huge" ? 10 : size === "large" ? 7 : size === "small" ? 3 : 5
 
@@ -18,8 +18,8 @@ WidgetBody {
         const ev = (ag.events || []).filter(e => e.end > w.now);
         const due = w.withDue ? (ag.due || []) : [];
         const all = ev.concat(due.map(d => Object.assign({ start: d.due, all_day: false }, d)));
-        all.sort((a, b) => (a.all_day && !b.all_day && JarvisFeed.dayLabel(a.start) === JarvisFeed.dayLabel(b.start) ? -1
-                          : !a.all_day && b.all_day && JarvisFeed.dayLabel(a.start) === JarvisFeed.dayLabel(b.start) ? 1
+        all.sort((a, b) => (a.all_day && !b.all_day && OrrinFeed.dayLabel(a.start) === OrrinFeed.dayLabel(b.start) ? -1
+                          : !a.all_day && b.all_day && OrrinFeed.dayLabel(a.start) === OrrinFeed.dayLabel(b.start) ? 1
                           : a.start - b.start));
         return all.slice(0, w.count);
     }
@@ -28,7 +28,7 @@ WidgetBody {
 
     title: "AGENDA"
     detail: !ag.updated ? "SYNCING" : (ag.notes && ag.notes.length ? "STALE" : "LIVE")
-    function doubleClicked() { JarvisFeed.refresh(); }
+    function doubleClicked() { OrrinFeed.refresh(); }
 
     implicitWidth: 330
     implicitHeight: hero.height + list.height + 10
@@ -41,9 +41,9 @@ WidgetBody {
     }
     function rightText(e) {
         if (e.kind === "due" || (e.tracker && e.days !== undefined)) return e.days < 0 ? (-e.days) + " D AGO" : e.days === 0 ? "TONIGHT" : e.days === 1 ? "TOMORROW" : "IN " + e.days + " D";
-        if (e.all_day) return JarvisFeed.dayLabel(e.start);
+        if (e.all_day) return OrrinFeed.dayLabel(e.start);
         if (e.start <= w.now) return "NOW";
-        return JarvisFeed.until(e.start);
+        return OrrinFeed.until(e.start);
     }
 
     // ── next timed event, large ──
@@ -55,7 +55,7 @@ WidgetBody {
             id: empty
             visible: !w.next
             width: parent.width; wrapMode: Text.WordWrap
-            text: !ag.updated ? "LINKING CALENDAR…" : JarvisFeed.problem("calendar") || "NOTHING SCHEDULED"
+            text: !ag.updated ? "LINKING CALENDAR…" : OrrinFeed.problem("calendar") || "NOTHING SCHEDULED"
             color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 2
         }
         Column {
@@ -70,7 +70,7 @@ WidgetBody {
             Row {
                 spacing: 10
                 Text {
-                    text: w.next ? (w.ongoing ? "NOW" : JarvisFeed.until(w.next.start)) : ""
+                    text: w.next ? (w.ongoing ? "NOW" : OrrinFeed.until(w.next.start)) : ""
                     color: w.ongoing || (w.next && w.next.start - w.now < 15 * 60000) ? Theme.secondary : Theme.primary
                     font.family: Style.fonts.body; font.pixelSize: 20; font.weight: Font.Light
                 }

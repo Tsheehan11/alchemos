@@ -22,7 +22,7 @@ PanelWindow {
     // memory is system RAM)
     readonly property real res: modelData.name === Roles.laptopName || PowerMode.saver ? 0.5 : 1
     // what the backdrop may answer with a little light: the assistant at work, else CPU load
-    readonly property real activity: JarvisState.listening || JarvisState.speaking ? 1 : Math.min(1, SysStats.cpu * 1.4)
+    readonly property real activity: OrrinState.listening || OrrinState.speaking ? 1 : Math.min(1, SysStats.cpu * 1.4)
 
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.namespace: "alchemos-grid"

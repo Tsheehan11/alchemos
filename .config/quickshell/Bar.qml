@@ -177,8 +177,8 @@ PanelWindow {
                 visible: bar.isMain
                 // listening / starting / off glyphs and the name of the persona answering now (the skin's: ☉ ORRIN,
                 // ☽ SELENE; legacy ◉ ◌ ○ JARVIS, ◈ ◇ FRIDAY), in its accent; then ON / OFF / ON (LAPTOP, …)
-                text: (JarvisState.online ? JarvisState.glyph : JarvisState.toggleOn ? JarvisState.glyphStarting : JarvisState.glyphIdle) + " " + JarvisState.name + " " + JarvisState.stateLabel.toUpperCase()
-                color: JarvisState.online ? (JarvisState.laptopMode ? Theme.secondary : JarvisState.accent) : Theme.faint
+                text: (OrrinState.online ? OrrinState.glyph : OrrinState.toggleOn ? OrrinState.glyphStarting : OrrinState.glyphIdle) + " " + OrrinState.name + " " + OrrinState.stateLabel.toUpperCase()
+                color: OrrinState.online ? (OrrinState.laptopMode ? Theme.secondary : OrrinState.accent) : Theme.faint
                 font.family: Style.fonts.label; font.pixelSize: 12; font.letterSpacing: 1
             }
             // readings: the skin's icon + label + value, or "CPU 34%" as always (BarStat.qml)

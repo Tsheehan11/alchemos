@@ -1,8 +1,8 @@
-// JARVIS pop-up on the focused screen: projected text, not a box. Follows JarvisState.phase:
+// JARVIS pop-up on the focused screen: projected text, not a box. Follows OrrinState.phase:
 //   LISTENING (waveform) → transcript → PROCESSING (tool calls appear one by one,
 //   "◆ THEME → MARK III") → RESPONSE / AWAITING CONFIRMATION → FOLLOW-UP.
 // The whole reply is always there: a long one scrolls inside, following the speech karaoke-style
-// (JarvisState.speak: the sentence being spoken is lit, the line under it is marked, and the view
+// (OrrinState.speak: the sentence being spoken is lit, the line under it is marked, and the view
 // keeps it in sight). The mouse wheel scrolls it by hand and pauses the following. It stays up while
 // Jarvis speaks or the pointer is on it, then a few seconds scaled to length. A click opens the
 // thread in the JARVIS console on this monitor. Timers and reminders use the same panel (phase "alert").
@@ -18,8 +18,8 @@ PanelWindow {
     screen: modelData
 
     // not over the console: it shows the same conversation (and any YES / NO) itself
-    readonly property bool on: JarvisState.showing && Hyprland.focusedMonitor?.name === modelData.name
-                               && !(JarvisLink.open && JarvisLink.screenName === modelData.name)
+    readonly property bool on: OrrinState.showing && Hyprland.focusedMonitor?.name === modelData.name
+                               && !(OrrinLink.open && OrrinLink.screenName === modelData.name)
     visible: on || holo.opacity > 0.01          // stays mapped while it fades out
 
     WlrLayershell.layer: WlrLayer.Overlay
@@ -33,32 +33,32 @@ PanelWindow {
     Binding { target: toast.contentItem; property: "opacity"; value: Shot.hiding ? 0 : 1 }   // out of screenshots (Shot.qml)
 
     readonly property int pad: 26
-    readonly property string phase: JarvisState.phase
+    readonly property string phase: OrrinState.phase
     readonly property bool hot: phase === "confirm" || phase === "alert" || phase === "error"     // secondary colour
-    readonly property color accent: hot ? Theme.secondary : JarvisState.accent     // the persona's (ALCHEMOS gold / silver) at the edge
+    readonly property color accent: hot ? Theme.secondary : OrrinState.accent     // the persona's (ALCHEMOS gold / silver) at the edge
     readonly property bool busy: phase === "thinking"
     readonly property string phaseLabel: ({
         listening: "LISTENING", followup: "LISTENING · FOLLOW-UP", thinking: "PROCESSING",
-        reply: JarvisState.speaking ? "SPEAKING" : "RESPONSE", confirm: "AWAITING CONFIRMATION",
-        alert: JarvisState.alertTitle, error: "⚠ " + JarvisState.errorReason, idle: ""
+        reply: OrrinState.speaking ? "SPEAKING" : "RESPONSE", confirm: "AWAITING CONFIRMATION",
+        alert: OrrinState.alertTitle, error: "⚠ " + OrrinState.errorReason, idle: ""
     })[phase] || ""
-    readonly property bool showReply: JarvisState.reply !== "" && ["reply", "confirm", "alert", "followup", "error"].includes(phase)
+    readonly property bool showReply: OrrinState.reply !== "" && ["reply", "confirm", "alert", "followup", "error"].includes(phase)
 
     // ── speech progress → a position in the reply ──
     property real spoken: 0                      // characters of the spoken text, animated per sentence
-    readonly property bool following: JarvisState.speaking && JarvisState.speakTotal > 0
-    readonly property int pos: JarvisState.speakTotal > 0
-        ? Math.min(JarvisState.reply.length, Math.floor(spoken / JarvisState.speakTotal * JarvisState.reply.length)) : 0
+    readonly property bool following: OrrinState.speaking && OrrinState.speakTotal > 0
+    readonly property int pos: OrrinState.speakTotal > 0
+        ? Math.min(OrrinState.reply.length, Math.floor(spoken / OrrinState.speakTotal * OrrinState.reply.length)) : 0
     NumberAnimation { id: spokenAnim; target: toast; property: "spoken" }
     Connections {
-        target: JarvisState
+        target: OrrinState
         function onSpeakAtChanged() {
             spokenAnim.stop();
-            spokenAnim.from = JarvisState.speakStart; spokenAnim.to = JarvisState.speakEnd;
-            spokenAnim.duration = Math.max(1, JarvisState.speakMs);
+            spokenAnim.from = OrrinState.speakStart; spokenAnim.to = OrrinState.speakEnd;
+            spokenAnim.duration = Math.max(1, OrrinState.speakMs);
             spokenAnim.start();
         }
-        function onSpeakingChanged() { if (!JarvisState.speaking) { spokenAnim.stop(); toast.spoken = JarvisState.speakTotal; } }
+        function onSpeakingChanged() { if (!OrrinState.speaking) { spokenAnim.stop(); toast.spoken = OrrinState.speakTotal; } }
         function onReplySerialChanged() { scroller.userScrolled = false; scroller.contentY = 0; readPace.pos = 0; }
     }
 
@@ -78,9 +78,9 @@ PanelWindow {
     function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
     function hex(c, a) { return Qt.rgba(c.r, c.g, c.b, a === undefined ? 1 : a).toString(); }
     // karaoke: said · being said (lit) · still to come (dim)
-    readonly property var span: following ? sentenceAt(JarvisState.reply, pos) : [0, 0]
+    readonly property var span: following ? sentenceAt(OrrinState.reply, pos) : [0, 0]
     readonly property string replyHtml: {
-        const t = JarvisState.reply;
+        const t = OrrinState.reply;
         if (!following) return esc(t);
         return "<span style='color:" + hex(Theme.textSoft) + "'>" + esc(t.slice(0, span[0])) + "</span>"
              + "<span style='color:" + hex(Qt.lighter(toast.accent, 1.45)) + "'>" + esc(t.slice(span[0], span[1])) + "</span>"
@@ -95,12 +95,12 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: toast.on ? 260 : 420; easing.type: Easing.OutCubic } }
         transform: Translate { y: toast.on ? 0 : 16; Behavior on y { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } } }
 
-        HoverHandler { onHoveredChanged: JarvisState.hovered = hovered }
+        HoverHandler { onHoveredChanged: OrrinState.hovered = hovered }
         TapHandler {
             onTapped: {
-                JarvisLink.show(toast.modelData.name);
-                if (JarvisLink.current !== null) JarvisLink.openThread(JarvisLink.current);
-                JarvisState.dismiss();
+                OrrinLink.show(toast.modelData.name);
+                if (OrrinLink.current !== null) OrrinLink.openThread(OrrinLink.current);
+                OrrinState.dismiss();
             }
         }
 
@@ -232,36 +232,36 @@ PanelWindow {
                     }
                     // ALCHEMOS: the persona's sign (☉ / ☽), breathing
                     SigilText {
-                        visible: JarvisState.hasAccent
+                        visible: OrrinState.hasAccent
                         anchors.centerIn: parent
-                        text: JarvisState.glyph
+                        text: OrrinState.glyph
                         color: toast.accent
                         font.pixelSize: 12
                         glow: 0.6
                         SequentialAnimation on scale {
-                            running: toast.visible && JarvisState.hasAccent; loops: Animation.Infinite
-                            NumberAnimation { from: 0.85; to: 1.15; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
-                            NumberAnimation { from: 1.15; to: 0.85; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                            running: toast.visible && OrrinState.hasAccent; loops: Animation.Infinite
+                            NumberAnimation { from: 0.85; to: 1.15; duration: OrrinState.listening || OrrinState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 1.15; to: 0.85; duration: OrrinState.listening || OrrinState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
                         }
                     }
                     Rectangle {
-                        visible: !JarvisState.hasAccent
+                        visible: !OrrinState.hasAccent
                         anchors.centerIn: parent
                         // legacy: JARVIS a round core; FRIDAY a diamond
-                        width: 8; height: 8; radius: JarvisState.who === "friday" ? 1 : 4
-                        rotation: JarvisState.who === "friday" ? 45 : 0
+                        width: 8; height: 8; radius: OrrinState.who === "friday" ? 1 : 4
+                        rotation: OrrinState.who === "friday" ? 45 : 0
                         color: toast.accent
                         SequentialAnimation on scale {
-                            running: toast.visible && !JarvisState.hasAccent; loops: Animation.Infinite
-                            NumberAnimation { from: 0.7; to: 1.25; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
-                            NumberAnimation { from: 1.25; to: 0.7; duration: JarvisState.listening || JarvisState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                            running: toast.visible && !OrrinState.hasAccent; loops: Animation.Infinite
+                            NumberAnimation { from: 0.7; to: 1.25; duration: OrrinState.listening || OrrinState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 1.25; to: 0.7; duration: OrrinState.listening || OrrinState.speaking ? 380 : 700; easing.type: Easing.InOutSine }
                         }
                     }
                 }
                 Text {
                     anchors.left: reactor.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
-                    text: JarvisState.dotted
-                    color: JarvisState.hasAccent ? JarvisState.accent : Theme.primary
+                    text: OrrinState.dotted
+                    color: OrrinState.hasAccent ? OrrinState.accent : Theme.primary
                     font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 4
                 }
                 Text {
@@ -276,13 +276,13 @@ PanelWindow {
             Divider {
                 visible: Style.divider !== ""
                 width: parent.width
-                glyph: JarvisState.glyph
+                glyph: OrrinState.glyph
                 color: toast.accent
             }
 
             // waveform while listening with nothing heard yet
             Row {
-                visible: JarvisState.listening && JarvisState.transcript === ""
+                visible: OrrinState.listening && OrrinState.transcript === ""
                 height: 26; spacing: 4
                 Repeater {
                     model: 22
@@ -293,7 +293,7 @@ PanelWindow {
                         color: Theme.p(0.75)
                         height: 6
                         SequentialAnimation on height {
-                            running: toast.visible && JarvisState.listening
+                            running: toast.visible && OrrinState.listening
                             loops: Animation.Infinite
                             NumberAnimation { to: 8 + (index * 37 % 17); duration: 180 + (index * 53 % 160); easing.type: Easing.InOutSine }
                             NumberAnimation { to: 4; duration: 180 + (index * 29 % 140); easing.type: Easing.InOutSine }
@@ -305,9 +305,9 @@ PanelWindow {
             // what Trevor said
             Text {
                 id: said
-                visible: JarvisState.transcript !== ""
+                visible: OrrinState.transcript !== ""
                 width: parent.width
-                text: "“" + JarvisState.transcript + "”"
+                text: "“" + OrrinState.transcript + "”"
                 color: Theme.textSoft
                 font.family: Style.fonts.body; font.pixelSize: 13; font.italic: true
                 wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
@@ -316,11 +316,11 @@ PanelWindow {
             // tool calls as they run
             Column {
                 id: toolCol
-                visible: JarvisState.tools.length > 0 && toast.phase !== "alert"
+                visible: OrrinState.tools.length > 0 && toast.phase !== "alert"
                 width: parent.width
                 spacing: 3
                 Repeater {
-                    model: JarvisState.tools
+                    model: OrrinState.tools
                     Text {
                         id: line
                         required property string modelData
@@ -340,7 +340,7 @@ PanelWindow {
 
             // thinking dots
             Text {
-                visible: toast.busy && JarvisState.reply === ""
+                visible: toast.busy && OrrinState.reply === ""
                 text: "▸ " + "· · ·".slice(0, 1 + 2 * dots.n)
                 color: Theme.dim
                 font.family: Style.fonts.body; font.pixelSize: 13
@@ -373,7 +373,7 @@ PanelWindow {
                         id: lineMark
                         visible: toast.following
                         x: -8; width: replyText.width + 16
-                        readonly property rect r: replyText.positionToRectangle(Math.max(0, Math.min(toast.pos, JarvisState.reply.length - 1)))
+                        readonly property rect r: replyText.positionToRectangle(Math.max(0, Math.min(toast.pos, OrrinState.reply.length - 1)))
                         y: r.y - 2; height: r.height + 4
                         Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
                         radius: 4
@@ -415,7 +415,7 @@ PanelWindow {
                 QtObject { id: readPace; property real pos: 0 }
                 Timer {
                     running: toast.visible && toast.showReply && !toast.following && !scroller.userScrolled
-                             && !JarvisState.hovered && scroller.maxY > 0
+                             && !OrrinState.hovered && scroller.maxY > 0
                     interval: 60; repeat: true
                     property int waited: 0
                     onRunningChanged: waited = 0

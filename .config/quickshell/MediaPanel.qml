@@ -159,7 +159,7 @@ PanelWindow {
     }
 
     // ── Track info + controls ──
-    readonly property bool dj: JarvisFeed.djOn || JarvisFeed.djBuilding
+    readonly property bool dj: OrrinFeed.djOn || OrrinFeed.djBuilding
     Column {
         x: 500; y: media.dj ? 80 : 110
         width: media.width - 500
@@ -256,7 +256,7 @@ PanelWindow {
             opacity: 0.85
         }
 
-        // ── DJ mode (JarvisFeed.dj ← ~/.config/jarvis/core/dj.py): set name, mood, the next three ──
+        // ── DJ mode (OrrinFeed.dj ← ~/.config/jarvis/core/dj.py): set name, mood, the next three ──
         Column {
             width: parent.width
             visible: media.dj
@@ -267,25 +267,25 @@ PanelWindow {
                 Rectangle {
                     width: 8; height: 8; radius: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    color: JarvisFeed.djBuilding ? media.amber : media.cyan
+                    color: OrrinFeed.djBuilding ? media.amber : media.cyan
                     opacity: Perf.live(media.modelData) ? 0.55 + 0.45 * Math.sin(Perf.time * 3) : 1
                 }
                 Text { text: "DJ MODE"; color: media.cyan; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 3 }
                 Text {
                     width: media.width - 500 - 130; elide: Text.ElideRight
-                    text: JarvisFeed.djBuilding && !JarvisFeed.djOn ? "BUILDING SET…" : (JarvisFeed.dj.set || "").toUpperCase()
+                    text: OrrinFeed.djBuilding && !OrrinFeed.djOn ? "BUILDING SET…" : (OrrinFeed.dj.set || "").toUpperCase()
                     color: Theme.text; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2
                 }
             }
             Text {
-                text: [(JarvisFeed.dj.mood || "").toUpperCase(), JarvisFeed.dj.keep ? "VIBE HELD" : "",
-                       "CHATTER " + (JarvisFeed.dj.chatter || "rare").toUpperCase(),
-                       JarvisFeed.dj.remote && JarvisFeed.dj.device ? "ON " + JarvisFeed.dj.device.toUpperCase() : "",
-                       JarvisFeed.djBuilding && JarvisFeed.djOn ? "RESHAPING…" : ""].filter(x => x).join("  ·  ")
+                text: [(OrrinFeed.dj.mood || "").toUpperCase(), OrrinFeed.dj.keep ? "VIBE HELD" : "",
+                       "CHATTER " + (OrrinFeed.dj.chatter || "rare").toUpperCase(),
+                       OrrinFeed.dj.remote && OrrinFeed.dj.device ? "ON " + OrrinFeed.dj.device.toUpperCase() : "",
+                       OrrinFeed.djBuilding && OrrinFeed.djOn ? "RESHAPING…" : ""].filter(x => x).join("  ·  ")
                 color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 11; font.letterSpacing: 2
             }
             Repeater {
-                model: (JarvisFeed.dj.next || []).slice(0, 3)
+                model: (OrrinFeed.dj.next || []).slice(0, 3)
                 delegate: Row {
                     required property var modelData
                     required property int index

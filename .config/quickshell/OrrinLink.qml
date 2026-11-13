@@ -2,7 +2,7 @@ pragma Singleton
 // The JARVIS app's connection to the voice process (~/.config/jarvis/core/appserver.py):
 // a Unix socket in $XDG_RUNTIME_DIR/jarvis/app.sock, JSON lines both ways. While Jarvis isn't
 // running (undocked, or starting) history is still readable through `jarvis app-data …`.
-// Super + J (hypr/alchemos/binds.lua) → qs ipc call jarvisapp toggle → JarvisApp.qml.
+// Super + J (hypr/alchemos/binds.lua) → qs ipc call jarvisapp toggle → OrrinApp.qml.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -162,7 +162,7 @@ Singleton {
     // Connect whenever the voice process is up; after a restart (dock, reload) try again
     Timer {
         interval: 2000; repeat: true; triggeredOnStart: true
-        running: JarvisState.online && !sock.connected
+        running: OrrinState.online && !sock.connected
         onTriggered: { sock.connected = false; sock.connected = true; }
     }
 

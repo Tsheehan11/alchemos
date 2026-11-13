@@ -1,7 +1,7 @@
 # STARK OS: the Jarvis voice loop (~/.config/jarvis/jarvis.py), as its own user service so a
 # Quickshell restart or hot reload never takes it down (a DJ set keeps playing).
 #
-# Not enabled: the HUD (quickshell/JarvisState.qml) starts and stops it through
+# Not enabled: the HUD (quickshell/OrrinState.qml) starts and stops it through
 # ~/.config/jarvis/stark-jarvis (linked in ~/.local/bin), which writes the session env + mode to %t/jarvis/service.env.
 # Logs: journalctl --user -u stark-jarvis   (also ~/.local/share/jarvis/jarvis.log)
 #

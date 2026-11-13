@@ -24,7 +24,7 @@ Singleton {
         if (Date.now() - root.lastShown < 600000) return;
         root.lastShown = Date.now();
         root.owed = false;
-        JarvisState.alert("FINGERPRINT READER STUCK",
+        OrrinState.alert("FINGERPRINT READER STUCK",
                           "Run stark-fprint-reset in a terminal. The password still works.");
     }
 

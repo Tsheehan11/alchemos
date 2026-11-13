@@ -80,7 +80,7 @@ Column {
         width: parent.width
         visible: Audio.source !== null
         label: "Mute microphone"
-        hint: JarvisState.callOf("jarvis") + " can't hear you while muted"
+        hint: OrrinState.callOf("jarvis") + " can't hear you while muted"
         checked: Audio.source && Audio.source.audio ? Audio.source.audio.muted : false
         onToggled: if (Audio.source && Audio.source.audio) Audio.source.audio.muted = !Audio.source.audio.muted
     }

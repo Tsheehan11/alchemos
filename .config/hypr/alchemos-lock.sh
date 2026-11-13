@@ -10,7 +10,7 @@ log="${XDG_STATE_HOME:-$HOME/.local/state}/alchemos/hyprlock.log"
 give_up() {
     sleep 2
     [ "$(hyprctl locked 2>/dev/null)" = true ] || pidof hyprlock >/dev/null \
-        || qs ipc call stark unlocked >/dev/null 2>&1
+        || qs ipc call alchemos unlocked >/dev/null 2>&1
     exit 0
 }
 
@@ -42,7 +42,7 @@ done
 # at once by the freeze for suspend, so doors that weren't on screen by then showed as
 # black or the bare desktop when hyprlock faded out at unlock. Bounded (~0.6 s at most),
 # so a stuck Quickshell can't hold up the lock.
-timeout 0.3 qs ipc call stark locked >/dev/null 2>&1
+timeout 0.3 qs ipc call alchemos locked >/dev/null 2>&1
 mons=$(hyprctl monitors | grep -c '^Monitor ')
 for _ in 1 2 3 4 5; do
     [ "$(hyprctl layers | grep -c 'namespace: alchemos-doors')" -ge "$mons" ] && break   # on every screen
@@ -77,11 +77,11 @@ stdbuf -oL hyprlock 2>&1 | {
             *"fprint: started verifying"*|*"fprint: "*[Ee]rror*|*"fprint: could not"*)
                 [ -n "$guard" ] && { kill "$guard" 2>/dev/null; guard=""; } ;;
             *"status verify-match"*)    # the finger: the lock scene flashes its centre as it opens
-                [ -z "$opened" ] && { { qs ipc call stark fingerprint; qs ipc call stark unlocked; } >/dev/null 2>&1 & opened=1; } ;;
+                [ -z "$opened" ] && { { qs ipc call alchemos fingerprint; qs ipc call alchemos unlocked; } >/dev/null 2>&1 & opened=1; } ;;
             *"auth: authenticated"*|*"Unlocking with a SIGUSR1"*|*"Unlocked, exiting!"*)
-                [ -z "$opened" ] && { qs ipc call stark unlocked >/dev/null 2>&1 & opened=1; } ;;
+                [ -z "$opened" ] && { qs ipc call alchemos unlocked >/dev/null 2>&1 & opened=1; } ;;
         esac
     done
     [ -n "$guard" ] && kill "$guard" 2>/dev/null
-    [ -n "$opened" ] || qs ipc call stark unlocked >/dev/null 2>&1
+    [ -n "$opened" ] || qs ipc call alchemos unlocked >/dev/null 2>&1
 }

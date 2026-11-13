@@ -58,7 +58,7 @@ Google Calendar); it stays as the fallback when the tracker isn't set up.
 
 ## Stage 2: JARVIS app (Quickshell)
 
-- `JarvisApp.qml`: a holographic console (Theme colours, HudFrame), Super+J toggles it on the
+- `OrrinApp.qml`: a holographic console (Theme colours, HudFrame), Super+J toggles it on the
   focused monitor (bind in `hypr/stark/binds.lua`, IPC `jarvis app`).
 - Conversations: `threads` + `messages` tables in jarvis_db. Every turn (voice or typed) lands in
   the current thread; a request that runs tools or more than one turn starts its own thread,
@@ -80,7 +80,7 @@ timeout = no. While Jarvis is off, the app reads history through `jarvis app-dat
 no new task starts and nothing is asked aloud; running tasks continue.
 
 **UI polish (after stage 2):**
-- Pop-up (JarvisToast): projected text on a blurred glass plate (no hard border), glowing text, faint
+- Pop-up (OrrinToast): projected text on a blurred glass plate (no hard border), glowing text, faint
   scanlines, an occasional flicker, a projector line; fades in and out. The whole reply, always:
   `core/hud.py` no longer cuts arguments at 600 characters, and a long reply scrolls inside (max 40 % of
   the screen). Karaoke: `Utterance` reports each sentence as it starts playing (`hud.speak(start, end,
@@ -129,7 +129,7 @@ reverts the calendar batch linked to it. `tracker_remove` deletes one row (never
 **LEARN merge fix.** `academic.dedupe`: an "… – Available" entry never overrides a real deadline with the
 same key (it had put CHE 102 A3–A6 at the next morning's review time).
 
-**Console.** Clicking the JARVIS pop-up (JarvisToast) opens the console on that monitor.
+**Console.** Clicking the JARVIS pop-up (OrrinToast) opens the console on that monitor.
 
 ## Stage 3: Window reading + watchers
 
@@ -263,7 +263,7 @@ re-homed the workspace to the remaining screen (no "monitor -1"), every capture 
   stops; otherwise a one-shot fast-model look with no tools compares BEFORE / NOW with the step's `expect`. Not as
   expected → stops and says what it saw (fenced), and the model asks him. Verification turns count under "control"
   (console header: "(WATCHERS n · CONTROL n)").
-- Border: `quickshell/JarvisControl.qml` (+ `JarvisControlState.qml` singleton, IPC `jarviscontrol frame | hide | stop`),
+- Border: `quickshell/OrrinControl.qml` (+ `OrrinControlState.qml` singleton, IPC `jarviscontrol frame | hide | stop`),
   an Overlay layer over the window plus a glow margin, empty input mask (clicks go through), breathing theme-primary
   outline and a tag "J.A.R.V.I.S CONTROL · ACTING · STEP 2/3 · SUPER+SHIFT+ESC / "STOP" TO STOP". The runner beats it
   every 0.5 s; no beat for 2 s → gone. The kill switch flashes it STOPPED in the secondary colour.
@@ -287,7 +287,7 @@ re-homed the workspace to the remaining screen (no "monitor -1"), every capture 
 
 ## After stage 4: Jarvis on the laptop (2026-11-02)
 
-When Jarvis runs (`quickshell/JarvisState.qml`):
+When Jarvis runs (`quickshell/OrrinState.qml`):
 - Docked: unchanged. It runs while the JARVIS toggle (Settings → JARVIS / HUD, control-center tile) is on
   (`jarvisDocked`, saved), and battery saver stops it only if `saverStopJarvis` says so.
 - Undocked: off by default. The same toggle switches it on for now (`laptopOn`, never saved). Any dock or undock
@@ -300,6 +300,6 @@ When Jarvis runs (`quickshell/JarvisState.qml`):
   with a JARVIS STAYS OFF toast. Battery saver doesn't affect laptop mode (autoSaver turns it on whenever he's on
   battery, which would have meant AC only).
 - Shown as ON, OFF or "ON (laptop, until dock change)" on the toggles and the bar (◉ listening, ◌ starting, ○ off).
-- Tested with a probe Quickshell (the real JarvisState with stub Theme / Roles / PowerMode / SysStats and a dummy
+- Tested with a probe Quickshell (the real OrrinState with stub Theme / Roles / PowerMode / SysStats and a dummy
   process logging its mode): undocked off → on (laptop) → dock (restarts in docked mode) → undock (off); docked
   toggle off / on; low battery stops it and refuses it, battery saver doesn't.

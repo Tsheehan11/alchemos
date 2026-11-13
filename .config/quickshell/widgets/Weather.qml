@@ -5,7 +5,7 @@ import ".."
 
 WidgetBody {
     id: w
-    readonly property var wx: JarvisFeed.weather || ({})
+    readonly property var wx: OrrinFeed.weather || ({})
     readonly property var now: wx.now || null
     readonly property bool has: now !== null
     title: "WEATHER" + (wx.place ? " // " + String(wx.place).toUpperCase() : "")

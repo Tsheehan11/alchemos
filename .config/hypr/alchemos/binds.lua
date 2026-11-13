@@ -24,9 +24,9 @@ bind("F",      hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 bind("V",      hl.dsp.window.float({ action = "toggle" }))
 bind("SHIFT + V", exec("qs ipc call roles cycle"))    -- what this screen's HUD shows: AUTO → CLOCK → STATS → MUSIC → NONE
 bind("SHIFT + K", exec("qs ipc call skin swap"))      -- the other skin (AlchemOS ⇄ legacy); nothing until legacy's first unlock
-bind("L",      exec("qs ipc call stark lock || ~/.config/hypr/alchemos-lock.sh"))
+bind("L",      exec("qs ipc call alchemos lock || ~/.config/hypr/alchemos-lock.sh"))
 bind("Tab",    exec("qs ipc call overview toggle"))
-bind("Escape", exec("qs ipc call stark menu"))
+bind("Escape", exec("qs ipc call alchemos menu"))
 bind("J",      exec("qs ipc call jarvisapp toggle"))  -- JARVIS console (conversations, typed requests, tasks)
 -- Kill switch: Jarvis lets go of any window it's working (jarvis/core/control.py checks this flag before
 -- every input event). Plain shell, so it works even if Python or the HUD is stuck.
@@ -70,7 +70,7 @@ hl.bind("XF86MonBrightnessDown", exec("brightnessctl -q set 5%- && qs ipc call o
 hl.bind("XF86AudioPlay", exec("playerctl play-pause"), locked)
 hl.bind("XF86AudioNext", exec("playerctl next"), locked)
 hl.bind("XF86AudioPrev", exec("playerctl previous"), locked)
-hl.bind("XF86PowerOff",  exec("qs ipc call stark menu"), locked)
+hl.bind("XF86PowerOff",  exec("qs ipc call alchemos menu"), locked)
 
 -- Lid: closing it (laptop only) locks + turns the screen off; opening turns it back on
 hl.bind("switch:on:Lid Switch",  exec("~/.config/hypr/lid.sh"), locked)

@@ -25,7 +25,7 @@ What is refused, always, with a reason Jarvis can say (check_plan, then again at
     (a page saying "type this into your terminal" can't get it typed), and screen content never adds steps.
 
 While it runs (Session): a glowing border in the theme colour around the window (quickshell
-JarvisControl.qml, beaten every 0.5 s, gone within 2 s if this process dies). Before every input event:
+OrrinControl.qml, beaten every 0.5 s, gone within 2 s if this process dies). Before every input event:
 the kill switch (Super+Shift+Escape or "stop": the flag file STOP_FLAG), hyprlock, the display settle gate,
 combat mode (waits up to 2 min, then gives up), the window still there, still allowed and still the
 focused window (a pop-up or another app taking focus stops the plan), the point inside the window and not

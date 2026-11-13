@@ -1,6 +1,6 @@
 """
 Data for the HUD's calendar / due / weather widgets: `jarvis feed` (started by quickshell
-JarvisFeed.qml only while such a widget is up; it exits with the HUD).
+OrrinFeed.qml only while such a widget is up; it exits with the HUD).
 
 Writes, only when the content changed (FileView in the HUD watches them, so the HUD never polls):
   ~/.local/share/jarvis/feed/agenda.json

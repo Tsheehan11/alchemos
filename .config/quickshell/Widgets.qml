@@ -1,6 +1,6 @@
 pragma Singleton
 // Desktop widgets: clocks, timers, stopwatches, now playing, system stats, notes, agenda, due dates,
-// Jarvis status, Claude usage, weather, network, DJ deck (data for the last seven: JarvisFeed.qml).
+// Jarvis status, Claude usage, weather, network, DJ deck (data for the last seven: OrrinFeed.qml).
 //
 // Each widget is { id, type, mon, fx, fy, scale, pinned, params }:
 //   mon      — the monitor it lives on, by Hyprland description (Roles.keyOf: the laptop on its
@@ -599,7 +599,7 @@ Singleton {
         const label = it.params.label || "";
         Quickshell.execDetached(["pw-play", "-P", "{ media.name = \"Jarvis timer\" state.restore-props = false }", root.home + "/.config/quickshell/sounds/widget-alarm.wav"]);
         Quickshell.execDetached(["alchemos-govee", "anim", "alert"]);
-        JarvisState.alert("TIMER", (label ? label.toUpperCase() + " · " : "") + "TIME'S UP");
+        OrrinState.alert("TIMER", (label ? label.toUpperCase() + " · " : "") + "TIME'S UP");
         if (Theme.cfg.jarvisSpeak) {
             const line = (late ? "While I was away, sir, your " : "Your ") + (label ? label + " " : "") + "timer is done" + (late ? "." : ", sir.");
             speakTimer.line = line;

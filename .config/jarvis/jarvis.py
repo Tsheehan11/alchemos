@@ -16,7 +16,7 @@ JARVIS: Claude-powered voice assistant for the desktop (AlchemOS; STARK OS in th
   "Hey Jarvis" while it's talking or thinking interrupts it.
   Combat mode pauses the wake word (frees the mic); reminders still fire.
 
-Started by the HUD (quickshell/JarvisState.qml) only while docked.
+Started by the HUD (quickshell/OrrinState.qml) only while docked.
 
 Text mode / testing:
   jarvis --text "set the theme to matrix and dim the lights"
@@ -31,7 +31,7 @@ Phase-2 integrations (servers.json, core/integrations.py, docs/phase2-*.md):
   jarvis connect google | microsoft | learn-ical [URL]
   jarvis disconnect google | microsoft | learn-ical
 
-JARVIS app (Super + J, quickshell/JarvisApp.qml; core/appserver.py, conversations.py, tasks.py):
+JARVIS app (Super + J, quickshell/OrrinApp.qml; core/appserver.py, conversations.py, tasks.py):
   jarvis control stop | status | log    window control: kill switch (Super+Shift+Escape runs "stop"), state, history
   jarvis app-data threads [QUERY] [--quick] | thread ID | tasks | task ID | watchers | usage   history as JSON
 

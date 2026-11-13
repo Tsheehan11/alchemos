@@ -57,15 +57,15 @@ ShellRoot {
     }
     Variants {
         model: Quickshell.screens
-        JarvisToast {}
+        OrrinToast {}
     }
     Variants {                  // JARVIS console (Super + J): conversations, typed requests, tasks
         model: Quickshell.screens
-        JarvisApp {}
+        OrrinApp {}
     }
     Variants {                  // the glow around a window Jarvis is working (stage 4, core/control.py)
         model: Quickshell.screens
-        JarvisControl {}
+        OrrinControl {}
     }
     Variants {
         model: Quickshell.screens
@@ -201,7 +201,7 @@ ShellRoot {
 
     //   used by ~/.config/hypr/alchemos-lock.sh
     IpcHandler {
-        target: "stark"
+        target: "alchemos"
         function lock(): void { LockState.requestLock() }            // Super + L
         function locked(): void { LockState.locked() }
         function unlocked(): void { LockState.unlocked() }
@@ -228,46 +228,46 @@ ShellRoot {
     //   qs ipc call jarvisapp toggle   (Super + J, hypr/alchemos/binds.lua)
     IpcHandler {
         target: "jarvisapp"
-        function toggle(): void { JarvisLink.toggle() }
-        function open(): void { JarvisLink.show() }
-        function close(): void { JarvisLink.open = false }
+        function toggle(): void { OrrinLink.toggle() }
+        function open(): void { OrrinLink.show() }
+        function close(): void { OrrinLink.open = false }
     }
 
     //   used by ~/.config/jarvis/core/control.py while Jarvis works a window; stop = the kill switch
     IpcHandler {
         target: "jarviscontrol"
-        function frame(scr: string, x: int, y: int, w: int, h: int, label: string): void { JarvisControlState.show(scr, x, y, w, h, label) }
-        function hide(): void { JarvisControlState.hide() }
-        function stop(): void { JarvisControlState.stop() }
+        function frame(scr: string, x: int, y: int, w: int, h: int, label: string): void { OrrinControlState.show(scr, x, y, w, h, label) }
+        function hide(): void { OrrinControlState.hide() }
+        function stop(): void { OrrinControlState.stop() }
     }
 
     //   used by ~/.config/jarvis/jarvis.py (core/hud.py)
     IpcHandler {
         target: "jarvis"
-        function online(): string { return JarvisState.beat() }          // heartbeat; "resync" → Jarvis sends restore
-        function offline(): void { JarvisState.goOffline() }
-        function restore(state: string): void { JarvisState.restore(state) }   // JSON from core/hud.py after a qs restart
-        function listening(): void { JarvisState.startListening() }
-        function transcript(text: string): void { JarvisState.setTranscript(text) }
-        function thinking(): void { JarvisState.thinking() }
-        function tool(label: string): void { JarvisState.tool(label) }       // "THEME → MARK III"
-        function reply(text: string): void { JarvisState.setReply(text) }
-        function confirm(text: string): void { JarvisState.confirm(text) }
-        function followup(): void { JarvisState.followup() }
-        function idle(): void { JarvisState.idle() }
-        function toast(title: string, text: string): void { JarvisState.alert(title, text) }   // timers / reminders
-        function error(reason: string, text: string): void { JarvisState.fail(reason, text) }  // "NO NETWORK", spoken line
-        function note(label: string): void { JarvisState.note(label) }
-        function speak(start: int, end: int, total: int, ms: int): void { JarvisState.speak(start, end, total, ms) }
-        function speechDone(): void { JarvisState.speechDone() }
-        function paused(on: string): void { JarvisState.paused = on === "true" }
-        function heard(msg: string): void { JarvisState.heard(msg) }
-        function status(msg: string): void { JarvisState.status(msg) }
+        function online(): string { return OrrinState.beat() }          // heartbeat; "resync" → Jarvis sends restore
+        function offline(): void { OrrinState.goOffline() }
+        function restore(state: string): void { OrrinState.restore(state) }   // JSON from core/hud.py after a qs restart
+        function listening(): void { OrrinState.startListening() }
+        function transcript(text: string): void { OrrinState.setTranscript(text) }
+        function thinking(): void { OrrinState.thinking() }
+        function tool(label: string): void { OrrinState.tool(label) }       // "THEME → MARK III"
+        function reply(text: string): void { OrrinState.setReply(text) }
+        function confirm(text: string): void { OrrinState.confirm(text) }
+        function followup(): void { OrrinState.followup() }
+        function idle(): void { OrrinState.idle() }
+        function toast(title: string, text: string): void { OrrinState.alert(title, text) }   // timers / reminders
+        function error(reason: string, text: string): void { OrrinState.fail(reason, text) }  // "NO NETWORK", spoken line
+        function note(label: string): void { OrrinState.note(label) }
+        function speak(start: int, end: int, total: int, ms: int): void { OrrinState.speak(start, end, total, ms) }
+        function speechDone(): void { OrrinState.speechDone() }
+        function paused(on: string): void { OrrinState.paused = on === "true" }
+        function heard(msg: string): void { OrrinState.heard(msg) }
+        function status(msg: string): void { OrrinState.status(msg) }
         // persona: `qs ipc call jarvis persona friday` switches the default (Jarvis announces it in the new
         // voice); `qs ipc call jarvis whois` → the active one. answering: sent by Jarvis per exchange ("" = default)
-        function persona(name: string): string { return JarvisState.setPersona(name) }
-        function whois(): string { return JarvisState.persona }
-        function answering(who: string): void { JarvisState.answering = who }
+        function persona(name: string): string { return OrrinState.setPersona(name) }
+        function whois(): string { return OrrinState.persona }
+        function answering(who: string): void { OrrinState.answering = who }
     }
 
     //   qs ipc call vpn toggle proton | connect school | disconnect | status   (VPN.qml)

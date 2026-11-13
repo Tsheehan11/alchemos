@@ -125,11 +125,11 @@ PanelWindow {
                           act: () => cc.run("bluetoothctl power " + (cc.btOn ? "off" : "on")) },
                         { label: "MUTE", icon: cc.muted ? "volume-mute" : "volume", sub: cc.muted ? "muted" : "sound on", on: cc.muted,
                           act: () => { if (cc.sink && cc.sink.audio) cc.sink.audio.muted = !cc.muted; } },
-                        { label: JarvisState.assistant, icon: JarvisState.toggleOn ? "mic" : "mic-off", on: JarvisState.toggleOn,
-                          sub: !JarvisState.toggleOn ? (JarvisState.docked ? "off" : "off · laptop")
-                             : JarvisState.laptopMode ? "on · laptop, until dock change"
-                             : JarvisState.online ? "on · listening" : "on · starting…",
-                          act: () => JarvisState.toggle() },
+                        { label: OrrinState.assistant, icon: OrrinState.toggleOn ? "mic" : "mic-off", on: OrrinState.toggleOn,
+                          sub: !OrrinState.toggleOn ? (OrrinState.docked ? "off" : "off · laptop")
+                             : OrrinState.laptopMode ? "on · laptop, until dock change"
+                             : OrrinState.online ? "on · listening" : "on · starting…",
+                          act: () => OrrinState.toggle() },
                         { label: "AMBIENT LIGHTS", on: Govee.mode !== "off", sub: Govee.mode,
                           act: () => Govee.setMode(Govee.mode === "off" ? "auto" : "off") },
                         { label: "COMBAT MODE", on: GameMode.active,

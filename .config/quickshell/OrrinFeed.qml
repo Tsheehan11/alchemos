@@ -22,7 +22,7 @@ Singleton {
 
     // ── Jarvis status ──
     property var status: ({})
-    readonly property bool online: JarvisState.online && (status.pid || 0) > 0
+    readonly property bool online: OrrinState.online && (status.pid || 0) > 0
     readonly property var mic: online ? (status.mic || {}) : ({})
     readonly property var last: status.last || ({})
     readonly property var tasks: status.tasks || []
@@ -37,7 +37,7 @@ Singleton {
     }
     // the file appears / goes with the Jarvis process
     Connections {
-        target: JarvisState
+        target: OrrinState
         function onOnlineChanged() { statusFile.reload(); djFile.reload(); }
         function onRunningChanged() { statusFile.reload(); }
     }

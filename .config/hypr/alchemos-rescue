@@ -56,7 +56,7 @@ if [ "${1:-}" = status ]; then
         [ "$n" -gt 0 ] && say "windows on no monitor: $n (Super+Tab is unsafe until the gate re-homes them)" \
                        || say "windows on no monitor: none"
     fi
-    # Jarvis: its own user service, started / stopped by the HUD (quickshell/JarvisState.qml)
+    # Jarvis: its own user service, started / stopped by the HUD (quickshell/OrrinState.qml)
     unit=stark-jarvis.service
     st=$(systemctl --user is-active "$unit" 2>/dev/null)
     pid=$(systemctl --user show -P MainPID "$unit" 2>/dev/null)

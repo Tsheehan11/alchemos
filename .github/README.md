@@ -630,7 +630,7 @@ to his voice on the fast path, 2–3 s through Claude.
   instructions. No network listeners. Runs with `NoNewPrivileges` (no sudo / setuid helpers).
 - **Its own service:** `stark-jarvis.service` (systemd user unit), so restarting or hot-reloading
   Quickshell never stops it: a DJ set, a timer or a conversation carries on. The HUD
-  (`quickshell/JarvisState.qml`) only starts and stops it, through `stark-jarvis start docked|laptop`
+  (`quickshell/OrrinState.qml`) only starts and stops it, through `stark-jarvis start docked|laptop`
   / `stop`, keeping the rules: docked it follows the Jarvis toggle (`jarvisDocked`, and battery saver
   if `saverStopJarvis`); undocked it's off until switched on for now, any dock / undock resets that;
   laptop mode stops under 20 % on battery; combat mode only pauses the wake word. A restarted HUD

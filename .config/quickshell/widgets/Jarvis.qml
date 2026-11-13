@@ -1,33 +1,33 @@
 // Jarvis status: what he's doing (listening / thinking / speaking / standing by), the request in hand,
 // background tasks from the console with their progress, and the last command. Click: the Super+J console.
-// Live state comes from JarvisState (IPC from the voice process); tasks and the last command from
-// JarvisFeed (status.json). The core ring turns and breathes with the effects clock only.
+// Live state comes from OrrinState (IPC from the voice process); tasks and the last command from
+// OrrinFeed (status.json). The core ring turns and breathes with the effects clock only.
 import QtQuick
 import ".."
 
 WidgetBody {
     id: w
-    readonly property bool on: JarvisState.online
-    readonly property string mode: !JarvisState.online ? (JarvisState.running ? "starting" : "offline")
-                                  : JarvisState.paused ? "paused" : JarvisState.speaking ? "speaking"
-                                  : JarvisState.phase === "thinking" || JarvisState.phase === "confirm" ? "thinking"
-                                  : JarvisState.listening ? "listening" : "idle"
+    readonly property bool on: OrrinState.online
+    readonly property string mode: !OrrinState.online ? (OrrinState.running ? "starting" : "offline")
+                                  : OrrinState.paused ? "paused" : OrrinState.speaking ? "speaking"
+                                  : OrrinState.phase === "thinking" || OrrinState.phase === "confirm" ? "thinking"
+                                  : OrrinState.listening ? "listening" : "idle"
     readonly property var labels: ({ offline: "OFFLINE", starting: "COMING ONLINE", paused: "PAUSED · COMBAT", speaking: "SPEAKING",
                                      thinking: "THINKING", listening: "LISTENING", idle: "STANDING BY" })
-    readonly property color tone: mode === "paused" ? Theme.secondary : mode === "offline" ? Theme.faint : JarvisState.accent
-    readonly property var tasks: JarvisFeed.tasks.filter(t => t.status === "running" || t.status === "queued")
-    readonly property var last: JarvisFeed.last
-    readonly property string now: JarvisState.phase !== "idle" && JarvisState.transcript ? JarvisState.transcript : ""
+    readonly property color tone: mode === "paused" ? Theme.secondary : mode === "offline" ? Theme.faint : OrrinState.accent
+    readonly property var tasks: OrrinFeed.tasks.filter(t => t.status === "running" || t.status === "queued")
+    readonly property var last: OrrinFeed.last
+    readonly property string now: OrrinState.phase !== "idle" && OrrinState.transcript ? OrrinState.transcript : ""
 
-    title: JarvisState.glyph + " " + JarvisState.name
+    title: OrrinState.glyph + " " + OrrinState.name
     detail: labels[mode]
-    function clicked() { JarvisLink.show(); }
+    function clicked() { OrrinLink.show(); }
 
     implicitWidth: 340
     implicitHeight: Math.max(86, info.height)
 
     function ago(ts) {
-        const s = Math.max(0, Math.round(JarvisFeed.now / 1000 - ts));
+        const s = Math.max(0, Math.round(OrrinFeed.now / 1000 - ts));
         return s < 60 ? "JUST NOW" : s < 3600 ? Math.round(s / 60) + " MIN AGO" : Math.round(s / 3600) + " H AGO";
     }
 
@@ -75,9 +75,9 @@ WidgetBody {
             color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11
         }
         Text {
-            visible: JarvisState.tools.length > 0 && JarvisState.phase !== "idle"
+            visible: OrrinState.tools.length > 0 && OrrinState.phase !== "idle"
             width: parent.width; elide: Text.ElideRight
-            text: "› " + (JarvisState.tools[JarvisState.tools.length - 1] || "")
+            text: "› " + (OrrinState.tools[OrrinState.tools.length - 1] || "")
             color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
         }
         Item { width: 1; height: 3 }
@@ -117,9 +117,9 @@ WidgetBody {
             color: Theme.faint; font.family: Style.fonts.label; font.pixelSize: 9; font.letterSpacing: 2
         }
         Text {
-            visible: !JarvisState.running && !JarvisState.online
+            visible: !OrrinState.running && !OrrinState.online
             width: parent.width; wrapMode: Text.Wrap
-            text: JarvisState.docked ? "Switched off · Settings → " + JarvisState.assistant : "Off on the laptop · Control center to switch on"
+            text: OrrinState.docked ? "Switched off · Settings → " + OrrinState.assistant : "Off on the laptop · Control center to switch on"
             color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
         }
     }

@@ -1,6 +1,6 @@
 #!/bin/sh
 # STARK OS: control the Jarvis voice service (~/.config/systemd/user/stark-jarvis.service).
-# The HUD (quickshell/JarvisState.qml) calls this; it works from a terminal too.
+# The HUD (quickshell/OrrinState.qml) calls this; it works from a terminal too.
 #
 #   stark-jarvis start [docked|laptop]   start it (no-op if it already runs in that mode; restarts
 #                                         it if the mode differs). Default: docked.

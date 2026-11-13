@@ -1,7 +1,7 @@
 """
 The JARVIS app's line to the voice process: a Unix socket in $XDG_RUNTIME_DIR/jarvis/ (directory
 0700, socket 0600; connections from any other user are dropped via SO_PEERCRED). Not a network
-listener. Quickshell (JarvisLink.qml) connects with Quickshell.Io.Socket.
+listener. Quickshell (OrrinLink.qml) connects with Quickshell.Io.Socket.
 
 JSON lines both ways. Requests {"op": …}; the server pushes events {"ev": …} to every client:
   thread, message, task, task_line, confirm, confirm_done, busy, tool, usage, state

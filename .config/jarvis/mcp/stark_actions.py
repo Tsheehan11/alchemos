@@ -588,7 +588,7 @@ def open_uwcs(host="", folder=""):
 @safe
 def lock_screen():
     """Lock the screen."""
-    return _do("lock screen", _qs("stark", "lock"), "locked")
+    return _do("lock screen", _qs("alchemos", "lock"), "locked")
 
 
 # ── screenshots ────────────────────────────────
@@ -642,7 +642,7 @@ def power(action):
     action = _choice(action, list(POWER), "action")
     if action == "suspend":
         return _do("suspend", ["alchemos-govee", "suspend"], "suspending", timeout=15)  # same as the power menu
-    return _do(action, _qs("stark", "power", action), f"{action} started")
+    return _do(action, _qs("alchemos", "power", action), f"{action} started")
 
 
 # ── timers / reminders ─────────────────────────

@@ -2,7 +2,7 @@
 // the same path as speech (fast path → local router → Claude), background tasks with a live log,
 // and YES / NO for anything Jarvis is waiting on. Super + J, on the focused monitor (or a click on the
 // JARVIS pop-up, on its monitor); Esc closes.
-// Data: JarvisLink.qml (socket to ~/.config/jarvis/core/appserver.py).
+// Data: OrrinLink.qml (socket to ~/.config/jarvis/core/appserver.py).
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -12,8 +12,8 @@ PanelWindow {
     id: app
     required property var modelData
     screen: modelData
-    // on the monitor it was opened on (JarvisLink.screenName), and mapped until it has faded out
-    readonly property bool shown: JarvisLink.open && (JarvisLink.screenName ? JarvisLink.screenName === modelData.name
+    // on the monitor it was opened on (OrrinLink.screenName), and mapped until it has faded out
+    readonly property bool shown: OrrinLink.open && (OrrinLink.screenName ? OrrinLink.screenName === modelData.name
                                                                            : Hyprland.focusedMonitor?.name === modelData.name)
     visible: shown || backdrop.opacity > 0.01
 
@@ -24,8 +24,8 @@ PanelWindow {
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
 
-    readonly property var link: JarvisLink
-    onShownChanged: if (shown) { JarvisState.dismiss(); Qt.callLater(() => input.focusInput()); }
+    readonly property var link: OrrinLink
+    onShownChanged: if (shown) { OrrinState.dismiss(); Qt.callLater(() => input.focusInput()); }
 
     function when(ts) {
         if (!ts) return "";
@@ -62,7 +62,7 @@ PanelWindow {
         color: Qt.rgba(0, 0, 0, 0.55)
         opacity: app.shown ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: app.shown ? 180 : 220; easing.type: Easing.OutCubic } }
-        MouseArea { anchors.fill: parent; enabled: app.shown; onClicked: JarvisLink.open = false }
+        MouseArea { anchors.fill: parent; enabled: app.shown; onClicked: OrrinLink.open = false }
     }
 
     HudFrame {
@@ -75,12 +75,12 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: app.shown ? 220 : 200; easing.type: Easing.OutCubic } }
         Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         fill: 0.94
-        title: (JarvisState.persona === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S") + "  ·  CONSOLE"
-        detail: (JarvisState.online ? (JarvisState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
-                                    : JarvisState.toggleOn ? "STARTING…"
-                                    : JarvisState.docked ? "OFFLINE · HISTORY ONLY · " + JarvisState.assistant + " IS OFF"
-                                    : "OFFLINE · HISTORY ONLY · OFF ON THE LAPTOP (TURN ON: " + JarvisState.assistant + " TOGGLE)")
-                + (JarvisState.laptopMode ? "   ·   LAPTOP MODE" : "")
+        title: (OrrinState.persona === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S") + "  ·  CONSOLE"
+        detail: (OrrinState.online ? (OrrinState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
+                                    : OrrinState.toggleOn ? "STARTING…"
+                                    : OrrinState.docked ? "OFFLINE · HISTORY ONLY · " + OrrinState.assistant + " IS OFF"
+                                    : "OFFLINE · HISTORY ONLY · OFF ON THE LAPTOP (TURN ON: " + OrrinState.assistant + " TOGGLE)")
+                + (OrrinState.laptopMode ? "   ·   LAPTOP MODE" : "")
                 + "   ·   CLAUDE TURNS TODAY " + (link.usage.turns ?? 0)
                 + ((link.usage.watch ?? 0) > 0 || (link.usage.control ?? 0) > 0
                    ? " (" + [(link.usage.watch ?? 0) > 0 ? "WATCHERS " + link.usage.watch : "",
@@ -115,13 +115,13 @@ PanelWindow {
                     width: parent.width
                     placeholder: "search conversations"
                     onTextChanged: searchDelay.restart()
-                    onCancelled: JarvisLink.open = false
-                    Timer { id: searchDelay; interval: 250; onTriggered: JarvisLink.search(search.text) }
+                    onCancelled: OrrinLink.open = false
+                    Timer { id: searchDelay; interval: 250; onTriggered: OrrinLink.search(search.text) }
                 }
                 Row {
                     spacing: 6
-                    SmallButton { text: "NEW THREAD"; onClicked: { JarvisLink.newThread(); input.focusInput(); } }
-                    SmallButton { text: "QUICK"; active: link.showQuick; onClicked: JarvisLink.setQuick(!link.showQuick) }
+                    SmallButton { text: "NEW THREAD"; onClicked: { OrrinLink.newThread(); input.focusInput(); } }
+                    SmallButton { text: "QUICK"; active: link.showQuick; onClicked: OrrinLink.setQuick(!link.showQuick) }
                 }
                 ListView {
                     id: threadList
@@ -158,12 +158,12 @@ PanelWindow {
                                 color: parent.parent.active ? Theme.primary : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 10
                             }
                         }
-                        MouseArea { id: tma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { JarvisLink.openThread(modelData.id); input.focusInput(); } }
+                        MouseArea { id: tma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { OrrinLink.openThread(modelData.id); input.focusInput(); } }
                     }
                     Text {
                         visible: threadList.count === 0
                         width: parent.width; wrapMode: Text.Wrap
-                        text: link.query ? "Nothing matches." : "No conversations yet. Talk to " + JarvisState.callOf("jarvis") + " or type below."
+                        text: link.query ? "Nothing matches." : "No conversations yet. Talk to " + OrrinState.callOf("jarvis") + " or type below."
                         color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }
@@ -212,7 +212,7 @@ PanelWindow {
                         anchors.right: parent.right
                         visible: link.connected && link.shownThread && link.shownThread.id !== link.current
                         text: "RESUME"
-                        onClicked: { JarvisLink.resume(link.shownThread.id); input.focusInput(); }
+                        onClicked: { OrrinLink.resume(link.shownThread.id); input.focusInput(); }
                     }
                 }
 
@@ -246,9 +246,9 @@ PanelWindow {
                                 anchors.top: cf.plan ? parent.top : undefined; anchors.topMargin: 8
                                 anchors.verticalCenter: cf.plan ? undefined : parent.verticalCenter
                                 spacing: 6
-                                SmallButton { text: "YES"; active: true; onClicked: JarvisLink.answer(cf.modelData.id, true) }
-                                SmallButton { visible: cf.modelData.allow_task === true; text: "ALLOW TASK"; onClicked: JarvisLink.answer(cf.modelData.id, "task") }
-                                SmallButton { text: "NO"; onClicked: JarvisLink.answer(cf.modelData.id, false) }
+                                SmallButton { text: "YES"; active: true; onClicked: OrrinLink.answer(cf.modelData.id, true) }
+                                SmallButton { visible: cf.modelData.allow_task === true; text: "ALLOW TASK"; onClicked: OrrinLink.answer(cf.modelData.id, "task") }
+                                SmallButton { text: "NO"; onClicked: OrrinLink.answer(cf.modelData.id, false) }
                             }
                         }
                     }
@@ -270,7 +270,7 @@ PanelWindow {
                         if (follow || count <= 1 || (last && last.role === "user")) { follow = true; Qt.callLater(() => msgList.positionViewAtEnd()); }
                     }
                     Connections {
-                        target: JarvisLink
+                        target: OrrinLink
                         function onShownThreadChanged() { msgList.follow = true; Qt.callLater(() => msgList.positionViewAtEnd()); }
                     }
                     delegate: Column {
@@ -279,7 +279,7 @@ PanelWindow {
                         spacing: 3
                         readonly property bool me: modelData.role === "user"
                         Text {
-                            text: (me ? "YOU" : JarvisState.nameOf(modelData.persona)) + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
+                            text: (me ? "YOU" : OrrinState.nameOf(modelData.persona)) + "  ·  " + (modelData.source || "").toUpperCase() + "  ·  " + app.when(modelData.ts)
                                   + (!me && modelData.tier ? "  ·  " + modelData.tier.toUpperCase() : "")
                             color: me ? Theme.dim : Theme.primary
                             font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1
@@ -312,7 +312,7 @@ PanelWindow {
                     Text {
                         visible: msgList.count === 0
                         anchors.centerIn: parent
-                        text: link.connected ? "Ask " + JarvisState.callOf(JarvisState.persona) + " anything, or switch to TASK for a background job." : JarvisState.callOf("jarvis") + " is offline. History stays readable."
+                        text: link.connected ? "Ask " + OrrinState.callOf(OrrinState.persona) + " anything, or switch to TASK for a background job." : OrrinState.callOf("jarvis") + " is offline. History stays readable."
                         color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12
                     }
                     // scroll position
@@ -336,7 +336,7 @@ PanelWindow {
                 Text {
                     id: liveLine
                     width: parent.width; height: 16; elide: Text.ElideRight
-                    text: link.busy ? "◇ " + (JarvisState.phase === "listening" ? "LISTENING" : "WORKING") + (link.liveTool ? "  ·  " + link.liveTool : "")
+                    text: link.busy ? "◇ " + (OrrinState.phase === "listening" ? "LISTENING" : "WORKING") + (link.liveTool ? "  ·  " + link.liveTool : "")
                                       + (link.busyText ? "  ·  " + link.busyText : "") : ""
                     color: Theme.primary; font.family: Style.fonts.body; font.pixelSize: 11
                     SequentialAnimation on opacity {
@@ -353,15 +353,15 @@ PanelWindow {
                         text: link.mode
                         active: link.mode === "TASK"
                         height: 36
-                        onClicked: JarvisLink.mode = link.mode === "ASK" ? "TASK" : "ASK"
+                        onClicked: OrrinLink.mode = link.mode === "ASK" ? "TASK" : "ASK"
                     }
                     HudInput {
                         id: input
                         width: parent.width - 90; height: 36
                         maximumLength: 2000
-                        placeholder: !link.connected ? JarvisState.callOf("jarvis") + " is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + JarvisState.callOf(JarvisState.persona) + "…  (Enter)"
-                        onAccepted: { if (link.connected && text.trim()) { JarvisLink.ask(text); text = ""; } }
-                        onCancelled: JarvisLink.open = false
+                        placeholder: !link.connected ? OrrinState.callOf("jarvis") + " is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + OrrinState.callOf(OrrinState.persona) + "…  (Enter)"
+                        onAccepted: { if (link.connected && text.trim()) { OrrinLink.ask(text); text = ""; } }
+                        onCancelled: OrrinLink.open = false
                     }
                 }
             }
@@ -391,7 +391,7 @@ PanelWindow {
                             required property var modelData
                             readonly property var w: modelData
                             readonly property bool live: w.status === "active" || w.status === "paused"
-                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : w.laptop ? "PAUSED · ON LAPTOP" : link.connected ? "WATCHING" : "PAUSED · " + JarvisState.assistant + " OFF")
+                            readonly property string chipText: w.status === "active" ? (w.combat ? "PAUSED · COMBAT" : w.laptop ? "PAUSED · ON LAPTOP" : link.connected ? "WATCHING" : "PAUSED · " + OrrinState.assistant + " OFF")
                                                             : w.status === "paused" ? "PAUSED" : w.status === "done" ? "SEEN" : w.status.toUpperCase()
                             readonly property color tone: w.status === "active" && !w.combat && !w.laptop && link.connected ? Theme.primary
                                                         : w.status === "done" ? Theme.secondary : Theme.dim
@@ -444,8 +444,8 @@ PanelWindow {
                                 Row {
                                     visible: wcard.live && link.connected
                                     spacing: 6
-                                    SmallButton { text: wcard.w.status === "paused" ? "RESUME" : "PAUSE"; onClicked: JarvisLink.pauseWatch(wcard.w.id, wcard.w.status !== "paused") }
-                                    SmallButton { text: "STOP"; onClicked: JarvisLink.stopWatch(wcard.w.id) }
+                                    SmallButton { text: wcard.w.status === "paused" ? "RESUME" : "PAUSE"; onClicked: OrrinLink.pauseWatch(wcard.w.id, wcard.w.status !== "paused") }
+                                    SmallButton { text: "STOP"; onClicked: OrrinLink.stopWatch(wcard.w.id) }
                                 }
                             }
                         }
@@ -478,12 +478,12 @@ PanelWindow {
                         x: 10; y: 10; width: parent.width - 20
                         wrapMode: Text.Wrap; textFormat: Text.StyledText
                         color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11; lineHeight: 1.15
-                        text: "<b>A task is a job " + JarvisState.callOf("jarvis") + " does in the background</b> while you carry on: many steps "
+                        text: "<b>A task is a job " + OrrinState.callOf("jarvis") + " does in the background</b> while you carry on: many steps "
                             + "(up to 40 tool calls), its own thread, and a spoken note when it's done. Two run at once.<br><br>"
                             + "<b>Start one</b><br>"
                             + "· <b>Type</b>: switch the box below from ASK to <b>TASK</b>, describe the job, Enter.<br>"
                             + "· <b>Say</b>: \"Jarvis, do this in the background: …\"<br>"
-                            + "· Ask for something long, and " + JarvisState.callOf("jarvis") + " may hand it to a task itself.<br><br>"
+                            + "· Ask for something long, and " + OrrinState.callOf("jarvis") + " may hand it to a task itself.<br><br>"
                             + "<b>Examples</b><br>"
                             + "· Compare my tracker with LEARN and list what's different<br>"
                             + "· Summarise this week's course emails<br>"
@@ -510,7 +510,7 @@ PanelWindow {
                         color: link.selectedTask === t.id ? Theme.p(0.14) : Theme.p(state_ === "running" ? 0.06 : 0.0)
                         border.color: state_ === "waiting" ? Theme.secondary : link.selectedTask === t.id ? Theme.p(0.45) : Theme.p(0.18)
                         Behavior on height { NumberAnimation { duration: 160 } }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: JarvisLink.selectTask(card.t.id) }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: OrrinLink.selectTask(card.t.id) }
                         Column {
                             id: col
                             x: 8; y: 7; width: parent.width - 16
@@ -566,7 +566,7 @@ PanelWindow {
                                     case "done": return "Done in " + app.span(card.elapsed) + "  ·  " + steps + "  ·  " + app.when(t.finished);
                                     case "failed": return "Failed after " + app.span(card.elapsed) + "  ·  " + steps + "  ·  see the log";
                                     case "cancelled": return "Cancelled  ·  " + steps;
-                                    case "interrupted": return "Stopped when " + JarvisState.callOf("jarvis") + " restarted  ·  RESUME picks it up";
+                                    case "interrupted": return "Stopped when " + OrrinState.callOf("jarvis") + " restarted  ·  RESUME picks it up";
                                     }
                                     return steps;
                                 }
@@ -574,9 +574,9 @@ PanelWindow {
                             Row {
                                 visible: card.ask !== null
                                 spacing: 6
-                                SmallButton { text: "YES"; active: true; onClicked: JarvisLink.answer(card.ask.id, true) }
-                                SmallButton { visible: card.ask !== null && card.ask.allow_task === true; text: "ALLOW TASK"; onClicked: JarvisLink.answer(card.ask.id, "task") }
-                                SmallButton { text: "NO"; onClicked: JarvisLink.answer(card.ask.id, false) }
+                                SmallButton { text: "YES"; active: true; onClicked: OrrinLink.answer(card.ask.id, true) }
+                                SmallButton { visible: card.ask !== null && card.ask.allow_task === true; text: "ALLOW TASK"; onClicked: OrrinLink.answer(card.ask.id, "task") }
+                                SmallButton { text: "NO"; onClicked: OrrinLink.answer(card.ask.id, false) }
                             }
                         }
                     }
@@ -584,9 +584,9 @@ PanelWindow {
                 Row {
                     spacing: 6
                     visible: app.selTask !== null
-                    SmallButton { visible: app.selTask && (app.selTask.status === "running" || app.selTask.status === "queued"); text: "CANCEL"; onClicked: JarvisLink.cancelTask(app.selTask.id) }
-                    SmallButton { visible: app.selTask && ["interrupted", "failed", "cancelled"].indexOf(app.selTask.status) >= 0 && link.connected; text: "RESUME"; onClicked: JarvisLink.resumeTask(app.selTask.id) }
-                    SmallButton { visible: app.selTask && app.selTask.thread; text: "THREAD"; onClicked: JarvisLink.openThread(app.selTask.thread) }
+                    SmallButton { visible: app.selTask && (app.selTask.status === "running" || app.selTask.status === "queued"); text: "CANCEL"; onClicked: OrrinLink.cancelTask(app.selTask.id) }
+                    SmallButton { visible: app.selTask && ["interrupted", "failed", "cancelled"].indexOf(app.selTask.status) >= 0 && link.connected; text: "RESUME"; onClicked: OrrinLink.resumeTask(app.selTask.id) }
+                    SmallButton { visible: app.selTask && app.selTask.thread; text: "THREAD"; onClicked: OrrinLink.openThread(app.selTask.thread) }
                 }
                 Rectangle {
                     width: parent.width

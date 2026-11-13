@@ -6,7 +6,7 @@
 //     profile you had goes back on plug-in. Only an actual saver on/off changes
 //     it — a HUD restart leaves whatever profile you picked alone.
 //   • stats refresh every 5 s instead of 2 s
-//   • optionally pauses Jarvis (handled in JarvisState)
+//   • optionally pauses Jarvis (handled in OrrinState)
 // Picking BALANCED / PERFORMANCE by hand while unplugged (pickProfile) turns the
 // saver off until the next plug-in; picking SAVER turns it back on.
 // Everything goes back the moment you plug in.
