@@ -16,7 +16,7 @@ WEDGED='machine != NULL|Cannot run while suspended'
 
 case "$1" in
   post)
-    systemd-run --quiet --no-block --collect --unit=stark-fprintd-wake \
+    systemd-run --quiet --no-block --collect --unit=alchemos-fprintd-wake \
       --property=After="systemd-$2.service" -- "$0" wake "$(date +%s)"
     ;;
   wake)
@@ -37,10 +37,10 @@ case "$1" in
     while pidof hyprlock >/dev/null || preparing; do sleep 2; done
     sleep 2   # after a wake, give hyprlock (lid lock) a moment to come up first
     while pidof hyprlock >/dev/null || preparing; do sleep 2; done
-    # A USB reset alone often isn't enough (the sensor stays powered): stark-fprint-reset
+    # A USB reset alone often isn't enough (the sensor stays powered): alchemos-fprint-reset
     # escalates up to switching the port's power off and on, testing after each step.
-    if [ -x /usr/local/bin/stark-fprint-reset ]; then
-        /usr/local/bin/stark-fprint-reset --auto
+    if [ -x /usr/local/bin/alchemos-fprint-reset ]; then
+        /usr/local/bin/alchemos-fprint-reset --auto
         exit 0
     fi
     systemctl kill --signal=SIGKILL fprintd.service 2>/dev/null

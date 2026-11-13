@@ -4,7 +4,7 @@
 #   2. thaws the session if suspend left it frozen (only then asks for sudo)
 #   3. turns the screens back on
 #   4. unlocks hyprlock (SIGUSR1); if hyprlock is gone or hung, puts a fresh lock back
-#   5. if the fingerprint reader is stuck, resets it (stark-fprint-reset, asks for sudo)
+#   5. if the fingerprint reader is stuck, resets it (alchemos-fprint-reset, asks for sudo)
 # Then switch back to Hyprland with Ctrl+Alt+F2.
 #
 # alchemos-rescue status: is the Hyprland unplug-crash fix (0.57) out / installed / running,
@@ -176,17 +176,17 @@ else
 fi
 
 # 5. Fingerprint reader. Stuck if fprintd reported a wedge this boot after the last good
-# reset (stark-fprint-reset tests it first and stops there if it's fine). Only once
+# reset (alchemos-fprint-reset tests it first and stops there if it's fine). Only once
 # unlocked: hyprlock holds the reader while it's up.
 stuck='machine != NULL|already claimed|already in use'
 lastbad=$(journalctl -b -u fprintd -o short-unix --no-pager 2>/dev/null | grep -E "$stuck" | tail -1 | cut -d. -f1)
-lastok=$(journalctl -b -t stark-fprint-reset -o short-unix --no-pager 2>/dev/null | grep -E 'reader OK' | tail -1 | cut -d. -f1)
+lastok=$(journalctl -b -t alchemos-fprint-reset -t stark-fprint-reset -o short-unix --no-pager 2>/dev/null | grep -E 'reader OK' | tail -1 | cut -d. -f1)
 if [ -n "$lastbad" ] && [ "$lastbad" -gt "${lastok:-0}" ]; then
     if pgrep -u "$uid" -x hyprlock >/dev/null; then
-        say "the fingerprint reader looks stuck; after unlocking, run: stark-fprint-reset"
+        say "the fingerprint reader looks stuck; after unlocking, run: alchemos-fprint-reset"
     else
         say "the fingerprint reader looks stuck; resetting it (sudo)"
-        "$HOME/.local/bin/stark-fprint-reset" || say "still stuck: try stark-fprint-reset --hard, else power off"
+        "$HOME/.local/bin/alchemos-fprint-reset" || say "still stuck: try alchemos-fprint-reset --hard, else power off"
     fi
 fi
 

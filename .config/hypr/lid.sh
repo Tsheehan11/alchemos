@@ -3,7 +3,7 @@
 # logind suspends on lid close by itself (hypridle's before_sleep_cmd locks first, holding
 # an inhibitor until hyprlock is up). This script gets the lock and a dark screen in the
 # right order without waiting for logind, and suspends itself when logind ignores the lid:
-# for HoldoffTimeoutSec (5 s, logind.conf.d/stark.conf) after waking.
+# for HoldoffTimeoutSec (5 s, logind.conf.d/alchemos.conf) after waking.
 
 # Screens still coming or going (the HUD's settle gate, Hotplug.qml: a TV unplugged a
 # moment ago)? Decide "docked" only once they've settled, about 2 s at most. A flag older

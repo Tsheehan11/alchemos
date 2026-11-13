@@ -1,7 +1,7 @@
 pragma Singleton
 // Fingerprint reader watch: when fprintd reports the Elan reader wedged (or a claim left
 // stuck), say so on screen instead of the fingerprint just silently doing nothing. The
-// sleep hook resets a reader that wedges across suspend by itself (stark-fprint-reset
+// sleep hook resets a reader that wedges across suspend by itself (alchemos-fprint-reset
 // --auto, once the lock screen is gone), so wait for that first: only if no "reader OK"
 // follows within 90 s, or the reset gives up, does the alert show. At most every 10 min,
 // and not behind the lock screen (it waits for the doors to open).
@@ -25,15 +25,17 @@ Singleton {
         root.lastShown = Date.now();
         root.owed = false;
         OrrinState.alert("FINGERPRINT READER STUCK",
-                          "Run stark-fprint-reset in a terminal. The password still works.");
+                          "Run alchemos-fprint-reset in a terminal. The password still works.");
     }
 
     Process {
         id: journal
         running: true
-        // fprintd's log and the reset script's (logger -t stark-fprint-reset), from now on
+        // fprintd's log and the reset script's (logger -t alchemos-fprint-reset; stark-fprint-reset is the
+        // copy installed before AlchemOS, until fprint-install.fish replaces it), from now on
         command: ["journalctl", "-f", "-n0", "-o", "cat",
-                  "_SYSTEMD_UNIT=fprintd.service", "+", "SYSLOG_IDENTIFIER=stark-fprint-reset"]
+                  "_SYSTEMD_UNIT=fprintd.service", "+", "SYSLOG_IDENTIFIER=alchemos-fprint-reset",
+                  "+", "SYSLOG_IDENTIFIER=stark-fprint-reset"]
         stdout: SplitParser {
             onRead: line => {
                 if (line.indexOf("reader OK") >= 0) { root.pending = false; root.owed = false; grace.stop(); }

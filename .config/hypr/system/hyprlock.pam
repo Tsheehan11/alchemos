@@ -1,5 +1,5 @@
 #%PAM-1.0
-# STARK OS: /etc/pam.d/hyprlock (installed by ~/.config/hypr/fprint-install.fish).
+# AlchemOS: /etc/pam.d/hyprlock (installed by ~/.config/hypr/fprint-install.fish).
 # The same checks as login (system-login -> system-auth), with one change: when hyprlock
 # unlocks some other way (fingerprint, SIGUSR1) it aborts the password prompt that is
 # still pending, and system-auth counted that abort as a failed login, so three

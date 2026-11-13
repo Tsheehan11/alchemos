@@ -2,11 +2,11 @@
 # STARK OS: bring the fingerprint reader (Elan MOC 04f3:0c88, libfprint "elanmoc") back
 # without a power-off.
 #
-#   stark-fprint-reset              escalate until a test scan starts cleanly (sudo)
-#   stark-fprint-reset --hard       ... and, as a last step, rebind the whole USB controller
-#   stark-fprint-reset --method M   run one method only: restart | usbreset | authorized | power | controller
-#   stark-fprint-reset --check      just test the reader (exit 0 = fine)
-#   stark-fprint-reset --info       sensor, port and port-power capability
+#   alchemos-fprint-reset              escalate until a test scan starts cleanly (sudo)
+#   alchemos-fprint-reset --hard       ... and, as a last step, rebind the whole USB controller
+#   alchemos-fprint-reset --method M   run one method only: restart | usbreset | authorized | power | controller
+#   alchemos-fprint-reset --check      just test the reader (exit 0 = fine)
+#   alchemos-fprint-reset --info       sensor, port and port-power capability
 #   (--auto: the sleep hook; no prompts, never the controller)
 #
 # Match-on-Chip sensors keep their state in the sensor's own firmware: when a system
@@ -23,11 +23,12 @@
 set -u
 VID=04f3 PID=0c88
 WEDGED='machine != NULL|Cannot run while suspended|already claimed|already in use|Device was not claimed'
-say() { printf ':: %s\n' "$*"; logger -t stark-fprint-reset -- "$*" 2>/dev/null; }
+say() { printf ':: %s\n' "$*"; logger -t alchemos-fprint-reset -- "$*" 2>/dev/null; }
 
 if [ "$(id -u)" != 0 ]; then
     # root runs the installed copy (root-owned); fall back to this one before it's installed
-    [ -x /usr/local/bin/stark-fprint-reset ] && exec sudo /usr/local/bin/stark-fprint-reset "$@"
+    [ -x /usr/local/bin/alchemos-fprint-reset ] && exec sudo /usr/local/bin/alchemos-fprint-reset "$@"
+    [ -x /usr/local/bin/stark-fprint-reset ] && exec sudo /usr/local/bin/stark-fprint-reset "$@"   # pre-AlchemOS install
     exec sudo "$0" "$@"
 fi
 
@@ -146,5 +147,5 @@ for s in $steps; do
     say "trying: $s"
     run "$s" && check && { say "reader OK after: $s"; exit 0; }
 done
-say "still stuck after: $steps; $( [ $hard = 1 ] && echo 'a full power-off' || echo 'try: stark-fprint-reset --hard, else a full power-off') clears it"
+say "still stuck after: $steps; $( [ $hard = 1 ] && echo 'a full power-off' || echo 'try: alchemos-fprint-reset --hard, else a full power-off') clears it"
 exit 1

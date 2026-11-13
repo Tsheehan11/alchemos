@@ -686,9 +686,9 @@ under a running hyprlock: the suspend hooks only reset a wedged reader once no l
 | --- | --- |
 | `/etc/pam.d/hyprlock` | `hypr/system/hyprlock.pam` |
 | `/etc/security/faillock.conf` (`deny = 5`) | edited in place by the installer |
-| `/usr/lib/systemd/system-sleep/stark-fprintd` | `hypr/system/stark-fprintd-sleep` |
-| `/usr/lib/systemd/system-sleep/stark-thaw` | `hypr/system/stark-thaw-sleep` |
-| `/etc/systemd/logind.conf.d/stark.conf` | `hypr/system/logind-stark.conf` |
+| `/usr/lib/systemd/system-sleep/alchemos-fprintd` | `hypr/system/alchemos-fprintd-sleep` |
+| `/usr/lib/systemd/system-sleep/alchemos-thaw` | `hypr/system/alchemos-thaw-sleep` |
+| `/etc/systemd/logind.conf.d/alchemos.conf` | `hypr/system/logind-alchemos.conf` |
 
 Install with `fish ~/.config/hypr/fprint-install.fish` (keeps `.orig` backups; run while unlocked).
 
@@ -697,7 +697,7 @@ hyprlock, then turns the screen off; logind suspends and hypridle holds sleep un
 While hyprlock opens the fingerprint reader (about half a second after it starts), `alchemos-lock.sh`
 holds a `handle-lid-switch:sleep` block lock (3 s at most): a suspend that starts mid-open wedges the
 Elan reader until a power-off, and logind suspends the moment the lock ends. If it wedges anyway:
-`stark-fprint-reset` (the HUD says so).
+`alchemos-fprint-reset` (the HUD says so).
 Each monitor gets its own lock picture of the shut doors, so unlocking cuts seamlessly to the real
 doors opening.
 

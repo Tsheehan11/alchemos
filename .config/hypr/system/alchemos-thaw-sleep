@@ -5,7 +5,7 @@
 # backstop that runs once the suspend job is over and thaws anything still frozen.
 case "$1" in
   post)
-    systemd-run --quiet --no-block --collect --unit=stark-thaw-wake \
+    systemd-run --quiet --no-block --collect --unit=alchemos-thaw-wake \
       --property=After="systemd-$2.service" -- "$0" wake
     ;;
   wake)
