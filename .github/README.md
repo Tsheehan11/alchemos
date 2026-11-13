@@ -13,7 +13,7 @@ diagnostics wall · audio deck with visualizer · desktop widgets · Govee ambie
 combat (gaming) mode · voice control.
 
 > **Names in the code.** The repo, paths, scripts, services, settings keys and IPC targets keep their
-> original names (`~/.alchemos`, `stark-*`, `~/.config/jarvis`, `stark-jarvis.service`, the `jarvis`
+> original names (`~/.alchemos`, `stark-*`, `~/.config/orrin`, `orrin.service`, the `jarvis`
 > CLI and `jarvis*` keys), and the wake word is still **"hey Jarvis"**. Below, "Jarvis" means that
 > code; on screen and in its voice the assistant is ORRIN / SELENE.
 
@@ -82,8 +82,8 @@ stark checkout            # move any conflicting files out of the way first
 ```
 
 Turn on the tracked git hooks (`~/.config/alchemos-hooks/`). The pre-commit hook refuses any commit that
-stages `.config/jarvis/` files unless every Jarvis test suite and the router eval pass
-(`~/.config/jarvis/tools/check_all.sh`, a few minutes; it needs the Jarvis venv from step 4):
+stages `.config/orrin/` files unless every Jarvis test suite and the router eval pass
+(`~/.config/orrin/tools/check_all.sh`, a few minutes; it needs the Jarvis venv from step 4):
 
 ```sh
 stark config core.hooksPath "$HOME/.config/alchemos-hooks"
@@ -98,7 +98,7 @@ stark config filter.alchemos-code-theme.smudge cat
 echo '.config/Code/User/settings.json filter=alchemos-code-theme' >> ~/.alchemos/info/attributes
 printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/alchemos-lock-bg-*' .config/hypr/alchemos/display-profile.lua \
   .config/kitty/alchemos-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
-  .config/jarvis/.venv/ >> ~/.alchemos/info/exclude
+  .config/orrin/.venv/ >> ~/.alchemos/info/exclude
 ```
 
 Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (straight to `main`).
@@ -118,18 +118,18 @@ Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (st
 ### 4. Jarvis
 
 ```sh
-cd ~/.config/jarvis && uv venv --python 3.11
+cd ~/.config/orrin && uv venv --python 3.11
 uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp piper-tts kokoro-onnx pedalboard
 ```
 
 Put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx releases, `model-files-v1.0`) in
-`~/.local/share/jarvis/kokoro/`. Claude runs on your `claude` CLI login (Pro / Max), no API key.
+`~/.local/share/orrin/kokoro/`. Claude runs on your `claude` CLI login (Pro / Max), no API key.
 
-Jarvis runs as a systemd user service, `~/.config/systemd/user/stark-jarvis.service` (tracked; no
-`enable` needed, the HUD starts it through `~/.config/jarvis/stark-jarvis`). After cloning:
+Jarvis runs as a systemd user service, `~/.config/systemd/user/orrin.service` (tracked; no
+`enable` needed, the HUD starts it through `~/.config/orrin/orrinctl`). After cloning:
 
 ```sh
-ln -s ~/.config/jarvis/stark-jarvis ~/.local/bin/stark-jarvis
+ln -s ~/.config/orrin/orrinctl ~/.local/bin/orrinctl
 systemctl --user daemon-reload
 ```
 
@@ -175,7 +175,7 @@ value can also be set from a shell:
 
 ```sh
 qs ipc call theme set panelOpacity 0.9
-qs ipc call theme get jarvisVoice
+qs ipc call theme get orrinVoice
 qs ipc call settings open appearance     # open a Settings tab
 ```
 
@@ -195,7 +195,7 @@ qs ipc call settings open appearance     # open a Settings tab
 | Jarvis voice, effect, model, speaker, mic | JARVIS | `jarvis*` keys · `jarvis/effects.json` |
 | Radial launcher entries | LAUNCHER | `settings.json` → `launcherApps` |
 | Idle dim / lock / screen-off / sleep | SYSTEM | `idleDim`, `idleLock`, `idleScreenOff`, `idleSleep` |
-| Battery saver | SYSTEM | `autoSaver`, `batteryFps`, `saverNoBlur`, `saverLowRefresh`, `saverStopJarvis` |
+| Battery saver | SYSTEM | `autoSaver`, `batteryFps`, `saverNoBlur`, `saverLowRefresh`, `saverStopOrrin` |
 | Combat mode | Control center | `game*` keys · `alchemos-game/games.conf` (extra game window classes) |
 | VPN providers | NETWORK → VPN | `alchemos-vpn/providers.json` |
 
@@ -337,13 +337,13 @@ the DreamView "razer" stream):
 ### Jarvis voice presets and settings
 
 Settings → JARVIS: Claude model (`auto` = Haiku, Sonnet when needed · or haiku / sonnet / opus),
-voice (Kokoro `bm_*`, or a piper model; `jarvis-voices` auditions them all), volume, speech rate,
+voice (Kokoro `bm_*`, or a piper model; `orrin-voices` auditions them all), volume, speech rate,
 pitch, voice effect, Bluetooth speaker, **INPUT DEVICE** (the wake-word mic: AUTO = a wired / USB
 headset mic while one is plugged in, else the laptop mic; Bluetooth headset mics only if you allow
 them, since they drop the headphones to call quality), follow-up window, spoken replies, music
 ducking, pause in combat mode, plus **TEST VOICE** and **MISSED COMMANDS**.
 
-Voice effects are presets in `~/.config/jarvis/effects.json`, an effect chain run through pedalboard:
+Voice effects are presets in `~/.config/orrin/effects.json`, an effect chain run through pedalboard:
 
 | Preset | Sound |
 | --- | --- |
@@ -373,9 +373,9 @@ limits only when the Claude CLI itself reported them), **weather**, **network** 
 throughput) and **dj deck** (now playing, the DJ set, its mood and next three, MORE / LESS / START). Drag to snap, ◇ to pin above windows, × to close, right-click the empty desktop to
 make one. A new type is one QML file in `quickshell/widgets/`.
 
-Data comes to them, never polled: Jarvis writes `$XDG_RUNTIME_DIR/jarvis/status.json` when
+Data comes to them, never polled: Jarvis writes `$XDG_RUNTIME_DIR/orrin/status.json` when
 something changes, and `jarvis feed` (only while an agenda / due / weather widget is up) writes
-`~/.local/share/jarvis/feed/{agenda,weather}.json`: calendars every 3 min, the tracker every 15,
+`~/.local/share/orrin/feed/{agenda,weather}.json`: calendars every 3 min, the tracker every 15,
 weather every 30, and at once after Jarvis edits the calendar or tracker. No Claude calls.
 
 ---
@@ -402,11 +402,11 @@ flowchart LR
         W[Widgets]
     end
 
-    subgraph Jarvis["Jarvis (~/.config/jarvis)"]
+    subgraph Jarvis["Jarvis (~/.config/orrin)"]
         EAR[wake word → whisper]
         FP[fast path]
         BR[Claude Agent SDK<br/>permission gate]
-        MCP[MCP: stark_tools.py<br/>+ servers.json]
+        MCP[MCP: alchemos_tools.py<br/>+ servers.json]
         VO[Kokoro / piper → effects]
     end
 
@@ -423,7 +423,7 @@ flowchart LR
     MCP -->|qs ipc call| IPC
     MCP --> G & VPN & H
     BR --> VO --> BT
-    Jarvis -.->|qs ipc call jarvis …| IPC
+    Jarvis -.->|qs ipc call orrin …| IPC
     T --> H & G
     T --> KITTY[kitty alchemos-theme.conf]
     T --> CODE[alchemos-code-theme → VS Code]
@@ -491,16 +491,16 @@ palette to:
 ### Jarvis ↔ everything
 
 Jarvis never gets a shell. Claude sees only MCP tools: the local **stark** server
-(`jarvis/mcp/stark_tools.py`, 26 typed tools, with the logic and validation in `stark_actions.py`)
+(`jarvis/mcp/alchemos_tools.py`, 26 typed tools, with the logic and validation in `alchemos_actions.py`)
 plus whatever you add to `servers.json`. Those tools act through the same doors as you do:
 `qs ipc call` for themes, widgets, VPN and lock; `hyprctl` for apps, windows and workspaces;
 `alchemos-govee` for lights; `playerctl` / `wpctl` for media. Jarvis reports its own state back with
-`qs ipc call jarvis …`, which drives the on-screen toast.
+`qs ipc call orrin …`, which drives the on-screen toast.
 
 The same server works in the Claude Code CLI too:
 
 ```sh
-claude mcp add stark -- ~/.config/jarvis/.venv/bin/python ~/.config/jarvis/mcp/stark_tools.py
+claude mcp add stark -- ~/.config/orrin/.venv/bin/python ~/.config/orrin/mcp/alchemos_tools.py
 ```
 
 ### Audio devices
@@ -514,7 +514,7 @@ plugged in or unplugged, and Jarvis confirms on the new output.
 
 ### Bluetooth speaker
 
-Set **Speaker without headphones** in Settings → JARVIS (stored as a MAC in `jarvisSpeaker`). When
+Set **Speaker without headphones** in Settings → JARVIS (stored as a MAC in `orrinSpeaker`). When
 the output isn't headphones, Jarvis connects the speaker as soon as it hears the wake word; if it
 isn't up within 1.5 s, that reply plays on the laptop instead. Headphones, headsets and USB audio
 always keep Jarvis on them.
@@ -538,9 +538,9 @@ under a lock (the voice loop, the MCP server and the CLI share them). `jarvis sp
   and audio-features aren't open to Development Mode apps, so Jarvis doesn't use them. Tracks are queued
   three ahead, nothing repeats within 48 h, and the set refills itself when it runs low. *"More / less like
   this"* reshapes the rest with one more call; *"keep this vibe"* holds it; *"save this vibe as late night"*
-  makes a preset. Presets are in `jarvis/dj_moods.json`, your saved ones in `~/.local/share/jarvis/dj/`. Put
+  makes a preset. Presets are in `jarvis/dj_moods.json`, your saved ones in `~/.local/share/orrin/dj/`. Put
   something else on and DJ mode bows out.
-- **DJ chatter** (Settings → JARVIS → SPOTIFY, `jarvisDjChatter`): off · **rare** (default, a line every
+- **DJ chatter** (Settings → JARVIS → SPOTIFY, `orrinDjChatter`): off · **rare** (default, a line every
   4–5 tracks) · normal (every 2–3). Lines are under ten seconds, said as a track starts on the output
   Spotify plays on, with the music faded to 30 % and back. On a Connect device, Jarvis lowers that device's
   Spotify volume instead. Silent in combat mode and while Discord (or any call app) has the mic open.
@@ -555,7 +555,7 @@ under a lock (the voice loop, the MCP server and the CLI share them). `jarvis sp
 
 ### Add a Jarvis tool
 
-1. Write the action in `jarvis/mcp/stark_actions.py`. Validate input (raise `Invalid`), return a
+1. Write the action in `jarvis/mcp/alchemos_actions.py`. Validate input (raise `Invalid`), return a
    dict, and run commands through `_do(...)` so `--dry-run` works:
 
    ```python
@@ -565,7 +565,7 @@ under a lock (the voice loop, the MCP server and the CLI share them). `jarvis sp
                   ["hyprctl", "hyprsunset", "temperature", "4000" if on else "6500"])
    ```
 
-2. Declare it in `jarvis/mcp/stark_tools.py`; the docstring is what Claude reads:
+2. Declare it in `jarvis/mcp/alchemos_tools.py`; the docstring is what Claude reads:
 
    ```python
    @mcp.tool(structured_output=False)
@@ -602,7 +602,7 @@ in `quickshell/LauncherApps.qml`.
 }
 ```
 
-`{venv}` and `{jarvis}` expand to the Jarvis venv and folder. Any server without `"policy": "stark"`
+`{venv}` and `{jarvis}` expand to the Jarvis venv and folder. Any server without `"policy": "alchemos"`
 is gated: every tool needs a spoken "Shall I…, sir?" yes unless it's in `auto_allow`. Set
 `"enabled": false` to park one. Secrets go in gnome-keyring through `core/secrets.py`, never in
 this file.
@@ -628,28 +628,28 @@ to his voice on the fast path, 2–3 s through Claude.
   the browser only when you ask for it, and a spoken yes before power actions, closing windows,
   deleting anything, the VPN kill switch, or sending a message. Tool output is data, never
   instructions. No network listeners. Runs with `NoNewPrivileges` (no sudo / setuid helpers).
-- **Its own service:** `stark-jarvis.service` (systemd user unit), so restarting or hot-reloading
+- **Its own service:** `orrin.service` (systemd user unit), so restarting or hot-reloading
   Quickshell never stops it: a DJ set, a timer or a conversation carries on. The HUD
-  (`quickshell/OrrinState.qml`) only starts and stops it, through `stark-jarvis start docked|laptop`
-  / `stop`, keeping the rules: docked it follows the Jarvis toggle (`jarvisDocked`, and battery saver
-  if `saverStopJarvis`); undocked it's off until switched on for now, any dock / undock resets that;
+  (`quickshell/OrrinState.qml`) only starts and stops it, through `orrinctl start docked|laptop`
+  / `stop`, keeping the rules: docked it follows the Jarvis toggle (`orrinDocked`, and battery saver
+  if `saverStopOrrin`); undocked it's off until switched on for now, any dock / undock resets that;
   laptop mode stops under 20 % on battery; combat mode only pauses the wake word. A restarted HUD
   adopts whatever is running (a laptop-mode Jarvis stays on) and picks its state back up: the next
-  heartbeat (`qs ipc call jarvis online` → `resync`) makes Jarvis send `restore` (listening / thinking
+  heartbeat (`qs ipc call orrin online` → `resync`) makes Jarvis send `restore` (listening / thinking
   / confirm, combat pause), the app socket resends threads and the task in hand, and the widgets reread
   `status.json` (background tasks) and `dj.json` (DJ set). systemd restarts it after a crash
   (`Restart=on-failure`). It stops when you switch it off, at log-out (the power menu stops it, it's
   `PartOf=graphical-session.target`, and it exits by itself once its Hyprland instance is gone), and
   the stop takes its whole cgroup (claude CLI, MCP servers, `pw-record`). One voice loop at a time
-  (a lock in `$XDG_RUNTIME_DIR/jarvis/voice.lock`): a hand-run `jarvis` says it's already running.
-  `stark-jarvis status|log|restart`, `journalctl --user -u stark-jarvis`, `alchemos-rescue status`.
-- **Hearing:** `jarvisMic` picks the PipeWire source (AUTO follows headsets; a plug / unplug or a
+  (a lock in `$XDG_RUNTIME_DIR/orrin/voice.lock`): a hand-run `jarvis` says it's already running.
+  `orrinctl status|log|restart`, `journalctl --user -u orrin`, `alchemos-rescue status`.
+- **Hearing:** `orrinMic` picks the PipeWire source (AUTO follows headsets; a plug / unplug or a
   Settings change restarts capture in place, without losing the pre-wake buffer); pre-roll keeps "hey Jarvis dim the lights"
   in one breath intact; Silero VAD ends the command; music ducks while listening. Barge in with
   "Hey Jarvis"; follow-ups need no wake word for 8 s.
 - **Speech:** text is normalised first (`core/speech.py`: times, dates, units), the first sentence
   plays while the rest render, and stock lines are cached.
-- **Memory:** "remember that…", reminders and facts live in `~/.local/share/jarvis/jarvis.db`.
+- **Memory:** "remember that…", reminders and facts live in `~/.local/share/orrin/orrin.db`.
 - **CLI:** `jarvis --text "…" [--dry-run]`, `--misses`, `--log`, `--facts`, `--reminders`,
   `--say "…"`, `--trace` (wake score, VAD, transcript, route, latency), `--record [MIN]`.
 
@@ -702,7 +702,7 @@ Each monitor gets its own lock picture of the shut doors, so unlocking cuts seam
 doors opening.
 
 **Logs:** `journalctl -b | grep -E 'hyprlock|faillock'`, `~/.local/state/alchemos/hyprlock.log`,
-`journalctl -u fprintd -b`, `journalctl --user -u stark-jarvis` (or `~/.local/share/jarvis/jarvis.log`), `alchemos-govee status`,
+`journalctl -u fprintd -b`, `journalctl --user -u orrin` (or `~/.local/share/orrin/orrin.log`), `alchemos-govee status`,
 `alchemos-vpn status`.
 
 ---

@@ -1,8 +1,8 @@
-// Shared state for Jarvis. The voice listener sends a heartbeat every few
+// Shared state for Orrin. The voice listener sends a heartbeat every few
 // seconds; if it stops, the bar indicator goes dark on its own.
-// ~/.config/jarvis/jarvis.py drives the toast through `qs ipc call jarvis …`:
+// ~/.config/orrin/orrin.py drives the toast through `qs ipc call orrin …`:
 //   listening → transcript → thinking → tool (one per call) → reply / confirm → followup → idle
-//   error: something failed after the chime; Jarvis says a line and the toast shows why
+//   error: something failed after the chime; Orrin says a line and the toast shows why
 //   speak / speechDone: each spoken sentence as it starts (characters start..end of total, ms long);
 //   the pop-up stays up while he's speaking or the pointer is on it, then a few seconds scaled to length
 pragma Singleton
@@ -37,14 +37,14 @@ Singleton {
     property int replySerial: 0          // bumps when a new reply arrives (the pop-up resets its scrolling)
     readonly property string message: reply !== "" ? reply : transcript   // old one-line API
 
-    // ── persona (~/.config/jarvis/core/persona.py): two personas, same assistant ──
+    // ── persona (~/.config/orrin/core/persona.py): two personas, same assistant ──
     // persona: the default (Settings → PERSONA); answering: who the wake word named for the exchange in
-    // progress (Jarvis sends it); who: the one to show right now. The ids stay jarvis / friday; the names,
+    // progress (Orrin sends it); who: the one to show right now. The ids stay orrin / friday; the names,
     // glyphs and accents are the skin's (ALCHEMOS: ☉ ORRIN in gold, ☽ SELENE in silver, whatever the
     // preset; LEGACY: ◉ JARVIS / ◈ FRIDAY in the theme colour).
-    readonly property string persona: Theme.cfg.jarvisPersona === "friday" ? "friday" : "jarvis"
+    readonly property string persona: Theme.cfg.orrinPersona === "selene" ? "selene" : "orrin"
     property string answering: ""
-    readonly property string who: answering === "friday" || answering === "jarvis" ? answering : persona
+    readonly property string who: answering === "selene" || answering === "orrin" ? answering : persona
     readonly property var look: Skin.persona(who)
     readonly property string name: look.name
     readonly property string dotted: look.dotted
@@ -55,20 +55,20 @@ Singleton {
     readonly property color accent: hasAccent ? look.accent : Theme.primary
     function nameOf(id) { return Skin.persona(id).name; }      // label: ORRIN / SELENE (legacy JARVIS / FRIDAY)
     function callOf(id) { return Skin.persona(id).call; }      // in a sentence: Orrin / Selene (legacy Jarvis / FRIDAY)
-    readonly property string assistant: nameOf("jarvis")        // the assistant's name in labels ("ORRIN")
-    readonly property var aliases: ({ orrin: "jarvis", selene: "friday" })
+    readonly property string assistant: nameOf("orrin")        // the assistant's name in labels ("ORRIN")
+    readonly property var aliases: ({ orrin: "orrin", friday: "selene" })   // the pre-AlchemOS ids
     function setPersona(name) {
         let n = String(name || "").trim().toLowerCase();
         n = root.aliases[n] || n;
         if (n === "") return root.persona;
-        if (n !== "jarvis" && n !== "friday") return "unknown persona " + n + " (jarvis | friday)";
-        Theme.cfg.jarvisPersona = n;
+        if (n !== "orrin" && n !== "selene") return "unknown persona " + n + " (orrin | friday)";
+        Theme.cfg.orrinPersona = n;
         return n;
     }
 
-    // Jarvis runs as its own service (stark-jarvis.service), so it outlives a qs restart / hot reload.
-    // This instance hasn't had Jarvis's state yet: the next heartbeat answers "resync" and Jarvis
-    // sends restore() with the toast state (core/hud.py). Reset whenever Jarvis goes offline.
+    // Orrin runs as its own service (orrin.service), so it outlives a qs restart / hot reload.
+    // This instance hasn't had Orrin's state yet: the next heartbeat answers "resync" and Orrin
+    // sends restore() with the toast state (core/hud.py). Reset whenever Orrin goes offline.
     property bool synced: false
     function beat() {
         root.lastBeat = Date.now();
@@ -168,34 +168,34 @@ Singleton {
     }
 
     // ── Auto on/off ──
-    // Docked: the toggle (control center, or Settings → HUD / JARVIS) sets userWantsJarvis (saved) and
-    // Jarvis runs while it's on, and not on battery saver if that's set to stop it.
+    // Docked: the toggle (control center, or Settings → HUD / ORRIN) sets userWantsOrrin (saved) and
+    // Orrin runs while it's on, and not on battery saver if that's set to stop it.
     // Undocked: off by default. The same toggle switches it on for now only (laptopOn, never saved): any
     // dock or undock clears it, so the next undocked spell starts off again and docking goes back to the
-    // docked rule. Laptop mode is lighter (jarvis.py sees STARK_JARVIS_LAPTOP=1: no academic sync, no
+    // docked rule. Laptop mode is lighter (orrin.py sees ORRIN_LAPTOP=1: no academic sync, no
     // watchers, no Bluetooth room speaker) and stops itself under 20 % on battery (battery saver doesn't stop it).
-    // Combat mode doesn't stop the process: Jarvis pauses its own wake word (frees the mic) so timers
-    // still fire and the conversation survives (Theme.cfg.gameJarvis).
-    readonly property bool userWantsJarvis: Theme.cfg.jarvisDocked   // saved in settings.json
-    function setWanted(on) { Theme.cfg.jarvisDocked = on; }
+    // Combat mode doesn't stop the process: Orrin pauses its own wake word (frees the mic) so timers
+    // still fire and the conversation survives (Theme.cfg.gameOrrin).
+    readonly property bool userWantsOrrin: Theme.cfg.orrinDocked   // saved in settings.json
+    function setWanted(on) { Theme.cfg.orrinDocked = on; }
     readonly property bool docked: Roles.docked
     property bool laptopOn: false
     readonly property bool laptopMode: !root.docked && root.laptopOn
     onDockedChanged: root.laptopOn = false          // any dock / undock event ends a laptop switch-on
     readonly property bool lowBattery: SysStats.polled && SysStats.discharging && SysStats.battery < 0.20
-    readonly property bool enabled: root.docked ? root.userWantsJarvis && !(PowerMode.saver && Theme.cfg.saverStopJarvis)
+    readonly property bool enabled: root.docked ? root.userWantsOrrin && !(PowerMode.saver && Theme.cfg.saverStopOrrin)
                                                 : root.laptopOn
     // what the toggles show and do, docked or not
-    readonly property bool toggleOn: root.docked ? root.userWantsJarvis : root.laptopOn
+    readonly property bool toggleOn: root.docked ? root.userWantsOrrin : root.laptopOn
     readonly property string stateLabel: !root.toggleOn ? "OFF" : root.laptopMode ? "ON (laptop, until dock change)" : "ON"
     function toggle() {
-        if (root.docked) root.setWanted(!root.userWantsJarvis);
+        if (root.docked) root.setWanted(!root.userWantsOrrin);
         else root.setLaptop(!root.laptopOn);
     }
     function setLaptop(on) {
         if (on && root.docked) return;
         if (on && root.powerReason() !== "") {
-            root.alert("JARVIS STAYS OFF", "Not on the laptop right now, sir: " + root.powerReason() + ".");
+            root.alert("ORRIN STAYS OFF", "Not on the laptop right now, sir: " + root.powerReason() + ".");
             return;
         }
         root.laptopOn = on;
@@ -211,22 +211,22 @@ Singleton {
             const why = root.powerReason();
             if (why !== "") {
                 root.laptopOn = false;
-                root.alert("JARVIS OFF", "I've switched myself off to save power, sir: " + why + ".");
+                root.alert("ORRIN OFF", "I've switched myself off to save power, sir: " + why + ".");
             }
         }
     }
     // ── The service ──
-    // stark-jarvis.service (~/.config/systemd/user) through ~/.config/jarvis/stark-jarvis:
+    // orrin.service (~/.config/systemd/user) through ~/.config/orrin/orrinctl:
     //   start docked|laptop (no-op if already running in that mode, restarts it in the other one), stop, status.
     // systemd restarts it after a crash (Restart=on-failure); while it should be on but isn't online,
-    // the watchdog below asks for it again every 15 s. Logs: journalctl --user -u stark-jarvis
+    // the watchdog below asks for it again every 15 s. Logs: journalctl --user -u orrin
     property string svcState: "unknown"     // systemd ActiveState: active | activating | inactive | failed…
     property string svcMode: "docked"
     readonly property bool running: root.online || root.svcState === "active" || root.svcState === "activating"
                                     || root.svcState === "reloading"
 
     readonly property string home: Quickshell.env("HOME")
-    readonly property string ctl: root.home + "/.config/jarvis/stark-jarvis"
+    readonly property string ctl: root.home + "/.config/orrin/orrinctl"
     property var pending: null             // the next command, while one is running
     function svc(args) {
         if (ctlProc.running) { root.pending = args; return; }
@@ -248,7 +248,7 @@ Singleton {
     }
 
     // ── Start-up: adopt what's already running ──
-    // A qs restart mustn't stop (or bounce) a Jarvis that's running fine. Wait until the screens and
+    // A qs restart mustn't stop (or bounce) a Orrin that's running fine. Wait until the screens and
     // settings are known, read the service's state, and if it runs in laptop mode while undocked,
     // that was a laptop switch-on (laptopOn isn't saved): carry it over. Only then apply the rules.
     property bool ready: false
@@ -268,9 +268,9 @@ Singleton {
         if (root.enabled) root.svc(["start", root.laptopMode ? "laptop" : "docked"]);
         else if (root.running || root.svcState !== "inactive") root.svc(["stop"]);
     }
-    onLaptopModeChanged: syncTimer.restart()    // docked ↔ laptop while on: stark-jarvis restarts it in the other mode
+    onLaptopModeChanged: syncTimer.restart()    // docked ↔ laptop while on: orrinctl restarts it in the other mode
     onEnabledChanged: syncTimer.restart()
-    // Short delay so a dock that briefly drops a monitor doesn't bounce Jarvis
+    // Short delay so a dock that briefly drops a monitor doesn't bounce Orrin
     Timer { id: syncTimer; interval: 1500; onTriggered: root.sync() }
     // should be on but no heartbeat: (re)start it (start is a no-op while it's coming up)
     Timer {

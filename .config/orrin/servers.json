@@ -1,0 +1,133 @@
+{
+    "_doc": "MCP servers Orrin loads (core/config.py load_servers). Phase-2 integrations are entries with policy 'integration': they load only when enabled, are read-only unless read_only is false, and every tool not in read_tools is a write that needs Trevor's spoken yes (auto_write: tool -> settings key that lets it run without one). Without a policy, every tool asks unless named in auto_allow. Secrets (OAuth tokens, feed URLs): system keyring via core/secrets.py, never in this file. An entry without a command only shows status (outlook: its calendar is merged into the google server's calendar tools). optional: shown as OPTIONAL rather than NOT CONNECTED. Connect with `orrin connect <auth>`; see docs/phase2-*.md.",
+    "alchemos": {
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{orrin}/mcp/alchemos_tools.py"
+        ],
+        "policy": "alchemos"
+    },
+    "screen": {
+        "name": "screen",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{orrin}/mcp/screen_tools.py"
+        ],
+        "policy": "screen",
+        "read_tools": [
+            "read_window",
+            "list_windows"
+        ],
+        "note": "Window reading + watchers (core/screen.py, core/watch.py). Reads mark the request as having read untrusted screen content, so a later action needs his yes."
+    },
+    "control": {
+        "name": "control",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{orrin}/mcp/control_tools.py"
+        ],
+        "policy": "control",
+        "read_tools": [
+            "control_look"
+        ],
+        "note": "Window control (core/control.py, core/wlinput.py). control_look is a read of screen content; control_run always asks with the whole plan on show, then runs it under a single-use approval the gate writes. Kill switch: Super+Shift+Escape or \"stop\" (orrin control stop)."
+    },
+    "google": {
+        "name": "Google",
+        "label": "GMAIL · CALENDAR · DRIVE",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{orrin}/mcp/google_tools.py"
+        ],
+        "auth": "google",
+        "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/calendar.readonly",
+            "https://www.googleapis.com/auth/drive.readonly"
+        ],
+        "write_scopes": [
+            "https://www.googleapis.com/auth/calendar.app.created"
+        ],
+        "tracker_scopes": [
+            "https://www.googleapis.com/auth/spreadsheets"
+        ],
+        "calendar_scopes": [
+            "https://www.googleapis.com/auth/calendar.events"
+        ],
+        "enabled": true,
+        "read_only": false,
+        "policy": "integration",
+        "read_tools": [
+            "calendar_today",
+            "calendar_next",
+            "calendar_find",
+            "email_unread_summary",
+            "email_search",
+            "docs_search"
+        ],
+        "note": "Writes: calendar_create_event / calendar_update_event / calendar_delete_event, his main calendar only, every one with his yes (no auto_write; core/brain.ALWAYS_ASK), logged with `orrin calendar undo`. Mail and Drive stay read-only: there are no tools for them."
+    },
+    "outlook": {
+        "name": "Outlook",
+        "label": "UWATERLOO CALENDAR · MAIL",
+        "auth": "outlook-ical",
+        "enabled": true,
+        "policy": "integration",
+        "served_by": "google",
+        "note": "UW blocks the Graph app route. The calendar comes from Outlook's published ICS link (keyring orrin:outlook / ical_url, mcp/outlook_ical.py), merged into calendar_today / calendar_next; UW mail forwards into Gmail and is read by the google tools."
+    },
+    "academic": {
+        "name": "LEARN",
+        "label": "ASSIGNMENTS · GRADES",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{orrin}/mcp/academic_tools.py"
+        ],
+        "auth": "learn-ical",
+        "enabled": true,
+        "read_only": false,
+        "policy": "integration",
+        "read_tools": [
+            "assignments_upcoming",
+            "grades_new",
+            "tracker_pending",
+            "tracker_grade"
+        ],
+        "auto_write": {
+            "calendar_add_assignment": "orrinAutoAddAssignments"
+        },
+        "note": "Writes: tracker_update / tracker_add (his SE tracker sheet only, always with his yes) and, while no tracker is set up, the dedicated 'STARK – Assignments' calendar (orrinAssignmentsAccount picks Google or Outlook)."
+    },
+    "microsoft": {
+        "name": "Microsoft 365 (direct)",
+        "label": "DIRECT CONNECTION · NEEDS ADMIN CONSENT",
+        "command": "{venv}/python",
+        "args": [
+            "-I",
+            "{orrin}/mcp/microsoft_tools.py"
+        ],
+        "auth": "microsoft",
+        "scopes": [
+            "Mail.Read",
+            "Calendars.ReadWrite",
+            "offline_access",
+            "User.Read"
+        ],
+        "enabled": false,
+        "read_only": true,
+        "policy": "integration",
+        "read_tools": [
+            "calendar_today",
+            "calendar_next",
+            "email_unread_summary",
+            "email_search"
+        ],
+        "note": "Optional Graph route; UWaterloo blocks user consent, so Outlook normally comes in through the outlook entry (calendar link + mail forwarding).",
+        "optional": true
+    }
+}

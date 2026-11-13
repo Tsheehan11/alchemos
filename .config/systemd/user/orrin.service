@@ -1,0 +1,34 @@
+# AlchemOS: the Orrin voice loop (~/.config/orrin/orrin.py), as its own user service so a
+# Quickshell restart or hot reload never takes it down (a DJ set keeps playing).
+#
+# Not enabled: the HUD (quickshell/OrrinState.qml) starts and stops it through
+# ~/.config/orrin/orrinctl (linked in ~/.local/bin), which writes the session env + mode to %t/orrin/service.env.
+# Logs: journalctl --user -u orrin   (also ~/.local/share/orrin/orrin.log)
+#
+# Session end: PartOf the graphical session, the HUD stops it before log-out, and orrin.py
+# exits cleanly by itself once its Hyprland instance is gone (core/session.py).
+[Unit]
+Description=AlchemOS Orrin voice assistant
+Documentation=file://%h/.github/README.md
+PartOf=graphical-session.target
+After=graphical-session.target pipewire.service wireplumber.service
+# a crash loop gives up after 5 tries in 5 min; orrinctl start resets it
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=%h
+# WAYLAND_DISPLAY, HYPRLAND_INSTANCE_SIGNATURE, PATH… and ORRIN_LAPTOP (0 / 1)
+EnvironmentFile=-%t/orrin/service.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.config/orrin/.venv/bin/python %h/.config/orrin/orrin.py
+# a crash or "microphone stream keeps ending" (exit 1) restarts it; a stop / session end doesn't
+Restart=on-failure
+RestartSec=5
+# nothing Orrin starts can gain privileges (no sudo / setuid helpers), as before
+NoNewPrivileges=yes
+# stop takes the whole cgroup: pw-record, the claude CLI, MCP servers, pw-play
+KillMode=control-group
+TimeoutStopSec=10
+SyslogIdentifier=orrin

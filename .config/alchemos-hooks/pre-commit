@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 # AlchemOS dotfiles pre-commit hook (tracked; the repo's core.hooksPath points at ~/.config/alchemos-hooks).
-# A commit that stages Jarvis files must pass every Jarvis suite, the router eval and the skin check
-# (~/.config/jarvis/tools/check_all.sh); one that stages only HUD files (quickshell) must pass the skin
+# A commit that stages Orrin files must pass every Orrin suite, the router eval and the skin check
+# (~/.config/orrin/tools/check_all.sh); one that stages only HUD files (quickshell) must pass the skin
 # check (quickshell/tools/skincheck/check_skins.sh). Runs on the working tree. Bypass only on purpose: --no-verify.
 set -euo pipefail
 GIT=(git --git-dir="${GIT_DIR:-$HOME/.alchemos}" --work-tree="$HOME")
-if "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/jarvis/'; then
-    if [ ! -x "$HOME/.config/jarvis/.venv/bin/python" ]; then
-        echo "pre-commit: Jarvis files staged but ~/.config/jarvis/.venv is missing, so the suites can't run." >&2
-        echo "pre-commit: set up the venv first (README → Install → Jarvis); refusing the commit." >&2
+if "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/orrin/'; then
+    if [ ! -x "$HOME/.config/orrin/.venv/bin/python" ]; then
+        echo "pre-commit: Orrin files staged but ~/.config/orrin/.venv is missing, so the suites can't run." >&2
+        echo "pre-commit: set up the venv first (README → Install → Orrin); refusing the commit." >&2
         exit 1
     fi
-    echo "pre-commit: Jarvis files staged, running ~/.config/jarvis/tools/check_all.sh -q (a few minutes)…"
-    if ! "$HOME/.config/jarvis/tools/check_all.sh" -q; then
+    echo "pre-commit: Orrin files staged, running ~/.config/orrin/tools/check_all.sh -q (a few minutes)…"
+    if ! "$HOME/.config/orrin/tools/check_all.sh" -q; then
         echo "pre-commit: refusing the commit, a suite is red." >&2
         exit 1
     fi
 fi
 if "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/quickshell/' \
-   && ! "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/jarvis/'; then
+   && ! "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/orrin/'; then
     skins="$HOME/.config/quickshell/tools/skincheck/check_skins.sh"
     if [ -x "$skins" ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
         echo "pre-commit: HUD files staged, running the skin check…"

@@ -1,0 +1,28 @@
+# AlchemOS: unattended "hey Orrin" / "hey Selene" wake-word training (~/.config/orrin/tools/wakeword/pipeline.py).
+# Enabled while training is unfinished, so it resumes after a reboot or crash; the pipeline disables it
+# when both words are done. It pauses itself on battery, undocked or in combat mode (SIGSTOP, then SIGCONT).
+#   orrin wake status                     one line: stage, progress, ETA
+#   ~/.local/share/orrin/wake-train/train.log
+#   systemctl --user stop orrin-wake-train      (resumes from the last checkpoint on the next start)
+[Unit]
+Description=AlchemOS wake-word training (hey Orrin, hey Selene)
+After=network-online.target
+StartLimitIntervalSec=3600
+StartLimitBurst=6
+
+[Service]
+Type=exec
+WorkingDirectory=%h/.local/share/orrin/wake-train
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.config/orrin/.venv/bin/python %h/.config/orrin/tools/wakeword/pipeline.py
+Restart=on-failure
+RestartSec=60
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=batch
+KillMode=control-group
+TimeoutStopSec=30
+SyslogIdentifier=wake-train
+
+[Install]
+WantedBy=default.target

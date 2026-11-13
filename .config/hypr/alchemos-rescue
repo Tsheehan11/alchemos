@@ -8,7 +8,7 @@
 # Then switch back to Hyprland with Ctrl+Alt+F2.
 #
 # alchemos-rescue status: is the Hyprland unplug-crash fix (0.57) out / installed / running,
-# is the HUD's hotplug settle gate idle, and is Jarvis's service (stark-jarvis.service) up,
+# is the HUD's hotplug settle gate idle, and is Orrin's service (orrin.service) up,
 # with any stray voice loop outside it. Changes nothing.
 #
 # alchemos-rescue config: when ~/.config/hypr/hyprland.lua won't load (red error bar, only the
@@ -56,15 +56,15 @@ if [ "${1:-}" = status ]; then
         [ "$n" -gt 0 ] && say "windows on no monitor: $n (Super+Tab is unsafe until the gate re-homes them)" \
                        || say "windows on no monitor: none"
     fi
-    # Jarvis: its own user service, started / stopped by the HUD (quickshell/OrrinState.qml)
-    unit=stark-jarvis.service
+    # Orrin: its own user service, started / stopped by the HUD (quickshell/OrrinState.qml)
+    unit=orrin.service
     st=$(systemctl --user is-active "$unit" 2>/dev/null)
     pid=$(systemctl --user show -P MainPID "$unit" 2>/dev/null)
-    mode=docked; grep -qx 'STARK_JARVIS_LAPTOP=1' "$XDG_RUNTIME_DIR/jarvis/service.env" 2>/dev/null && mode=laptop
+    mode=docked; grep -qx 'ORRIN_LAPTOP=1' "$XDG_RUNTIME_DIR/orrin/service.env" 2>/dev/null && mode=laptop
     case "$st" in
-        active)  say "jarvis: running ($mode mode, pid $pid, up since $(systemctl --user show -P ActiveEnterTimestamp "$unit"))" ;;
-        failed)  say "jarvis: FAILED (crashed too often); see: journalctl --user -u stark-jarvis -n 50" ;;
-        *)       say "jarvis: ${st:-unknown} (the HUD starts it when it's switched on)" ;;
+        active)  say "orrin: running ($mode mode, pid $pid, up since $(systemctl --user show -P ActiveEnterTimestamp "$unit"))" ;;
+        failed)  say "orrin: FAILED (crashed too often); see: journalctl --user -u orrin -n 50" ;;
+        *)       say "orrin: ${st:-unknown} (the HUD starts it when it's switched on)" ;;
     esac
     [ "$(systemctl --user show -P NRestarts "$unit" 2>/dev/null)" -gt 0 ] 2>/dev/null \
         && say "  restarted after a crash $(systemctl --user show -P NRestarts "$unit") time(s) this run"
@@ -72,8 +72,8 @@ if [ "${1:-}" = status ]; then
     for p in $(pgrep -f '[j]arvis\.py$'); do
         grep -q "/$unit\$" "/proc/$p/cgroup" 2>/dev/null || strays="$strays $p"
     done
-    [ -n "$strays" ] && say "  stray voice loop outside the service: pid$strays (stark-jarvis stop clears it)"
-    say "  logs: journalctl --user -u stark-jarvis · control: stark-jarvis start|stop|status|log"
+    [ -n "$strays" ] && say "  stray voice loop outside the service: pid$strays (orrinctl stop clears it)"
+    say "  logs: journalctl --user -u orrin · control: orrinctl start|stop|status|log"
     exit 0
 fi
 

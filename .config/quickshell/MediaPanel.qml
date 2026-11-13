@@ -1,6 +1,6 @@
 // Audio deck for MUSIC screens (Roles.shows; the laptop by default): now playing, controls, volume
 // and a live visualizer (Cava.qml, one cava shared by every deck). Works with Spotify (or any
-// player) running in the background. While Jarvis's DJ mode runs, the set name, mood and next three
+// player) running in the background. While Orrin's DJ mode runs, the set name, mood and next three
 // tracks show under the controls.
 import QtQuick
 import Quickshell
@@ -256,7 +256,7 @@ PanelWindow {
             opacity: 0.85
         }
 
-        // ── DJ mode (OrrinFeed.dj ← ~/.config/jarvis/core/dj.py): set name, mood, the next three ──
+        // ── DJ mode (OrrinFeed.dj ← ~/.config/orrin/core/dj.py): set name, mood, the next three ──
         Column {
             width: parent.width
             visible: media.dj

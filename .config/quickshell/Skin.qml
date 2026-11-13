@@ -51,8 +51,8 @@ Singleton {
         components: {},
         cursor: "",
         personas: {
-            jarvis: { name: "JARVIS", call: "Jarvis", dotted: "J.A.R.V.I.S", glyph: "◉", idle: "○", starting: "◌", accent: "" },
-            friday: { name: "FRIDAY", call: "Friday", dotted: "F.R.I.D.A.Y", glyph: "◈", idle: "◇", starting: "◇", accent: "" }
+            orrin: { name: "JARVIS", call: "Jarvis", dotted: "J.A.R.V.I.S", glyph: "◉", idle: "○", starting: "◌", accent: "" },
+            selene: { name: "FRIDAY", call: "Friday", dotted: "F.R.I.D.A.Y", glyph: "◈", idle: "◇", starting: "◇", accent: "" }
         },
         text: {
             os: "HUD", control: "HUD // CONTROL", settings: "HUD // SETTINGS",
@@ -70,8 +70,8 @@ Singleton {
         namer: null,
         voices: null,
         // AUTO's effect per output (core/effects.py BASE_ROUTING; skin.json voiceRouting per persona)
-        voiceRouting: { jarvis: { headphones: "SUIT", speaker: "HOLOGRAM", btSpeaker: "HOLOGRAM" },
-                        friday: { headphones: "SUIT", speaker: "HOLOGRAM", btSpeaker: "HOLOGRAM" } },
+        voiceRouting: { orrin: { headphones: "SUIT", speaker: "HOLOGRAM", btSpeaker: "HOLOGRAM" },
+                        selene: { headphones: "SUIT", speaker: "HOLOGRAM", btSpeaker: "HOLOGRAM" } },
         hidden: false
     })
     // Default implementations, used when a skin doesn't override them
@@ -82,7 +82,20 @@ Singleton {
     // ── The skin in use (read synchronously) ────
     function parse(text) {
         if (!text) return null;
-        try { const d = JSON.parse(text); return d && typeof d === "object" ? d : null; } catch (e) { return null; }
+        try { const d = JSON.parse(text); return d && typeof d === "object" ? normPersonas(d) : null; } catch (e) { return null; }
+    }
+    // A skin keyed by the pre-AlchemOS persona ids (jarvis / friday: the legacy skin, never edited) reads
+    // as orrin / selene. Same rule as ~/.config/orrin/core/persona.py norm_skin().
+    readonly property var personaAliases: ({ jarvis: "orrin", friday: "selene" })
+    function normPersonas(d) {
+        for (const k of ["personas", "voiceRouting", "voices"]) {
+            const v = d[k];
+            if (!v || typeof v !== "object" || Array.isArray(v)) continue;
+            const out = {};
+            for (const p of Object.keys(v)) out[root.personaAliases[p] || p] = v[p];
+            d[k] = out;
+        }
+        return d;
     }
     readonly property string asked: String(Theme.cfg.skin || defaultSkin)
     // Each FileView remembers which file its last load came from: right after the path changes, text()
@@ -136,8 +149,8 @@ Singleton {
         const out = Object.assign({}, a, b);
         for (const k of ["text", "glyphs", "style", "components"]) out[k] = Object.assign({}, a[k], b[k] || {});
         out.personas = {
-            jarvis: Object.assign({}, a.personas.jarvis, (b.personas || {}).jarvis || {}),
-            friday: Object.assign({}, a.personas.friday, (b.personas || {}).friday || {})
+            orrin: Object.assign({}, a.personas.orrin, (b.personas || {}).orrin || {}),
+            selene: Object.assign({}, a.personas.selene, (b.personas || {}).selene || {})
         };
         if (!Array.isArray(out.presets) || out.presets.length === 0) out.presets = a.presets;
         return out;
@@ -167,7 +180,7 @@ Singleton {
 
     // AUTO's effect per output for who: the skin's voiceRouting over the base's
     function voiceRouting(who) {
-        const w = who === "friday" ? "friday" : "jarvis";
+        const w = who === "selene" ? "selene" : "orrin";
         return Object.assign({}, base.voiceRouting[w], ((resolved.own.voiceRouting || {})[w]) || {});
     }
     // A skin's wording (its skin.json text over BASE) by id, whether or not it is the one in use yet
@@ -175,7 +188,7 @@ Singleton {
         const d = id === root.current ? root.own : (installed[id] || {});
         return Object.assign({}, base.text, d.text || {});
     }
-    function persona(who) { return data.personas[who === "friday" ? "friday" : "jarvis"]; }
+    function persona(who) { return data.personas[who === "selene" ? "selene" : "orrin"]; }
     function glyphFor(presetName) {
         const p = presets.find(x => x.name === presetName);
         return p ? (p.glyph || "") : "";

@@ -1,8 +1,8 @@
 pragma Singleton
-// The JARVIS app's connection to the voice process (~/.config/jarvis/core/appserver.py):
-// a Unix socket in $XDG_RUNTIME_DIR/jarvis/app.sock, JSON lines both ways. While Jarvis isn't
-// running (undocked, or starting) history is still readable through `jarvis app-data …`.
-// Super + J (hypr/alchemos/binds.lua) → qs ipc call jarvisapp toggle → OrrinApp.qml.
+// The ORRIN app's connection to the voice process (~/.config/orrin/core/appserver.py):
+// a Unix socket in $XDG_RUNTIME_DIR/orrin/app.sock, JSON lines both ways. While Orrin isn't
+// running (undocked, or starting) history is still readable through `orrin app-data …`.
+// Super + J (hypr/alchemos/binds.lua) → qs ipc call orrinapp toggle → OrrinApp.qml.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -12,7 +12,7 @@ Singleton {
     id: root
     property bool open: false
     readonly property bool connected: sock.connected
-    readonly property string bin: Quickshell.env("HOME") + "/.local/bin/jarvis"
+    readonly property string bin: Quickshell.env("HOME") + "/.local/bin/orrin"
 
     property var threads: []
     property string query: ""
@@ -153,9 +153,9 @@ Singleton {
 
     Socket {
         id: sock
-        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/jarvis/app.sock"
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/orrin/app.sock"
         parser: SplitParser {
-            onRead: data => { try { root.handle(JSON.parse(data)); } catch (e) { console.log("jarvis app: " + e); } }
+            onRead: data => { try { root.handle(JSON.parse(data)); } catch (e) { console.log("orrin app: " + e); } }
         }
         onConnectedChanged: { if (connected) root.refresh(); else { root.busy = false; root.confirms = []; } }
     }

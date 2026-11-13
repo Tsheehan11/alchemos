@@ -1,10 +1,10 @@
 // Display profiles, keyed by what's connected (Settings → Display shows the active one).
 //
 //   HOME DESK    — the USB-C dock + both Acers: extend, left Acer / middle Acer / laptop,
-//                  workspaces 1–3 / 4–6 / 7–9 (Roles), Jarvis on, Govee strip on.
-//   LAPTOP ONLY  — Jarvis off, strip off, battery saver.
+//                  workspaces 1–3 / 4–6 / 7–9 (Roles), Orrin on, Govee strip on.
+//   LAPTOP ONLY  — Orrin off, strip off, battery saver.
 //   anything else (a TV over HDMI, …) — its own profile per set of monitors; starts as
-//                  extend with Jarvis and the strip off.
+//                  extend with Orrin and the strip off.
 //
 // Each profile remembers its own arrangement and layout mode (extend / mirror / …), so
 // mirroring the TV never leaks into the desk. KEEP in Settings → Display saves into the
@@ -45,7 +45,7 @@ Singleton {
 
         JsonAdapter {
             id: store
-            property var profiles: ({})     // key → { rules, layout, jarvis, govee, saver }
+            property var profiles: ({})     // key → { rules, layout, orrin, govee, saver }
             property string active: ""      // the profile last applied
             property string deskGovee: ""   // the strip mode last used at the desk
         }
@@ -152,7 +152,7 @@ Singleton {
         console.log("Profiles: " + Logic.nameFor(k) + (store.profiles[k] ? "" : " (defaults)") + ", " + p.layout);
         Displays.cancelPending();
         Theme.cfg.displayLayout = p.layout;
-        Theme.cfg.jarvisDocked = p.jarvis;
+        Theme.cfg.orrinDocked = p.orrin;
         Theme.cfg.autoSaver = p.saver;
         if (p.govee && Govee.mode !== p.govee) Govee.setMode(p.govee);
         store.active = k;
@@ -177,7 +177,7 @@ Singleton {
         if (root.key !== "") put(root.key, { rules: rules, layout: layout });
     }
     // "Save current as this profile": the arrangement on screen right now plus the
-    // current Jarvis / strip / battery-saver settings
+    // current Orrin / strip / battery-saver settings
     function saveCurrent() { if (root.key !== "") snap.running = true; }
     Process {
         id: snap
@@ -189,7 +189,7 @@ Singleton {
                 const layout = Theme.cfg.displayLayout || "extend";
                 root.put(root.key, {
                     rules: Logic.rulesFromMonitors(mons, layout), layout: layout,
-                    jarvis: Theme.cfg.jarvisDocked, govee: Govee.mode, saver: Theme.cfg.autoSaver
+                    orrin: Theme.cfg.orrinDocked, govee: Govee.mode, saver: Theme.cfg.autoSaver
                 });
                 root.status = "Saved as the " + root.name + " profile";
             }

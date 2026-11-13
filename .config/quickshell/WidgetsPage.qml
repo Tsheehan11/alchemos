@@ -1,5 +1,5 @@
 // Settings → WIDGETS: add, pin, close and reset desktop widgets by mouse (Widgets.qml).
-// Jarvis and `qs ipc call widgets …` do the same by voice / script.
+// Orrin and `qs ipc call widgets …` do the same by voice / script.
 import QtQuick
 import Quickshell
 
@@ -57,7 +57,7 @@ Column {
     Text { visible: page.result !== ""; text: page.result; color: page.result.startsWith("✓") ? Theme.dim : Theme.secondary; font.family: Style.fonts.body; font.pixelSize: 11 }
 
     Text { text: "ON SCREEN NOW · " + Widgets.items.length; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11; font.letterSpacing: 3; topPadding: 10 }
-    Text { visible: Widgets.items.length === 0; text: "No widgets. Add one above, or ask " + OrrinState.callOf("jarvis") + "."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
+    Text { visible: Widgets.items.length === 0; text: "No widgets. Add one above, or ask " + OrrinState.callOf("orrin") + "."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12 }
     Repeater {
         model: Widgets.items
         delegate: Rectangle {

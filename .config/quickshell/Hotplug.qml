@@ -5,7 +5,7 @@
 // (hyprctl clients: "monitor": -1; workspaces: "monitor": "?"). It's a race inside
 // Hyprland: the same unplug sometimes orphans and sometimes doesn't. Hyprland 0.56.2 then
 // segfaults as soon as anything captures one of those windows (the Overview thumbnails,
-// Jarvis's window reader): the crashes of 2026-10-31 23:00 and 2026-11-01 01:35.
+// Orrin's window reader): the crashes of 2026-10-31 23:00 and 2026-11-01 01:35.
 //
 // Any monitoradded / monitorremoved / configreloaded starts `settling`. 1.5 s after the last
 // one, every window is checked; workspaces whose windows lost their monitor move to the
@@ -15,7 +15,7 @@
 //
 // While settling, $XDG_RUNTIME_DIR/alchemos-hotplug-settling exists, touched every 4 s; one
 // older than 10 s is stale, so a crashed HUD can't hold anything up. alchemos-lock.sh and
-// lid.sh wait for it (2.5 s at most), and Jarvis and the Overview capture nothing.
+// lid.sh wait for it (2.5 s at most), and Orrin and the Overview capture nothing.
 // Journal (tag alchemos-hud, `journalctl --user -t alchemos-hud`): every re-home, with the
 // windows' classes and the screen their workspace was last seen on.
 pragma Singleton

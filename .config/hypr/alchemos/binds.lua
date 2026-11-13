@@ -27,10 +27,10 @@ bind("SHIFT + K", exec("qs ipc call skin swap"))      -- the other skin (AlchemO
 bind("L",      exec("qs ipc call alchemos lock || ~/.config/hypr/alchemos-lock.sh"))
 bind("Tab",    exec("qs ipc call overview toggle"))
 bind("Escape", exec("qs ipc call alchemos menu"))
-bind("J",      exec("qs ipc call jarvisapp toggle"))  -- JARVIS console (conversations, typed requests, tasks)
--- Kill switch: Jarvis lets go of any window it's working (jarvis/core/control.py checks this flag before
+bind("J",      exec("qs ipc call orrinapp toggle"))  -- ORRIN console (conversations, typed requests, tasks)
+-- Kill switch: Orrin lets go of any window it's working (orrin/core/control.py checks this flag before
 -- every input event). Plain shell, so it works even if Python or the HUD is stuck.
-bind("SHIFT + Escape", exec("touch \"$XDG_RUNTIME_DIR/jarvis-control-stop\"; qs ipc call jarviscontrol stop"))
+bind("SHIFT + Escape", exec("touch \"$XDG_RUNTIME_DIR/orrin-control-stop\"; qs ipc call orrincontrol stop"))
 bind("SHIFT + M", hl.dsp.exit())
 -- Screenshots (quickshell/Shot.qml → ~/.local/bin/alchemos-shot): saved to ~/Pictures/Screenshots + copied.
 -- Through the HUD so its overlays step out of the shot; straight to alchemos-shot if the HUD is down.

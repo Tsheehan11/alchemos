@@ -1,5 +1,5 @@
-// DJ deck: now playing (MPRIS, Spotify first) and Jarvis's DJ mode: the set name, mood, chatter level and
-// the next three tracks (OrrinFeed.dj ← ~/.config/jarvis/core/dj.py, pushed, never polled). Buttons:
+// DJ deck: now playing (MPRIS, Spotify first) and Orrin's DJ mode: the set name, mood, chatter level and
+// the next three tracks (OrrinFeed.dj ← ~/.config/orrin/core/dj.py, pushed, never polled). Buttons:
 // prev / play / next on the player; MORE / LESS steer the running set, START builds one (one Claude call
 // each, in the voice process). A slow arc turns round the art while a set runs; it's still in battery
 // saver or when effects are paused.
@@ -24,7 +24,7 @@ WidgetBody {
     title: "DJ // DECK"
     detail: !OrrinFeed.online ? OrrinState.assistant + " OFF" : building && !on ? "BUILDING SET" : on ? "LIVE · " + (dj.chatter || "rare").toUpperCase()
                                                                                        : "STANDBY"
-    function jarvis(args) { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "dj"].concat(args)); }
+    function orrin(args) { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/orrin", "dj"].concat(args)); }
     function fmt(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
     Timer {
         interval: w.saver ? 5000 : 1000; repeat: true
@@ -123,10 +123,10 @@ WidgetBody {
                 }
             }
             Item { width: 10; height: 1 }
-            HoloButton { visible: w.on; text: "MORE"; pixelSize: 10; usable: !w.building; onClicked: w.jarvis(["more"]) }
-            HoloButton { visible: w.on; text: "LESS"; pixelSize: 10; usable: !w.building; onClicked: w.jarvis(["less"]) }
-            HoloButton { visible: w.on; text: "■"; pixelSize: 10; onClicked: w.jarvis(["stop"]) }
-            HoloButton { visible: !w.on; text: w.building ? "BUILDING…" : "START DJ"; pixelSize: 10; usable: OrrinFeed.online && !w.building; onClicked: w.jarvis(["start"]) }
+            HoloButton { visible: w.on; text: "MORE"; pixelSize: 10; usable: !w.building; onClicked: w.orrin(["more"]) }
+            HoloButton { visible: w.on; text: "LESS"; pixelSize: 10; usable: !w.building; onClicked: w.orrin(["less"]) }
+            HoloButton { visible: w.on; text: "■"; pixelSize: 10; onClicked: w.orrin(["stop"]) }
+            HoloButton { visible: !w.on; text: w.building ? "BUILDING…" : "START DJ"; pixelSize: 10; usable: OrrinFeed.online && !w.building; onClicked: w.orrin(["start"]) }
             Text {
                 anchors.verticalCenter: parent.verticalCenter; leftPadding: 6
                 text: w.has ? w.fmt(w.player.position) + " / " + w.fmt(w.player.length) : ""

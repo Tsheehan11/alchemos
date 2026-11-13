@@ -23,8 +23,8 @@
     "//glyphs": "ring: signs set round the clock, the lock seal and the skin transition (any count; [] = bare rings). sun: the seal's centre sign.",
 
     "personas": {
-        "jarvis": { "name": "JARVIS", "call": "Jarvis", "dotted": "J.A.R.V.I.S", "glyph": "◉", "idle": "○", "starting": "◌", "accent": "" },
-        "friday": { "name": "FRIDAY", "call": "Friday", "dotted": "F.R.I.D.A.Y", "glyph": "◈", "idle": "◇", "starting": "◇", "accent": "" }
+        "orrin": { "name": "JARVIS", "call": "Jarvis", "dotted": "J.A.R.V.I.S", "glyph": "◉", "idle": "○", "starting": "◌", "accent": "" },
+        "selene": { "name": "FRIDAY", "call": "Friday", "dotted": "F.R.I.D.A.Y", "glyph": "◈", "idle": "◇", "starting": "◇", "accent": "" }
     },
     "//personas": "display names of the two personas (ids stay jarvis / friday; the wake word stays \"hey Jarvis\"). name: labels; call: in a sentence and spoken; accent: a fixed colour for the persona's marker, \"\" = the theme's.",
 

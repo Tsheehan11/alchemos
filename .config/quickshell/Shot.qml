@@ -1,6 +1,6 @@
 pragma Singleton
 // Screenshots: Print = region, Shift+Print = this monitor, Super+Shift+S = region → annotate (hypr/alchemos/binds.lua),
-// the SCREENSHOT tile in the control center, `qs ipc call shot region|screen|window|annotate`, Jarvis.
+// the SCREENSHOT tile in the control center, `qs ipc call shot region|screen|window|annotate`, Orrin.
 // The capture itself is ~/.local/bin/alchemos-shot (grim / slurp / wl-copy / satty); this only clears the HUD out
 // of the way first, then plays the shutter (ShotFlash.qml) and shows the toast (ShotToast.qml).
 //
@@ -8,7 +8,7 @@ pragma Singleton
 // overlay by unmapping it would leave its ghost in the shot. Instead every overlay binds its contentItem's
 // opacity to `hiding` (transparent at once, still mapped); a frame later the transient pop-ups are closed
 // (their fade-out is of an empty buffer by then), and a frame after that alchemos-shot runs. The desktop itself
-// (bar, clock, panels, widgets, background) stays in; so do Settings and the JARVIS console, as windows you
+// (bar, clock, panels, widgets, background) stays in; so do Settings and the ORRIN console, as windows you
 // may want to capture.
 import QtQuick
 import Quickshell

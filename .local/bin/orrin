@@ -1,0 +1,3 @@
+#!/bin/sh
+# ORRIN from the shell: orrin --text "set the theme to matrix"  (see ~/.config/orrin/orrin.py)
+exec setpriv --no-new-privs "$HOME/.config/orrin/.venv/bin/python" "$HOME/.config/orrin/orrin.py" "$@"

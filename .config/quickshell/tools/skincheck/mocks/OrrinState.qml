@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 Singleton {
-    readonly property var look: Skin.persona("jarvis")
+    readonly property var look: Skin.persona("orrin")
     property bool online: true; property bool toggleOn: true; property bool laptopMode: false; property bool docked: true
     property bool speaking: false; property bool listening: false; property string phase: "idle"
     readonly property string name: look.name

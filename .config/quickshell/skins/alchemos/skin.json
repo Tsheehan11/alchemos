@@ -70,16 +70,16 @@
         {"name": "COCHINEAL", "glyph": "🝈", "h": 345, "s": 0.78, "l": 0.64}
     ], "compound": true, "joiner": "-"},
     "voiceRouting": {
-        "jarvis": { "headphones": "CHAMBER_SUBTLE", "speaker": "ALEMBIC_SUBTLE", "btSpeaker": "RESONANT_SUBTLE" },
-        "friday": { "headphones": "RESONANT_SUBTLE", "speaker": "ALEMBIC_SUBTLE", "btSpeaker": "RESONANT_SUBTLE" }
+        "orrin": { "headphones": "CHAMBER_SUBTLE", "speaker": "ALEMBIC_SUBTLE", "btSpeaker": "RESONANT_SUBTLE" },
+        "selene": { "headphones": "RESONANT_SUBTLE", "speaker": "ALEMBIC_SUBTLE", "btSpeaker": "RESONANT_SUBTLE" }
     },
     "voices": {
-        "jarvis": { "voice": "pocket/orrin_2", "speed": 1.0, "pitch": 0.5, "effect": "AUTO" },
-        "friday": { "voice": "pocket/selene_1", "speed": 1.0, "pitch": 0.3, "effect": "AUTO" }
+        "orrin": { "voice": "pocket/orrin_2", "speed": 1.0, "pitch": 0.5, "effect": "AUTO" },
+        "selene": { "voice": "pocket/selene_1", "speed": 1.0, "pitch": 0.3, "effect": "AUTO" }
     },
     "personas": {
-        "jarvis": { "name": "ORRIN",  "call": "Orrin",  "dotted": "O.R.R.I.N",   "glyph": "☉", "idle": "☉", "starting": "☉", "accent": "#ffc04a" },
-        "friday": { "name": "SELENE", "call": "Selene", "dotted": "S.E.L.E.N.E", "glyph": "☽", "idle": "☽", "starting": "☽", "accent": "#d4dde8" }
+        "orrin": { "name": "ORRIN",  "call": "Orrin",  "dotted": "O.R.R.I.N",   "glyph": "☉", "idle": "☉", "starting": "☉", "accent": "#ffc04a" },
+        "selene": { "name": "SELENE", "call": "Selene", "dotted": "S.E.L.E.N.E", "glyph": "☽", "idle": "☽", "starting": "☽", "accent": "#d4dde8" }
     },
     "text": {
         "os": "ALCHEMOS",

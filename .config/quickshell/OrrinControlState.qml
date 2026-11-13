@@ -1,8 +1,8 @@
 pragma Singleton
-// Jarvis working a window (stage 4, ~/.config/jarvis/core/control.py): which window, where, and what it's doing.
-// core/control.Session beats `qs ipc call jarviscontrol frame SCREEN X Y W H TEXT` every 0.5 s (X/Y relative to
+// Orrin working a window (stage 4, ~/.config/orrin/core/control.py): which window, where, and what it's doing.
+// core/control.Session beats `qs ipc call orrincontrol frame SCREEN X Y W H TEXT` every 0.5 s (X/Y relative to
 // that screen, logical pixels); without a beat for 2 s the border goes (the plan's process died). `stop` is
-// the kill switch (Super+Shift+Escape → `jarvis control stop`, or "stop"): the border flashes STOPPED and goes.
+// the kill switch (Super+Shift+Escape → `orrin control stop`, or "stop"): the border flashes STOPPED and goes.
 import QtQuick
 import Quickshell
 

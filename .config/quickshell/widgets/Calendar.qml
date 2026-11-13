@@ -1,6 +1,6 @@
 // Agenda: the next events from his main Google Calendar and the Outlook ICS feed, merged with the SE
-// tracker's due dates, with live countdowns. Data: OrrinFeed (jarvis feed → agenda.json; it syncs every
-// few minutes and right after Jarvis edits the calendar or the tracker). Double-click: sync now.
+// tracker's due dates, with live countdowns. Data: OrrinFeed (orrin feed → agenda.json; it syncs every
+// few minutes and right after Orrin edits the calendar or the tracker). Double-click: sync now.
 // params: {"due": false} leaves the tracker out; size large / huge shows more.
 //   ◆ Google   ◇ Outlook   ◈ both   ▲ due (tracker)
 import QtQuick

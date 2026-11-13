@@ -46,7 +46,7 @@ ShellRoot {
         WidgetMaker {}
     }
 
-    // Overlays: radial launcher, app search, Jarvis pop-up
+    // Overlays: radial launcher, app search, Orrin pop-up
     Variants {
         model: Quickshell.screens
         Launcher {}
@@ -59,11 +59,11 @@ ShellRoot {
         model: Quickshell.screens
         OrrinToast {}
     }
-    Variants {                  // JARVIS console (Super + J): conversations, typed requests, tasks
+    Variants {                  // ORRIN console (Super + J): conversations, typed requests, tasks
         model: Quickshell.screens
         OrrinApp {}
     }
-    Variants {                  // the glow around a window Jarvis is working (stage 4, core/control.py)
+    Variants {                  // the glow around a window Orrin is working (stage 4, core/control.py)
         model: Quickshell.screens
         OrrinControl {}
     }
@@ -210,7 +210,7 @@ ShellRoot {
         function menu(): void { LauncherState.togglePower() }        // power button / Super + Esc
     }
 
-    //   Peek (Super + D is bound in hypr/alchemos/binds.lua; this is for scripts / Jarvis)
+    //   Peek (Super + D is bound in hypr/alchemos/binds.lua; this is for scripts / Orrin)
     IpcHandler {
         target: "peek"
         function toggle(): void { Peek.toggle() }
@@ -225,26 +225,26 @@ ShellRoot {
         function toggle(): void { GameMode.toggle() }
     }
 
-    //   qs ipc call jarvisapp toggle   (Super + J, hypr/alchemos/binds.lua)
+    //   qs ipc call orrinapp toggle   (Super + J, hypr/alchemos/binds.lua)
     IpcHandler {
-        target: "jarvisapp"
+        target: "orrinapp"
         function toggle(): void { OrrinLink.toggle() }
         function open(): void { OrrinLink.show() }
         function close(): void { OrrinLink.open = false }
     }
 
-    //   used by ~/.config/jarvis/core/control.py while Jarvis works a window; stop = the kill switch
+    //   used by ~/.config/orrin/core/control.py while Orrin works a window; stop = the kill switch
     IpcHandler {
-        target: "jarviscontrol"
+        target: "orrincontrol"
         function frame(scr: string, x: int, y: int, w: int, h: int, label: string): void { OrrinControlState.show(scr, x, y, w, h, label) }
         function hide(): void { OrrinControlState.hide() }
         function stop(): void { OrrinControlState.stop() }
     }
 
-    //   used by ~/.config/jarvis/jarvis.py (core/hud.py)
+    //   used by ~/.config/orrin/orrin.py (core/hud.py)
     IpcHandler {
-        target: "jarvis"
-        function online(): string { return OrrinState.beat() }          // heartbeat; "resync" → Jarvis sends restore
+        target: "orrin"
+        function online(): string { return OrrinState.beat() }          // heartbeat; "resync" → Orrin sends restore
         function offline(): void { OrrinState.goOffline() }
         function restore(state: string): void { OrrinState.restore(state) }   // JSON from core/hud.py after a qs restart
         function listening(): void { OrrinState.startListening() }
@@ -263,8 +263,8 @@ ShellRoot {
         function paused(on: string): void { OrrinState.paused = on === "true" }
         function heard(msg: string): void { OrrinState.heard(msg) }
         function status(msg: string): void { OrrinState.status(msg) }
-        // persona: `qs ipc call jarvis persona friday` switches the default (Jarvis announces it in the new
-        // voice); `qs ipc call jarvis whois` → the active one. answering: sent by Jarvis per exchange ("" = default)
+        // persona: `qs ipc call orrin persona friday` switches the default (Orrin announces it in the new
+        // voice); `qs ipc call orrin whois` → the active one. answering: sent by Orrin per exchange ("" = default)
         function persona(name: string): string { return OrrinState.setPersona(name) }
         function whois(): string { return OrrinState.persona }
         function answering(who: string): void { OrrinState.answering = who }
@@ -299,7 +299,7 @@ ShellRoot {
             Theme.cfg[key] = typeof cur === "number" ? Number(value) : typeof cur === "boolean" ? value === "true" : value;
             return key + " = " + JSON.stringify(Theme.cfg[key]);
         }
-        //   qs ipc call theme presets   → ["AURUM","ARGENT",…] (the skin's built-ins + custom; Jarvis validates against it)
+        //   qs ipc call theme presets   → ["AURUM","ARGENT",…] (the skin's built-ins + custom; Orrin validates against it)
         //   preset: the other skin's names work too (MARK III → IRON in ALCHEMOS, Skin.aliases)
         function presets(): string { return JSON.stringify(Theme.allPresets.map(p => p.name)) }
         function preset(name: string): string {

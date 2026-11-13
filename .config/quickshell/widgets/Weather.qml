@@ -1,4 +1,4 @@
-// Weather at home (Settings → JARVIS place, jarvisPlace) from Open-Meteo, through jarvis feed
+// Weather at home (Settings → ORRIN place, orrinPlace) from Open-Meteo, through orrin feed
 // (weather.json, refreshed every 30 min). A radar sweep turns while effects run.
 import QtQuick
 import ".."

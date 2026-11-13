@@ -12,7 +12,7 @@ Usage:
   alchemos-govee daemon                    run the light daemon (Hyprland exec-once)
   alchemos-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
   alchemos-govee anim <name>               play an animation only (no lock/sleep state), for testing;
-                                        "alert" = desktop timer done, "listen" = Jarvis heard you
+                                        "alert" = desktop timer done, "listen" = Orrin heard you
                                         (both skipped when the strip is off or busy)
   alchemos-govee speed <0.5-2.0>           animation speed multiplier
   alchemos-govee level <0.05-1.0>          steady-colour brightness (theme / manual modes)
@@ -973,7 +973,7 @@ class Daemon:
             if cmd == "anim" and len(parts) > 1 and (parts[1] in ANIMS or parts[1] in EXTRA_ANIMS):
                 if parts[1] in QUIET_ANIMS and (self.cfg.get("mode") in ("off", "manual") or self.locked or self.asleep
                                                 or self.powered is not True or self.anim is not None):
-                    done.set()  # a timer flash / Jarvis pulse never turns the strip on, wakes it or cuts in
+                    done.set()  # a timer flash / Orrin pulse never turns the strip on, wakes it or cuts in
                 elif self.parked:  # the dock+home gate still applies to test runs
                     done.set()
                 else:

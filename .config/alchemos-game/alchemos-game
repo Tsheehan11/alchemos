@@ -17,7 +17,7 @@ Usage:
 Game windows: class steam_app_<id>, gamescope, or any regex in
 ~/.config/alchemos-game/games.conf. Options live in the HUD's settings.json
 (Settings → System → Combat mode). The HUD reads the state file to quiet
-itself and pause Jarvis.
+itself and pause Orrin.
 
 Triggers (window / gamemode / manual) are merged under one lock, so they can
 fire in any order, or at the same time, without double-saving or

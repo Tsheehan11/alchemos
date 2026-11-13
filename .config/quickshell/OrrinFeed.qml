@@ -1,13 +1,13 @@
 pragma Singleton
 // Data the desktop widgets show, all pushed, none polled:
-//   status.json   $XDG_RUNTIME_DIR/jarvis/status.json, written by the Jarvis voice process when something
-//                 changes (~/.config/jarvis/core/status.py): mic, last command, background tasks, token usage
-//   agenda.json   ~/.local/share/jarvis/feed/, from `jarvis feed` (core/feed.py): main Google Calendar +
+//   status.json   $XDG_RUNTIME_DIR/orrin/status.json, written by the Orrin voice process when something
+//                 changes (~/.config/orrin/core/status.py): mic, last command, background tasks, token usage
+//   agenda.json   ~/.local/share/orrin/feed/, from `orrin feed` (core/feed.py): main Google Calendar +
 //   weather.json  Outlook ICS + SE tracker due dates, home-town weather. That process runs only while a
 //                 calendar / due / weather widget is up, and syncs on its own clock (no Claude, ever).
-//   usage.json    ~/.local/share/jarvis/usage/, from `jarvis usage --watch` (core/usage.py) while a usage widget
-//                 is up: plan % (the CLI's /usage report), Jarvis + Claude Code tokens by model, estimated rest
-//   dj.json       $XDG_RUNTIME_DIR/jarvis/dj.json, written by DJ mode in the voice process (core/dj.py):
+//   usage.json    ~/.local/share/orrin/usage/, from `orrin usage --watch` (core/usage.py) while a usage widget
+//                 is up: plan % (the CLI's /usage report), Orrin + Claude Code tokens by model, estimated rest
+//   dj.json       $XDG_RUNTIME_DIR/orrin/dj.json, written by DJ mode in the voice process (core/dj.py):
 //                 set name, mood, chatter level, now playing, the next three (MediaPanel, the dj widget)
 // FileView watches each file (inotify). The one clock here ticks on the minute, only while a widget
 // that shows countdowns is up.
@@ -20,7 +20,7 @@ Singleton {
     readonly property string home: Quickshell.env("HOME")
     readonly property string runtime: Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000"
 
-    // ── Jarvis status ──
+    // ── Orrin status ──
     property var status: ({})
     readonly property bool online: OrrinState.online && (status.pid || 0) > 0
     readonly property var mic: online ? (status.mic || {}) : ({})
@@ -29,13 +29,13 @@ Singleton {
     readonly property var usage: status.usage || ({})
     FileView {
         id: statusFile
-        path: root.runtime + "/jarvis/status.json"
+        path: root.runtime + "/orrin/status.json"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: { try { root.status = JSON.parse(text()); } catch (e) {} }
         onLoadFailed: root.status = ({})
     }
-    // the file appears / goes with the Jarvis process
+    // the file appears / goes with the Orrin process
     Connections {
         target: OrrinState
         function onOnlineChanged() { statusFile.reload(); djFile.reload(); }
@@ -48,7 +48,7 @@ Singleton {
     readonly property bool djBuilding: online && !!dj.building
     FileView {
         id: djFile
-        path: root.runtime + "/jarvis/dj.json"
+        path: root.runtime + "/orrin/dj.json"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
@@ -69,14 +69,14 @@ Singleton {
     }
     FileView {
         id: agendaFile
-        path: root.home + "/.local/share/jarvis/feed/agenda.json"
+        path: root.home + "/.local/share/orrin/feed/agenda.json"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: { try { root.agenda = JSON.parse(text()); } catch (e) {} }
     }
     FileView {
         id: weatherFile
-        path: root.home + "/.local/share/jarvis/feed/weather.json"
+        path: root.home + "/.local/share/orrin/feed/weather.json"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: { try { root.weather = JSON.parse(text()); } catch (e) {} }
@@ -87,22 +87,22 @@ Singleton {
     Process {
         id: feed
         running: root.needFeed
-        // pdeathsig: it goes with the HUD; no-new-privs like Jarvis itself
-        command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs", root.home + "/.local/bin/jarvis", "feed"]
+        // pdeathsig: it goes with the HUD; no-new-privs like Orrin itself
+        command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs", root.home + "/.local/bin/orrin", "feed"]
         onRunningChanged: if (running) { agendaFile.reload(); weatherFile.reload(); }
         onExited: if (root.needFeed) feedRetry.restart()
     }
     Timer { id: feedRetry; interval: 30000; onTriggered: if (root.needFeed && !feed.running) feed.running = true }
-    function refresh() { Quickshell.execDetached([root.home + "/.local/bin/jarvis", "feed", "--kick"]); }
+    function refresh() { Quickshell.execDetached([root.home + "/.local/bin/orrin", "feed", "--kick"]); }
 
     // ── whole-account Claude usage (CLAUDE // USAGE widget) ──
-    // usage.json from `jarvis usage --watch` (~/.config/jarvis/core/usage.py): the plan's 5-hour / weekly %
-    // from the CLI's /usage report (no tokens), Jarvis + Claude Code tokens from their local records, and the
+    // usage.json from `orrin usage --watch` (~/.config/orrin/core/usage.py): the plan's 5-hour / weekly %
+    // from the CLI's /usage report (no tokens), Orrin + Claude Code tokens from their local records, and the
     // estimated remainder (claude.ai + other devices). The watcher runs only while a usage widget is up.
     property var claude: ({})
     FileView {
         id: usageFile
-        path: root.home + "/.local/share/jarvis/usage/usage.json"
+        path: root.home + "/.local/share/orrin/usage/usage.json"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
@@ -112,17 +112,17 @@ Singleton {
     Process {
         id: usageWatch
         running: root.needUsage
-        command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs", root.home + "/.local/bin/jarvis", "usage", "--watch"]
+        command: ["setpriv", "--pdeathsig", "TERM", "--no-new-privs", root.home + "/.local/bin/orrin", "usage", "--watch"]
         onRunningChanged: if (running) usageFile.reload()
         onExited: if (root.needUsage) usageRetry.restart()
     }
     Timer { id: usageRetry; interval: 30000; onTriggered: if (root.needUsage && !usageWatch.running) usageWatch.running = true }
     // a click on the widget: plan report now (the watcher polls the kick file every second)
-    function usageNow() { Quickshell.execDetached(["touch", root.home + "/.local/share/jarvis/usage/kick"]); }
+    function usageNow() { Quickshell.execDetached(["touch", root.home + "/.local/share/orrin/usage/kick"]); }
 
     // ── minute clock for countdowns: fires as the minute turns, only while it's needed ──
     property double now: Date.now()
-    readonly property bool needClock: Widgets.items.some(i => ["calendar", "due", "usage", "jarvis"].indexOf(i.type) >= 0)
+    readonly property bool needClock: Widgets.items.some(i => ["calendar", "due", "usage", "orrin"].indexOf(i.type) >= 0)
     Timer {
         id: minute
         running: root.needClock

@@ -1,0 +1,31 @@
+# openWakeWord training config for "hey friday" (tools/wakeword/train.sh fills the {W} paths).
+# Synthetic clips come from gen_clips.py (piper LibriTTS-R ONNX, 904 speakers, + Kokoro voices/blends);
+# adversarial negatives: phrases that sound like it or contain "Friday" the weekday, which he says
+# to JARVIS all the time ("what's due Friday").
+model_name: hey_friday
+target_phrase: ["hey friday"]
+custom_negative_phrases: ["selene", "on friday", "by friday", "due friday", "this friday", "next friday",
+  "friday night", "it's friday", "hey freddie", "hey fred", "hey frida", "hey fried egg", "hey fry day",
+  "high five", "hey fido", "hey jarvis", "hey siri", "hey there", "a fried egg", "hey freedom", "five day"]
+n_samples: 8000
+n_samples_val: 2000
+tts_batch_size: 50
+augmentation_batch_size: 16
+augmentation_rounds: 1
+piper_sample_generator_path: "{W}/piper-sample-generator"
+output_dir: "{W}/out"
+rir_paths: ["{W}/data/rir"]
+background_paths: ["{W}/data/background"]
+background_paths_duplication_rate: [1]
+false_positive_validation_data_path: "{W}/data/validation_set_features.npy"
+feature_data_files:
+  ACAV100M_sample: "{W}/data/acav100m_part.npy"
+batch_n_per_class:
+  ACAV100M_sample: 1024
+  adversarial_negative: 50
+  positive: 50
+model_type: dnn
+layer_size: 64
+steps: 60000
+max_negative_weight: 1000
+target_false_positives_per_hour: 0.5

@@ -7,7 +7,7 @@ Singleton {
     id: root
     property bool loaded: true
     property var cfg: ({ skin: Quickshell.env("SKINCHECK_SKIN") || "alchemos", preset: "", reactorScale: 1.0, clock24: true,
-                         greetName: "TREVOR", panelOpacity: 0.85, skinUnlocked: true, customPresets: [], jarvisPersona: "jarvis", showGrid: true })
+                         greetName: "TREVOR", panelOpacity: 0.85, skinUnlocked: true, customPresets: [], orrinPersona: "orrin", showGrid: true })
     property int presetIndex: 0         // the gallery picks another preset for a render or two
     readonly property var preset: presetIndex < 0 ? customs[0] : (Skin.presets && Skin.presets.length > presetIndex) ? Skin.presets[presetIndex] : ({ primary: "#4fd8ff", secondary: "#ffb347", background: "#05090f" })
     readonly property color primary: preset.primary

@@ -1,11 +1,11 @@
-// JARVIS pop-up on the focused screen: projected text, not a box. Follows OrrinState.phase:
+// ORRIN pop-up on the focused screen: projected text, not a box. Follows OrrinState.phase:
 //   LISTENING (waveform) → transcript → PROCESSING (tool calls appear one by one,
 //   "◆ THEME → MARK III") → RESPONSE / AWAITING CONFIRMATION → FOLLOW-UP.
 // The whole reply is always there: a long one scrolls inside, following the speech karaoke-style
 // (OrrinState.speak: the sentence being spoken is lit, the line under it is marked, and the view
 // keeps it in sight). The mouse wheel scrolls it by hand and pauses the following. It stays up while
-// Jarvis speaks or the pointer is on it, then a few seconds scaled to length. A click opens the
-// thread in the JARVIS console on this monitor. Timers and reminders use the same panel (phase "alert").
+// Orrin speaks or the pointer is on it, then a few seconds scaled to length. A click opens the
+// thread in the ORRIN console on this monitor. Timers and reminders use the same panel (phase "alert").
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -23,7 +23,7 @@ PanelWindow {
     visible: on || holo.opacity > 0.01          // stays mapped while it fades out
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-jarvis"
+    WlrLayershell.namespace: "alchemos-orrin"
     exclusionMode: ExclusionMode.Ignore
     anchors { bottom: true }
     margins { bottom: 44 }
@@ -248,8 +248,8 @@ PanelWindow {
                         visible: !OrrinState.hasAccent
                         anchors.centerIn: parent
                         // legacy: JARVIS a round core; FRIDAY a diamond
-                        width: 8; height: 8; radius: OrrinState.who === "friday" ? 1 : 4
-                        rotation: OrrinState.who === "friday" ? 45 : 0
+                        width: 8; height: 8; radius: OrrinState.who === "selene" ? 1 : 4
+                        rotation: OrrinState.who === "selene" ? 45 : 0
                         color: toast.accent
                         SequentialAnimation on scale {
                             running: toast.visible && !OrrinState.hasAccent; loops: Animation.Infinite

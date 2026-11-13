@@ -1,4 +1,4 @@
-// Settings → the assistant (tab id JARVIS; the label is the skin's assistant name). Moved out of
+// Settings → the assistant (tab id ORRIN; the label is the skin's assistant name). Moved out of
 // Settings.qml and split into sub-pages: GENERAL · VOICES · LISTENING · DECISIONS · CONNECTIONS · PRIVACY.
 // Every control is the one that was there before (same Theme.cfg keys and commands).
 import QtQuick
@@ -21,28 +21,28 @@ Column {
     readonly property var modelHints: ({ auto: "Haiku · Sonnet for harder questions", haiku: "Fastest", sonnet: "Smarter, a little slower", opus: "Strongest, slowest · uses the plan fastest" })
     readonly property var follows: [0, 4, 6, 8, 10, 15]
     property var voices: ["bm_george"]
-    property var femaleVoices: ["bf_emma"]  // FRIDAY: English female Kokoro voices (jarvis-voices --list)
+    property var femaleVoices: ["bf_emma"]  // SELENE: English female Kokoro voices (orrin-voices --list)
     property var effects: ["AUTO", "CLEAN", "HOLOGRAM", "SUIT"]
     // AUTO: what the skin's routing picks for each output (core/effects.py routing())
     function autoHint(who) {
         const r = Skin.voiceRouting(who);
         return "Headphones " + r.headphones + " · speakers " + r.speaker + " · Bluetooth speaker " + r.btSpeaker;
     }
-    readonly property var effectHints: ({ AUTO: autoHint("jarvis"), CLEAN: "No processing",
+    readonly property var effectHints: ({ AUTO: autoHint("orrin"), CLEAN: "No processing",
         HOLOGRAM: "Warm EQ, small room, faint chorus", SUIT: "Narrower, radio-like, inside the helmet",
         CHAMBER: "A small stone room: warm, a little hard-walled", RESONANT: "A faint metallic ring under the voice",
         ALEMBIC: "Band-limited, glassy, a very short echo",
         CHAMBER_SUBTLE: "CHAMBER at a quarter of the colour", RESONANT_SUBTLE: "RESONANT at a quarter of the colour",
         ALEMBIC_SUBTLE: "ALEMBIC at a quarter of the colour, full band" })
-    function fridayFx(dir) {
-        const v = cycle(["SAME"].concat(effects), Theme.cfg.fridayEffect || "SAME", dir);
+    function seleneFx(dir) {
+        const v = cycle(["SAME"].concat(effects), Theme.cfg.seleneEffect || "SAME", dir);
         return v === "SAME" ? "" : v;
     }
     property var speakers: []          // [{mac, name}] paired Bluetooth speakers (not headphones)
-    property var integrations: []      // `jarvis integrations --json`: [{key, name, label, auth, connected, state, detail}]
-    property var spotify: ({})         // `jarvis spotify status --json`: {connected, user, premium, client, missing, detail}
-    property var djMoods: []           // preset names from ~/.config/jarvis/dj_moods.json + saved ones
-    property var router: ({})          // `jarvis router stats --json` (core/router_learn.py)
+    property var integrations: []      // `orrin integrations --json`: [{key, name, label, auth, connected, state, detail}]
+    property var spotify: ({})         // `orrin spotify status --json`: {connected, user, premium, client, missing, detail}
+    property var djMoods: []           // preset names from ~/.config/orrin/dj_moods.json + saved ones
+    property var router: ({})          // `orrin router stats --json` (core/router_learn.py)
     function speakerName(mac) { const s = speakers.find(x => x.mac === mac); return mac === "" ? "OFF" : (s ? s.name : mac).toUpperCase(); }
     function voiceName(v) {
         if (/^[a-z][fm]_/.test(v)) return v.slice(3).toUpperCase() + (v[1] === "m" ? " · KOKORO" : " · KOKORO ♀");
@@ -52,13 +52,13 @@ Column {
                                                            : m[2].replace(/_/g, " ").toUpperCase() + " · " + m[1].toUpperCase();
         return v.replace(/^en_GB-/, "").replace(/-(medium|low|high)/, "").replace(/_/g, " ").replace(":", " · ").toUpperCase() + " · PIPER";
     }
-    function preview() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "Good evening, sir. All systems are online.", "--as", "jarvis"]); }
-    function previewFriday() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", OrrinState.nameOf("friday") + " here. All is quiet and well.", "--as", "friday"]); }
+    function preview() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/orrin", "--say", "Good evening, sir. All systems are online.", "--as", "orrin"]); }
+    function previewSelene() { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/orrin", "--say", OrrinState.nameOf("selene") + " here. All is quiet and well.", "--as", "selene"]); }
     function cycle(list, cur, dir) { const i = list.indexOf(cur); return list[((i < 0 ? 0 : i) + dir + list.length) % list.length]; }
     onVisibleChanged: if (visible) voiceList.running = true
     Process {
         id: voiceList
-        command: [Quickshell.env("HOME") + "/.local/bin/jarvis-voices", "--list"]
+        command: [Quickshell.env("HOME") + "/.local/bin/orrin-voices", "--list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -81,36 +81,36 @@ Column {
     }
     Process {
         id: routerStats
-        command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "router", "stats", "--json"]
+        command: [Quickshell.env("HOME") + "/.local/bin/orrin", "router", "stats", "--json"]
         stdout: StdioCollector { onStreamFinished: { try { orrinPage.router = JSON.parse(text); } catch (e) {} } }
     }
     Timer { id: routerRefresh; interval: 1500; onTriggered: routerStats.running = true }
-    function routerCmd(args) { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "router"].concat(args)); routerRefresh.interval = args[0] === "approve" ? 6000 : 800; routerRefresh.restart(); }
+    function routerCmd(args) { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/orrin", "router"].concat(args)); routerRefresh.interval = args[0] === "approve" ? 6000 : 800; routerRefresh.restart(); }
     function evAge(ts) { const m = Math.round((Date.now() / 1000 - ts) / 60); return m < 60 ? m + "M" : m < 1440 ? Math.round(m / 60) + "H" : Math.round(m / 1440) + "D"; }
-    // Phase-2 integrations: entries in ~/.config/jarvis/servers.json, tokens in the system keyring.
-    // CONNECT opens a terminal running the sign-in flow (`jarvis connect …`).
+    // Phase-2 integrations: entries in ~/.config/orrin/servers.json, tokens in the system keyring.
+    // CONNECT opens a terminal running the sign-in flow (`orrin connect …`).
     Process {
         id: integrationList
-        command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "integrations", "--json"]
+        command: [Quickshell.env("HOME") + "/.local/bin/orrin", "integrations", "--json"]
         stdout: StdioCollector { onStreamFinished: { try { orrinPage.integrations = JSON.parse(text); } catch (e) {} } }
     }
-    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: orrinPage.visible; onTriggered: { integrationList.running = true; spotifyStatus.running = true; if (Theme.cfg.jarvisDecisions === "local") routerStats.running = true; } }
-    // Spotify: his own developer app, PKCE sign-in, tokens in the keyring (~/.config/jarvis/mcp/spotify_api.py);
-    // DJ mode runs in the voice process (~/.config/jarvis/core/dj.py).
+    Timer { interval: 4000; repeat: true; triggeredOnStart: true; running: orrinPage.visible; onTriggered: { integrationList.running = true; spotifyStatus.running = true; if (Theme.cfg.orrinDecisions === "local") routerStats.running = true; } }
+    // Spotify: his own developer app, PKCE sign-in, tokens in the keyring (~/.config/orrin/mcp/spotify_api.py);
+    // DJ mode runs in the voice process (~/.config/orrin/core/dj.py).
     Process {
         id: spotifyStatus
-        command: [Quickshell.env("HOME") + "/.local/bin/jarvis", "spotify", "status", "--json"]
+        command: [Quickshell.env("HOME") + "/.local/bin/orrin", "spotify", "status", "--json"]
         stdout: StdioCollector { onStreamFinished: { try { orrinPage.spotify = JSON.parse(text); } catch (e) {} } }
     }
     FileView {
-        path: Quickshell.env("HOME") + "/.config/jarvis/dj_moods.json"
+        path: Quickshell.env("HOME") + "/.config/orrin/dj_moods.json"
         watchChanges: true; onFileChanged: reload()
         onLoaded: { try { orrinPage.djMoods = Object.keys(JSON.parse(text()).moods || {}); } catch (e) {} }
     }
     FileView {
         id: savedMoods
         property var names: []
-        path: Quickshell.env("HOME") + "/.local/share/jarvis/dj/moods.json"
+        path: Quickshell.env("HOME") + "/.local/share/orrin/dj/moods.json"
         watchChanges: true; onFileChanged: reload(); printErrors: false
         onLoaded: { try { names = Object.keys(JSON.parse(text())); } catch (e) {} }
     }
@@ -129,94 +129,95 @@ Column {
     // ── GENERAL ──
     Section {
         visible: orrinPage.sub === "GENERAL"
-        Toggle { width: parent.width; label: OrrinState.callOf("jarvis"); hint: (!OrrinState.toggleOn ? (OrrinState.docked ? "Off" : "Off on the laptop · switch on for now (until the next dock change)") : OrrinState.laptopMode ? "On (laptop, until dock change) · no academic sync, watchers or room speaker; stops under 20 % on battery" : OrrinState.paused ? "On · paused for combat mode" : OrrinState.online ? "On · listening for \"Hey Jarvis\"" : "On · starting…"); checked: OrrinState.toggleOn; onToggled: OrrinState.toggle() }
-        // PERSONA: who answers by default. Same brain, tools, memory and threads; FRIDAY has her own voice
-        // and manner. "hey Friday" wakes FRIDAY when its wake model is installed (OrrinFeed.status.wake).
+        Toggle { width: parent.width; label: OrrinState.callOf("orrin"); hint: (!OrrinState.toggleOn ? (OrrinState.docked ? "Off" : "Off on the laptop · switch on for now (until the next dock change)") : OrrinState.laptopMode ? "On (laptop, until dock change) · no academic sync, watchers or room speaker; stops under 20 % on battery" : OrrinState.paused ? "On · paused for combat mode" : OrrinState.online ? "On · listening for " + ((OrrinFeed.status.wake || []).indexOf("selene") >= 0 ? "\"hey Orrin\" / \"hey Selene\"" : "\"hey Jarvis\"") : "On · starting…"); checked: OrrinState.toggleOn; onToggled: OrrinState.toggle() }
+        // PERSONA: who answers by default. Same brain, tools, memory and threads; SELENE has her own voice
+        // and manner. "hey Selene" wakes SELENE when its wake model is installed (OrrinFeed.status.wake);
+        // "hey Jarvis" (openWakeWord's built-in model) is the fallback for both.
         Stepper {
             width: parent.width; label: "Persona"
-            hint: (OrrinFeed.status.wake || []).indexOf("friday") >= 0
-                  ? "Who answers by default · \"hey Jarvis\" and \"hey Friday\" each wake their own"
-                  : "Who answers by default · both answer \"hey Jarvis\" (no \"hey Friday\" model yet)"
+            hint: (OrrinFeed.status.wake || []).indexOf("selene") >= 0
+                  ? "Who answers by default · \"hey Orrin\" and \"hey Selene\" each wake their own"
+                  : "Who answers by default · both answer \"hey Jarvis\" (no \"hey Selene\" model yet)"
             valueText: Skin.persona(OrrinState.persona).glyph + " " + OrrinState.nameOf(OrrinState.persona)
-            onDec: OrrinState.setPersona(OrrinState.persona === "friday" ? "jarvis" : "friday")
-            onInc: OrrinState.setPersona(OrrinState.persona === "friday" ? "jarvis" : "friday")
+            onDec: OrrinState.setPersona(OrrinState.persona === "selene" ? "orrin" : "selene")
+            onInc: OrrinState.setPersona(OrrinState.persona === "selene" ? "orrin" : "selene")
         }
-        Stepper { width: parent.width; label: "Claude model"; hint: orrinPage.modelHints[Theme.cfg.jarvisModel] || ""; valueText: Theme.cfg.jarvisModel.toUpperCase(); onDec: Theme.cfg.jarvisModel = orrinPage.cycle(orrinPage.models, Theme.cfg.jarvisModel, -1); onInc: Theme.cfg.jarvisModel = orrinPage.cycle(orrinPage.models, Theme.cfg.jarvisModel, 1) }
-        Toggle { width: parent.width; label: "Spoken replies"; hint: "Off = replies only show on the toast"; checked: Theme.cfg.jarvisSpeak; onToggled: Theme.cfg.jarvisSpeak = !Theme.cfg.jarvisSpeak }
-        Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.jarvisDuck; onToggled: Theme.cfg.jarvisDuck = !Theme.cfg.jarvisDuck }
-        Toggle { width: parent.width; label: "Pause in combat mode"; hint: "Wake word off, mic released · timers still go off"; checked: Theme.cfg.gameJarvis; onToggled: Theme.cfg.gameJarvis = !Theme.cfg.gameJarvis }
+        Stepper { width: parent.width; label: "Claude model"; hint: orrinPage.modelHints[Theme.cfg.orrinModel] || ""; valueText: Theme.cfg.orrinModel.toUpperCase(); onDec: Theme.cfg.orrinModel = orrinPage.cycle(orrinPage.models, Theme.cfg.orrinModel, -1); onInc: Theme.cfg.orrinModel = orrinPage.cycle(orrinPage.models, Theme.cfg.orrinModel, 1) }
+        Toggle { width: parent.width; label: "Spoken replies"; hint: "Off = replies only show on the toast"; checked: Theme.cfg.orrinSpeak; onToggled: Theme.cfg.orrinSpeak = !Theme.cfg.orrinSpeak }
+        Toggle { width: parent.width; label: "Lower music while speaking"; hint: "Spotify and other MPRIS players"; checked: Theme.cfg.orrinDuck; onToggled: Theme.cfg.orrinDuck = !Theme.cfg.orrinDuck }
+        Toggle { width: parent.width; label: "Pause in combat mode"; hint: "Wake word off, mic released · timers still go off"; checked: Theme.cfg.gameOrrin; onToggled: Theme.cfg.gameOrrin = !Theme.cfg.gameOrrin }
         Toggle { width: parent.width; label: "Confirm sensitive actions"; hint: "Always on · power, closing windows, deleting, kill switch, messages sent as you"; checked: true; enabled: false; opacity: 0.6 }
         Title { text: "TOOLS" }
         Row {
             spacing: 10
-            SmallButton { text: "TEST VOICE"; onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "--say", "At your service, sir."]) }
-            SmallButton { text: "MISSED COMMANDS"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis --misses")); LauncherState.closeAll(); } }
-            SmallButton { text: "EDIT " + OrrinState.assistant; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/jarvis")); LauncherState.closeAll(); } }
+            SmallButton { text: "TEST VOICE"; onClicked: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/orrin", "--say", "At your service, sir."]) }
+            SmallButton { text: "MISSED COMMANDS"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/orrin --misses")); LauncherState.closeAll(); } }
+            SmallButton { text: "EDIT " + OrrinState.assistant; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/orrin")); LauncherState.closeAll(); } }
         }
-        Text { width: parent.width; wrapMode: Text.Wrap; text: "Claude runs on your Pro login (no API key). Memory: ~/.local/share/jarvis/jarvis.db"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
+        Text { width: parent.width; wrapMode: Text.Wrap; text: "Claude runs on your Pro login (no API key). Memory: ~/.local/share/orrin/orrin.db"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
     }
 
     // ── VOICES ──
     Section {
         visible: orrinPage.sub === "VOICES"
-        Title { text: OrrinState.nameOf("jarvis") }
-        Stepper { width: parent.width; label: "Voice"; hint: "British voices · audition them all: jarvis-voices"; preview: true; onPlay: orrinPage.preview(); valueText: orrinPage.voiceName(Theme.cfg.jarvisVoice); onDec: Theme.cfg.jarvisVoice = orrinPage.cycle(orrinPage.voices, Theme.cfg.jarvisVoice, -1); onInc: Theme.cfg.jarvisVoice = orrinPage.cycle(orrinPage.voices, Theme.cfg.jarvisVoice, 1) }
-        Stepper { width: parent.width; label: "Speech rate"; preview: true; onPlay: orrinPage.preview(); valueText: Theme.cfg.jarvisSpeed.toFixed(1) + "×"; onDec: Theme.cfg.jarvisSpeed = Math.max(0.7, Math.round((Theme.cfg.jarvisSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.jarvisSpeed = Math.min(1.5, Math.round((Theme.cfg.jarvisSpeed + 0.1) * 10) / 10) }
-        Stepper { width: parent.width; label: "Pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: orrinPage.preview(); valueText: (Theme.cfg.jarvisPitch > 0 ? "+" : "") + Theme.cfg.jarvisPitch.toFixed(1); onDec: Theme.cfg.jarvisPitch = Math.max(-3, Theme.cfg.jarvisPitch - 0.5); onInc: Theme.cfg.jarvisPitch = Math.min(2, Theme.cfg.jarvisPitch + 0.5) }
-        Stepper { width: parent.width; label: "Effect"; hint: orrinPage.effectHints[Theme.cfg.jarvisEffect] || "Custom preset · ~/.config/jarvis/effects.json"; preview: true; onPlay: orrinPage.preview(); valueText: Theme.cfg.jarvisEffect; onDec: Theme.cfg.jarvisEffect = orrinPage.cycle(orrinPage.effects, Theme.cfg.jarvisEffect, -1); onInc: Theme.cfg.jarvisEffect = orrinPage.cycle(orrinPage.effects, Theme.cfg.jarvisEffect, 1) }
-        Title { text: OrrinState.nameOf("friday") }
-        Stepper { width: parent.width; label: "Voice"; hint: "No Irish voice in Kokoro · audition: jarvis-voices --friday"; preview: true; onPlay: orrinPage.previewFriday(); valueText: orrinPage.voiceName(Theme.cfg.fridayVoice); onDec: Theme.cfg.fridayVoice = orrinPage.cycle(orrinPage.femaleVoices, Theme.cfg.fridayVoice, -1); onInc: Theme.cfg.fridayVoice = orrinPage.cycle(orrinPage.femaleVoices, Theme.cfg.fridayVoice, 1) }
-        Stepper { width: parent.width; label: "Speech rate"; preview: true; onPlay: orrinPage.previewFriday(); valueText: Theme.cfg.fridaySpeed.toFixed(2) + "×"; onDec: Theme.cfg.fridaySpeed = Math.max(0.7, Math.round((Theme.cfg.fridaySpeed - 0.05) * 100) / 100); onInc: Theme.cfg.fridaySpeed = Math.min(1.6, Math.round((Theme.cfg.fridaySpeed + 0.05) * 100) / 100) }
-        Stepper { width: parent.width; label: "Pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: orrinPage.previewFriday(); valueText: (Theme.cfg.fridayPitch > 0 ? "+" : "") + Theme.cfg.fridayPitch.toFixed(1); onDec: Theme.cfg.fridayPitch = Math.max(-3, Theme.cfg.fridayPitch - 0.5); onInc: Theme.cfg.fridayPitch = Math.min(3, Theme.cfg.fridayPitch + 0.5) }
-        // the second persona's own effect (fridayEffect); SAME = the one above
+        Title { text: OrrinState.nameOf("orrin") }
+        Stepper { width: parent.width; label: "Voice"; hint: "British voices · audition them all: orrin-voices"; preview: true; onPlay: orrinPage.preview(); valueText: orrinPage.voiceName(Theme.cfg.orrinVoice); onDec: Theme.cfg.orrinVoice = orrinPage.cycle(orrinPage.voices, Theme.cfg.orrinVoice, -1); onInc: Theme.cfg.orrinVoice = orrinPage.cycle(orrinPage.voices, Theme.cfg.orrinVoice, 1) }
+        Stepper { width: parent.width; label: "Speech rate"; preview: true; onPlay: orrinPage.preview(); valueText: Theme.cfg.orrinSpeed.toFixed(1) + "×"; onDec: Theme.cfg.orrinSpeed = Math.max(0.7, Math.round((Theme.cfg.orrinSpeed - 0.1) * 10) / 10); onInc: Theme.cfg.orrinSpeed = Math.min(1.5, Math.round((Theme.cfg.orrinSpeed + 0.1) * 10) / 10) }
+        Stepper { width: parent.width; label: "Pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: orrinPage.preview(); valueText: (Theme.cfg.orrinPitch > 0 ? "+" : "") + Theme.cfg.orrinPitch.toFixed(1); onDec: Theme.cfg.orrinPitch = Math.max(-3, Theme.cfg.orrinPitch - 0.5); onInc: Theme.cfg.orrinPitch = Math.min(2, Theme.cfg.orrinPitch + 0.5) }
+        Stepper { width: parent.width; label: "Effect"; hint: orrinPage.effectHints[Theme.cfg.orrinEffect] || "Custom preset · ~/.config/orrin/effects.json"; preview: true; onPlay: orrinPage.preview(); valueText: Theme.cfg.orrinEffect; onDec: Theme.cfg.orrinEffect = orrinPage.cycle(orrinPage.effects, Theme.cfg.orrinEffect, -1); onInc: Theme.cfg.orrinEffect = orrinPage.cycle(orrinPage.effects, Theme.cfg.orrinEffect, 1) }
+        Title { text: OrrinState.nameOf("selene") }
+        Stepper { width: parent.width; label: "Voice"; hint: "No Irish voice in Kokoro · audition: orrin-voices --friday"; preview: true; onPlay: orrinPage.previewSelene(); valueText: orrinPage.voiceName(Theme.cfg.seleneVoice); onDec: Theme.cfg.seleneVoice = orrinPage.cycle(orrinPage.femaleVoices, Theme.cfg.seleneVoice, -1); onInc: Theme.cfg.seleneVoice = orrinPage.cycle(orrinPage.femaleVoices, Theme.cfg.seleneVoice, 1) }
+        Stepper { width: parent.width; label: "Speech rate"; preview: true; onPlay: orrinPage.previewSelene(); valueText: Theme.cfg.seleneSpeed.toFixed(2) + "×"; onDec: Theme.cfg.seleneSpeed = Math.max(0.7, Math.round((Theme.cfg.seleneSpeed - 0.05) * 100) / 100); onInc: Theme.cfg.seleneSpeed = Math.min(1.6, Math.round((Theme.cfg.seleneSpeed + 0.05) * 100) / 100) }
+        Stepper { width: parent.width; label: "Pitch"; hint: "Semitones, on top of the effect preset"; preview: true; onPlay: orrinPage.previewSelene(); valueText: (Theme.cfg.selenePitch > 0 ? "+" : "") + Theme.cfg.selenePitch.toFixed(1); onDec: Theme.cfg.selenePitch = Math.max(-3, Theme.cfg.selenePitch - 0.5); onInc: Theme.cfg.selenePitch = Math.min(3, Theme.cfg.selenePitch + 0.5) }
+        // the second persona's own effect (seleneEffect); SAME = the one above
         Stepper {
             width: parent.width; label: "Effect"
-            hint: Theme.cfg.fridayEffect === "" ? "Same as " + OrrinState.nameOf("jarvis") + "'s effect" : Theme.cfg.fridayEffect === "AUTO" ? orrinPage.autoHint("friday") : (orrinPage.effectHints[Theme.cfg.fridayEffect] || "Custom preset · ~/.config/jarvis/effects.json")
-            preview: true; onPlay: orrinPage.previewFriday()
-            valueText: Theme.cfg.fridayEffect || "SAME"
-            onDec: Theme.cfg.fridayEffect = orrinPage.fridayFx(-1)
-            onInc: Theme.cfg.fridayEffect = orrinPage.fridayFx(1)
+            hint: Theme.cfg.seleneEffect === "" ? "Same as " + OrrinState.nameOf("orrin") + "'s effect" : Theme.cfg.seleneEffect === "AUTO" ? orrinPage.autoHint("selene") : (orrinPage.effectHints[Theme.cfg.seleneEffect] || "Custom preset · ~/.config/orrin/effects.json")
+            preview: true; onPlay: orrinPage.previewSelene()
+            valueText: Theme.cfg.seleneEffect || "SAME"
+            onDec: Theme.cfg.seleneEffect = orrinPage.seleneFx(-1)
+            onInc: Theme.cfg.seleneEffect = orrinPage.seleneFx(1)
         }
         Title { text: "OUTPUT" }
         Slider {
             width: parent.width
             label: "VOICE VOLUME"
-            value: Theme.cfg.jarvisVoiceVolume / 100
-            onMoved: v => { Theme.cfg.jarvisVoiceVolume = Math.round(v * 100); volumePreview.restart(); }
+            value: Theme.cfg.orrinVoiceVolume / 100
+            onMoved: v => { Theme.cfg.orrinVoiceVolume = Math.round(v * 100); volumePreview.restart(); }
         }
-        Text { width: parent.width; wrapMode: Text.Wrap; text: OrrinState.callOf("jarvis") + "'s voice and chime only · music and other apps are untouched · the same level on headphones, speakers and Bluetooth · \"speak louder / quieter\", \"set your volume to 40 percent\""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
-        Stepper { width: parent.width; label: "Speaker without headphones"; hint: "Used when the output is the laptop speakers or a monitor · headphones, headsets and USB audio keep " + OrrinState.callOf("jarvis"); preview: Theme.cfg.jarvisSpeaker !== ""; onPlay: orrinPage.preview(); valueText: orrinPage.speakerName(Theme.cfg.jarvisSpeaker); onDec: Theme.cfg.jarvisSpeaker = orrinPage.cycle([""].concat(orrinPage.speakers.map(s => s.mac)), Theme.cfg.jarvisSpeaker, -1); onInc: Theme.cfg.jarvisSpeaker = orrinPage.cycle([""].concat(orrinPage.speakers.map(s => s.mac)), Theme.cfg.jarvisSpeaker, 1) }
-        Stepper { width: parent.width; visible: Theme.cfg.jarvisSpeaker !== ""; label: "Bluetooth speaker volume"; hint: OrrinState.callOf("jarvis") + "'s level on the room speaker · SAME follows VOICE VOLUME"; preview: Theme.cfg.jarvisSpeakerVolume >= 0; onPlay: orrinPage.preview(); valueText: Theme.cfg.jarvisSpeakerVolume < 0 ? "SAME" : Theme.cfg.jarvisSpeakerVolume + "%"; onDec: Theme.cfg.jarvisSpeakerVolume = Theme.cfg.jarvisSpeakerVolume < 0 ? -1 : Theme.cfg.jarvisSpeakerVolume <= 0 ? -1 : Math.max(0, Theme.cfg.jarvisSpeakerVolume - 5); onInc: Theme.cfg.jarvisSpeakerVolume = Theme.cfg.jarvisSpeakerVolume < 0 ? Theme.cfg.jarvisVoiceVolume : Math.min(100, Theme.cfg.jarvisSpeakerVolume + 5) }
+        Text { width: parent.width; wrapMode: Text.Wrap; text: OrrinState.callOf("orrin") + "'s voice and chime only · music and other apps are untouched · the same level on headphones, speakers and Bluetooth · \"speak louder / quieter\", \"set your volume to 40 percent\""; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
+        Stepper { width: parent.width; label: "Speaker without headphones"; hint: "Used when the output is the laptop speakers or a monitor · headphones, headsets and USB audio keep " + OrrinState.callOf("orrin"); preview: Theme.cfg.orrinSpeaker !== ""; onPlay: orrinPage.preview(); valueText: orrinPage.speakerName(Theme.cfg.orrinSpeaker); onDec: Theme.cfg.orrinSpeaker = orrinPage.cycle([""].concat(orrinPage.speakers.map(s => s.mac)), Theme.cfg.orrinSpeaker, -1); onInc: Theme.cfg.orrinSpeaker = orrinPage.cycle([""].concat(orrinPage.speakers.map(s => s.mac)), Theme.cfg.orrinSpeaker, 1) }
+        Stepper { width: parent.width; visible: Theme.cfg.orrinSpeaker !== ""; label: "Bluetooth speaker volume"; hint: OrrinState.callOf("orrin") + "'s level on the room speaker · SAME follows VOICE VOLUME"; preview: Theme.cfg.orrinSpeakerVolume >= 0; onPlay: orrinPage.preview(); valueText: Theme.cfg.orrinSpeakerVolume < 0 ? "SAME" : Theme.cfg.orrinSpeakerVolume + "%"; onDec: Theme.cfg.orrinSpeakerVolume = Theme.cfg.orrinSpeakerVolume < 0 ? -1 : Theme.cfg.orrinSpeakerVolume <= 0 ? -1 : Math.max(0, Theme.cfg.orrinSpeakerVolume - 5); onInc: Theme.cfg.orrinSpeakerVolume = Theme.cfg.orrinSpeakerVolume < 0 ? Theme.cfg.orrinVoiceVolume : Math.min(100, Theme.cfg.orrinSpeakerVolume + 5) }
     }
 
     // ── LISTENING ──
     Section {
         visible: orrinPage.sub === "LISTENING"
-        // INPUT DEVICE: Jarvis's own wake-word mic (jarvis.py Mic), not the system default input
+        // INPUT DEVICE: Orrin's own wake-word mic (orrin.py Mic), not the system default input
         Stepper {
             width: parent.width; label: "Input device"
-            hint: (Theme.cfg.jarvisMic === "auto" ? "Laptop mic; pick the headset here to use it · " : "")
-                  + (OrrinFeed.mic.label ? "listening on " + OrrinFeed.mic.label : OrrinState.running ? "" : "used when " + OrrinState.callOf("jarvis") + " is on")
-            valueText: orrinPage.micName(Theme.cfg.jarvisMic)
-            onDec: Theme.cfg.jarvisMic = orrinPage.cycle(orrinPage.micChoices, Theme.cfg.jarvisMic === "" ? "default" : Theme.cfg.jarvisMic, -1)
-            onInc: Theme.cfg.jarvisMic = orrinPage.cycle(orrinPage.micChoices, Theme.cfg.jarvisMic === "" ? "default" : Theme.cfg.jarvisMic, 1)
+            hint: (Theme.cfg.orrinMic === "auto" ? "Laptop mic; pick the headset here to use it · " : "")
+                  + (OrrinFeed.mic.label ? "listening on " + OrrinFeed.mic.label : OrrinState.running ? "" : "used when " + OrrinState.callOf("orrin") + " is on")
+            valueText: orrinPage.micName(Theme.cfg.orrinMic)
+            onDec: Theme.cfg.orrinMic = orrinPage.cycle(orrinPage.micChoices, Theme.cfg.orrinMic === "" ? "default" : Theme.cfg.orrinMic, -1)
+            onInc: Theme.cfg.orrinMic = orrinPage.cycle(orrinPage.micChoices, Theme.cfg.orrinMic === "" ? "default" : Theme.cfg.orrinMic, 1)
         }
-        Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.jarvisFollowup > 0 ? Theme.cfg.jarvisFollowup + " S" : "OFF"; onDec: Theme.cfg.jarvisFollowup = orrinPage.cycle(orrinPage.follows, Theme.cfg.jarvisFollowup, -1); onInc: Theme.cfg.jarvisFollowup = orrinPage.cycle(orrinPage.follows, Theme.cfg.jarvisFollowup, 1) }
+        Stepper { width: parent.width; label: "Follow-up window"; hint: "Keeps listening after a reply, no wake word needed"; valueText: Theme.cfg.orrinFollowup > 0 ? Theme.cfg.orrinFollowup + " S" : "OFF"; onDec: Theme.cfg.orrinFollowup = orrinPage.cycle(orrinPage.follows, Theme.cfg.orrinFollowup, -1); onInc: Theme.cfg.orrinFollowup = orrinPage.cycle(orrinPage.follows, Theme.cfg.orrinFollowup, 1) }
     }
 
     // ── DECISIONS ──
     Section {
         visible: orrinPage.sub === "DECISIONS"
-        Stepper { width: parent.width; label: "Decisions"; hint: Theme.cfg.jarvisDecisions === "local" ? "Common commands decided on this PC (offline, ~5 ms) · Claude for the rest" : "Everything the regex rules miss goes to Claude"; valueText: Theme.cfg.jarvisDecisions === "local" ? "LOCAL+CLAUDE" : "CLAUDE ONLY"; onDec: Theme.cfg.jarvisDecisions = Theme.cfg.jarvisDecisions === "local" ? "claude" : "local"; onInc: Theme.cfg.jarvisDecisions = Theme.cfg.jarvisDecisions === "local" ? "claude" : "local" }
-        Stepper { width: parent.width; visible: Theme.cfg.jarvisDecisions === "local"; label: "Local confidence"; hint: "Higher = fewer local actions, more sent to Claude · tune with tools/eval_router.py"; valueText: Theme.cfg.jarvisRouterThreshold.toFixed(2); onDec: Theme.cfg.jarvisRouterThreshold = Math.max(0.5, Math.round((Theme.cfg.jarvisRouterThreshold - 0.01) * 100) / 100); onInc: Theme.cfg.jarvisRouterThreshold = Math.min(0.95, Math.round((Theme.cfg.jarvisRouterThreshold + 0.01) * 100) / 100) }
+        Stepper { width: parent.width; label: "Decisions"; hint: Theme.cfg.orrinDecisions === "local" ? "Common commands decided on this PC (offline, ~5 ms) · Claude for the rest" : "Everything the regex rules miss goes to Claude"; valueText: Theme.cfg.orrinDecisions === "local" ? "LOCAL+CLAUDE" : "CLAUDE ONLY"; onDec: Theme.cfg.orrinDecisions = Theme.cfg.orrinDecisions === "local" ? "claude" : "local"; onInc: Theme.cfg.orrinDecisions = Theme.cfg.orrinDecisions === "local" ? "claude" : "local" }
+        Stepper { width: parent.width; visible: Theme.cfg.orrinDecisions === "local"; label: "Local confidence"; hint: "Higher = fewer local actions, more sent to Claude · tune with tools/eval_router.py"; valueText: Theme.cfg.orrinRouterThreshold.toFixed(2); onDec: Theme.cfg.orrinRouterThreshold = Math.max(0.5, Math.round((Theme.cfg.orrinRouterThreshold - 0.01) * 100) / 100); onInc: Theme.cfg.orrinRouterThreshold = Math.min(0.95, Math.round((Theme.cfg.orrinRouterThreshold + 0.01) * 100) / 100) }
         // ROUTER: what the local router learned and how often it answers without Claude
-        // (~/.config/jarvis/core/router_learn.py; `jarvis router stats --json`, polled with INTEGRATIONS)
-        Toggle { width: parent.width; visible: Theme.cfg.jarvisDecisions === "local"; label: "Ask when unsure"; hint: "A near miss gets \"Did you mean …?\" · yes runs it and teaches it, no sends it to Claude"; checked: Theme.cfg.jarvisRouterAsk; onToggled: Theme.cfg.jarvisRouterAsk = !Theme.cfg.jarvisRouterAsk }
-        Text { visible: Theme.cfg.jarvisDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
+        // (~/.config/orrin/core/router_learn.py; `orrin router stats --json`, polled with INTEGRATIONS)
+        Toggle { width: parent.width; visible: Theme.cfg.orrinDecisions === "local"; label: "Ask when unsure"; hint: "A near miss gets \"Did you mean …?\" · yes runs it and teaches it, no sends it to Claude"; checked: Theme.cfg.orrinRouterAsk; onToggled: Theme.cfg.orrinRouterAsk = !Theme.cfg.orrinRouterAsk }
+        Text { visible: Theme.cfg.orrinDecisions === "local"; text: "ROUTER"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
         Column {
             id: routerBox
             width: parent.width; spacing: 6
-            visible: Theme.cfg.jarvisDecisions === "local"
+            visible: Theme.cfg.orrinDecisions === "local"
             readonly property var r: orrinPage.router
             Row {
                 spacing: 22
@@ -277,7 +278,7 @@ Column {
             }
             Text {
                 width: orrinPage.width; wrapMode: Text.Wrap; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
-                text: "APPROVE still has to pass the router eval (0 wrong actions) · learned data stays in ~/.local/share/jarvis · jarvis router stats | review | forget ID | reset-learned"
+                text: "APPROVE still has to pass the router eval (0 wrong actions) · learned data stays in ~/.local/share/orrin · orrin router stats | review | forget ID | reset-learned"
             }
         }
     }
@@ -285,8 +286,8 @@ Column {
     // ── CONNECTIONS ──
     Section {
         visible: orrinPage.sub === "CONNECTIONS"
-        // Phase-2 integrations: entries in ~/.config/jarvis/servers.json, tokens in the system keyring.
-        // CONNECT opens a terminal running the sign-in flow (`jarvis connect …`).
+        // Phase-2 integrations: entries in ~/.config/orrin/servers.json, tokens in the system keyring.
+        // CONNECT opens a terminal running the sign-in flow (`orrin connect …`).
         Title { text: "INTEGRATIONS" }
         Repeater {
             model: orrinPage.integrations
@@ -314,14 +315,14 @@ Column {
                     text: modelData.connected ? "RECONNECT" : modelData.optional ? "SET UP" : "CONNECT"
                     active: modelData.connected
                     opacity: modelData.optional && !modelData.connected ? 0.6 : 1
-                    onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis connect " + modelData.auth)); LauncherState.closeAll(); }
+                    onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/orrin connect " + modelData.auth)); LauncherState.closeAll(); }
                 }
             }
         }
         Title { text: "COURSEWORK" }
-        Toggle { width: parent.width; label: "Auto-update tracker"; hint: Theme.cfg.jarvisAutoUpdateTracker ? "Grades, new LEARN work and moved deadlines go into your SE tracker and are announced · \"jarvis tracker undo\" reverts the last write" : "Each tracker update is offered first, spoken and on the HUD · your own requests always ask"; checked: Theme.cfg.jarvisAutoUpdateTracker; onToggled: Theme.cfg.jarvisAutoUpdateTracker = !Theme.cfg.jarvisAutoUpdateTracker }
-        Toggle { width: parent.width; label: "Auto-add assignments"; hint: "Fallback while no tracker sheet is set up · LEARN due dates go into \"STARK – Assignments\" without asking · that calendar only, never your main one"; checked: Theme.cfg.jarvisAutoAddAssignments; onToggled: Theme.cfg.jarvisAutoAddAssignments = !Theme.cfg.jarvisAutoAddAssignments }
-        Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.jarvisAssignmentsAccount = Theme.cfg.jarvisAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
+        Toggle { width: parent.width; label: "Auto-update tracker"; hint: Theme.cfg.orrinAutoUpdateTracker ? "Grades, new LEARN work and moved deadlines go into your SE tracker and are announced · \"orrin tracker undo\" reverts the last write" : "Each tracker update is offered first, spoken and on the HUD · your own requests always ask"; checked: Theme.cfg.orrinAutoUpdateTracker; onToggled: Theme.cfg.orrinAutoUpdateTracker = !Theme.cfg.orrinAutoUpdateTracker }
+        Toggle { width: parent.width; label: "Auto-add assignments"; hint: "Fallback while no tracker sheet is set up · LEARN due dates go into \"STARK – Assignments\" without asking · that calendar only, never your main one"; checked: Theme.cfg.orrinAutoAddAssignments; onToggled: Theme.cfg.orrinAutoAddAssignments = !Theme.cfg.orrinAutoAddAssignments }
+        Stepper { width: parent.width; label: "Assignments calendar"; hint: "Account that holds \"STARK – Assignments\""; valueText: Theme.cfg.orrinAssignmentsAccount === "microsoft" ? "OUTLOOK" : "GOOGLE"; onDec: Theme.cfg.orrinAssignmentsAccount = Theme.cfg.orrinAssignmentsAccount === "microsoft" ? "google" : "microsoft"; onInc: Theme.cfg.orrinAssignmentsAccount = Theme.cfg.orrinAssignmentsAccount === "microsoft" ? "google" : "microsoft" }
         Title { text: "SPOTIFY" }
         Item {
             width: orrinPage.width; height: 52
@@ -351,21 +352,21 @@ Column {
                 ConfirmButton {
                     visible: orrinPage.spotify.connected === true
                     label: "DISCONNECT"
-                    onConfirmed: { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/jarvis", "spotify", "disconnect"]); spotifyStatus.running = true; }
+                    onConfirmed: { Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/orrin", "spotify", "disconnect"]); spotifyStatus.running = true; }
                 }
                 SmallButton {
                     text: orrinPage.spotify.connected ? "RECONNECT" : "CONNECT"
                     active: orrinPage.spotify.connected === true
-                    onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/jarvis spotify connect")); LauncherState.closeAll(); }
+                    onClicked: { Hyprland.dispatch(Hypr.exec("kitty --hold " + Quickshell.env("HOME") + "/.local/bin/orrin spotify connect")); LauncherState.closeAll(); }
                 }
             }
         }
         Stepper {
             width: parent.width; label: "DJ chatter"
-            hint: ({ off: "DJ mode never talks between tracks", rare: "A short line every 4–5 tracks, music ducked under it", normal: "A short line every 2–3 tracks" })[Theme.cfg.jarvisDjChatter] || ""
-            valueText: Theme.cfg.jarvisDjChatter.toUpperCase()
-            onDec: Theme.cfg.jarvisDjChatter = orrinPage.cycle(["off", "rare", "normal"], Theme.cfg.jarvisDjChatter, -1)
-            onInc: Theme.cfg.jarvisDjChatter = orrinPage.cycle(["off", "rare", "normal"], Theme.cfg.jarvisDjChatter, 1)
+            hint: ({ off: "DJ mode never talks between tracks", rare: "A short line every 4–5 tracks, music ducked under it", normal: "A short line every 2–3 tracks" })[Theme.cfg.orrinDjChatter] || ""
+            valueText: Theme.cfg.orrinDjChatter.toUpperCase()
+            onDec: Theme.cfg.orrinDjChatter = orrinPage.cycle(["off", "rare", "normal"], Theme.cfg.orrinDjChatter, -1)
+            onInc: Theme.cfg.orrinDjChatter = orrinPage.cycle(["off", "rare", "normal"], Theme.cfg.orrinDjChatter, 1)
         }
         Text {
             width: parent.width; wrapMode: Text.Wrap
@@ -384,7 +385,7 @@ Column {
     Section {
         visible: orrinPage.sub === "PRIVACY"
         Title { text: "WINDOW READING" }
-        Stepper { width: parent.width; label: "Watch every"; hint: "How often a watcher looks at its window · compared on this machine, Claude only looks when enough changed"; valueText: Theme.cfg.jarvisWatchInterval + " S"; onDec: Theme.cfg.jarvisWatchInterval = Math.max(3, Theme.cfg.jarvisWatchInterval - (Theme.cfg.jarvisWatchInterval > 30 ? 10 : Theme.cfg.jarvisWatchInterval > 10 ? 5 : 1)); onInc: Theme.cfg.jarvisWatchInterval = Math.min(300, Theme.cfg.jarvisWatchInterval + (Theme.cfg.jarvisWatchInterval >= 30 ? 10 : Theme.cfg.jarvisWatchInterval >= 10 ? 5 : 1)) }
+        Stepper { width: parent.width; label: "Watch every"; hint: "How often a watcher looks at its window · compared on this machine, Claude only looks when enough changed"; valueText: Theme.cfg.orrinWatchInterval + " S"; onDec: Theme.cfg.orrinWatchInterval = Math.max(3, Theme.cfg.orrinWatchInterval - (Theme.cfg.orrinWatchInterval > 30 ? 10 : Theme.cfg.orrinWatchInterval > 10 ? 5 : 1)); onInc: Theme.cfg.orrinWatchInterval = Math.min(300, Theme.cfg.orrinWatchInterval + (Theme.cfg.orrinWatchInterval >= 30 ? 10 : Theme.cfg.orrinWatchInterval >= 10 ? 5 : 1)) }
         Column {
             width: parent.width; spacing: 4
             Text { text: "Never read or watch (window titles / apps, comma-separated · Enter to save)"; color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 12 }
@@ -398,20 +399,20 @@ Column {
                     wrapMode: TextEdit.Wrap
                     color: Theme.text; selectByMouse: true
                     font.family: Style.fonts.body; font.pixelSize: 12
-                    text: (Theme.cfg.jarvisCaptureBlocklist || []).join(", ")
+                    text: (Theme.cfg.orrinCaptureBlocklist || []).join(", ")
                     function save() {
                         const terms = text.split(/[,\n]/).map(t => t.trim().toLowerCase()).filter(t => t !== "");
-                        Theme.cfg.jarvisCaptureBlocklist = terms.filter((t, i) => terms.indexOf(t) === i);
-                        text = Theme.cfg.jarvisCaptureBlocklist.join(", ");
+                        Theme.cfg.orrinCaptureBlocklist = terms.filter((t, i) => terms.indexOf(t) === i);
+                        text = Theme.cfg.orrinCaptureBlocklist.join(", ");
                     }
                     Keys.onReturnPressed: { save(); focus = false; }
                     Keys.onEnterPressed: { save(); focus = false; }
                     onActiveFocusChanged: if (!activeFocus) save()
                 }
             }
-            Text { width: parent.width; wrapMode: Text.Wrap; text: "Always refused, whatever this says: the lock screen, password / permission / keyring prompts and password managers. " + OrrinState.callOf("jarvis") + " only reads a window you name; captures stay in memory, never on disk, and what's on screen is data, never an instruction."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
+            Text { width: parent.width; wrapMode: Text.Wrap; text: "Always refused, whatever this says: the lock screen, password / permission / keyring prompts and password managers. " + OrrinState.callOf("orrin") + " only reads a window you name; captures stay in memory, never on disk, and what's on screen is data, never an instruction."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
         }
-        Text { width: parent.width; wrapMode: Text.Wrap; text: "Read-only by default. Sending, creating, deleting or editing anything needs your spoken yes. Email, calendar and document text is treated as data, never as commands. Setup: ~/.config/jarvis/docs"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
+        Text { width: parent.width; wrapMode: Text.Wrap; text: "Read-only by default. Sending, creating, deleting or editing anything needs your spoken yes. Email, calendar and document text is treated as data, never as commands. Setup: ~/.config/orrin/docs"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
     }
 
 }

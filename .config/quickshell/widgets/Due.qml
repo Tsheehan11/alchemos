@@ -1,5 +1,5 @@
 // What's due: open SE tracker rows (overdue first, then the next two weeks), from the same feed as the
-// agenda (jarvis feed → agenda.json; refreshed after Jarvis writes to the tracker). The nearest one sits
+// agenda (orrin feed → agenda.json; refreshed after Orrin writes to the tracker). The nearest one sits
 // in a countdown ring that closes over the last week. Double-click: sync now.
 import QtQuick
 import ".."

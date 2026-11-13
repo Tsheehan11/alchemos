@@ -1,8 +1,8 @@
-// JARVIS console: conversations (voice + typed, one thread per conversation), typed requests through
+// ORRIN console: conversations (voice + typed, one thread per conversation), typed requests through
 // the same path as speech (fast path → local router → Claude), background tasks with a live log,
-// and YES / NO for anything Jarvis is waiting on. Super + J, on the focused monitor (or a click on the
-// JARVIS pop-up, on its monitor); Esc closes.
-// Data: OrrinLink.qml (socket to ~/.config/jarvis/core/appserver.py).
+// and YES / NO for anything Orrin is waiting on. Super + J, on the focused monitor (or a click on the
+// ORRIN pop-up, on its monitor); Esc closes.
+// Data: OrrinLink.qml (socket to ~/.config/orrin/core/appserver.py).
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -18,7 +18,7 @@ PanelWindow {
     visible: shown || backdrop.opacity > 0.01
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-jarvis-app"
+    WlrLayershell.namespace: "alchemos-orrin-app"
     WlrLayershell.keyboardFocus: shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
@@ -75,7 +75,7 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: app.shown ? 220 : 200; easing.type: Easing.OutCubic } }
         Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         fill: 0.94
-        title: (OrrinState.persona === "friday" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S") + "  ·  CONSOLE"
+        title: (OrrinState.persona === "selene" ? "F.R.I.D.A.Y" : "J.A.R.V.I.S") + "  ·  CONSOLE"
         detail: (OrrinState.online ? (OrrinState.paused ? "PAUSED · COMBAT MODE" : "ONLINE")
                                     : OrrinState.toggleOn ? "STARTING…"
                                     : OrrinState.docked ? "OFFLINE · HISTORY ONLY · " + OrrinState.assistant + " IS OFF"
@@ -163,7 +163,7 @@ PanelWindow {
                     Text {
                         visible: threadList.count === 0
                         width: parent.width; wrapMode: Text.Wrap
-                        text: link.query ? "Nothing matches." : "No conversations yet. Talk to " + OrrinState.callOf("jarvis") + " or type below."
+                        text: link.query ? "Nothing matches." : "No conversations yet. Talk to " + OrrinState.callOf("orrin") + " or type below."
                         color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }
@@ -216,7 +216,7 @@ PanelWindow {
                     }
                 }
 
-                // Jarvis is waiting for a yes. A window-control plan (core/control.plan_text) shows in full; a background
+                // Orrin is waiting for a yes. A window-control plan (core/control.plan_text) shows in full; a background
                 // task's plan can also be answered ALLOW TASK (its later plans for that window, for that task only).
                 Column {
                     id: confirmCol
@@ -312,7 +312,7 @@ PanelWindow {
                     Text {
                         visible: msgList.count === 0
                         anchors.centerIn: parent
-                        text: link.connected ? "Ask " + OrrinState.callOf(OrrinState.persona) + " anything, or switch to TASK for a background job." : OrrinState.callOf("jarvis") + " is offline. History stays readable."
+                        text: link.connected ? "Ask " + OrrinState.callOf(OrrinState.persona) + " anything, or switch to TASK for a background job." : OrrinState.callOf("orrin") + " is offline. History stays readable."
                         color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 12
                     }
                     // scroll position
@@ -359,7 +359,7 @@ PanelWindow {
                         id: input
                         width: parent.width - 90; height: 36
                         maximumLength: 2000
-                        placeholder: !link.connected ? OrrinState.callOf("jarvis") + " is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + OrrinState.callOf(OrrinState.persona) + "…  (Enter)"
+                        placeholder: !link.connected ? OrrinState.callOf("orrin") + " is offline" : link.mode === "TASK" ? "describe a background task…  (Enter)" : "ask " + OrrinState.callOf(OrrinState.persona) + "…  (Enter)"
                         onAccepted: { if (link.connected && text.trim()) { OrrinLink.ask(text); text = ""; } }
                         onCancelled: OrrinLink.open = false
                     }
@@ -478,12 +478,12 @@ PanelWindow {
                         x: 10; y: 10; width: parent.width - 20
                         wrapMode: Text.Wrap; textFormat: Text.StyledText
                         color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11; lineHeight: 1.15
-                        text: "<b>A task is a job " + OrrinState.callOf("jarvis") + " does in the background</b> while you carry on: many steps "
+                        text: "<b>A task is a job " + OrrinState.callOf("orrin") + " does in the background</b> while you carry on: many steps "
                             + "(up to 40 tool calls), its own thread, and a spoken note when it's done. Two run at once.<br><br>"
                             + "<b>Start one</b><br>"
                             + "· <b>Type</b>: switch the box below from ASK to <b>TASK</b>, describe the job, Enter.<br>"
-                            + "· <b>Say</b>: \"Jarvis, do this in the background: …\"<br>"
-                            + "· Ask for something long, and " + OrrinState.callOf("jarvis") + " may hand it to a task itself.<br><br>"
+                            + "· <b>Say</b>: \"Orrin, do this in the background: …\"<br>"
+                            + "· Ask for something long, and " + OrrinState.callOf("orrin") + " may hand it to a task itself.<br><br>"
                             + "<b>Examples</b><br>"
                             + "· Compare my tracker with LEARN and list what's different<br>"
                             + "· Summarise this week's course emails<br>"
@@ -566,7 +566,7 @@ PanelWindow {
                                     case "done": return "Done in " + app.span(card.elapsed) + "  ·  " + steps + "  ·  " + app.when(t.finished);
                                     case "failed": return "Failed after " + app.span(card.elapsed) + "  ·  " + steps + "  ·  see the log";
                                     case "cancelled": return "Cancelled  ·  " + steps;
-                                    case "interrupted": return "Stopped when " + OrrinState.callOf("jarvis") + " restarted  ·  RESUME picks it up";
+                                    case "interrupted": return "Stopped when " + OrrinState.callOf("orrin") + " restarted  ·  RESUME picks it up";
                                     }
                                     return steps;
                                 }

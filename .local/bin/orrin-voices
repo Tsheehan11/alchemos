@@ -1,0 +1,3 @@
+#!/bin/sh
+# Audition Orrin voices by ear: orrin-voices [--effect CLEAN|HOLOGRAM|SUIT] [--only kokoro|piper]
+exec setpriv --no-new-privs "$HOME/.config/orrin/.venv/bin/python" "$HOME/.config/orrin/voices.py" "$@"

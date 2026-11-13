@@ -1,0 +1,12 @@
+# "hey Selene": SELENE = the selene persona (FRIDAY on the legacy skin). espeak says Selene səlˈiːni
+# (three syllables, like the goddess); "Celine" comes out sˈɛlaɪn and is also rendered "say leen"
+# (the French name), both distinct from the target. If he says "seh-LEEN", retrain with that spelling.
+model_name: hey_selene
+persona: selene
+target_phrase: ["hey selene"]
+positive_texts: ["hey selene", "hey selene", "hey selene", "hey, selene", "hey selene!", "hey selene?", "hey selene."]
+custom_negative_phrases: ["hey celine", "celine", "hey say leen", "say leen", "serene", "hey serene", "selenium",
+  "hey selenium", "hey serena", "serena", "hey eileen", "hey colleen", "hey kathleen", "hey darlene", "hey sally",
+  "hey salon", "saline", "hey silly", "hey sell me", "hey seven", "hey celery", "hey see me", "hey lena",
+  "hey marlene", "hey scene", "seeing", "hey jarvis", "hey orrin", "hey siri", "hey there", "hey friday",
+  "hey selfie", "say lean"]

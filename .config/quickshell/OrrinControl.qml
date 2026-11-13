@@ -1,5 +1,5 @@
-// The glow around a window while Jarvis works it (OrrinControlState). An overlay layer exactly over the
-// window plus a margin for the glow, input-transparent (empty mask): clicks, Jarvis's own included, go to
+// The glow around a window while Orrin works it (OrrinControlState). An overlay layer exactly over the
+// window plus a margin for the glow, input-transparent (empty mask): clicks, Orrin's own included, go to
 // the window underneath. A tag on the top edge says what it's doing and how to stop it.
 import QtQuick
 import Quickshell
@@ -16,7 +16,7 @@ PanelWindow {
     visible: here || glow.opacity > 0.01
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-jarvis-control"
+    WlrLayershell.namespace: "alchemos-orrin-control"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; left: true }

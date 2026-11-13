@@ -5,7 +5,7 @@
 //   • quiet: ambient effects + the visualizer stop, panels hide on the game screen
 //     and go lightweight on the others (Perf),
 //     bar stats + clock refresh slowly (SysStats, Bar)
-//   • Jarvis pauses its wake word (jarvis.py reads the same state file)
+//   • Orrin pauses its wake word (orrin.py reads the same state file)
 //   • "COMBAT MODE ENGAGED / DISENGAGED" toast + sound (GameToast)
 // Options are the game* settings in Theme (Settings → System → Combat mode).
 pragma Singleton
@@ -36,7 +36,7 @@ Singleton {
     FileView {
         id: file
         path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/alchemos-game/state.json"
-        blockLoading: true                // known before PowerMode / Jarvis act at startup
+        blockLoading: true                // known before PowerMode / Orrin act at startup
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.read(text())

@@ -1,6 +1,6 @@
 pragma Singleton
 // Desktop widgets: clocks, timers, stopwatches, now playing, system stats, notes, agenda, due dates,
-// Jarvis status, Claude usage, weather, network, DJ deck (data for the last seven: OrrinFeed.qml).
+// Orrin status, Claude usage, weather, network, DJ deck (data for the last seven: OrrinFeed.qml).
 //
 // Each widget is { id, type, mon, fx, fy, scale, pinned, params }:
 //   mon      — the monitor it lives on, by Hyprland description (Roles.keyOf: the laptop on its
@@ -20,10 +20,10 @@ pragma Singleton
 //
 // Types are the files in widgets/ (Clock.qml → "clock"): a new type is one QML file there.
 // Shown by WidgetLayer / WidgetSurface / WidgetCard; driven by `qs ipc call widgets …`
-// (shell.qml), Settings → WIDGETS / HUD, and Jarvis (mcp/stark_actions.py widget_* tools).
+// (shell.qml), Settings → WIDGETS / HUD, and Orrin (mcp/alchemos_actions.py widget_* tools).
 //
 // Timers live here, not in their window: they go off even while hidden (chime, Govee
-// flash, the Jarvis toast, a spoken line), and keep their end time across restarts.
+// flash, the Orrin toast, a spoken line), and keep their end time across restarts.
 import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell
@@ -36,7 +36,7 @@ Singleton {
     readonly property var positions: ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
     readonly property var roles: ["main", "diag", "media"]
     readonly property var defaultPosition: ({ clock: "top-right", timer: "top-right", stopwatch: "top-right", media: "bottom-right", stats: "right", note: "left",
-                                              calendar: "top-left", due: "left", jarvis: "bottom-left", usage: "bottom-left", weather: "top-right", network: "bottom-right", dj: "right" })
+                                              calendar: "top-left", due: "left", orrin: "bottom-left", usage: "bottom-left", weather: "top-right", network: "bottom-right", dj: "right" })
     readonly property string home: Quickshell.env("HOME")
     readonly property int gap: 14
     readonly property var sizes: ({ small: 0.8, normal: 1.0, large: 1.5, huge: 2.0 })
@@ -138,7 +138,7 @@ Singleton {
         return { x: c === 0 ? root.gutter : c === 2 ? s.width - w - root.gutter : Math.round((s.width - w) / 2),
                  y: r === 0 ? root.topGutter : r === 2 ? s.height - h - root.gutter : Math.round((s.height - h) / 2) };
     }
-    // …and back: the slot a widget is nearest to (list() / Jarvis still talk in slots)
+    // …and back: the slot a widget is nearest to (list() / Orrin still talk in slots)
     function slotOf(it) {
         if (!it || it.fx === undefined) return it && it.pending && it.pending.pos ? it.pending.pos : "center";
         const c = it.fx < 0.25 ? "left" : it.fx > 0.75 ? "right" : "";
@@ -426,10 +426,11 @@ Singleton {
         return out;
     }
 
-    // ── actions (IPC, Settings, Jarvis) → result objects ──
+    // ── actions (IPC, Settings, Orrin) → result objects ──
     // at = { x, y } centre on the screen (maker), else position (a slot name, "" / "-" = the type's default)
     function add(type, screen, position, params, at) {
         type = String(type || "").toLowerCase().trim();
+        if (type === "jarvis") type = "orrin";                 // the pre-AlchemOS name
         if (root.types.indexOf(type) < 0) return { ok: false, error: "unknown widget type " + type + " (have: " + root.types.join(", ") + ")" };
         const s = screenFromQuery(screen);
         if (!s) return { ok: false, error: "no screen " + screen + " is connected (main, diag, laptop, monitor 2, current)" };
@@ -455,7 +456,7 @@ Singleton {
         return { ok: true, removed: hit };
     }
     // Closing plays the card's dismiss (WidgetCard: the hologram retracts), then the widget goes.
-    // A closing widget no longer matches anything (Jarvis / IPC see it gone at once).
+    // A closing widget no longer matches anything (Orrin / IPC see it gone at once).
     property var closing: ({})          // id → true while its card animates out
     function dismiss(ids) {
         const c = Object.assign({}, root.closing);
@@ -597,10 +598,10 @@ Singleton {
     }
     function alarm(it, late) {
         const label = it.params.label || "";
-        Quickshell.execDetached(["pw-play", "-P", "{ media.name = \"Jarvis timer\" state.restore-props = false }", root.home + "/.config/quickshell/sounds/widget-alarm.wav"]);
+        Quickshell.execDetached(["pw-play", "-P", "{ media.name = \"Orrin timer\" state.restore-props = false }", root.home + "/.config/quickshell/sounds/widget-alarm.wav"]);
         Quickshell.execDetached(["alchemos-govee", "anim", "alert"]);
         OrrinState.alert("TIMER", (label ? label.toUpperCase() + " · " : "") + "TIME'S UP");
-        if (Theme.cfg.jarvisSpeak) {
+        if (Theme.cfg.orrinSpeak) {
             const line = (late ? "While I was away, sir, your " : "Your ") + (label ? label + " " : "") + "timer is done" + (late ? "." : ", sir.");
             speakTimer.line = line;
             speakTimer.restart();
@@ -610,21 +611,25 @@ Singleton {
         id: speakTimer
         property string line: ""
         interval: 900
-        onTriggered: Quickshell.execDetached([root.home + "/.local/bin/jarvis", "--say", line])
+        onTriggered: Quickshell.execDetached([root.home + "/.local/bin/orrin", "--say", line])
     }
 
     // ── persistence ──
     FileView {
         id: store
         path: root.home + "/.config/quickshell/widgets.json"
+        property bool renamedType: false
         onLoaded: {
             try {
                 const d = JSON.parse(text());
                 root.seq = d.seq || 0;
                 root.items = (d.items || []).filter(i => i && i.id && i.type && i.params
-                    && (i.mon || (root.roles.indexOf(i.screen) >= 0 && root.positions.indexOf(i.position) >= 0)));
+                    && (i.mon || (root.roles.indexOf(i.screen) >= 0 && root.positions.indexOf(i.position) >= 0)))
+                    .map(i => i.type === "jarvis" ? Object.assign({}, i, { type: "orrin" }) : i);   // pre-AlchemOS name
+                renamedType = (d.items || []).some(i => i && i.type === "jarvis");
             } catch (e) {}
             root.loaded = true;
+            if (renamedType) root.save();
             root.checkTimers(true);
             root.migrate();
         }

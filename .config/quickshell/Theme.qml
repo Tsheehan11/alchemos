@@ -21,7 +21,7 @@ Singleton {
         // One write per batch of changes: applying a preset sets several fields, and writing
         // after each one let the change watcher reload a half-written file over the rest.
         onAdapterUpdated: saveTimer.restart()
-        onLoaded: root.loaded = true
+        onLoaded: { root.migrateNames(text()); root.loaded = true; }
         onLoadFailed: error => { writeAdapter(); root.loaded = true; }   // first run: create the file with defaults
 
         JsonAdapter {
@@ -45,38 +45,38 @@ Singleton {
             property int batteryFps: 0               // effects frame rate on battery (0 = static)
             property bool saverNoBlur: true
             property bool saverLowRefresh: true      // laptop screen 60 → 48 Hz on battery
-            property bool saverStopJarvis: false
-            property bool jarvisDocked: true          // Jarvis listens when docked
-            property bool jarvisLaptop: false         // …and when it's just the laptop
-            // Read by ~/.config/jarvis (core/config.py); edited in Settings → JARVIS
-            property string jarvisModel: "auto"       // auto (haiku, sonnet when needed) | haiku | sonnet | opus
-            property string jarvisVoice: "bm_george"  // Kokoro voice (bm_*), or piper model[:speaker] in ~/.local/share/jarvis/voices
-            property real jarvisSpeed: 1.0            // speech rate
-            property string jarvisPersona: "jarvis"   // jarvis | friday: who answers by default (~/.config/jarvis/core/persona.py)
-            property string fridayVoice: "bf_emma"    // FRIDAY's Kokoro voice (jarvis-voices --friday to audition)
-            property real fridaySpeed: 1.15           // FRIDAY's speech rate (JARVIS keeps jarvisSpeed / jarvisPitch)
-            property real fridayPitch: 0.0
-            property string fridayEffect: ""          // FRIDAY's own effect preset; "" = the same as jarvisEffect
-            property int jarvisVoiceVolume: 60        // VOICE VOLUME 0–100 %: Jarvis's voice + chime, a gain after its effects; other audio untouched
-            property int jarvisSpeakerVolume: -1      // own level on the Bluetooth speaker, 0–100 %; -1 = same as VOICE VOLUME
-            property real jarvisPitch: 0.0            // semitones, on top of the effect preset
-            property string jarvisEffect: "AUTO"      // AUTO = the skin's pick for the output (skin.json voiceRouting); presets in ~/.config/jarvis/effects.json
-            property bool jarvisSpeak: true           // spoken replies (the toast shows them either way)
-            property bool jarvisDuck: true            // lower the music while Jarvis talks
-            property int jarvisFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)
-            property string jarvisSpeaker: ""         // Bluetooth MAC: speaker for Jarvis when not on headphones ("" = off)
-            property string jarvisMic: "auto"         // wake-word mic: auto (headset mic if plugged in, else the laptop DMIC) | default | a PipeWire source node.name
-            property bool jarvisMicBluetooth: false   // AUTO may pick a Bluetooth headset mic (the headphones drop to call quality while Jarvis listens)
-            property string jarvisPlace: "Waterloo, Ontario"   // home town for "what's the weather"
-            property bool jarvisAutoAddAssignments: false   // LEARN sync writes to the "STARK – Assignments" calendar without asking (that calendar only)
-            property bool jarvisAutoUpdateTracker: false    // grade notices / new LEARN work / moved deadlines write to the SE tracker sheet without asking
-            property string jarvisAssignmentsAccount: "google"   // where that calendar lives: google | microsoft
-            property string jarvisDecisions: "local"   // local = fast path → local router → Claude | claude = fast path → Claude
-            property real jarvisRouterThreshold: 0.70  // similarity the local router needs to act (~/.config/jarvis/tools/eval_router.py)
-            property bool jarvisRouterAsk: true        // local router: "Did you mean …?" on near misses (~/.config/jarvis/core/router_local.py)
-            property int jarvisWatchInterval: 10      // seconds between a watcher's captures (~/.config/jarvis/core/watch.py)
-            property string jarvisDjChatter: "rare"   // DJ mode lines between tracks: off | rare (every 4–5) | normal (every 2–3) (~/.config/jarvis/core/dj.py)
-            property var jarvisCaptureBlocklist: ["bank", "banking", "rbc royal", "td canada", "scotiabank", "cibc", "bmo", "tangerine", "wealthsimple", "paypal", "interac", "password", "1password", "bitwarden", "keepass", "lastpass", "proton pass", "authenticator", "2fa", "credit card"]   // titles / apps Jarvis never reads or watches (lock screen + password prompts always refused)
+            property bool saverStopOrrin: false
+            property bool orrinDocked: true          // Orrin listens when docked
+            property bool orrinLaptop: false         // …and when it's just the laptop
+            // Read by ~/.config/orrin (core/config.py); edited in Settings → ORRIN
+            property string orrinModel: "auto"       // auto (haiku, sonnet when needed) | haiku | sonnet | opus
+            property string orrinVoice: "bm_george"  // Kokoro voice (bm_*), or piper model[:speaker] in ~/.local/share/orrin/voices
+            property real orrinSpeed: 1.0            // speech rate
+            property string orrinPersona: "orrin"   // orrin | selene: who answers by default (~/.config/orrin/core/persona.py)
+            property string seleneVoice: "bf_emma"    // SELENE's Kokoro voice (orrin-voices --selene to audition)
+            property real seleneSpeed: 1.15           // SELENE's speech rate (ORRIN keeps orrinSpeed / orrinPitch)
+            property real selenePitch: 0.0
+            property string seleneEffect: ""          // SELENE's own effect preset; "" = the same as orrinEffect
+            property int orrinVoiceVolume: 60        // VOICE VOLUME 0–100 %: Orrin's voice + chime, a gain after its effects; other audio untouched
+            property int orrinSpeakerVolume: -1      // own level on the Bluetooth speaker, 0–100 %; -1 = same as VOICE VOLUME
+            property real orrinPitch: 0.0            // semitones, on top of the effect preset
+            property string orrinEffect: "AUTO"      // AUTO = the skin's pick for the output (skin.json voiceRouting); presets in ~/.config/orrin/effects.json
+            property bool orrinSpeak: true           // spoken replies (the toast shows them either way)
+            property bool orrinDuck: true            // lower the music while Orrin talks
+            property int orrinFollowup: 8            // seconds to listen for a follow-up without the wake word (0 = off)
+            property string orrinSpeaker: ""         // Bluetooth MAC: speaker for Orrin when not on headphones ("" = off)
+            property string orrinMic: "auto"         // wake-word mic: auto (headset mic if plugged in, else the laptop DMIC) | default | a PipeWire source node.name
+            property bool orrinMicBluetooth: false   // AUTO may pick a Bluetooth headset mic (the headphones drop to call quality while Orrin listens)
+            property string orrinPlace: "Waterloo, Ontario"   // home town for "what's the weather"
+            property bool orrinAutoAddAssignments: false   // LEARN sync writes to the "STARK – Assignments" calendar without asking (that calendar only)
+            property bool orrinAutoUpdateTracker: false    // grade notices / new LEARN work / moved deadlines write to the SE tracker sheet without asking
+            property string orrinAssignmentsAccount: "google"   // where that calendar lives: google | microsoft
+            property string orrinDecisions: "local"   // local = fast path → local router → Claude | claude = fast path → Claude
+            property real orrinRouterThreshold: 0.70  // similarity the local router needs to act (~/.config/orrin/tools/eval_router.py)
+            property bool orrinRouterAsk: true        // local router: "Did you mean …?" on near misses (~/.config/orrin/core/router_local.py)
+            property int orrinWatchInterval: 10      // seconds between a watcher's captures (~/.config/orrin/core/watch.py)
+            property string orrinDjChatter: "rare"   // DJ mode lines between tracks: off | rare (every 4–5) | normal (every 2–3) (~/.config/orrin/core/dj.py)
+            property var orrinCaptureBlocklist: ["bank", "banking", "rbc royal", "td canada", "scotiabank", "cibc", "bmo", "tangerine", "wealthsimple", "paypal", "interac", "password", "1password", "bitwarden", "keepass", "lastpass", "proton pass", "authenticator", "2fa", "credit card"]   // titles / apps Orrin never reads or watches (lock screen + password prompts always refused)
             property string displayLayout: "extend"  // extend | mirror | external | laptop
             property var screenRoles: ({})            // monitor description → clock | stats | music | none (missing = auto; Roles.qml)
             property bool hideHudBehindWindows: true  // clock / panels hide when windows are open
@@ -103,7 +103,7 @@ Singleton {
             property bool gameKeepDiag: true            //   diagnostics: stats every 2.5 s, no animations
             property bool gameTelemetry: true           //   …as the expanded COMBAT TELEMETRY layout
             property bool gameTelemetryBeside: true     //   …which stays up with windows open, tiling them beside it
-            property bool gameJarvis: true              // pause Jarvis (frees the mic)
+            property bool gameOrrin: true              // pause Orrin (frees the mic)
             property bool gameNotify: true              // do-not-disturb on the notification daemon
             property var launcherApps: []               // radial launcher (LauncherApps.qml); seeded on first run
             property string vpnProvider: "proton"       // VPN the tile / Settings act on (VPN.qml, alchemos-vpn providers.json)
@@ -112,7 +112,7 @@ Singleton {
             property bool skinUnlocked: false           // the SKIN row shows in Settings → APPEARANCE
             property var skinPresets: ({})              // each skin's last look: { skin: { name, primary, secondary, background } }
             property int skinVersion: 0                 // 1 = STARK OS presets moved to their metals; 2 = voices per skin; 3 = ALCHEMOS voice picks; 4 = ALCHEMOS Pocket voices, Orrin/Selene designed (migrateSkins)
-            property var skinVoices: ({})               // each skin's last voices: { skin: { jarvisVoice, jarvisSpeed, … } } (voiceKeys)
+            property var skinVoices: ({})               // each skin's last voices: { skin: { orrinVoice, orrinSpeed, … } } (voiceKeys)
         }
     }
     property bool loaded: false   // settings.json has been read at least once
@@ -197,6 +197,35 @@ Singleton {
     }
     // Once: settings from before skins. A STARK OS preset in use becomes its metal (MARK III → IRON) and is
     // kept as the legacy skin's look; a custom look stays as it is, for both skins.
+    // One-time rename (AlchemOS): the pre-AlchemOS jarvis* / friday* keys (and saverStopJarvis, gameJarvis)
+    // become orrin* / selene*. The adapter only writes the keys it declares, so the old values are read from
+    // the file's raw text here, before anything saves, and the old keys are gone after the next write.
+    // A copy of the file as it was is kept as settings.json.alchemos-bak. ~/.config/orrin/core/config.py
+    // reads the old names too, for the moment before the HUD has run this.
+    function newKeyOf(k) {
+        if (k === "saverStopJarvis") return "saverStopOrrin";
+        if (k === "gameJarvis") return "gameOrrin";
+        if (/^jarvis[A-Z]/.test(k)) return "orrin" + k.slice(6);
+        if (/^friday[A-Z]/.test(k)) return "selene" + k.slice(6);
+        return "";
+    }
+    function migrateNames(raw) {
+        let d = null;
+        try { d = JSON.parse(raw); } catch (e) { return; }
+        if (!d || typeof d !== "object") return;
+        const old = Object.keys(d).filter(k => newKeyOf(k) !== "");
+        if (old.length === 0) return;
+        Quickshell.execDetached(["cp", "-n", file.path, file.path + ".alchemos-bak"]);
+        const personaId = v => ({ jarvis: "orrin", friday: "selene" })[v] || v;
+        for (const k of old) {
+            const n = newKeyOf(k);
+            if (n in d || !(n in adapter)) continue;          // already set under the new name, or no such setting
+            adapter[n] = n === "orrinPersona" ? personaId(d[k]) : d[k];
+        }
+        adapter.orrinPersona = personaId(adapter.orrinPersona);
+        console.log("settings: renamed " + old.length + " pre-AlchemOS keys (jarvis*/friday* → orrin*/selene*)");
+        saveTimer.restart();
+    }
     function migrateSkins() {
         if (adapter.skinVersion === 3) {
             // v4: ALCHEMOS moved to Pocket TTS (pocket/orrin_2, pocket/selene_1, speed 1): drop its saved record so
@@ -246,10 +275,10 @@ Singleton {
         applySkinVoiceDefaults();
     }
     // ── Voices per skin ─────────────────────────
-    // A skin's skin.json "voices" ({ jarvis: { voice, speed, pitch }, friday: {…}, effect }) are its defaults;
+    // A skin's skin.json "voices" ({ orrin: { voice, speed, pitch }, friday: {…}, effect }) are its defaults;
     // what's set in Settings is remembered per skin (skinVoices) and comes back with the skin.
-    readonly property var voiceKeys: ["jarvisVoice", "jarvisSpeed", "jarvisPitch", "fridayVoice", "fridaySpeed", "fridayPitch",
-                                      "jarvisEffect", "fridayEffect"]
+    readonly property var voiceKeys: ["orrinVoice", "orrinSpeed", "orrinPitch", "seleneVoice", "seleneSpeed", "selenePitch",
+                                      "orrinEffect", "seleneEffect"]
     function voiceRecord() {
         const r = {};
         for (const k of voiceKeys) r[k] = adapter[k];
@@ -258,19 +287,19 @@ Singleton {
     function voiceDefaults(v) {          // skin.json voices → settings keys (only the ones it gives)
         const r = {};
         if (!v) return r;
-        for (const who of ["jarvis", "friday"]) {
+        for (const who of ["orrin", "selene"]) {
             const p = v[who] || {};
             if (p.voice) r[who + "Voice"] = p.voice;
             if (typeof p.speed === "number") r[who + "Speed"] = p.speed;
             if (typeof p.pitch === "number") r[who + "Pitch"] = p.pitch;
             if (typeof p.effect === "string") r[who + "Effect"] = p.effect;     // per persona
         }
-        if (v.effect && !r.jarvisEffect) r.jarvisEffect = v.effect;               // one for both
-        if (v.effect && r.fridayEffect === undefined) r.fridayEffect = "";
+        if (v.effect && !r.orrinEffect) r.orrinEffect = v.effect;               // one for both
+        if (v.effect && r.seleneEffect === undefined) r.seleneEffect = "";
         return r;
     }
     function applyVoices(r) {
-        if (r.fridayEffect === undefined) r = Object.assign({ fridayEffect: "" }, r);   // records from before it existed: SAME
+        if (r.seleneEffect === undefined) r = Object.assign({ seleneEffect: "" }, r);   // records from before it existed: SAME
         for (const k of voiceKeys) if (r[k] !== undefined && adapter[k] !== r[k]) adapter[k] = r[k];
     }
     // The skin in use has no remembered voices yet but brings defaults: apply them once and remember them

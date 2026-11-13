@@ -54,7 +54,7 @@ function monKey(m) {
     return m.name === LAPTOP ? m.name : "desc:" + m.description;
 }
 
-// A profile: { rules: [hyprland monitor rules], layout, jarvis, govee, saver }
+// A profile: { rules: [hyprland monitor rules], layout, orrin, govee, saver }
 function defaults(key, mons, goveeMode) {
     if (key === "desk") return {
         rules: [
@@ -62,19 +62,19 @@ function defaults(key, mons, goveeMode) {
             "desc:Acer Technologies MGB270U P2 " + DESK_DIAG + ",2560x1440@59.95,2560x0,1,transform,0",
             LAPTOP + ",1920x1200@60.00,5120x120,1,transform,0"
         ],
-        layout: "extend", jarvis: true,
+        layout: "extend", orrin: true,
         govee: goveeMode && goveeMode !== "off" ? goveeMode : "theme",
         saver: true
     };
     if (key === "laptop") return {
         rules: [LAPTOP + ",preferred,0x0,1,transform,0"],
-        layout: "extend", jarvis: false, govee: "off", saver: true
+        layout: "extend", orrin: false, govee: "off", saver: true
     };
     // Anything else (a TV, a projector, someone's monitor): laptop on the left, the rest
     // to its right, best mode. Mirror etc. is whatever you save for it.
     var rules = [LAPTOP + ",preferred,0x0,1"];
     externals(mons).forEach(function (m) { rules.push(monKey(m) + ",preferred,auto-right,1"); });
-    return { rules: rules, layout: "extend", jarvis: false, govee: "off", saver: true };
+    return { rules: rules, layout: "extend", orrin: false, govee: "off", saver: true };
 }
 
 function mirrored(m) {

@@ -1,15 +1,15 @@
-// Claude usage for the whole account, not just Jarvis (OrrinFeed.claude ← usage.json from `jarvis usage --watch`,
-// ~/.config/jarvis/core/usage.py; no tokens spent on any of it):
+// Claude usage for the whole account, not just Orrin (OrrinFeed.claude ← usage.json from `orrin usage --watch`,
+// ~/.config/orrin/core/usage.py; no tokens spent on any of it):
 //   headline   the Pro plan's 5-hour and weekly %, with reset times: the Claude CLI's /usage report, polled every
 //              5 min (click the widget for now). Older than 15 min → shown as stale, never as current.
-//   split bar  under each %: how much Jarvis and Claude Code on this machine explain (their price-weighted tokens ×
+//   split bar  under each %: how much Orrin and Claude Code on this machine explain (their price-weighted tokens ×
 //              a calibrated %/token), and the rest as "claude.ai + other devices", an ESTIMATE (hatched): there
 //              are no local logs or API for claude.ai, so it's whatever the plan % has that this machine can't explain.
-//   sources    fresh tokens (input + output) today and this plan week: Jarvis (its SDK records), Claude Code (the
+//   sources    fresh tokens (input + output) today and this plan week: Orrin (its SDK records), Claude Code (the
 //              session logs' usage blocks only, never their content).
 //   models     every model actually used, with its tokens; one model today → "TODAY: HAIKU 5.5 ONLY".
-//   local      % of Jarvis requests answered on this PC (regex fast path, local router, a "Did you mean" yes):
-//              no Claude tokens at all (usage.json "local", from jarvis.db action_log).
+//   local      % of Orrin requests answered on this PC (regex fast path, local router, a "Did you mean" yes):
+//              no Claude tokens at all (usage.json "local", from orrin.db action_log).
 import QtQuick
 import ".."
 
@@ -25,7 +25,7 @@ WidgetBody {
     readonly property var localToday: (u.local || {}).today || ({})
     readonly property var localWeek: (u.local || {}).week || ({})
     readonly property var windows: [["five_hour", "5-HOUR"], ["seven_day", "WEEKLY"]]
-    readonly property color cJarvis: Theme.primary
+    readonly property color cOrrin: Theme.primary
     readonly property color cCode: Theme.secondary
     readonly property color cOther: Theme.textSoft
 
@@ -76,7 +76,7 @@ WidgetBody {
                         color: w.current ? Theme.textSoft : Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1
                     }
                 }
-                // split bar: JARVIS | CLAUDE CODE | claude.ai + other (estimate, hatched) | free
+                // split bar: ORRIN | CLAUDE CODE | claude.ai + other (estimate, hatched) | free
                 Item {
                     width: 340; height: 8
                     opacity: w.current ? 1 : 0.4
@@ -84,7 +84,7 @@ WidgetBody {
                     Row {
                         y: 1
                         visible: pw.sp.calibrated === true
-                        Rectangle { width: 340 * (pw.sp.jarvis || 0) / 100; height: 6; color: w.cJarvis; opacity: 0.9 }
+                        Rectangle { width: 340 * (pw.sp.orrin || 0) / 100; height: 6; color: w.cOrrin; opacity: 0.9 }
                         Rectangle { width: 340 * (pw.sp.code || 0) / 100; height: 6; color: w.cCode; opacity: 0.9 }
                         Item {     // the estimate: hatched, never solid
                             width: 340 * (pw.sp.other || 0) / 100; height: 6; clip: true
@@ -109,7 +109,7 @@ WidgetBody {
                     textFormat: Text.StyledText
                     font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1; color: Theme.dim
                     text: pw.sp.calibrated === true
-                          ? "<font color='" + w.cJarvis + "'>■</font> " + OrrinState.assistant + " " + w.pctText(pw.sp.jarvis) + "%  "
+                          ? "<font color='" + w.cOrrin + "'>■</font> " + OrrinState.assistant + " " + w.pctText(pw.sp.orrin) + "%  "
                             + "<font color='" + w.cCode + "'>■</font> CLAUDE CODE " + w.pctText(pw.sp.code) + "%  "
                             + "<font color='" + w.cOther + "'>▨</font> CLAUDE.AI + OTHER DEVICES ~" + w.pctText(pw.sp.other) + "% (ESTIMATE)"
                           : "SPLIT · CALIBRATING (needs a window with some local use)"
@@ -139,14 +139,14 @@ WidgetBody {
                 Text { width: 95; text: "PLAN WEEK"; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 9; font.letterSpacing: 1 }
             }
             Repeater {
-                model: [["jarvis", OrrinState.assistant], ["code", "CLAUDE CODE"]]
+                model: [["orrin", OrrinState.assistant], ["code", "CLAUDE CODE"]]
                 delegate: Row {
                     required property var modelData
                     readonly property var td: w.today[modelData[0]] || ({})
                     readonly property var wk: w.week[modelData[0]] || ({})
                     Text {
                         width: 150; textFormat: Text.StyledText
-                        text: "<font color='" + (modelData[0] === "jarvis" ? w.cJarvis : w.cCode) + "'>■</font> " + modelData[1]
+                        text: "<font color='" + (modelData[0] === "orrin" ? w.cOrrin : w.cCode) + "'>■</font> " + modelData[1]
                         color: Theme.textSoft; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                     Text { width: 95; text: OrrinFeed.tokens(w.fresh(td)) + (td.requests ? "  ·" + td.requests : ""); color: Theme.text; font.family: Style.fonts.body; font.pixelSize: 11 }
@@ -155,14 +155,14 @@ WidgetBody {
             }
             Text {
                 width: 340; wrapMode: Text.Wrap
-                text: "·N = REQUESTS · CACHE R/W TODAY " + OrrinFeed.tokens(((w.today.jarvis || {}).cache_read || 0) + ((w.today.code || {}).cache_read || 0))
-                      + " / " + OrrinFeed.tokens(((w.today.jarvis || {}).cache_write || 0) + ((w.today.code || {}).cache_write || 0))
+                text: "·N = REQUESTS · CACHE R/W TODAY " + OrrinFeed.tokens(((w.today.orrin || {}).cache_read || 0) + ((w.today.code || {}).cache_read || 0))
+                      + " / " + OrrinFeed.tokens(((w.today.orrin || {}).cache_write || 0) + ((w.today.code || {}).cache_write || 0))
                       + " · CLAUDE.AI HAS NO LOCAL RECORD (ESTIMATED ABOVE)"
                 color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 8; font.letterSpacing: 1
             }
         }
 
-        // ── Jarvis requests answered on this PC (no tokens) ──
+        // ── Orrin requests answered on this PC (no tokens) ──
         Item {
             width: 340; height: 18
             visible: w.localWeek.pct !== undefined && w.localWeek.pct !== null
