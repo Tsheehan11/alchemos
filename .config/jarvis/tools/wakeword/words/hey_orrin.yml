@@ -1,12 +1,15 @@
 # "hey Orrin": ORRIN = the jarvis persona on the ALCHEMOS skin. espeak (piper + Kokoro's G2P):
 # Orrin ˈɔɹɪn. "Oren" is rendered as "oh ren" (oʊ): plain "Oren" comes out ˈɔːɹən, the same
 # sound as the target, and a label that contradicts the positives only costs recall.
+# 2026-11-08: dropped warren / orange / "or in" / foreign from the negatives: Whisper hears ~23 % of the
+# rendered "hey orrin" positives as "hey warren" / "hey orange" (+ forum, horn), so those negatives contradicted
+# the positives (95 % clean recall → 45 % with augmentation). Positives heard that way are filtered out too
+# (wake-train/orrin-clean/asr_filter.py).
 model_name: hey_orrin
 persona: jarvis
 target_phrase: ["hey orrin"]
 positive_texts: ["hey orrin", "hey orrin", "hey orrin", "hey, orrin", "hey orrin!", "hey orrin?", "hey orrin."]
-custom_negative_phrases: ["hey erin", "erin", "hey aaron", "aaron", "hey oh ren", "oh ren", "orange", "hey orange",
-  "an orange", "hey warren", "warren", "hey darren", "hey karen", "hey lauren", "hey florence", "hey orion", "orion",
-  "hey origin", "hey foreign", "boring", "pouring", "or in", "hey or in", "hey robin", "hey owen", "hey oregon",
-  "hey o ring", "ironing", "hey iron", "hey jarvis", "hey selene", "hey siri", "hey there", "hey friday",
+custom_negative_phrases: ["hey erin", "erin", "hey aaron", "aaron", "hey oh ren", "oh ren", "hey darren", "hey karen",
+  "hey lauren", "hey florence", "hey orion", "orion", "hey origin", "boring", "pouring", "hey robin", "hey owen",
+  "hey oregon", "hey o ring", "ironing", "hey iron", "hey jarvis", "hey selene", "hey siri", "hey there", "hey friday",
   "hey, how's it going", "okay erin", "hey wren"]
