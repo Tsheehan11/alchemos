@@ -14,10 +14,11 @@
     "glyphs": { "ring": ["☉", "☽", "♂", "♀", "☿", "♄"], "sun": "☉" },
     "cursor": "cursor",
     "components": { "backdrop": "AlchemBackdrop.qml", "launcherLook": "AlchemLauncherLook.qml",
-                    "carouselStage": "AlchemCarouselStage.qml", "carouselPanel": "AlchemCarouselPanel.qml" },
+                    "carouselStage": "AlchemCarouselStage.qml", "carouselPanel": "AlchemCarouselPanel.qml",
+                    "notifCard": "AlchemNotifCard.qml" },
     "style": {
         "display": "Cinzel",
-        "fonts": { "display": "Cinzel", "label": "Cinzel", "numeric": "Marcellus", "body": "JetBrainsMono Nerd Font",
+        "fonts": { "display": "Cinzel", "label": "Cinzel", "numeric": "Marcellus", "body": "JetBrainsMono Nerd Font", "prose": "Marcellus",
                    "mono": "JetBrainsMono Nerd Font", "glyph": "Noto Sans Symbols", "signs": "Noto Sans Symbols", "field": "Cinzel" },
         "tabular": true,
         "numerals": "roman",

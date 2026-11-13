@@ -87,6 +87,10 @@ ShellRoot {
         model: Quickshell.screens
         ShotToast {}
     }
+    Variants {                  // desktop notifications (Notifications.qml), on the main-role screen
+        model: Quickshell.screens
+        NotifPopups {}
+    }
 
     Variants {
         model: Quickshell.screens
@@ -156,6 +160,24 @@ ShellRoot {
         function annotate(): string { return Shot.take("annotate") }
         function output(name: string): string { return Shot.take("screen", name) }
         function status(): string { return JSON.stringify({ busy: Shot.busy, last: Shot.last }) }
+    }
+
+    //   qs ipc call notifications dnd on|off|toggle|get     restore (the last one gone, back)   list   clear   status
+    //   do-not-disturb: alchemos-game turns it on in combat mode; the bar's bell shows it (Indicators)
+    IpcHandler {
+        target: "notifications"
+        function dnd(how: string): string {
+            const h = String(how || "get").toLowerCase();
+            if (h === "get") return Notifications.dnd ? "on" : "off";
+            if (h === "on" || h === "off") return Notifications.setDnd(h === "on");
+            if (h === "toggle") return Notifications.setDnd(!Notifications.dnd);
+            return "dnd on | off | toggle | get";
+        }
+        function status(): string { return JSON.stringify({ serving: Notifications.ready, dnd: Notifications.dnd, held: Notifications.held,
+                                                            doors: LockState.doors, popups: Notifications.popups.count }) }
+        function restore(): string { return Notifications.restore() }
+        function list(): string { return Notifications.list() }
+        function clear(): string { return Notifications.clear() }
     }
 
     //   qs ipc call launcher toggle

@@ -32,6 +32,8 @@ ShellRoot {
         ["bar-custom", 1600, 34, "Bar.qml", { modelData: root.screenOf(1600, 34) }, { pre: () => Theme.presetIndex = -1, settle: 1000 }],
         ["clock-custom", 480, 560, root.comp("clock"), { t: 0, animated: false }, { pre: () => Theme.presetIndex = -1, settle: 1000 }],
         ["osd", 420, 96, "Osd.qml", { modelData: root.screenOf(420, 96) }, {}],
+        ["notifications", 440, 560, notifs, { calm: false }],
+        ["notifications-calm", 440, 560, notifs, { calm: true }],
         ["control", 900, 1000, "ControlCenter.qml", { modelData: root.screenOf(900, 1000), wifiOn: true, ssid: "HOME-5G", btOn: true, brightness: 0.7, powerProfile: "balanced" }, { arm: () => LauncherState.controlOpen = true }]
     ]
     function screenOf(w, h) { return { name: "DP-1", x: 0, y: 0, width: w, height: h }; }
@@ -114,6 +116,30 @@ ShellRoot {
         }
     }
 
+    // the skin's notification card in each urgency, a group, an ORRIN / SELENE message with actions
+    Component {
+        id: notifs
+        Column {
+            id: nc
+            property bool calm: false
+            padding: 20; spacing: 10
+            Repeater {
+                model: [
+                    { nid: 1, app: "Orrin", summary: "Task finished", body: "Your week is summarized.", urgency: "normal",
+                      actions: [{ id: "open", text: "Open" }, { id: "later", text: "Later" }], count: 1, persona: "orrin" },
+                    { nid: 2, app: "Selene", summary: "Moonrise", body: "The tracker is up to date.", urgency: "low", actions: [], count: 1, persona: "selene" },
+                    { nid: 3, app: "Battery", summary: "Battery critical", body: "5 % left, <b>plug in</b> now", urgency: "critical", actions: [], count: 1, persona: "" },
+                    { nid: 4, app: "Discord", summary: "Message from a friend", body: "are we still on for tonight?", urgency: "normal", actions: [], count: 3, persona: "" }
+                ]
+                delegate: Loader {
+                    required property var modelData
+                    width: nc.width - nc.leftPadding - nc.rightPadding
+                    source: Skin.component("notifCard")
+                    onLoaded: { item.animated = false; item.calm = Qt.binding(() => nc.calm); item.n = modelData; }
+                }
+            }
+        }
+    }
     Component {
         id: primitives
         Item {

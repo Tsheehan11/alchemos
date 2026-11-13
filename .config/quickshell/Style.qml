@@ -21,6 +21,7 @@ Singleton {
     //   mono     data, code, hex, paths       glyph    a lone mark or arrow (♪ ▾ ◈): the face Qt fell back to
     //   signs    featured signs (☉ ☽ ♂ ♀ ☿ ♄, alchemical 🜁…; SigilText)     signs2  …☉ (Symbols has no ☉)
     //   field    the lock screen's password field (hyprlock's own default: Sans)
+    //   prose    sentences people read (notification bodies); base = body
     readonly property var fonts: {
         const f = pick("fonts", {});
         return {
@@ -28,6 +29,7 @@ Singleton {
             numeric: f.numeric || mono,
             label: f.label || mono,
             body: f.body || mono,
+            prose: f.prose || f.body || mono,
             mono: f.mono || mono,
             glyph: f.glyph || "Noto Sans",
             signs: f.signs || "Noto Sans Symbols",

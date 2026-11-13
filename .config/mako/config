@@ -1,0 +1,27 @@
+# AlchemOS fallback notifications (mako). Only runs while the HUD is down: D-Bus starts it on the first
+# notification (~/.local/share/dbus-1/services/org.freedesktop.Notifications.service), and the HUD stops
+# it when it comes back (quickshell/Notifications.qml). Plain and neutral on purpose: no skin colours.
+font=sans 10
+background-color=#1c1c1ef0
+text-color=#e6e6e6
+border-color=#6b6b70
+border-size=1
+border-radius=4
+padding=10
+margin=12
+width=360
+max-visible=4
+default-timeout=6000
+anchor=top-right
+layer=overlay
+
+[urgency=low]
+text-color=#b4b4b8
+
+[urgency=critical]
+border-color=#c8c8cc
+border-size=2
+default-timeout=0
+
+[mode=do-not-disturb]
+invisible=1

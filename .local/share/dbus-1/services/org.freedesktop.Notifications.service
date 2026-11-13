@@ -1,0 +1,8 @@
+# AlchemOS: the HUD (quickshell/Notifications.qml) owns org.freedesktop.Notifications while it runs.
+# When it doesn't, D-Bus starts mako on the first notification (so apps like Discord never hang
+# waiting for a daemon). This file wins over the two system ones that claim the same name (mako's and
+# Plasma's plasma_waitforname, which only waits 60 s for a Plasma that isn't there).
+[D-BUS Service]
+Name=org.freedesktop.Notifications
+Exec=/usr/bin/mako
+SystemdService=mako.service

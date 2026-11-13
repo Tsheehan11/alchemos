@@ -48,7 +48,7 @@ Installed now:
 | `text` | the HUD's wording (`host`: the diagnostics wall's user@host name; the bar's corner sign shows the active preset's sign, else `mark`, and its name): bar, panel titles, lock / unlock / power-down messages (`{name}` = the greeting name), power menu title, hyprlock title, denied text, placeholder (`lockPrompt`) and fingerprint lines (`fprintReady`, `fprintPresent`), lock glyph, bar mark, transition title | everywhere via `Skin.text` |
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre. The clock's ring (the preset wheel) also carries the custom presets' signs (`Theme.customSigns`: the 6 most recently saved + the one in use) | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
-| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
+| `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`, `notifCard`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
 | `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `alchemos-cursor/src`) | `alchemos-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
@@ -60,7 +60,7 @@ Installed now:
 | --- | --- | --- |
 | `mono` | JetBrainsMono Nerd Font | data, labels, body text |
 | `display`, `displayCaps`, `displayScale` | mono, false, 1 | headings: face, small caps, size |
-| `fonts` | every role = `mono` (display = `display`) | font roles: `display`, `numeric` (clocks, big numbers), `label` (short caps labels), `body` (running text), `mono` (data), `glyph` (a lone mark; base Noto Sans, the face Qt fell back to), `signs` / `signs2` (featured signs), `field` (hyprlock's password field; base Sans). Every Text names one (`tools/fontcheck/fontcheck.py`, part of the skin check); hyprlock's labels take `label` / `numeric` |
+| `fonts` | every role = `mono` (display = `display`) | font roles: `display`, `numeric` (clocks, big numbers), `label` (short caps labels), `body` (running text), `mono` (data), `glyph` (a lone mark; base Noto Sans, the face Qt fell back to), `signs` / `signs2` (featured signs), `field` (hyprlock's password field; base Sans), `prose` (sentences people read: notification bodies; base = `body`). Every Text names one (`tools/fontcheck/fontcheck.py`, part of the skin check); hyprlock's labels take `label` / `numeric` |
 | `numerals` | `arabic` | `arabic` · `roman`: workspace seals, launcher keys, carousel numbers (`Style.numeral(n)`); readouts stay Arabic |
 | `icons` | `{}` | name → SVG in the skin folder (`SkinIcon.qml`: `currentColor` takes the colour; `{{l1}}`–`{{l3}}` level arcs, `{{fy}}` a fill's top, `{{on}}`, `{{chg}}`). Names: cpu gpu ram temp battery wifi wifi-off bluetooth volume volume-mute mic mic-off vpn bell power. Without one, the base's text / glyph stays |
 | `barIndicators` | `[]` | extra status icons at the bar's right end, in order: wifi bluetooth volume mic bell (live state: `Indicators.qml`) |
@@ -81,7 +81,7 @@ Components read `Style.<token>`; nothing outside `Style.qml`, `Skin.qml` and `sk
 ### Component overrides
 
 Start from the default (`AlchemCircle.qml`, `VaultScene.qml`, `TransmuteTransition.qml`,
-`HoloBackdrop.qml`, `HoloLauncherLook.qml`, `HoloCarouselStage.qml`, `HoloCarouselPanel.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
+`HoloBackdrop.qml`, `HoloLauncherLook.qml`, `HoloCarouselStage.qml`, `HoloCarouselPanel.qml`, `HoloNotifCard.qml`), keep its properties (they're how the HUD drives it), and add `import "../.."` under `import QtQuick` so it can
 reach the HUD's singletons. Components are loaded through `Qt.resolvedUrl` inside the shell; never
 build a `file://` URL to them (it would load a second copy of every singleton).
 
@@ -105,6 +105,19 @@ screen); a panel draws one workspace inside its placed, turned box and gets `ov`
 (modelData = workspace id, index, front, current, wins, peeked, mon, k), and may set `glowColor`,
 `glowBlur`, `glowOpacity`. Put `CarouselWindows { ov; panel }` inside it for the window previews (it
 holds the capture-safety rules). ALCHEMOS: `skins/alchemos/AlchemCarousel*.qml`.
+
+**notifCard** (one desktop notification; `Notifications.qml` owns the D-Bus name, the queue, grouping,
+timeouts, do-not-disturb and the lock hold, and `NotifPopups.qml` stacks the cards top-right on the
+main-role screen) gets `n` (`nid`, `app`, `summary`, `body` in simple markup, `icon`, `image`, `urgency`
+low / normal / critical, `actions` [{ id, text }], `count` for a group, `persona` orrin / selene / ""),
+`ctl` (`activate(nid)` for a click, `invoke(nid, id)`, `dismiss(nid)`), `closing` (play the exit; the row
+goes after the card's `exitMs`), `calm` (battery saver: no glow or blur, short motion) and `animated`
+(false in the skin check: the settled look, no looping motion). It sizes its own `implicitHeight`. The
+base is the look mako had (LEGACY). ALCHEMOS: `skins/alchemos/AlchemNotifCard.qml`: an engraved plate in
+the urgency's metal (low quicksilver, normal the preset's metal, critical molten and breathing), a
+medallion whose ring inscribes itself on arrival with ORRIN's ☉ / SELENE's ☽ for their own messages,
+and a dissolve on the way out (`assets/dissolve.png` as a threshold mask). The skin check renders
+`notifications` and `notifications-calm`.
 
 ## How switching works
 

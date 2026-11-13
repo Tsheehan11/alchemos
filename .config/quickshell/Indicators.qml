@@ -1,7 +1,7 @@
 pragma Singleton
 // Live state for the bar's status icons (Style.barIndicators): Wi-Fi, Bluetooth, volume, mic, notifications.
-// The mic from Pipewire; Bluetooth from bluetoothctl and do-not-disturb from mako, each polled only while
-// some bar shows that icon (`shown`). (Quickshell.Bluetooth lists no adapter on this machine.)
+// The mic from Pipewire, do-not-disturb from the HUD's own notifications (Notifications.qml); Bluetooth from
+// bluetoothctl, polled only while some bar shows that icon (`shown`). (Quickshell.Bluetooth lists no adapter on this machine.)
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -14,16 +14,10 @@ Singleton {
     readonly property real volume: OsdState.vol
     readonly property bool muted: OsdState.mute
     readonly property bool micMuted: !!Audio.source && !!Audio.source.audio && Audio.source.audio.muted
-    property bool dnd: false
+    readonly property bool dnd: Notifications.dnd
     property var shown: ({})           // icon name → how many bars show it (SkinIcon users count in / out)
     function show(name, d) { const m = Object.assign({}, shown); m[name] = Math.max(0, (m[name] || 0) + d); shown = m; }
 
-    Process {
-        id: mode
-        command: ["makoctl", "mode"]
-        stdout: StdioCollector { onStreamFinished: root.dnd = text.split(/\s+/).indexOf("do-not-disturb") >= 0 }
-    }
-    Timer { interval: 15000; repeat: true; triggeredOnStart: true; running: (root.shown.bell || 0) > 0; onTriggered: mode.running = true }
     Process {
         id: bt
         command: ["sh", "-c", "bluetoothctl show 2>/dev/null | awk '/Powered:/ {print $2; exit}'; bluetoothctl devices Connected 2>/dev/null | grep -c '^Device'"]

@@ -230,9 +230,20 @@ def out(cmd):
     return subprocess.run(cmd, capture_output=True, text=True, timeout=4).stdout.strip()
 
 
+def hud_dnd(*args):
+    """The HUD's own notifications (quickshell/Notifications.qml): `qs ipc call notifications dnd …`."""
+    r = subprocess.run(["qs", "ipc", "call", "notifications", "dnd", *args], capture_output=True, text=True, timeout=4)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
 def notify_mute():
-    """Do-not-disturb on whichever daemon is running. Returns what to restore."""
+    """Do-not-disturb on whichever daemon is running: the HUD, or the fallback mako (the HUD down),
+    swaync or dunst. Returns what to restore."""
     try:
+        was = hud_dnd("get")
+        if was in ("on", "off"):
+            hud_dnd("on")
+            return {"hud": was == "on"}
         if running("mako") and shutil.which("makoctl"):
             modes = out(["makoctl", "mode"]).split()
             subprocess.run(["makoctl", "mode", "-a", "do-not-disturb"], capture_output=True, timeout=4)
@@ -252,7 +263,9 @@ def notify_mute():
 
 def notify_restore(saved):
     try:
-        if "mako" in saved:
+        if "hud" in saved:
+            hud_dnd("on" if saved["hud"] else "off")
+        elif "mako" in saved:
             subprocess.run(["makoctl", "mode", "-s", *(saved["mako"] or ["default"])], capture_output=True, timeout=4)
         elif "swaync" in saved:
             subprocess.run(["swaync-client", "-dn" if saved["swaync"] else "-df"], capture_output=True, timeout=4)
