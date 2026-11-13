@@ -356,6 +356,34 @@ def check_power():
     return True
 
 
+# ---------- XWayland primary follows focus ----------
+# X11 games (Unity etc.) size and map the mouse to the X *primary* output, not the
+# monitor Hyprland actually puts them on → clicks miss. Keep primary = focused monitor.
+_primary = None
+
+
+def set_primary(mon):
+    global _primary
+    if not mon or mon == _primary:
+        return
+    try:
+        r = subprocess.run(["xrandr", "--output", mon, "--primary"], capture_output=True,
+                           text=True, timeout=4)
+    except (OSError, subprocess.TimeoutExpired):
+        return
+    if r.returncode == 0:
+        _primary = mon
+        log("x11 primary:", mon)
+
+
+def focused_monitor():
+    try:
+        mons = json.loads(hyprctl("monitors", "-j") or "[]")
+    except ValueError:
+        return None
+    return next((m["name"] for m in mons if m.get("focused")), None)
+
+
 # ---------- daemon ----------
 class Daemon:
     def __init__(self):
@@ -381,6 +409,12 @@ class Daemon:
         elif name == "closewindow":
             if self.games.pop(data.strip(), None) is not None:
                 self.sync()
+        elif name == "focusedmon":
+            set_primary(data.split(",", 1)[0].strip())
+        elif name in ("monitoradded", "monitorremoved"):
+            global _primary
+            _primary = None                    # outputs changed → re-assert
+            set_primary(focused_monitor())
         elif name == "configreloaded":
             reapply_hypr()
 
@@ -410,6 +444,7 @@ class Daemon:
         self.games = game_windows()
         gm = load_json(STATE, EMPTY)["gamemode"] and gamemode_active()
         update(window=bool(self.games), games=sorted(set(self.games.values())), gamemode=gm)
+        set_primary(focused_monitor())
         log("watching for games", f"({len(self.games)} open)" if self.games else "")
 
         buf = b""
