@@ -1,5 +1,5 @@
 #!/bin/sh
-# git clean filter for ~/.config/Code/User/settings.json (stark repo): commits the real
+# git clean filter for ~/.config/Code/User/settings.json (alc repo): commits the real
 # settings without the theme keys alchemos-code-theme writes from the HUD theme.
 # Unparseable (JSONC) input passes through unchanged.
 in=$(cat)

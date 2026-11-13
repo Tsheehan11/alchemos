@@ -141,7 +141,7 @@ TERM_DANGER = [
                             r"gsettings|dconf|kwriteconfig\d?|timedatectl|localectl|hostnamectl|usermod|useradd|userdel|"
                             r"passwd|chsh|chpasswd|visudo|chmod|chown|chattr|mount|umount|swapon|swapoff|modprobe|"
                             r"insmod|rmmod|sysctl|bootctl|mkinitcpio|crontab|reboot|shutdown|poweroff|halt|xdg-settings|"
-                            r"xdg-mime|stark-[a-z-]+|secret-tool|keyring)\b|>>?\s*(/etc/|/boot/|/usr/|~/\.config/|\$HOME/\.config/)",
+                            r"xdg-mime|(?:stark|alchemos)-[a-z-]+|orrinctl|secret-tool|keyring)\b|>>?\s*(/etc/|/boot/|/usr/|~/\.config/|\$HOME/\.config/)",
                 re.I),
      "I don't change system settings, sir, and that command would."),
     ("message", re.compile(r"(^|[\s;&|(`$])(mail|mailx|sendmail|mutt|neomutt|msmtp|swaks)\b|"

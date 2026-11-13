@@ -101,7 +101,7 @@ function rulesFromMonitors(mons, layout) {
 // ~/.config/hypr/alchemos/display-profile.lua: the rules as hl.monitor specs, read by
 // alchemos/monitors.lua after its own monitor rules (so these win)
 function confText(key, rules) {
-    var s = "-- STARK OS — screen arrangement for the \"" + nameFor(key) + "\" display profile.\n";
+    var s = "-- AlchemOS — screen arrangement for the \"" + nameFor(key) + "\" display profile.\n";
     s += "-- Written by the HUD (Profiles.qml) from ~/.config/quickshell/display-profiles.json;\n";
     s += "-- edit it in Settings → Display. Applied by alchemos/monitors.lua, after its own rules.\n";
     s += "return {\n";

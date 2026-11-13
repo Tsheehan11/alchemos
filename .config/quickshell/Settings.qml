@@ -1,4 +1,4 @@
-// STARK OS settings — Wi-Fi, Bluetooth, appearance, HUD, launcher and system.
+// AlchemOS settings — Wi-Fi, Bluetooth, appearance, HUD, launcher and system.
 // Open with Super + , (comma), the SETTINGS button in the control center,
 // or: qs ipc call settings toggle
 import QtQuick

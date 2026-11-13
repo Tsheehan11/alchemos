@@ -144,8 +144,8 @@ shutil.rmtree(tmp, ignore_errors=True)
 
 # ── alchemos-shot helpers ──
 script = Path.home() / ".local" / "bin" / "alchemos-shot"
-loader = importlib.machinery.SourceFileLoader("stark_shot", str(script))
-spec = importlib.util.spec_from_loader("stark_shot", loader)
+loader = importlib.machinery.SourceFileLoader("alchemos_shot", str(script))
+spec = importlib.util.spec_from_loader("alchemos_shot", loader)
 S = importlib.util.module_from_spec(spec)
 loader.exec_module(S)
 mons = [{"name": "DP-1", "x": 0, "y": 0, "w": 2560, "h": 1440}, {"name": "eDP-1", "x": 2560, "y": 240, "w": 1920, "h": 1200},

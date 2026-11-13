@@ -82,6 +82,7 @@
         "selene": { "name": "SELENE", "call": "Selene", "dotted": "S.E.L.E.N.E", "glyph": "☽", "idle": "☽", "starting": "☽", "accent": "#d4dde8" }
     },
     "text": {
+        "host": "alchemos",
         "os": "ALCHEMOS",
         "control": "ALCHEMOS // CONTROL",
         "settings": "ALCHEMOS // SETTINGS",

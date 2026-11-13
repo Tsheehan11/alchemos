@@ -1,7 +1,7 @@
 # openWakeWord training config for "hey friday" (tools/wakeword/train.sh fills the {W} paths).
 # Synthetic clips come from gen_clips.py (piper LibriTTS-R ONNX, 904 speakers, + Kokoro voices/blends);
 # adversarial negatives: phrases that sound like it or contain "Friday" the weekday, which he says
-# to JARVIS all the time ("what's due Friday").
+# to ORRIN all the time ("what's due Friday").
 model_name: hey_friday
 target_phrase: ["hey friday"]
 custom_negative_phrases: ["selene", "on friday", "by friday", "due friday", "this friday", "next friday",

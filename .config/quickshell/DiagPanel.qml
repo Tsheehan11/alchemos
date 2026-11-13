@@ -140,7 +140,7 @@ PanelWindow {
             fill: 0.55   // ambient wall panel: keeps its see-through look
             width: parent.width; height: 74
             title: "UPTIME"
-            detail: Quickshell.env("USER") + "@" + "stark"
+            detail: Quickshell.env("USER") + "@" + Skin.text.host
             Text {
                 text: SysStats.fmtUptime(SysStats.uptimeS)
                 color: Theme.text

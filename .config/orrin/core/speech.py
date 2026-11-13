@@ -1,5 +1,5 @@
 """
-Text → what Jarvis should actually say. Runs on every line before TTS, so Kokoro
+Text → what Orrin should actually say. Runs on every line before TTS, so Kokoro
 never sees "16:07" (it read "sixteen zero seven" with a pause at the colon), "82°C",
 "32%", "Oct 25" or "◆".
 

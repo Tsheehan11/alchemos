@@ -1,5 +1,5 @@
 #!/usr/bin/env fish
-# STARK OS ambient lights installer. Run once: fish ~/.config/govee/install.fish
+# AlchemOS ambient lights installer. Run once: fish ~/.config/govee/install.fish
 set -l dir ~/.config/govee
 set -l bin ~/.local/bin/alchemos-govee
 

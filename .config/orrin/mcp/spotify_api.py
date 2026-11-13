@@ -11,7 +11,7 @@ Everything stored goes to the system keyring next to the Google entries (core/se
   orrin:spotify / account     {"id", "name", "premium": true | false | null}
 
 The access token lasts an hour and is refreshed on demand. Several processes use it (the voice
-loop's DJ, the stark MCP server, the CLI) and Spotify may rotate the refresh token, so a refresh
+loop's DJ, the alchemos MCP server, the CLI) and Spotify may rotate the refresh token, so a refresh
 holds a file lock and re-reads the keyring first: only one process refreshes, the rest pick up
 its token.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""alchemos-govee: STARK OS ambient lighting for a Govee LAN strip (H618C).
+"""alchemos-govee: AlchemOS ambient lighting for a Govee LAN strip (H618C).
 
 The daemon owns the strip: it follows the HUD theme colour, pulses to music
 (via cava; not in combat mode, where it eases to the theme glow until the game ends), and plays boot / login / lock / unlock / logout / shutdown /

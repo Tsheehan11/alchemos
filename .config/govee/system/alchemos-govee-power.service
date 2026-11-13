@@ -1,5 +1,5 @@
 [Unit]
-Description=STARK OS Govee strip boot/shutdown animation
+Description=AlchemOS Govee strip boot/shutdown animation
 Wants=network-online.target
 After=network-online.target
 

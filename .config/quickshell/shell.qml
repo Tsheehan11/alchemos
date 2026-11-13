@@ -1,4 +1,4 @@
-// STARK OS — Quickshell entry point
+// AlchemOS — Quickshell entry point
 import QtQuick
 import Quickshell
 import Quickshell.Io

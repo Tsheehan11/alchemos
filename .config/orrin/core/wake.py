@@ -203,7 +203,7 @@ def _word(args):
 
 
 def _scores(model_path, files, verifier=None):
-    """Peak score per WAV through the full openWakeWord pipeline (the way Jarvis listens)."""
+    """Peak score per WAV through the full openWakeWord pipeline (the way Orrin listens)."""
     import numpy as np
     from openwakeword.model import Model
     kw = {"custom_verifier_models": {Path(model_path).stem: verifier}, "custom_verifier_threshold": VERIFIER_THRESHOLD} if verifier else {}
@@ -233,10 +233,10 @@ def cmd_test(args):
     word = _word(args)
     model = W / "out" / f"{word}.onnx"
     if not model.exists():
-        sys.exit(f"{word} isn't trained yet (jarvis wake status)")
+        sys.exit(f"{word} isn't trained yet (orrin wake status)")
     pos, neg = sorted((REAL / word / "pos").glob("*.wav")), sorted((REAL / word / "neg").glob("*.wav"))
     if not pos:
-        sys.exit("no recordings yet: jarvis wake record " + word.split("_")[1])
+        sys.exit("no recordings yet: orrin wake record " + word.split("_")[1])
     thr = _threshold(word) or 0.5
     ps, ns = _scores(model, pos), _scores(model, neg)
     print(f"{word} @ {thr}: your voice {sum(s >= thr for s in ps)}/{len(ps)} woke it, "
@@ -254,7 +254,7 @@ def cmd_enable(args):
     word = _word(args)
     model = W / "out" / f"{word}.onnx"
     if not model.exists():
-        sys.exit(f"{word} isn't trained yet (jarvis wake status)")
+        sys.exit(f"{word} isn't trained yet (orrin wake status)")
     sys.path.insert(0, str(TOOLS))
     import wordcfg
     persona = wordcfg.load(word).get("persona") or DEFAULT_PERSONA[word]
@@ -278,7 +278,7 @@ def cmd_enable(args):
             print(f"no custom verifier ({type(e).__name__}: {e}); the model alone is installed")
             ver.unlink(missing_ok=True)
     else:
-        print("no recordings yet (jarvis wake record): installing without a custom verifier")
+        print("no recordings yet (orrin wake record): installing without a custom verifier")
         ver.unlink(missing_ok=True)
     shutil.copy2(model, DEST / f"{word}.onnx")
     meta = {"threshold": thr, "persona": persona, "trained": time.strftime("%Y-%m-%d"), "report": report_line(word)}

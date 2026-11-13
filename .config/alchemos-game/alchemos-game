@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""alchemos-game: STARK OS combat mode (gaming mode).
+"""alchemos-game: AlchemOS combat mode (gaming mode).
 
 The daemon watches Hyprland for game windows and switches the desktop into a
 low-overhead mode while one is open. Whatever it changes is read first and put

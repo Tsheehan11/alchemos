@@ -13,6 +13,6 @@ hl.on("hyprland.start", function()
     -- Portals (xdg-desktop-portal-hyprland, screen sharing) need the session's Wayland env
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
     hl.exec_cmd("~/.config/hypr/alchemos-audio-auto.sh")
-    hl.exec_cmd("~/.local/bin/alchemos-govee daemon")   -- STARK OS ambient lights
+    hl.exec_cmd("~/.local/bin/alchemos-govee daemon")   -- AlchemOS ambient lights
     hl.exec_cmd("~/.local/bin/alchemos-game daemon")    -- combat mode: watches for game windows
 end)

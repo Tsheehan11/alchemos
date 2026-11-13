@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS: bring the fingerprint reader (Elan MOC 04f3:0c88, libfprint "elanmoc") back
+# AlchemOS: bring the fingerprint reader (Elan MOC 04f3:0c88, libfprint "elanmoc") back
 # without a power-off.
 #
 #   alchemos-fprint-reset              escalate until a test scan starts cleanly (sudo)

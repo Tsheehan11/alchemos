@@ -14,10 +14,10 @@
 #   running    the fixed Hyprland is running
 # With --sync it refreshes a private copy of the package databases first (checkupdates'
 # fakeroot sync: no root, needs the network); without, it reads the last sync (or the
-# system's). The last result is kept in ~/.cache/stark/hypr-check for the HUD's bar.
+# system's). The last result is kept in ~/.cache/alchemos/hypr-check for the HUD's bar.
 set -u
 want=0.57.0
-cache="${XDG_CACHE_HOME:-$HOME/.cache}/stark"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/alchemos"
 db="$cache/hypr-db"
 mkdir -p "$cache"
 

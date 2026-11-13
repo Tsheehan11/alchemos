@@ -1,6 +1,6 @@
 # Orrin (Orrin / Selene)
 
-The STARK OS / AlchemOS voice assistant: wake word → speech-to-text → local router or Claude → text-to-speech.
+The AlchemOS / AlchemOS voice assistant: wake word → speech-to-text → local router or Claude → text-to-speech.
 `orrin.py` is the entry point; the voice loop runs as `orrin.service`. Module overviews live in each
 file's docstring (start with `core/voice.py` for speech, `core/tts/` for the engines). Tests: `tools/check_all.sh`.
 

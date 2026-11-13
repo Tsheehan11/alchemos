@@ -5,7 +5,7 @@ Local decision layer: between the regex fast path and Claude, offline, no AI ser
   intents.json (cosine) → act locally only if
       best score ≥ threshold (Settings → ORRIN, default 0.70)
       and it beats the best *other* intent by ≥ GAP
-      and that intent is a stark tool (not "chat" / "claude-only")
+      and that intent is a alchemos tool (not "chat" / "claude-only")
       and the request contains the intent's anchor words, if it has any ("must"), and none of
       its excluded ones ("must_not")
       and every required slot is filled (rapidfuzz against live lists, numbers / durations
@@ -682,7 +682,7 @@ class LocalRouter:
 
     # ── learning: evidence → candidate → gate → active ──
     def learn(self, text, tool, args, source="claude"):
-        """`text` was handled by exactly one stark call tool(**args) (Claude's, or what a correction
+        """`text` was handled by exactly one alchemos call tool(**args) (Claude's, or what a correction
         resolved to). Counts as one confirm for the one intent that covers it, if this router can pull the
         same arguments out of the words. → the intent, or None."""
         t = clean(text)
@@ -949,7 +949,7 @@ class LocalRouter:
         self.log(f'ORRIN: remembered "{t}" → {pick}')
 
     def intent_for_call(self, text, tool, args):
-        """Which intent a stark call tool(**args) for these words was (None if none / ambiguous)."""
+        """Which intent a alchemos call tool(**args) for these words was (None if none / ambiguous)."""
         return self._intent_for(tool, args, clean(text))
 
     def _intent_for(self, tool, args, t):
@@ -999,7 +999,7 @@ def cli(argv):
             n = len(store.get(name, []))
             print(f"{name:<24} {it.get('kind', 'tool'):<12} {len(it.get('examples', [])):>3} examples"
                   f"{'  + ' + str(n) + ' learned' if n else ''}{'  (never learned)' if L.blocked(name, it) else ''}")
-        print(f"learned examples: {learned_file()} · jarvis router review")
+        print(f"learned examples: {learned_file()} · orrin router review")
         return 0
     if cmd == "log":
         import orrin_db as db
@@ -1010,5 +1010,5 @@ def cli(argv):
         return 0
     if cmd in ("review", "remove", "forget", "stats", "approve", "reset-learned"):
         return L.cli(["forget" if cmd == "remove" else cmd] + argv[1:])
-    print("usage: jarvis intents [list | log [N]] · learned examples: jarvis router stats | review | approve ID | forget ID | reset-learned")
+    print("usage: orrin intents [list | log [N]] · learned examples: orrin router stats | review | approve ID | forget ID | reset-learned")
     return 2

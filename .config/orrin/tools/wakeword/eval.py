@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-How good is a trained wake word model (--word hey_orrin; default hey_friday), measured the way Jarvis listens (score ≥ threshold, then the
+How good is a trained wake word model (--word hey_orrin; default hey_friday), measured the way Orrin listens (score ≥ threshold, then the
 model is reset, so one utterance fires once):
 
   recall             held-out positive clips (speakers / voices training never saw), with the training
                      pipeline's room + background augmentation
   adversarial        held-out "sounds like it" phrases ("due friday", "hey freddie", "hey jarvis", …)
   false / hour       openWakeWord's validation set (~11 h of speech, music, noise; not trained on)
-  your desk          every recording Jarvis kept from the real mic (~/.local/state/orrin/rec: commands,
+  your desk          every recording Orrin kept from the real mic (~/.local/state/orrin/rec: commands,
                      follow-ups, near misses), none of which says "hey Friday": any trigger is a false one
 
 Picks the threshold (highest recall, at least MIN_RECALL, with ≤ MAX_FP_H false triggers per hour on the
-validation set, none on the desk recordings, ≤ 5 % adversarial accepts) and with --install puts the model where Jarvis loads it:
+validation set, none on the desk recordings, ≤ 5 % adversarial accepts) and with --install puts the model where Orrin loads it:
 ~/.local/share/orrin/wake/hey_friday.onnx + hey_friday.json {threshold, …}.
 
   ~/.config/orrin/.venv/bin/python tools/wakeword/eval.py --word hey_orrin [--report] [--install]
 
---report writes $W/out/<word>/eval.json (what `jarvis wake status` and `jarvis wake enable` read).
+--report writes $W/out/<word>/eval.json (what `orrin wake status` and `orrin wake enable` read).
 """
 import argparse
 import json
@@ -33,14 +33,14 @@ W = Path(os.environ.get("WAKE_TRAIN_DIR", Path.home() / ".local/share/orrin/wake
 OUT = W / "out"
 MODEL = OUT / "hey_friday.onnx"   # main() points it at --word
 WORD = "hey_friday"
-REC = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "jarvis/rec"
+REC = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "orrin/rec"
 DEST = Path.home() / ".local/share/orrin/wake"
 THRESHOLDS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 MAX_FP_H = 0.5
 MIN_RECALL = 0.5                  # on held-out clips with room + noise augmentation; missing half the time is
-                                  # worse than both personas sharing "hey Jarvis"
+                                  # worse than both personas sharing "hey Orrin"
 FRAME_S = 0.08                    # one embedding frame
-REFRACTORY = int(2.0 / FRAME_S)   # after a trigger Jarvis resets the model and talks for seconds
+REFRACTORY = int(2.0 / FRAME_S)   # after a trigger Orrin resets the model and talks for seconds
 
 
 def session():
@@ -61,7 +61,7 @@ def scores_windows(sess, name, x, batch=4096):
 
 
 def triggers(scores, thr):
-    """Count activations with the refractory gap (one per utterance, like Jarvis's reset)."""
+    """Count activations with the refractory gap (one per utterance, like Orrin's reset)."""
     n, i = 0, 0
     hits = np.flatnonzero(scores >= thr)
     last = -10 ** 9
@@ -91,9 +91,9 @@ def clip_max(sess, name, feats):
 
 
 def desk(thresholds):
-    """Every saved desk recording through the full openWakeWord pipeline with the model loaded the way Jarvis
+    """Every saved desk recording through the full openWakeWord pipeline with the model loaded the way Orrin
     loads it (hey_jarvis + hey_friday). → (hours, {thr: friday triggers}, {thr: files}), and how often
-    "hey jarvis" itself fired there (sanity: it should, they're mostly Jarvis commands)."""
+    "hey jarvis" itself fired there (sanity: it should, they're mostly Orrin commands)."""
     from openwakeword.model import Model
     files = sorted(REC.glob("*.wav"))
     m = Model(wakeword_models=["hey_jarvis", str(MODEL)], inference_framework="onnx")
@@ -168,7 +168,7 @@ def main():
         (feat / "eval.json").write_text(json.dumps(report, indent=1) + "\n")
     if a.install:
         if pick is None:
-            sys.exit("no threshold meets the bar: not installing (Jarvis keeps both personas on \"hey Jarvis\")")
+            sys.exit("no threshold meets the bar: not installing (Orrin keeps both personas on \"hey Orrin\")")
         DEST.mkdir(parents=True, exist_ok=True)
         shutil.copy2(MODEL, DEST / f"{WORD}.onnx")
         (DEST / f"{WORD}.json").write_text(json.dumps({

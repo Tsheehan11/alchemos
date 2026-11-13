@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS lock: plays the lock sound, shows hyprlock, then the unlock animation + sound.
+# AlchemOS lock: plays the lock sound, shows hyprlock, then the unlock animation + sound.
 # Used by Super+L, the launcher's LOCK, and hypridle (idle + before sleep).
 
 log="${XDG_STATE_HOME:-$HOME/.local/state}/alchemos/hyprlock.log"
@@ -66,7 +66,7 @@ mkdir -p "${log%/*}" && { [ -f "$log" ] && mv -f "$log" "$log.1"; }
 # LidSwitchIgnoreInhibited=yes, unlike "sleep") plus "sleep" for an explicit suspend.
 # Held only until hyprlock says the scan is running, 3 s at most. A lid shut meanwhile
 # isn't lost: logind keeps rechecking a closed lid and suspends the moment this ends.
-systemd-inhibit --what=handle-lid-switch:sleep --mode=block --who="STARK lock" \
+systemd-inhibit --what=handle-lid-switch:sleep --mode=block --who="AlchemOS lock" \
     --why="fingerprint reader opening" sleep 3 &
 guard=$!
 stdbuf -oL hyprlock 2>&1 | {

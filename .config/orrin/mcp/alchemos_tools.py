@@ -3,7 +3,7 @@
 Desktop (HUD) tools as a local MCP server (stdio only, no network listener).
 
 Orrin starts it through the Claude Agent SDK; the claude CLI can use the same
-tools:  claude mcp add stark -- ~/.config/orrin/.venv/bin/python ~/.config/orrin/mcp/alchemos_tools.py
+tools:  claude mcp add alchemos -- ~/.config/orrin/.venv/bin/python ~/.config/orrin/mcp/alchemos_tools.py
 
 The logic and validation live in alchemos_actions.py; this file only declares the
 tools with compact, typed schemas. Results are JSON data for the model, never

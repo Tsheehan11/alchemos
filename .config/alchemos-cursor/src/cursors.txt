@@ -1,4 +1,4 @@
-# STARK OS cursors — one line per cursor file:
+# AlchemOS cursors — one line per cursor file:
 #   name  template  hotspot-x  hotspot-y  rotation  aliases...
 # Hotspots are in the templates' 32×32 viewBox. Rotation fills {{ROT}} (- = none).
 # Aliases become symlinks (XCursor) / define_override (hyprcursor), so apps asking

@@ -234,7 +234,7 @@ class Orrin:
         self.router = None
         self.watch = None                      # the last local action, until it's judged (core/router_learn.py)
         self.watch_lock = threading.Lock()
-        self._resolved = None                  # (tool, args) of the one stark call the last request came to, if any
+        self._resolved = None                  # (tool, args) of the one alchemos call the last request came to, if any
         self.learning = []                     # learn() threads; text mode waits for them before exiting
         # The ORRIN app (core/appserver.py, voice mode only): voice and typed requests take turns on
         # one brain, every exchange is recorded in a thread, and tool labels / confirmations reach the app.
@@ -472,7 +472,7 @@ class Orrin:
             return None
 
     def _learn(self, text, d, r):
-        """Claude answered with exactly one stark tool call that went through: evidence for the intent that
+        """Claude answered with exactly one alchemos tool call that went through: evidence for the intent that
         covers it (core/router_learn.py decides whether it ever goes live)."""
         if (self.dry_run or d.path in ("claude:claude-only", "claude:empty") or len(r.calls) != 1
                 or _refused(r.tools) or len(r.tools) != 1):

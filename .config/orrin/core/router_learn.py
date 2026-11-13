@@ -3,7 +3,7 @@ What the local router (core/router_local.py) has learned, and the rules for lear
 except for `orrin router approve`, which runs the promotion gate.
 
 Evidence comes only from what already happened (no Claude call is ever made to learn):
-  claude     a request went to Claude and Claude made exactly one stark tool call that a local intent
+  claude     a request went to Claude and Claude made exactly one alchemos tool call that a local intent
              covers, with arguments the router can pull out of the words itself      → candidate, 1 confirm
   correction "no, I meant X" / a reworded repeat right after a local action resolved to a different
              intent whose arguments are in the original words                         → candidate, 1 confirm

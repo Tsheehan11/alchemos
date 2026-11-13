@@ -59,7 +59,7 @@ Google Calendar); it stays as the fallback when the tracker isn't set up.
 ## Stage 2: ORRIN app (Quickshell)
 
 - `OrrinApp.qml`: a holographic console (Theme colours, HudFrame), Super+J toggles it on the
-  focused monitor (bind in `hypr/stark/binds.lua`, IPC `orrin app`).
+  focused monitor (bind in `hypr/alchemos/binds.lua`, IPC `orrin app`).
 - Conversations: `threads` + `messages` tables in orrin_db. Every turn (voice or typed) lands in
   the current thread; a request that runs tools or more than one turn starts its own thread,
   titled by the fast model. FTS search; resuming a thread replays a short summary into Claude.
@@ -72,7 +72,7 @@ Google Calendar); it stays as the fallback when the tracker isn't set up.
   for resume. Completion: voice + toast, linked to its thread. A Claude-turns-today counter
   (from `action_log` + tasks) sits in the header.
 
-**Built (stage 2):** Super+J was free (no hyprland.conf any more; nothing in stark/binds.lua bound J).
+**Built (stage 2):** Super+J was free (no hyprland.conf any more; nothing in alchemos/binds.lua bound J).
 The socket is `$XDG_RUNTIME_DIR/orrin/app.sock` (0600 in a 0700 dir, peer uid checked). Thread titles
 come from the first request (no extra Claude turn). Typed requests answer confirmations in the app
 only; task confirmations show in the app and are asked aloud when idle, first answer wins, 10 min
@@ -267,7 +267,7 @@ re-homed the workspace to the remaining screen (no "monitor -1"), every capture 
   an Overlay layer over the window plus a glow margin, empty input mask (clicks go through), breathing theme-primary
   outline and a tag "J.A.R.V.I.S CONTROL · ACTING · STEP 2/3 · SUPER+SHIFT+ESC / "STOP" TO STOP". The runner beats it
   every 0.5 s; no beat for 2 s → gone. The kill switch flashes it STOPPED in the secondary colour.
-- Kill switch: Super+Shift+Escape (`hypr/stark/binds.lua`; plain shell `touch $XDG_RUNTIME_DIR/orrin-control-stop`
+- Kill switch: Super+Shift+Escape (`hypr/alchemos/binds.lua`; plain shell `touch $XDG_RUNTIME_DIR/orrin-control-stop`
   + `qs ipc call orrincontrol stop`, so it works with Python or the HUD stuck), "Orrin, stop" (the wake word
   interrupts the request and `Brain.interrupt` sets the flag; then "stop" / "halt" / "hands off" answers "Stopped, sir"
   without reaching the music's "stop"), typed "stop" in the console (handled before the turn lock the running plan

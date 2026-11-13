@@ -28,7 +28,7 @@ show() {    # $1 = message file
     date +%s > "$run/shown"
     cp "$1" "$run/msg"
     # [[…]] is a Lua long string: the command goes in exactly as the shell leaves it
-    hyprctl dispatch "hl.dsp.exec_cmd([[kitty --class alchemos-uwcs-msg --title 'STARK // UW CS' sh -c 'cat \"\$0\"; printf \"\\nEnter to close.\"; read _' $run/msg]], { float = true, size = \"760 260\", center = true })" >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.exec_cmd([[kitty --class alchemos-uwcs-msg --title 'AlchemOS // UW CS' sh -c 'cat \"\$0\"; printf \"\\nEnter to close.\"; read _' $run/msg]], { float = true, size = \"760 260\", center = true })" >/dev/null 2>&1
 }
 
 if [ "$1" = --show ]; then
@@ -46,7 +46,7 @@ fi
 vpn=$(alchemos-vpn status 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("active",""))' 2>/dev/null)
 msg=$run/unreachable
 {
-    echo "STARK // can't reach $h:$p"
+    echo "AlchemOS // can't reach $h:$p"
     if [ "$vpn" = school ]; then
         echo "  The school VPN is already on, so this host is probably down for maintenance."
         echo "  Try another one: uwcs-002, uwcs-004, uwcs-006, uwcs-008, uwcs-010 or uwcs-012."

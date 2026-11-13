@@ -34,7 +34,7 @@ Scopes (all read-only):
 - `https://www.googleapis.com/auth/drive.readonly`
 - only if Settings → ORRIN → Assignments calendar is GOOGLE:
   `https://www.googleapis.com/auth/calendar.app.created`. This one can only touch
-  calendars Jarvis itself creates ("STARK – Assignments"), never your main calendar.
+  calendars Orrin itself creates ("STARK – Assignments"), never your main calendar.
 - `https://www.googleapis.com/auth/spreadsheets`, for the SE tracker sheet (docs/orrin-app.md,
   stage 1). Google has no scope for one existing sheet, so Orrin enforces it: the Sheets client
   refuses any request that names a spreadsheet other than the one `orrin tracker find` stored.

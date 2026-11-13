@@ -56,6 +56,7 @@ Singleton {
         },
         text: {
             os: "HUD", control: "HUD // CONTROL", settings: "HUD // SETTINGS",
+            host: "stark",          // the diagnostics wall's user@host line (LEGACY reads this base value)
             lockMessage: "LOCKING", lockSub: "", unlockMessage: "UNLOCKED", lockTitle: "LOCKED", denied: "TRY AGAIN",
             lockGlyph: "◆", mark: "◆", clockName: "Clock",
             // hyprlock's password box and fingerprint lines; the HUD's unlock / power words ({name} = greetName)

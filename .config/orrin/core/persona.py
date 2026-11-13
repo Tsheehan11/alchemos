@@ -129,7 +129,7 @@ def call(who=None, cfg=None):
 
 
 def skin_tag(cfg=None):
-    """The turn's names tag, "" when they're the prompt's own (STARK OS, JARVIS, FRIDAY)."""
+    """The turn's names tag, "" when they're the prompt's own (AlchemOS, ORRIN, SELENE)."""
     names = (os_name(cfg), label("orrin", cfg), label("selene", cfg))
     return "" if names == UNTAGGED else "[" + " · ".join(names) + "] "
 

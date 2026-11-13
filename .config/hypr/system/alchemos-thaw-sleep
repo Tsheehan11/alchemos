@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS: the session must never stay frozen after resume.
+# AlchemOS: the session must never stay frozen after resume.
 # systemd-sleep freezes user.slice before suspend and thaws it once the post hooks are
 # done. If it dies, or a hook never returns, the desktop stays frozen. post queues a
 # backstop that runs once the suspend job is over and thaws anything still frozen.

@@ -6,7 +6,7 @@ Runs inside the voice process (orrin.py VoiceLoop starts DJ()), because the line
 the ducker and the combat / call checks. Everything else talks to it over a local socket:
 
   $XDG_RUNTIME_DIR/orrin/dj.sock    one JSON line in, one JSON line out (alchemos_actions.dj_* →
-                                     the stark MCP tools and the fast path)
+                                     the alchemos MCP tools and the fast path)
   $XDG_RUNTIME_DIR/orrin/dj.json    what the HUD shows (MediaPanel, the "dj" widget): set name,
                                      mood, now playing, the next three
   ~/.local/share/orrin/dj/          state.json (survives a Orrin restart), history.json (what DJ

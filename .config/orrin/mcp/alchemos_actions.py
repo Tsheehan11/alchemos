@@ -1,5 +1,5 @@
 """
-STARK OS actions for Jarvis: the explicit allowlist of things it may do.
+AlchemOS actions for Orrin: the explicit allowlist of things it may do.
 
 Each action validates its arguments, then wraps an existing command or HUD IPC
 call (hyprctl, qs ipc, alchemos-govee, alchemos-vpn, playerctl, wpctl, the uwcs fish
@@ -399,7 +399,7 @@ def media(action, value=""):
         "play": ["playerctl", "play"], "pause": ["playerctl", "pause"],
         "play_pause": ["playerctl", "play-pause"], "next": ["playerctl", "next"],
         "previous": ["playerctl", "previous"],
-        # same commands as the volume keys in hypr/stark/binds.lua
+        # same commands as the volume keys in hypr/alchemos/binds.lua
         "volume_up": ["wpctl", "set-volume", "-l", "1", SINK, "10%+"],
         "volume_down": ["wpctl", "set-volume", SINK, "10%-"],
         "mute": ["wpctl", "set-mute", SINK, "1"], "unmute": ["wpctl", "set-mute", SINK, "0"],

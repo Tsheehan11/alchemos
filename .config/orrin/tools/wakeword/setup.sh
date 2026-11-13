@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Training environment for custom openWakeWord models (hey friday, hey orrin, hey selene), CPU only.
 # Everything big lives in ~/.local/share/orrin/wake-train (untracked): its own venv
-# (torch etc. stay out of Jarvis's venv), piper-sample-generator + its LibriTTS-R model,
+# (torch etc. stay out of Orrin's venv), piper-sample-generator + its LibriTTS-R model,
 # room impulse responses, background audio, and the precomputed negative features.
 #
 #   tools/wakeword/setup.sh          # idempotent; re-run to resume a broken download

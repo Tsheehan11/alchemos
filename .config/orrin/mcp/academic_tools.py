@@ -9,7 +9,7 @@ With his SE tracker sheet set up (mcp/tracker.py) the tracker is the record: tra
 tracker_grade read it, tracker_update / tracker_add / tracker_remove write single cells, add or remove one
 row (always with his spoken yes: core/brain.ALWAYS_ASK), and the row's own calendar event follows
 (sheet_calendar.py: his sheet's Apps Script doesn't see API edits). Without it, calendar_add_assignment
-is the only write, and it can only reach the dedicated "STARK – Assignments" calendar (academic.ASSIGNMENTS_CALENDAR); Jarvis asks first
+is the only write, and it can only reach the dedicated "STARK – Assignments" calendar (academic.ASSIGNMENTS_CALENDAR); Orrin asks first
 unless Settings → ORRIN → AUTO-ADD ASSIGNMENTS is on. Logic: academic.py. On Google it uses
 the calendar.app.created scope, which can only reach calendars this app created, so even a bug
 here couldn't write to his main calendar (google_api.AssignmentsCalendar).

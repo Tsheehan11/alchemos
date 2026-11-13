@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS lid handler (Hyprland calls this when the lid closes).
+# AlchemOS lid handler (Hyprland calls this when the lid closes).
 # logind suspends on lid close by itself (hypridle's before_sleep_cmd locks first, holding
 # an inhibitor until hyprlock is up). This script gets the lock and a dark screen in the
 # right order without waiting for logind, and suspends itself when logind ignores the lid:

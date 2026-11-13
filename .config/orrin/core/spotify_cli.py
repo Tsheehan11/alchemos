@@ -20,7 +20,7 @@ Spotify for Orrin: your own developer app (Development Mode, free; the owner nee
 
   1. Open https://developer.spotify.com/dashboard and sign in with your Spotify account.
   2. Create app:
-       App name         STARK Jarvis
+       App name         AlchemOS Orrin
        App description  Voice assistant on my own desktop
        Redirect URI     {S.REDIRECT_URI}      (click Add; Spotify refuses "localhost", use 127.0.0.1 exactly)
        APIs used        tick "Web API"

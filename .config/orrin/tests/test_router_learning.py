@@ -217,7 +217,7 @@ A.TOOLS = {k: (lambda k=k: (lambda **a: ran.append((k, a)) or {"ok": True, "say"
 
 
 class FakeBrain:
-    """Claude: maps a request to at most one stark call (what the real one would have done)."""
+    """Claude: maps a request to at most one alchemos call (what the real one would have done)."""
     calls = {}
     history = ""
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS: bring the Elan reader back when it wedges on resume, without ever pulling
+# AlchemOS: bring the Elan reader back when it wedges on resume, without ever pulling
 # fprintd out from under the lock screen.
 # libfprint's Elan MOC driver sometimes wedges across suspend (fpi_ssm_mark_failed:
 # machine != NULL, or "Cannot run while suspended" after wake) and only a USB reset of

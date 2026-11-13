@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK HUD launcher (autostart.lua): Quickshell with its log kept small.
+# AlchemOS HUD launcher (autostart.lua): Quickshell with its log kept small.
 #
 # Quickshell logs every instance to $XDG_RUNTIME_DIR/quickshell/by-id/<id>/, which is
 # tmpfs (RAM). On 2026-11-01 a QTimer warning repeated every millisecond from the DST

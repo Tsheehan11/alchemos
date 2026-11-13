@@ -1,4 +1,4 @@
-// STARK control center — quick settings in the hologram style.
+// AlchemOS control center — quick settings in the hologram style.
 // Open: CONTROL in the helix launcher, or Super + C.
 import QtQuick
 import Quickshell
@@ -271,7 +271,7 @@ PanelWindow {
                     Text { text: "SCREENSHOT"; color: shotMa.containsMouse ? Theme.text : cc.dim; font.family: Style.fonts.label; font.pixelSize: 13; font.letterSpacing: 2 }
                     Text {
                         width: parent.width; elide: Text.ElideRight
-                        text: Shot.last.ok ? "last · " + Shot.last.name.replace(/^stark-|\.png$/g, "") : "tap · select a region"
+                        text: Shot.last.ok ? "last · " + Shot.last.name.replace(/^(?:alchemos|stark)-|\.png$/g, "") : "tap · select a region"
                         color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11
                     }
                 }

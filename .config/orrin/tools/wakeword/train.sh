@@ -4,7 +4,7 @@
 #   tools/wakeword/train.sh            # all stages, timed → $W/out/timing.txt, log → $W/train.log
 #   STAGES="--train_model" tools/wakeword/train.sh     # one stage again
 # Then eval.py measures recall and false triggers per hour, and install.sh puts the model where
-# Jarvis loads it (~/.local/share/orrin/wake/hey_friday.onnx).
+# Orrin loads it (~/.local/share/orrin/wake/hey_friday.onnx).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 W=${WAKE_TRAIN_DIR:-$HOME/.local/share/orrin/wake-train}
@@ -23,7 +23,7 @@ for st in $STAGES; do
         echo "gen $(( $(date +%s) - t0 )) s" | tee -a out/timing.txt
         continue
     fi
-    # torch and onnxruntime each want every core; leave some for the desktop (and Jarvis)
+    # torch and onnxruntime each want every core; leave some for the desktop (and Orrin)
     # augment: --overwrite, or a features file half-written by a crashed run makes it skip silently
     EXTRA=""; [ "$st" = "--augment_clips" ] && EXTRA="--overwrite"
     OMP_NUM_THREADS=12 nice -n 10 $PY -m openwakeword.train --training_config out/hey_friday.yml $st $EXTRA

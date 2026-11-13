@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS rescue: run from a TTY (Ctrl+Alt+F3, log in) when the lock screen won't let you in.
+# AlchemOS rescue: run from a TTY (Ctrl+Alt+F3, log in) when the lock screen won't let you in.
 #   1. clears faillock for you (first, so sudo works again)
 #   2. thaws the session if suspend left it frozen (only then asks for sudo)
 #   3. turns the screens back on

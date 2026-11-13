@@ -29,6 +29,7 @@
     "//personas": "display names of the two personas (ids stay jarvis / friday; the wake word stays \"hey Jarvis\"). name: labels; call: in a sentence and spoken; accent: a fixed colour for the persona's marker, \"\" = the theme's.",
 
     "text": {
+        "host": "hud",
         "os": "HUD", "control": "HUD // CONTROL", "settings": "HUD // SETTINGS",
         "lockMessage": "LOCKING", "lockSub": "", "unlockMessage": "UNLOCKED", "lockTitle": "LOCKED", "denied": "TRY AGAIN",
         "lockGlyph": "◆", "mark": "◆", "clockName": "Clock",
@@ -39,7 +40,7 @@
         "cursorHint": "The busy cursor turns while apps load · off shows a still frame",
         "transitionTitle": "", "transitionSub": ""
     },
-    "//text": "the HUD's wording: bar name, panel titles, lock / unlock messages, the hyprlock title, denied text, password placeholder and fingerprint lines, the unlock / power-down words and the power menu's title ({name} = the greeting name), glyphs on the lock buttons and the bar's corner (mark \"\" = the preset's glyph), the skin transition's title",
+    "//text": "the HUD's wording: bar name, panel titles, lock / unlock messages, the hyprlock title, denied text, password placeholder and fingerprint lines, the unlock / power-down words and the power menu's title ({name} = the greeting name), glyphs on the lock buttons and the bar's corner (mark \"\" = the preset's glyph), the skin transition's title, host = the diagnostics wall's user@host name",
 
     "style": {
         "mono": "JetBrainsMono Nerd Font",
@@ -66,7 +67,7 @@
     "//namer": "SAVE AS PRESET's suggestions: { \"entries\": [{ \"name\": \"COBALT\", \"glyph\": \"\", \"h\": 215, \"s\": 0.7, \"l\": 0.45 }, …], \"compound\": true, \"joiner\": \"-\" }. h in degrees, s and l 0..1; the nearest entry to the primary colour wins, compound pairs it with the accent's. null = plain colour names (RED, TEAL, SILVER…).",
 
     "voices": null,
-    "//voices": "the skin's default voices: { \"jarvis\": { \"voice\": \"bm_george\", \"speed\": 0.94, \"pitch\": -0.5 }, \"friday\": { … } } with an \"effect\" per persona or one \"effect\" for both (Kokoro / piper voice names as in Settings; effect presets from jarvis/effects.json). Applied the first time the skin is used; after that whatever is set in Settings is remembered per skin. null = keep the current voices.",
+    "//voices": "the skin's default voices: { \"orrin\": { \"voice\": \"bm_george\", \"speed\": 0.94, \"pitch\": -0.5 }, \"selene\": { … } } with an \"effect\" per persona or one \"effect\" for both (Kokoro / piper voice names as in Settings; effect presets from jarvis/effects.json). Applied the first time the skin is used; after that whatever is set in Settings is remembered per skin. null = keep the current voices.",
 
     "cursor": "",
     "//cursor": "a folder here with wait.svg / progress.svg busy-cursor templates (see alchemos-cursor/src for the placeholders); \"\" = the default art"

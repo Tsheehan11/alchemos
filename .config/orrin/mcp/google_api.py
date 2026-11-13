@@ -346,7 +346,7 @@ class AssignmentsCalendar:
             return None
         cal = call("assignments", self.svc.calendars().insert(
             body={"summary": self.name, "timeZone": local_tz(),
-                  "description": "LEARN assignment due dates, written by Jarvis (STARK OS). Jarvis never writes to any other calendar."},
+                  "description": "LEARN assignment due dates, written by Orrin (AlchemOS). Orrin never writes to any other calendar."},
             fields="id"))
         secrets.store("google", "assignments_calendar", cal["id"])
         return cal["id"]

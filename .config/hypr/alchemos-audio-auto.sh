@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STARK OS — auto audio routing.
+# AlchemOS — auto audio routing.
 # When a display with audio (TV/monitor over HDMI or DisplayPort) is plugged in,
 # make it the default output and move playing apps to it. When it's unplugged,
 # fall back to the laptop speakers. Only acts when what's plugged in changes,
@@ -8,7 +8,7 @@
 exec 9>"${XDG_RUNTIME_DIR:-/tmp}/alchemos-audio-auto.lock"
 flock -n 9 || exit 0   # already running
 
-command -v jq >/dev/null || { notify-send "STARK audio" "jq missing: sudo pacman -S --needed jq"; exit 1; }
+command -v jq >/dev/null || { notify-send "AlchemOS audio" "jq missing: sudo pacman -S --needed jq"; exit 1; }
 
 hdmi_live() {   # names of HDMI/DP sinks whose active port is actually plugged in
   pactl -f json list sinks 2>/dev/null | jq -r '

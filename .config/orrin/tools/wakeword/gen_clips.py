@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Synthetic clips for openWakeWord's training pipeline, made with the TTS engines Jarvis already
+Synthetic clips for openWakeWord's training pipeline, made with the TTS engines Orrin already
 runs (no pickled models): piper's en_US-libritts_r-medium ONNX voice (904 LibriTTS-R speakers,
 the same speaker set piper-sample-generator uses) for ~75 %, Kokoro's English voices and random
 blends of two of them (new "speakers") for the rest. Varied speed and noise, a few prosody variants.
@@ -10,7 +10,7 @@ weights and pitch range from words/<word>.yml via wordcfg.py). Held-out speakers
 speakers / voices train never sees. Resumable: each folder is topped up to its count, and a clip is
 written under a .tmp name and renamed, so a crash never leaves a truncated WAV behind.
 
-Run with Jarvis's venv (it has piper + kokoro-onnx):
+Run with Orrin's venv (it has piper + kokoro-onnx):
   ~/.config/orrin/.venv/bin/python tools/wakeword/gen_clips.py --word hey_orrin [--workers 12]
 """
 import argparse

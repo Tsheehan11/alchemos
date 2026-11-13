@@ -1,21 +1,26 @@
 # AlchemOS
 
-> *Solve et coagula.*
+> *Solve et coagula*: dissolve, then bind.
 
-An alchemy-of-metals desktop for **Hyprland** on Arch / CachyOS: a holographic HUD of glowing, etched
-sigils built with **Quickshell**, and a local voice assistant, **ORRIN** ☉ (with a second persona,
-**SELENE** ☽), that runs everything through **Claude**. Every colour, screen, light and voice can be
-changed, and every piece can be driven by every other one.
+An alchemy-of-metals desktop for **Hyprland** on Arch / CachyOS: a HUD of glowing, etched sigils built
+with **Quickshell**, and a local voice assistant that runs everything through **Claude**.
+
+The old alchemists worked in two motions. *Solve*: break a thing down to what it is made of.
+*Coagula*: bind it back together, purified. The desktop follows that rule. Every colour, screen,
+light and voice can be taken apart and changed, and every piece can drive every other one. Its two
+voices are the two great metals of the work. **ORRIN** ☉, the sun and gold: a dry, well-read butler
+who answers by default. **SELENE** ☽, the moon and silver: calm, brief and a little cryptic. They are
+one assistant (the same brain, tools and memory) with two names, voices and manners. "Hey Orrin" or
+"hey Selene" wakes the one you call.
 
 Alchemical-circle clock · six metal themes (☉ Aurum ☽ Argent ♂ Iron ♀ Verdigris ☿ Mercury ♄ Lead) ·
-holographic workspace ring · radial app launcher · sealed-vault lock and shutdown animations ·
-diagnostics wall · audio deck with visualizer · desktop widgets · Govee ambient lights · VPN switch ·
-combat (gaming) mode · voice control.
+workspace ring · radial app launcher · sealed-vault lock and shutdown animations · diagnostics wall ·
+audio deck with visualizer · desktop widgets · Govee ambient lights · VPN switch · combat (gaming) mode ·
+voice control · skins.
 
-> **Names in the code.** The repo, paths, scripts, services, settings keys and IPC targets keep their
-> original names (`~/.alchemos`, `stark-*`, `~/.config/orrin`, `orrin.service`, the `jarvis`
-> CLI and `jarvis*` keys), and the wake word is still **"hey Jarvis"**. Below, "Jarvis" means that
-> code; on screen and in its voice the assistant is ORRIN / SELENE.
+> **Skins.** How the HUD looks is a skin (`quickshell/skins/<id>/`, see
+> [docs/SKINS.md](../.config/quickshell/docs/SKINS.md)). ALCHEMOS is the default. A hidden LEGACY skin, the
+> desktop's first look, is kept in a separate private repo and isn't part of this one.
 
 <!-- Screenshots: drop PNGs into .github/screenshots/ and uncomment.
 | | |
@@ -37,7 +42,7 @@ combat (gaming) mode · voice control.
 - [Make it yours: customization](#make-it-yours-customization)
 - [How the pieces talk: integration](#how-the-pieces-talk-integration)
 - [Extend it](#extend-it)
-- [The assistant (ORRIN · `jarvis`)](#the-assistant-orrin--jarvis)
+- [The assistant (ORRIN ☉ · SELENE ☽)](#the-assistant-orrin---selene-)
 - [Troubleshooting: config, lock screen, fingerprint, lid](#troubleshooting-config-lock-screen-fingerprint-lid)
 - [Roadmap](#roadmap)
 
@@ -64,44 +69,44 @@ Optional: `xorg-xcursorgen` (the cursor build falls back to its own `xcursorgen.
 ### 2. Clone the dotfiles (bare repo)
 
 The config lives in a **bare git repo** at `~/.alchemos` with `$HOME` as its work tree, driven
-through a `stark` command:
+through an `alc` command:
 
 ```fish
 # fish (add the function to ~/.config/fish/config.fish to keep it)
-function stark; git --git-dir=$HOME/.alchemos --work-tree=$HOME $argv; end
+function alc; git --git-dir=$HOME/.alchemos --work-tree=$HOME $argv; end
 ```
 ```sh
 # bash / zsh
-alias stark='git --git-dir=$HOME/.alchemos --work-tree=$HOME'
+alias alc='git --git-dir=$HOME/.alchemos --work-tree=$HOME'
 ```
 
 ```sh
 git clone --bare https://github.com/Tsheehan11/alchemos.git ~/.alchemos
-stark config status.showUntrackedFiles no
-stark checkout            # move any conflicting files out of the way first
+alc config status.showUntrackedFiles no
+alc checkout            # move any conflicting files out of the way first
 ```
 
 Turn on the tracked git hooks (`~/.config/alchemos-hooks/`). The pre-commit hook refuses any commit that
-stages `.config/orrin/` files unless every Jarvis test suite and the router eval pass
-(`~/.config/orrin/tools/check_all.sh`, a few minutes; it needs the Jarvis venv from step 4):
+stages `.config/orrin/` files unless every Orrin test suite and the router eval pass
+(`~/.config/orrin/tools/check_all.sh`, a few minutes; it needs the Orrin venv from step 4):
 
 ```sh
-stark config core.hooksPath "$HOME/.config/alchemos-hooks"
+alc config core.hooksPath "$HOME/.config/alchemos-hooks"
 ```
 
 Then wire up the VS Code clean filter (tracked `settings.json` stays free of theme colours) and the
 local excludes for files the HUD generates:
 
 ```sh
-stark config filter.alchemos-code-theme.clean '$HOME/.local/bin/alchemos-code-settings-clean'
-stark config filter.alchemos-code-theme.smudge cat
+alc config filter.alchemos-code-theme.clean '$HOME/.local/bin/alchemos-code-settings-clean'
+alc config filter.alchemos-code-theme.smudge cat
 echo '.config/Code/User/settings.json filter=alchemos-code-theme' >> ~/.alchemos/info/attributes
 printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/alchemos-lock-bg-*' .config/hypr/alchemos/display-profile.lua \
   .config/kitty/alchemos-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
   .config/orrin/.venv/ >> ~/.alchemos/info/exclude
 ```
 
-Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (straight to `main`).
+Day to day: `alc status`, `alc add -p …`, `alc commit`, `alc push` (straight to `main`).
 
 ### 3. Your hardware
 
@@ -115,7 +120,7 @@ Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (st
 - **Fingerprint / lock PAM:** `fish ~/.config/hypr/fprint-install.fish` (see
   [Troubleshooting](#troubleshooting-config-lock-screen-fingerprint-lid)).
 
-### 4. Jarvis
+### 4. Orrin
 
 ```sh
 cd ~/.config/orrin && uv venv --python 3.11
@@ -125,7 +130,7 @@ uv pip install --python .venv openwakeword faster-whisper claude-agent-sdk mcp p
 Put `kokoro-v1.0.int8.onnx` and `voices-v1.0.bin` (kokoro-onnx releases, `model-files-v1.0`) in
 `~/.local/share/orrin/kokoro/`. Claude runs on your `claude` CLI login (Pro / Max), no API key.
 
-Jarvis runs as a systemd user service, `~/.config/systemd/user/orrin.service` (tracked; no
+Orrin runs as a systemd user service, `~/.config/systemd/user/orrin.service` (tracked; no
 `enable` needed, the HUD starts it through `~/.config/orrin/orrinctl`). After cloning:
 
 ```sh
@@ -134,7 +139,7 @@ systemctl --user daemon-reload
 ```
 
 Log out and back in: Hyprland starts `qs`, `alchemos-govee daemon`, `alchemos-game daemon` and the audio
-watcher; the HUD starts Jarvis (the service) when docked.
+watcher; the HUD starts Orrin (the service) when docked.
 
 ---
 
@@ -161,7 +166,7 @@ watcher; the HUD starts Jarvis (the service) when docked.
 | `Super + drag` | Left: move window · right: resize |
 | `Super + Shift + M` | Exit Hyprland |
 | Media / volume / brightness keys | wpctl / playerctl / brightnessctl, with the HUD's pop-up |
-| "Hey Jarvis…" | Everything else |
+| "Hey Orrin…" / "Hey Selene…" | Everything else |
 
 Docked, workspaces 1–3 live on the main monitor, 4–6 on the second and 7–9 on the laptop.
 
@@ -192,7 +197,7 @@ qs ipc call settings open appearance     # open a Settings tab
 | Display layout + profiles | DISPLAY | `quickshell/display-profiles.json`, `ProfileLogic.js` |
 | Audio outputs / inputs | AUDIO | PipeWire |
 | Desktop widgets | WIDGETS | `quickshell/widgets.json` · `qs ipc call widgets …` |
-| Jarvis voice, effect, model, speaker, mic | JARVIS | `jarvis*` keys · `jarvis/effects.json` |
+| Orrin voice, effect, model, speaker, mic | ORRIN | `orrin*` keys · `orrin/effects.json` |
 | Radial launcher entries | LAUNCHER | `settings.json` → `launcherApps` |
 | Idle dim / lock / screen-off / sleep | SYSTEM | `idleDim`, `idleLock`, `idleScreenOff`, `idleSleep` |
 | Battery saver | SYSTEM | `autoSaver`, `batteryFps`, `saverNoBlur`, `saverLowRefresh`, `saverStopOrrin` |
@@ -259,18 +264,18 @@ reseeds from `LauncherApps.qml`.
 | Docked | leftmost external: alchemical-circle clock, 1–3 | next external: diagnostics wall, 4–6 | laptop: audio deck, 7–9 |
 
 Settings → HUD turns each panel on or off and hides panels on screens with open windows. Widgets
-and Jarvis use the same role names ("show a clock on the second monitor"), so undocking moves
+and Orrin use the same role names ("show a clock on the second monitor"), so undocking moves
 everything to the laptop and docking puts it back.
 
 ### Display profiles
 
 What's plugged in picks a profile; each keeps its own arrangement, layout mode
-(`extend | mirror | external | laptop`), Jarvis, Govee and battery saver settings:
+(`extend | mirror | external | laptop`), Orrin, Govee and battery saver settings:
 
 | Profile | When | Gets |
 | --- | --- | --- |
-| HOME DESK | the dock and both desk monitors | extend, three roles, Jarvis on, strip on |
-| LAPTOP ONLY | no external monitor | Jarvis off, strip off, battery saver |
+| HOME DESK | the dock and both desk monitors | extend, three roles, Orrin on, strip on |
+| LAPTOP ONLY | no external monitor | Orrin off, strip off, battery saver |
 | anything else | keyed by the monitors' descriptions (e.g. a TV) | starts as extend; keeps what you save |
 
 Switching happens on Hyprland's `monitoradded` / `monitorremoved` (debounced 2.5 s) and after
@@ -328,15 +333,15 @@ the DreamView "razer" stream):
   `music`, `theme`, `manual`, `off`. In combat mode music sync pauses (game audio isn't music): the
   strip eases to the theme glow and picks the music back up when the game ends.
 - **Events:** boot, login, lock, unlock, logout, shutdown, sleep, wake, plus `alert` (a widget timer
-  finished) and `listen` (Jarvis heard the wake word).
+  finished) and `listen` (Orrin heard the wake word).
 - **Tuning** in `govee/config.json`: `idle_level`, `music_floor`, `music_gain`, `gamma`,
   `white_balance`, `segment_fps`, `anim_speed`, `require_docked`, `silence_seconds`.
 - **Colour overrides** for hues LEDs render badly: `alchemos-govee override "#ff5a4d" "#ff2000"`.
 - Test an animation with `alchemos-govee anim unlock`; see the rest with `alchemos-govee` (no args).
 
-### Jarvis voice presets and settings
+### Orrin voice presets and settings
 
-Settings → JARVIS: Claude model (`auto` = Haiku, Sonnet when needed · or haiku / sonnet / opus),
+Settings → ORRIN: Claude model (`auto` = Haiku, Sonnet when needed · or haiku / sonnet / opus),
 voice (Kokoro `bm_*`, or a piper model; `orrin-voices` auditions them all), volume, speech rate,
 pitch, voice effect, Bluetooth speaker, **INPUT DEVICE** (the wake-word mic: AUTO = a wired / USB
 headset mic while one is plugged in, else the laptop mic; Bluetooth headset mics only if you allow
@@ -367,16 +372,16 @@ On battery saver, or wherever effects are paused, they stand still.
 Types: clock (any time zone, analog or digital), timer (rings and flashes the lights), stopwatch,
 now playing, system stats, sticky note, **agenda** (your main Google Calendar + the Outlook ICS
 feed + SE tracker due dates, ◆ Google ◇ Outlook ▲ due, live countdowns), **due** (open tracker rows),
-**jarvis** (listening / thinking / speaking, the request in hand, background tasks, the last command;
+**orrin** (listening / thinking / speaking, the request in hand, background tasks, the last command;
 click for the console), **claude usage** (tokens today / this session, Haiku vs Sonnet; Pro plan
 limits only when the Claude CLI itself reported them), **weather**, **network** (VPN, Wi-Fi,
 throughput) and **dj deck** (now playing, the DJ set, its mood and next three, MORE / LESS / START). Drag to snap, ◇ to pin above windows, × to close, right-click the empty desktop to
 make one. A new type is one QML file in `quickshell/widgets/`.
 
-Data comes to them, never polled: Jarvis writes `$XDG_RUNTIME_DIR/orrin/status.json` when
-something changes, and `jarvis feed` (only while an agenda / due / weather widget is up) writes
+Data comes to them, never polled: Orrin writes `$XDG_RUNTIME_DIR/orrin/status.json` when
+something changes, and `orrin feed` (only while an agenda / due / weather widget is up) writes
 `~/.local/share/orrin/feed/{agenda,weather}.json`: calendars every 3 min, the tracker every 15,
-weather every 30, and at once after Jarvis edits the calendar or tracker. No Claude calls.
+weather every 30, and at once after Orrin edits the calendar or tracker. No Claude calls.
 
 ---
 
@@ -386,7 +391,7 @@ weather every 30, and at once after Jarvis edits the calendar or tracker. No Cla
 flowchart LR
     subgraph You
         K[Keybinds]
-        V["'Hey Jarvis'"]
+        V["'Hey Orrin' / 'Hey Selene'"]
         M[Mouse / Settings]
     end
 
@@ -396,13 +401,13 @@ flowchart LR
     end
 
     subgraph HUD["Quickshell HUD (~/.config/quickshell)"]
-        IPC{{qs ipc targets<br/>launcher · search · control · overview · settings<br/>theme · widgets · vpn · profiles · jarvis · game · stark · osd}}
+        IPC{{qs ipc targets<br/>launcher · search · control · overview · settings<br/>theme · widgets · vpn · profiles · orrin · game · alchemos · osd}}
         T[Theme.qml]
         R[Roles / Profiles]
         W[Widgets]
     end
 
-    subgraph Jarvis["Jarvis (~/.config/orrin)"]
+    subgraph Orrin["Orrin (~/.config/orrin)"]
         EAR[wake word → whisper]
         FP[fast path]
         BR[Claude Agent SDK<br/>permission gate]
@@ -423,7 +428,7 @@ flowchart LR
     MCP -->|qs ipc call| IPC
     MCP --> G & VPN & H
     BR --> VO --> BT
-    Jarvis -.->|qs ipc call orrin …| IPC
+    Orrin -.->|qs ipc call orrin …| IPC
     T --> H & G
     T --> KITTY[kitty alchemos-theme.conf]
     T --> CODE[alchemos-code-theme → VS Code]
@@ -437,20 +442,20 @@ flowchart LR
 
 ### Quickshell IPC: the backbone
 
-Everything goes through `qs ipc call <target> <function> [args]`, so keybinds, scripts and Jarvis
+Everything goes through `qs ipc call <target> <function> [args]`, so keybinds, scripts and Orrin
 all use the same entry points (`quickshell/shell.qml`):
 
 | Target | Functions | Used by |
 | --- | --- | --- |
 | `launcher` / `search` / `control` / `overview` | `toggle` | Hyprland binds |
 | `settings` | `toggle`, `display`, `open <tab>` | binds, scripts |
-| `theme` | `get <key>`, `set <key> <value>`, `presets`, `preset <name>` | Jarvis `set_theme`, scripts |
-| `widgets` | `add`, `remove`, `move`, `pin`, `resize`, `clear`, `list`, `types` | Jarvis widget tools, scripts |
-| `vpn` | `toggle`, `connect`, `disconnect`, `killswitch`, `status` | Jarvis `vpn`, control center |
+| `theme` | `get <key>`, `set <key> <value>`, `presets`, `preset <name>` | Orrin `set_theme`, scripts |
+| `widgets` | `add`, `remove`, `move`, `pin`, `resize`, `clear`, `list`, `types` | Orrin widget tools, scripts |
+| `vpn` | `toggle`, `connect`, `disconnect`, `killswitch`, `status` | Orrin `vpn`, control center |
 | `profiles` | `status`, `recheck` | debugging |
-| `stark` | `lock`, `locked`, `unlocked`, `power`, `menu` | `alchemos-lock.sh`, lid, power key |
+| `alchemos` | `lock`, `locked`, `unlocked`, `power`, `menu` | `alchemos-lock.sh`, lid, power key |
 | `game` | `refresh`, `toggle` | `alchemos-game` |
-| `jarvis` | `online` (heartbeat; a restarted HUD answers `resync`), `restore`, `listening`, `transcript`, `thinking`, `tool`, `reply`, `confirm`, `toast`, `error`… | `jarvis/core/hud.py` → the Jarvis toast |
+| `orrin` | `online` (heartbeat; a restarted HUD answers `resync`), `restore`, `listening`, `transcript`, `thinking`, `tool`, `reply`, `confirm`, `toast`, `error`… | `orrin/core/hud.py` → the Orrin toast |
 | `osd` | `brightness` | brightness keys |
 
 ```sh
@@ -477,72 +482,72 @@ palette to:
 
 - **alchemos-govee** (`~/.config/govee/alchemos-govee.py`, started by Hyprland) owns the strip and
   listens on `$XDG_RUNTIME_DIR/alchemos-govee.sock`. The HUD (`Govee.qml`, via the CLI) sends modes, speed and
-  lock / unlock events; widgets send `alert`; Jarvis sends `listen` and the `lights` tool's commands.
+  lock / unlock events; widgets send `alert`; Orrin sends `listen` and the `lights` tool's commands.
   `govee/system/alchemos-govee-power.service` (installed by `govee/install.fish`) covers shutdown.
 - **alchemos-vpn** (`~/.config/alchemos-vpn/alchemos-vpn`) puts Proton VPN and NetworkManager VPNs (e.g.
   a school Cisco VPN) behind one CLI: `status | connect <id> | toggle <id> | disconnect |
   killswitch on|off | watch`. `VPN.qml` runs `watch` for live state; the control center tile, the
-  bar, Settings → NETWORK and Jarvis all act through it. Only one provider is up at a time.
+  bar, Settings → NETWORK and Orrin all act through it. Only one provider is up at a time.
 - **alchemos-game** watches Hyprland for game windows (`steam_app_*`, gamescope, and the regexes in
   `alchemos-game/games.conf`) and switches to **combat mode**: blur / animations off, performance power
-  profile, HUD paused, COMBAT TELEMETRY on the other screens, Jarvis paused, do-not-disturb.
+  profile, HUD paused, COMBAT TELEMETRY on the other screens, Orrin paused, do-not-disturb.
   Everything returns as it was when the last game closes.
 
-### Jarvis ↔ everything
+### Orrin ↔ everything
 
-Jarvis never gets a shell. Claude sees only MCP tools: the local **stark** server
-(`jarvis/mcp/alchemos_tools.py`, 26 typed tools, with the logic and validation in `alchemos_actions.py`)
+Orrin never gets a shell. Claude sees only MCP tools: the local **alchemos** server
+(`orrin/mcp/alchemos_tools.py`, 26 typed tools, with the logic and validation in `alchemos_actions.py`)
 plus whatever you add to `servers.json`. Those tools act through the same doors as you do:
 `qs ipc call` for themes, widgets, VPN and lock; `hyprctl` for apps, windows and workspaces;
-`alchemos-govee` for lights; `playerctl` / `wpctl` for media. Jarvis reports its own state back with
+`alchemos-govee` for lights; `playerctl` / `wpctl` for media. Orrin reports its own state back with
 `qs ipc call orrin …`, which drives the on-screen toast.
 
 The same server works in the Claude Code CLI too:
 
 ```sh
-claude mcp add stark -- ~/.config/orrin/.venv/bin/python ~/.config/orrin/mcp/alchemos_tools.py
+claude mcp add alchemos -- ~/.config/orrin/.venv/bin/python ~/.config/orrin/mcp/alchemos_tools.py
 ```
 
 ### Audio devices
 
 "Switch audio to my headphones", "back to the speakers", "use my headset mic", "audio on the TV":
-fast-path commands (`mcp/audio_devices.py`, also `jarvis audio list|output|input`) that move whatever
+fast-path commands (`mcp/audio_devices.py`, also `orrin audio list|output|input`) that move whatever
 is playing with the output and ask "which one?" instead of guessing. "Speaker" means the Google Home
 (connected on demand), "laptop" the built-in speakers / mic. A pick in Settings → AUDIO goes through
 the same code. Your explicit choice wins over the Bluetooth-speaker rule below until a device is
-plugged in or unplugged, and Jarvis confirms on the new output.
+plugged in or unplugged, and Orrin confirms on the new output.
 
 ### Bluetooth speaker
 
-Set **Speaker without headphones** in Settings → JARVIS (stored as a MAC in `orrinSpeaker`). When
-the output isn't headphones, Jarvis connects the speaker as soon as it hears the wake word; if it
+Set **Speaker without headphones** in Settings → ORRIN (stored as a MAC in `orrinSpeaker`). When
+the output isn't headphones, Orrin connects the speaker as soon as it hears the wake word; if it
 isn't up within 1.5 s, that reply plays on the laptop instead. Headphones, headsets and USB audio
-always keep Jarvis on them.
+always keep Orrin on them.
 
 ### Spotify and DJ mode
 
 Your own Spotify developer app (Development Mode: the app owner needs Premium) with PKCE sign-in, no
-client secret: `jarvis spotify connect` (or Settings → JARVIS → SPOTIFY → CONNECT) walks you through
+client secret: `orrin spotify connect` (or Settings → ORRIN → SPOTIFY → CONNECT) walks you through
 creating it. The redirect is `http://127.0.0.1:8898/callback`, open only while you sign in, because
-Spotify refuses `localhost`. Tokens go to the system keyring (`jarvis:spotify`), refreshed on demand
-under a lock (the voice loop, the MCP server and the CLI share them). `jarvis spotify status|devices|now|disconnect`.
+Spotify refuses `localhost`. Tokens go to the system keyring (`orrin:spotify`), refreshed on demand
+under a lock (the voice loop, the MCP server and the CLI share them). `orrin spotify status|devices|now|disconnect`.
 
-- **Control** (`mcp/spotify_api.py`, stark tools `spotify_*`): play a track / album / artist / your
+- **Control** (`mcp/spotify_api.py`, alchemos tools `spotify_*`): play a track / album / artist / your
   playlist / Liked Songs by name, queue, like, shuffle, repeat, seek, Spotify's own volume, and move
   playback to a Connect device ("play Spotify on the Google Home"). "Next song", "pause" and the like stay
-  on MPRIS. Without Premium, play / pause / skip fall back to MPRIS and Jarvis says the rest needs Premium.
+  on MPRIS. Without Premium, play / pause / skip fall back to MPRIS and Orrin says the rest needs Premium.
   "Play it on the speaker" still means the Bluetooth audio route (above), not Spotify Connect.
 - **DJ mode** (`core/dj.py`, in the voice process): *"DJ for me"*, *"play something for studying"*,
   *"put on some gym music"*. One Haiku call per set builds 20–30 tracks from your top tracks, recently
   played and liked songs (plus a few Spotify searches), ordered for genre, energy and era. Recommendations
-  and audio-features aren't open to Development Mode apps, so Jarvis doesn't use them. Tracks are queued
+  and audio-features aren't open to Development Mode apps, so Orrin doesn't use them. Tracks are queued
   three ahead, nothing repeats within 48 h, and the set refills itself when it runs low. *"More / less like
   this"* reshapes the rest with one more call; *"keep this vibe"* holds it; *"save this vibe as late night"*
-  makes a preset. Presets are in `jarvis/dj_moods.json`, your saved ones in `~/.local/share/orrin/dj/`. Put
+  makes a preset. Presets are in `orrin/dj_moods.json`, your saved ones in `~/.local/share/orrin/dj/`. Put
   something else on and DJ mode bows out.
-- **DJ chatter** (Settings → JARVIS → SPOTIFY, `orrinDjChatter`): off · **rare** (default, a line every
+- **DJ chatter** (Settings → ORRIN → SPOTIFY, `orrinDjChatter`): off · **rare** (default, a line every
   4–5 tracks) · normal (every 2–3). Lines are under ten seconds, said as a track starts on the output
-  Spotify plays on, with the music faded to 30 % and back. On a Connect device, Jarvis lowers that device's
+  Spotify plays on, with the music faded to 30 % and back. On a Connect device, Orrin lowers that device's
   Spotify volume instead. Silent in combat mode and while Discord (or any call app) has the mic open.
 - **Crossfade:** Spotify's API can't set it. Use Spotify → Settings → Playback → Crossfade songs
   (6–8 s suits DJ mode).
@@ -553,9 +558,9 @@ under a lock (the voice loop, the MCP server and the CLI share them). `jarvis sp
 
 ## Extend it
 
-### Add a Jarvis tool
+### Add a Orrin tool
 
-1. Write the action in `jarvis/mcp/alchemos_actions.py`. Validate input (raise `Invalid`), return a
+1. Write the action in `orrin/mcp/alchemos_actions.py`. Validate input (raise `Invalid`), return a
    dict, and run commands through `_do(...)` so `--dry-run` works:
 
    ```python
@@ -565,7 +570,7 @@ under a lock (the voice loop, the MCP server and the CLI share them). `jarvis sp
                   ["hyprctl", "hyprsunset", "temperature", "4000" if on else "6500"])
    ```
 
-2. Declare it in `jarvis/mcp/alchemos_tools.py`; the docstring is what Claude reads:
+2. Declare it in `orrin/mcp/alchemos_tools.py`; the docstring is what Claude reads:
 
    ```python
    @mcp.tool(structured_output=False)
@@ -577,7 +582,7 @@ under a lock (the voice loop, the MCP server and the CLI share them). `jarvis sp
 3. Optional: add a HUD label in `tool_label()` (`"NIGHT LIGHT → ON"`), a spoken "yes" in
    `confirmation_prompt()` if it's destructive, and a regex in `core/fastpath.py` so common phrasings
    skip Claude.
-4. Try it without side effects: `jarvis --text "turn on the night light" --dry-run`.
+4. Try it without side effects: `orrin --text "turn on the night light" --dry-run`.
 
 ### Add a launcher entry
 
@@ -589,7 +594,7 @@ in `quickshell/LauncherApps.qml`.
 
 - **For you:** pick swatches in Settings → APPEARANCE and save with a name. Stored in
   `customPresets`: `[{ "name": "MIDNIGHT", "primary": "#7aa2ff", "secondary": "#ff9e64", "background": "#05060f" }]`.
-- **Built in for everyone:** add a line (with its `glyph`) to `presets` in `quickshell/Skin.qml`. Jarvis picks it up
+- **Built in for everyone:** add a line (with its `glyph`) to `presets` in `quickshell/Skin.qml`. Orrin picks it up
   automatically through `qs ipc call theme presets`.
 
 ### Add an MCP server (`servers.json`)
@@ -597,12 +602,12 @@ in `quickshell/LauncherApps.qml`.
 ```json
 "calendar": {
     "command": "{venv}/python",
-    "args": ["-I", "{jarvis}/mcp/calendar_tools.py"],
+    "args": ["-I", "{orrin}/mcp/calendar_tools.py"],
     "auto_allow": ["list_events"]
 }
 ```
 
-`{venv}` and `{jarvis}` expand to the Jarvis venv and folder. Any server without `"policy": "alchemos"`
+`{venv}` and `{orrin}` expand to the Orrin venv and folder. Any server without `"policy": "alchemos"`
 is gated: every tool needs a spoken "Shall I…, sir?" yes unless it's in `auto_allow`. Set
 `"enabled": false` to park one. Secrets go in gnome-keyring through `core/secrets.py`, never in
 this file.
@@ -610,47 +615,48 @@ this file.
 ### Add a widget type or game
 
 - Widget: one QML file in `quickshell/widgets/` (copy `Stopwatch.qml`). `Widgets.qml` picks up
-  every file there as a type; add it to the `widget_add` tool's `Literal` if Jarvis should make it.
+  every file there as a type; add it to the `widget_add` tool's `Literal` if Orrin should make it.
 - Game: a regex line in `~/.config/alchemos-game/games.conf` (`hyprctl clients | grep class`).
 
 ---
 
-## The assistant (ORRIN · `jarvis`)
+## The assistant (ORRIN ☉ · SELENE ☽)
 
 ORRIN ☉ answers by default and SELENE ☽ is the second persona: one assistant, two names, voices and
-manners ("switch to Selene"). **"Hey Jarvis"** (openWakeWord) → faster-whisper `base.en` → a regex **fast path** for everyday
+manners ("switch to Selene"). **"Hey Orrin"** / **"hey Selene"** (custom openWakeWord models, `tools/wakeword/`;
+openWakeWord's built-in "hey Jarvis" stays loaded as a fallback for both) → faster-whisper `base.en` → a regex **fast path** for everyday
 commands (media, lights, workspaces, VPN, themes, timers, weather: 5–40 ms, no AI) → otherwise
 **Claude** through the Agent SDK: Haiku by default, Sonnet for longer or "explain / plan" requests.
 Replies are spoken sentence by sentence as they stream. About 0.6–1 s from the end of your sentence
 to his voice on the fast path, 2–3 s through Claude.
 
-- **Rules enforced by Jarvis, not the model:** at most 8 tool calls per request, a 30 s timeout,
+- **Rules enforced by Orrin, not the model:** at most 8 tool calls per request, a 30 s timeout,
   the browser only when you ask for it, and a spoken yes before power actions, closing windows,
   deleting anything, the VPN kill switch, or sending a message. Tool output is data, never
   instructions. No network listeners. Runs with `NoNewPrivileges` (no sudo / setuid helpers).
 - **Its own service:** `orrin.service` (systemd user unit), so restarting or hot-reloading
   Quickshell never stops it: a DJ set, a timer or a conversation carries on. The HUD
   (`quickshell/OrrinState.qml`) only starts and stops it, through `orrinctl start docked|laptop`
-  / `stop`, keeping the rules: docked it follows the Jarvis toggle (`orrinDocked`, and battery saver
+  / `stop`, keeping the rules: docked it follows the Orrin toggle (`orrinDocked`, and battery saver
   if `saverStopOrrin`); undocked it's off until switched on for now, any dock / undock resets that;
   laptop mode stops under 20 % on battery; combat mode only pauses the wake word. A restarted HUD
-  adopts whatever is running (a laptop-mode Jarvis stays on) and picks its state back up: the next
-  heartbeat (`qs ipc call orrin online` → `resync`) makes Jarvis send `restore` (listening / thinking
+  adopts whatever is running (a laptop-mode Orrin stays on) and picks its state back up: the next
+  heartbeat (`qs ipc call orrin online` → `resync`) makes Orrin send `restore` (listening / thinking
   / confirm, combat pause), the app socket resends threads and the task in hand, and the widgets reread
   `status.json` (background tasks) and `dj.json` (DJ set). systemd restarts it after a crash
   (`Restart=on-failure`). It stops when you switch it off, at log-out (the power menu stops it, it's
   `PartOf=graphical-session.target`, and it exits by itself once its Hyprland instance is gone), and
   the stop takes its whole cgroup (claude CLI, MCP servers, `pw-record`). One voice loop at a time
-  (a lock in `$XDG_RUNTIME_DIR/orrin/voice.lock`): a hand-run `jarvis` says it's already running.
+  (a lock in `$XDG_RUNTIME_DIR/orrin/voice.lock`): a hand-run `orrin` says it's already running.
   `orrinctl status|log|restart`, `journalctl --user -u orrin`, `alchemos-rescue status`.
 - **Hearing:** `orrinMic` picks the PipeWire source (AUTO follows headsets; a plug / unplug or a
-  Settings change restarts capture in place, without losing the pre-wake buffer); pre-roll keeps "hey Jarvis dim the lights"
+  Settings change restarts capture in place, without losing the pre-wake buffer); pre-roll keeps "hey Orrin dim the lights"
   in one breath intact; Silero VAD ends the command; music ducks while listening. Barge in with
-  "Hey Jarvis"; follow-ups need no wake word for 8 s.
+  "Hey Orrin"; follow-ups need no wake word for 8 s.
 - **Speech:** text is normalised first (`core/speech.py`: times, dates, units), the first sentence
   plays while the rest render, and stock lines are cached.
 - **Memory:** "remember that…", reminders and facts live in `~/.local/share/orrin/orrin.db`.
-- **CLI:** `jarvis --text "…" [--dry-run]`, `--misses`, `--log`, `--facts`, `--reminders`,
+- **CLI:** `orrin --text "…" [--dry-run]`, `--misses`, `--log`, `--facts`, `--reminders`,
   `--say "…"`, `--trace` (wake score, VAD, transcript, route, latency), `--record [MIN]`.
 
 Try: *"set the theme to Iron and dim the lights"*, *"timer for 10 minutes on the second
@@ -670,10 +676,10 @@ get back to the old desktop instead, log out, log in on a TTY (Ctrl+Alt+F3) and 
 (the pre-Lua config, kept with its own `monitors.conf`). In that session the HUD's colour pushes and
 window commands don't work (they speak Lua); it's for fixing `hyprland.lua`, not for daily use.
 
-**Locked out?** From a TTY (Ctrl+Alt+F3) run `alchemos-rescue`. It clears faillock, thaws `user.slice`
+**Locked out?** From a TTY (Ctrl+Alt+F3) run `alchemos-rescue` (`stark-rescue` is the same command). It clears faillock, thaws `user.slice`
 if suspend left it frozen, turns the screens on, and unlocks hyprlock (or restarts a hung one under
 `allow_session_lock_restore`). Back with Ctrl+Alt+F2.
-`alchemos-rescue status` changes nothing: the Hyprland fix, the hotplug settle gate, and Jarvis's service
+`alchemos-rescue status` changes nothing: the Hyprland fix, the hotplug settle gate, and Orrin's service
 (running / failed, mode, crash restarts, any stray voice loop outside it).
 
 **Fingerprint and faillock.** hyprlock takes the password or the fingerprint, whichever comes
@@ -716,11 +722,17 @@ loop doesn't change.
 - [ ] **Mail:** summaries and drafts; sending always needs a spoken yes
 - [ ] **Smart home:** Nest thermostat, more lights, scenes tied to theme presets
 - [ ] **Phone:** KDE Connect: notifications on the HUD, "find my phone", texts read aloud
-- [ ] **Remote:** Tailscale, so Jarvis can check on the desk from the laptop
+- [ ] **Remote:** Tailscale, so Orrin can check on the desk from the laptop
 - [ ] **Hardware:** ESP32 sensors and a physical sigil status light
 - [ ] Proactive briefings: morning summary on login, reminders spoken at the desk
 
 Also on the list: screenshot gallery, a one-shot bootstrap script, per-profile theme presets.
+
+---
+
+## License
+
+MIT, except the bundled Cinzel font (SIL OFL, licence in its folder).
 
 ---
 

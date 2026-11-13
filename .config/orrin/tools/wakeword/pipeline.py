@@ -11,10 +11,10 @@ is given up with a toast instead of looping.
 
 Pauses (SIGSTOP of the stage's process group, never a kill) on battery, undocked or in combat mode, and
 continues (SIGCONT) once all three are fine again. Holds a systemd-inhibit sleep+idle lock only while
-running docked on AC. Never installs a model: `jarvis wake enable orrin|selene` does that, after he
+running docked on AC. Never installs a model: `orrin wake enable orrin|selene` does that, after he
 has looked at the reports.
 
-  status   $W/status.json (`jarvis wake status`)    log   $W/train.log
+  status   $W/status.json (`orrin wake status`)    log   $W/train.log
 """
 import json
 import os
@@ -137,7 +137,7 @@ class Inhibit:
 
     def on(self):
         if self.p is None or self.p.poll() is not None:
-            self.p = subprocess.Popen(["systemd-inhibit", "--what=sleep:idle", "--who=jarvis wake training",
+            self.p = subprocess.Popen(["systemd-inhibit", "--what=sleep:idle", "--who=orrin wake training",
                                        "--why=training the hey Orrin / hey Selene wake words", "--mode=block",
                                        "sleep", "infinity"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -232,7 +232,7 @@ def run(cmd, env=None, label=""):
 # ── stages ───────────────────────────────────────
 def fresh_model(word, since):
     """out/<word>.onnx written at or after `since`. openWakeWord's train.py saves the ONNX model (what
-    Jarvis loads) and then converts it to TFLite, which needs onnx_tf (not installed); that last step
+    Orrin loads) and then converts it to TFLite, which needs onnx_tf (not installed); that last step
     exits 1, so a failed train run can still have produced a good model."""
     p = W / "out" / f"{word}.onnx"
     return p.exists() and p.stat().st_size > 0 and p.stat().st_mtime >= since
@@ -294,7 +294,7 @@ def stage(word, st):
 
 
 def notify(title, text):
-    subprocess.run(["notify-send", "-a", "Jarvis", "-i", "audio-input-microphone", title, text],
+    subprocess.run(["notify-send", "-a", "Orrin", "-i", "audio-input-microphone", title, text],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
     subprocess.run(["qs", "ipc", "call", "orrin", "toast", title, text],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
@@ -362,7 +362,7 @@ def main():
             t0 = time.time()
             rc = stage(word, st)
             if rc != 0 and st == "train" and fresh_model(word, t0):
-                log(f"{word} train exited {rc} after saving {word}.onnx (the TFLite export failed; Jarvis uses the ONNX model): done")
+                log(f"{word} train exited {rc} after saving {word}.onnx (the TFLite export failed; Orrin uses the ONNX model): done")
                 rc = 0
             if rc != 0:
                 log(f"{word} {st} exited {rc}: restarting the pipeline in 60 s")
@@ -373,7 +373,7 @@ def main():
         if mark(word, "eval").exists():
             s = summary(word)
             log("report " + s)
-            notify("WAKE WORD TRAINED", s + " · jarvis wake status")
+            notify("WAKE WORD TRAINED", s + " · orrin wake status")
     INHIBIT.off()
     ST.set(state="done", stage=None, word=None, progress=None, finished=time.time())
     log("== all done")

@@ -149,7 +149,7 @@ def main():
         "# Smart-home devices on the LAN",
         "",
         f"Scanned {datetime.now():%Y-%m-%d %H:%M} by `discover.py` (read-only: mDNS, SSDP, Cast info; nothing was controlled).",
-        "Phase 2 candidates for Orrin MCP servers. Not tracked by `stark` (local network details).",
+        "Phase 2 candidates for Orrin MCP servers. Not tracked by `alc` (local network details).",
         "",
         "| Name | Type | Address | Local API |",
         "|---|---|---|---|",

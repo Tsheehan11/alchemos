@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STARK OS cursor theme.
+# AlchemOS cursor theme.
 #   build.sh <rrggbb> [animated|static] [24|32|48] [fill opacity %, 20-90] [template dir]
 # The last is the HUD skin's busy-cursor folder (Skin.cursorDir, e.g. quickshell/skins/alchemos/cursor):
 # any <name>.svg there replaces src/<name>.svg (the default art); "" or absent = the default art.

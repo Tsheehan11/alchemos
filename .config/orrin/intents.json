@@ -1033,7 +1033,7 @@
     },
     "claude.freeform": {
       "kind": "claude-only",
-      "note": "Stark tools that need free text (remember, recall, forget, reminders at a time, notes, browser): Claude fills them.",
+      "note": "AlchemOS tools that need free text (remember, recall, forget, reminders at a time, notes, browser): Claude fills them.",
       "examples": [
         "remember that my locker code is 4512",
         "what did i tell you about my locker",

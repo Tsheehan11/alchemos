@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""STARK OS screenshots: capture, save, copy.
+"""AlchemOS screenshots: capture, save, copy.
 
     alchemos-shot region     drag a box, or click a window / an empty screen (slurp)
     alchemos-shot screen     the focused monitor (native resolution)
@@ -191,10 +191,10 @@ def notify(r):
     if not shutil.which("notify-send"):
         return
     if r.get("ok"):
-        detach(["notify-send", "-a", "STARK", "-i", r["path"], "Screenshot saved",
+        detach(["notify-send", "-a", "AlchemOS", "-i", r["path"], "Screenshot saved",
                 f"{r['name']} · {r['width']}×{r['height']}" + (" · copied" if r["copied"] else "")])
     elif not r.get("cancelled"):
-        detach(["notify-send", "-a", "STARK", "-u", "critical", "Screenshot failed", r.get("error", "")])
+        detach(["notify-send", "-a", "AlchemOS", "-u", "critical", "Screenshot failed", r.get("error", "")])
 
 
 def main(argv):

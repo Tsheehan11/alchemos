@@ -1,5 +1,5 @@
 #!/bin/sh
-# STARK OS screen-share picker (used by xdg-desktop-portal-hyprland whenever an
+# AlchemOS screen-share picker (used by xdg-desktop-portal-hyprland whenever an
 # app like Discord asks to share your screen). Pick a monitor from a quick menu;
 # the one you're on is listed first, so Enter = share the screen you're using.
 
