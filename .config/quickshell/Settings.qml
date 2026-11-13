@@ -703,7 +703,7 @@ PanelWindow {
                                     required property var modelData
                                     text: modelData[1]
                                     active: sys.power === modelData[0]
-                                    onClicked: st.act(["powerprofilesctl", "set", modelData[0]], "Power: " + modelData[1].toLowerCase())
+                                    onClicked: st.act(PowerMode.pickProfile(modelData[0]), "Power: " + modelData[1].toLowerCase())
                                 }
                             }
                         }
@@ -727,7 +727,7 @@ PanelWindow {
                     Text { text: "BATTERY"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Text {
                         text: PowerMode.onBattery
-                              ? (PowerMode.saver ? "On battery — saver active" : "On battery — saver off")
+                              ? (PowerMode.saver ? "On battery — saver active" : PowerMode.overridden ? "On battery — saver off until you plug in" : "On battery — saver off")
                               : (SysStats.charging ? "Plugged in — charging" : "Plugged in")
                         color: PowerMode.saver ? Theme.secondary : Theme.textSoft
                         font.family: Style.fonts.body; font.pixelSize: 13

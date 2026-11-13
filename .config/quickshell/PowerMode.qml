@@ -7,6 +7,8 @@
 //     it — a HUD restart leaves whatever profile you picked alone.
 //   • stats refresh every 5 s instead of 2 s
 //   • optionally pauses Jarvis (handled in JarvisState)
+// Picking BALANCED / PERFORMANCE by hand while unplugged (pickProfile) turns the
+// saver off until the next plug-in; picking SAVER turns it back on.
 // Everything goes back the moment you plug in.
 // While combat mode (GameMode) has taken over blur / the power profile, those
 // are left to it, and the saver catches up when the game ends.
@@ -21,10 +23,43 @@ Singleton {
     id: root
 
     readonly property bool onBattery: SysStats.discharging
-    readonly property bool saver: Theme.cfg.autoSaver && onBattery
+    readonly property bool saver: Theme.cfg.autoSaver && onBattery && !overridden
+
+    // Saver switched off by hand for this unplug. Kept in $XDG_RUNTIME_DIR/stark-power/override
+    // so a HUD restart doesn't bring the saver back; loaded before any profile is touched.
+    property bool overridden: false
+    property bool loaded: false
+    readonly property string stateDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/stark-power"
 
     onSaverChanged: applyTimer.restart()
-    Component.onCompleted: applyTimer.restart()
+    onOnBatteryChanged: if (!onBattery) clearOverride()
+    onLoadedChanged: applyTimer.restart()
+    Component.onCompleted: { overrideProbe.running = true; applyTimer.restart(); }
+    Process {
+        id: overrideProbe
+        command: ["sh", "-c", "[ -e \"$1/override\" ] && echo 1 || echo 0", "sh", root.stateDir]
+        stdout: StdioCollector { onStreamFinished: { root.overridden = text.trim() === "1"; root.loaded = true; } }
+    }
+
+    function clearOverride() {
+        if (!overridden) return;
+        overridden = false;
+        Quickshell.execDetached(["rm", "-f", stateDir + "/override"]);
+    }
+
+    // Control center / Settings power buttons. Returns the argv to run. Choosing a
+    // non-saver profile on battery also records the saver as "off" (and drops the
+    // remembered profile) so the profile script won't undo the pick when the saver flips.
+    function pickProfile(p) {
+        const manualOff = p !== "power-saver" && onBattery && Theme.cfg.autoSaver;
+        if (p === "power-saver") clearOverride();
+        else if (manualOff) overridden = true;
+        return ["sh", "-c", [
+            "d=$1; mkdir -p $d",
+            "if [ $3 = 1 ]; then touch $d/override; echo off > $d/saver; rm -f $d/before; fi",
+            "powerprofilesctl set $2"
+        ].join("\n"), "sh", stateDir, p, manualOff ? "1" : "0"];
+    }
     Timer { id: applyTimer; interval: 400; onTriggered: root.apply() }
 
     // `hyprctl reload` resets these, so re-apply after any reload
@@ -39,8 +74,11 @@ Singleton {
         if (GameMode.owns.indexOf("hypr") < 0)
             Quickshell.execDetached(Hypr.config({ decoration: { blur: { enabled: blurOn }, shadow: { enabled: blurOn } } }));
         laptopProbe.running = true;
-        // Wait for the first battery reading: until then `saver` is just a default
-        if (GameMode.owns.indexOf("power") < 0 && SysStats.polled)
+        // plugged in while the HUD was down: a stale override goes
+        if (SysStats.polled && !root.onBattery) root.clearOverride();
+        // Wait for the first battery reading (until then `saver` is just a default)
+        // and for the override flag
+        if (GameMode.owns.indexOf("power") < 0 && SysStats.polled && root.loaded)
             Quickshell.execDetached(["sh", "-c", root.profileScript, "sh", s ? "on" : "off"]);
     }
 

@@ -334,7 +334,7 @@ PanelWindow {
                             color: on ? Theme.s(0.2) : "transparent"
                             border.color: on ? cc.amber : Theme.p(0.3)
                             Text { anchors.centerIn: parent; text: modelData[1]; color: parent.on ? Theme.text : cc.dim; font.family: Style.fonts.body; font.pixelSize: 10; font.letterSpacing: 1 }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: cc.run("powerprofilesctl set " + modelData[0]) }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { Quickshell.execDetached(PowerMode.pickProfile(modelData[0])); refreshSoon.restart(); } }
                         }
                     }
                 }
