@@ -13,7 +13,7 @@ diagnostics wall · audio deck with visualizer · desktop widgets · Govee ambie
 combat (gaming) mode · voice control.
 
 > **Names in the code.** The repo, paths, scripts, services, settings keys and IPC targets keep their
-> original names (`~/.stark-os`, `stark-*`, `~/.config/jarvis`, `stark-jarvis.service`, the `jarvis`
+> original names (`~/.alchemos`, `stark-*`, `~/.config/jarvis`, `stark-jarvis.service`, the `jarvis`
 > CLI and `jarvis*` keys), and the wake word is still **"hey Jarvis"**. Below, "Jarvis" means that
 > code; on screen and in its voice the assistant is ORRIN / SELENE.
 
@@ -63,30 +63,30 @@ Optional: `xorg-xcursorgen` (the cursor build falls back to its own `xcursorgen.
 
 ### 2. Clone the dotfiles (bare repo)
 
-The config lives in a **bare git repo** at `~/.stark-os` with `$HOME` as its work tree, driven
+The config lives in a **bare git repo** at `~/.alchemos` with `$HOME` as its work tree, driven
 through a `stark` command:
 
 ```fish
 # fish (add the function to ~/.config/fish/config.fish to keep it)
-function stark; git --git-dir=$HOME/.stark-os --work-tree=$HOME $argv; end
+function stark; git --git-dir=$HOME/.alchemos --work-tree=$HOME $argv; end
 ```
 ```sh
 # bash / zsh
-alias stark='git --git-dir=$HOME/.stark-os --work-tree=$HOME'
+alias stark='git --git-dir=$HOME/.alchemos --work-tree=$HOME'
 ```
 
 ```sh
-git clone --bare https://github.com/Tsheehan11/stark-os.git ~/.stark-os
+git clone --bare https://github.com/Tsheehan11/alchemos.git ~/.alchemos
 stark config status.showUntrackedFiles no
 stark checkout            # move any conflicting files out of the way first
 ```
 
-Turn on the tracked git hooks (`~/.config/stark-hooks/`). The pre-commit hook refuses any commit that
+Turn on the tracked git hooks (`~/.config/alchemos-hooks/`). The pre-commit hook refuses any commit that
 stages `.config/jarvis/` files unless every Jarvis test suite and the router eval pass
 (`~/.config/jarvis/tools/check_all.sh`, a few minutes; it needs the Jarvis venv from step 4):
 
 ```sh
-stark config core.hooksPath "$HOME/.config/stark-hooks"
+stark config core.hooksPath "$HOME/.config/alchemos-hooks"
 ```
 
 Then wire up the VS Code clean filter (tracked `settings.json` stays free of theme colours) and the
@@ -95,10 +95,10 @@ local excludes for files the HUD generates:
 ```sh
 stark config filter.stark-code-theme.clean '$HOME/.local/bin/stark-code-settings-clean'
 stark config filter.stark-code-theme.smudge cat
-echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.stark-os/info/attributes
+echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.alchemos/info/attributes
 printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/stark-lock-bg-*' .config/hypr/stark/display-profile.lua \
   .config/kitty/stark-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
-  .config/jarvis/.venv/ >> ~/.stark-os/info/exclude
+  .config/jarvis/.venv/ >> ~/.alchemos/info/exclude
 ```
 
 Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (straight to `main`).
