@@ -58,7 +58,7 @@
         "calendar_scopes": [
             "https://www.googleapis.com/auth/calendar.events"
         ],
-        "enabled": false,
+        "enabled": true,
         "read_only": false,
         "policy": "integration",
         "read_tools": [
@@ -75,7 +75,7 @@
         "name": "Outlook",
         "label": "UWATERLOO CALENDAR · MAIL",
         "auth": "outlook-ical",
-        "enabled": false,
+        "enabled": true,
         "policy": "integration",
         "served_by": "google",
         "note": "UW blocks the Graph app route. The calendar comes from Outlook's published ICS link (keyring jarvis:outlook / ical_url, mcp/outlook_ical.py), merged into calendar_today / calendar_next; UW mail forwards into Gmail and is read by the google tools."
@@ -89,7 +89,7 @@
             "{jarvis}/mcp/academic_tools.py"
         ],
         "auth": "learn-ical",
-        "enabled": false,
+        "enabled": true,
         "read_only": false,
         "policy": "integration",
         "read_tools": [
