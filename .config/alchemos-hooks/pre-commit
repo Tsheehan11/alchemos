@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# AlchemOS dotfiles pre-commit hook (tracked; the repo's core.hooksPath points at ~/.config/stark-hooks).
+# AlchemOS dotfiles pre-commit hook (tracked; the repo's core.hooksPath points at ~/.config/alchemos-hooks).
 # A commit that stages Jarvis files must pass every Jarvis suite, the router eval and the skin check
 # (~/.config/jarvis/tools/check_all.sh); one that stages only HUD files (quickshell) must pass the skin
 # check (quickshell/tools/skincheck/check_skins.sh). Runs on the working tree. Bypass only on purpose: --no-verify.
 set -euo pipefail
-GIT=(git --git-dir="$HOME/.stark-os" --work-tree="$HOME")
+GIT=(git --git-dir="${GIT_DIR:-$HOME/.alchemos}" --work-tree="$HOME")
 if "${GIT[@]}" diff --cached --name-only | grep -q '^\.config/jarvis/'; then
     if [ ! -x "$HOME/.config/jarvis/.venv/bin/python" ]; then
         echo "pre-commit: Jarvis files staged but ~/.config/jarvis/.venv is missing, so the suites can't run." >&2
