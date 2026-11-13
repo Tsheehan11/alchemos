@@ -24,6 +24,9 @@ REC_DIR = STATE_DIR / "rec"
 RECORD_UNTIL = STATE_DIR / "record-until"
 MAX_BYTES = 2_000_000
 MAX_RECORDINGS = 150
+WAKE_DIR = STATE_DIR / "wakes"   # the 2 s that woke it, every idle wake (local only; hard negatives for retraining)
+MAX_WAKES = 100
+WAKE_DAYS = 14
 
 _lock = threading.Lock()
 _ex = {"n": 0, "t0": None, "marks": {}}
@@ -104,6 +107,43 @@ def set_recording(minutes):
         RECORD_UNTIL.unlink(missing_ok=True)
 
 
+def _wav(path, audio_int16, rate):
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(audio_int16.astype("<i2").tobytes())
+
+
+def save_wake(model, raw, audio_int16, rate=16000):
+    """WAV of the audio that woke it (always on, unlike save): wakes/<time>-<model>-<raw>.wav, the last
+    MAX_WAKES and at most WAKE_DAYS old. mark_wake() later renames a false one. Returns the path."""
+    try:
+        WAKE_DIR.mkdir(parents=True, exist_ok=True)
+        path = WAKE_DIR / f"{datetime.now():%m%d-%H%M%S}-{model}-{raw:.2f}.wav"
+        _wav(path, audio_int16, rate)
+        old = time.time() - WAKE_DAYS * 86400
+        files = sorted(WAKE_DIR.glob("*.wav"), key=lambda f: f.stat().st_mtime)
+        for i, f in enumerate(files):
+            if i < len(files) - MAX_WAKES or f.stat().st_mtime < old:
+                f.unlink(missing_ok=True)
+        return path
+    except OSError:
+        return None
+
+
+def mark_wake(path, verdict):
+    """Rename a saved wake clip …-<verdict>.wav (verdict "false": nothing was said after it)."""
+    if not path:
+        return None
+    try:
+        new = path.with_name(f"{path.stem}-{verdict}.wav")
+        path.rename(new)
+        return new
+    except OSError:
+        return None
+
+
 def save(kind, audio_int16, rate=16000):
     """WAV of one exchange / near miss (only while `jarvis --record` is on). Returns the path."""
     if not recording():
@@ -111,11 +151,7 @@ def save(kind, audio_int16, rate=16000):
     try:
         REC_DIR.mkdir(parents=True, exist_ok=True)
         path = REC_DIR / f"{datetime.now():%m%d-%H%M%S}-{_ex['n']:03d}-{kind}.wav"
-        with wave.open(str(path), "wb") as w:
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(rate)
-            w.writeframes(audio_int16.astype("<i2").tobytes())
+        _wav(path, audio_int16, rate)
         files = sorted(REC_DIR.glob("*.wav"))
         for f in files[:-MAX_RECORDINGS]:
             f.unlink(missing_ok=True)

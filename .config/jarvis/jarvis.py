@@ -833,6 +833,7 @@ class VoiceLoop:
         self.spec = None                                  # listen()'s early transcription, if still valid
         self.thresholds = {WAKEWORD: THRESHOLD}           # per wake model (load() adds the custom words)
         self.woke_as = None
+        self.woke_model, self.woke_raw, self.wake_clip = "", 0.0, None
 
     def load(self):
         import openwakeword
@@ -855,6 +856,8 @@ class VoiceLoop:
                 f"{', custom verifier' if w['verifier'] else ''})")
         kw = {"custom_verifier_models": verifiers, "custom_verifier_threshold": wake.VERIFIER_THRESHOLD} if verifiers else {}
         self.wake = Model(wakeword_models=models, inference_framework="onnx", **kw)
+        self.woke_model, self.woke_raw = "", 0.0   # which model fired last, at what score of its own
+        self.wake_clip = None          # trace.save_wake() file of this wake (renamed if it was a false wake)
         self.woke_as = None            # persona the last wake word named (None: only "hey Jarvis" is known)
         self.vad = VAD()
         self.stt = hearing.STT(WHISPER_MODEL)
@@ -904,6 +907,7 @@ class VoiceLoop:
         score = preds[best] * THRESHOLD / self.thresholds.get(best, THRESHOLD)    # in "hey Jarvis" units
         if rel[best] >= 1.0:
             self.woke_as = WAKE_PERSONA.get(best) if len(preds) > 1 else None
+            self.woke_model, self.woke_raw = best, float(preds[best])
             if where != "idle":
                 trace.t("barge", during=where, score=round(score, 2))
             self.near = 0.0
@@ -1315,6 +1319,9 @@ class VoiceLoop:
             self.barge = False
             audio = self.listen(no_speech, kind, pre)
             pre = ()
+            clip, self.wake_clip = self.wake_clip, None    # only the first listen after the wake judges it
+            if clip and audio is None:
+                trace.mark_wake(clip, "false")                # woke, then silence
             if audio is None:
                 if kind == "command":                # woke, then nothing: say so
                     self.fail("heard", NOT_HEARD)
@@ -1326,6 +1333,9 @@ class VoiceLoop:
             text, raw = self.transcribe(audio, self.spec, barged)
             barged = False
             log(f'JARVIS: heard "{raw}"')
+            if clip and not re.search(r"\w", raw):
+                trace.mark_wake(clip, "false")                # woke, then nothing Whisper could put in words
+            clip = None
             if not re.search(r"\w", text):
                 if raw and re.search(r"\w", raw) and not lone_wake:
                     lone_wake = True                 # just "hey Jarvis": wait for the command
@@ -1456,7 +1466,10 @@ class VoiceLoop:
                 trace.t("wake.skip", score=round(score, 2), why="cooldown")
                 continue
             trace.begin()
-            trace.t("wake", score=round(score, 2), queued=self.mic.q.qsize(), persona=self.woke_as or "")
+            trace.t("wake", score=round(score, 2), queued=self.mic.q.qsize(), persona=self.woke_as or "",
+                    model=self.woke_model, raw=round(self.woke_raw, 2))
+            import numpy as np
+            self.wake_clip = trace.save_wake(self.woke_model, self.woke_raw, np.concatenate(list(self.pre)))
             log("JARVIS: wake word" + (f" ({self.woke_as})" if self.woke_as else ""))
             self.wake.reset()     # else its buffer still holds "hey Jarvis" and fires again mid-reply
             persona.begin(self.woke_as)            # "hey Friday" → FRIDAY answers this exchange
