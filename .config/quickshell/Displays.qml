@@ -7,8 +7,8 @@
 //
 // The arrangement (resolution, scale, rotation, order) and the layout mode are saved
 // per display profile (Profiles.qml: home desk, laptop only, the TV, …), and the active
-// profile's arrangement is written to ~/.config/hypr/stark/display-profile.lua (applied by
-// stark/monitors.lua). The layout mode is applied live whenever monitors change, so
+// profile's arrangement is written to ~/.config/hypr/alchemos/display-profile.lua (applied by
+// alchemos/monitors.lua). The layout mode is applied live whenever monitors change, so
 // "external only" can never leave you with a black laptop screen after you undock: with no
 // monitors plugged in, the laptop screen always comes back.
 //
@@ -82,7 +82,7 @@ Singleton {
 
     FileView {
         id: conf
-        path: Quickshell.env("HOME") + "/.config/hypr/stark/display-profile.lua"
+        path: Quickshell.env("HOME") + "/.config/hypr/alchemos/display-profile.lua"
         blockLoading: false
         blockWrites: true       // a profile switch reloads Hyprland right after writing
         printErrors: false

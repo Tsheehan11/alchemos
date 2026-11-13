@@ -1,9 +1,9 @@
 -- ─────────────────────────────────────────────
---  STARK OS — Hyprland config (Lua, Hyprland 0.56+)
+--  AlchemOS — Hyprland config (Lua, Hyprland 0.56+)
 --  Trevor's Inspiron 16 7640 + 2x 1440p monitors
 -- ─────────────────────────────────────────────
 --
--- Everything lives in ~/.config/hypr/stark/*.lua; this file only loads them in order.
+-- Everything lives in ~/.config/hypr/alchemos/*.lua; this file only loads them in order.
 -- Edit the modules in place: Hyprland reloads by itself when one of them is saved.
 --
 --   monitors.lua   screens (matched by desc:), workspace homes, the HUD's display profile
@@ -20,5 +20,5 @@
 -- Each module loads on its own, so a typo in one (shown in the red error bar) can't take
 -- the binds or the screens down with it.
 for _, name in ipairs({ "monitors", "theme", "looks", "binds", "rules", "autostart" }) do
-    pcall(require, "stark." .. name)
+    pcall(require, "alchemos." .. name)
 end

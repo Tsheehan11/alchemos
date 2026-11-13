@@ -101,7 +101,7 @@ def pick_region(mons):
     x, y = (int(v) for v in pos.split(","))
     w, h = (int(v) for v in size.split("x"))
     # slurp's surface is gone once it exits; give the compositor a frame to drop it (its layer has no
-    # fade: hypr/stark/rules.lua "alchemos-shot-selector-no-anim").
+    # fade: hypr/alchemos/rules.lua "alchemos-shot-selector-no-anim").
     time.sleep(0.06)
     return x, y, w, h
 

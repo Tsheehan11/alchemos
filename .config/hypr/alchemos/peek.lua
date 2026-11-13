@@ -8,7 +8,7 @@
 -- workspaces and calls restore() / restore_all() for the safety restores (lock, dock
 -- change, a new window on a peeked workspace, start-up) and go() for the Super+Tab
 -- overview, through
---   hyprctl eval 'require("stark.peek").restore_all()'
+--   hyprctl eval 'require("alchemos.peek").restore_all()'
 local M = {}
 
 local PREFIX = "special:peek"

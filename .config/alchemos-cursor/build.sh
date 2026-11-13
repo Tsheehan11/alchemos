@@ -149,7 +149,7 @@ set_line() {
     fi
 }
 
-hypr=$HOME/.config/hypr/stark/theme.lua
+hypr=$HOME/.config/hypr/alchemos/theme.lua
 for v in XCURSOR_SIZE HYPRCURSOR_SIZE XCURSOR_THEME HYPRCURSOR_THEME; do
     val=$size; [[ $v == *THEME ]] && val=$THEME
     set_line "$hypr" "^hl\\.env\\(\"$v\"," "hl.env(\"$v\", \"$val\")" "^-- ── Cursor"

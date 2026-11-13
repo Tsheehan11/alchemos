@@ -37,9 +37,9 @@ bind("SHIFT + M", hl.dsp.exit())
 hl.bind("Print",         exec("qs ipc call shot region || alchemos-shot region"))    -- drag a box, or click a window / screen
 hl.bind("SHIFT + Print", exec("qs ipc call shot screen || alchemos-shot screen"))    -- the monitor you're on
 bind("SHIFT + S",        exec("qs ipc call shot annotate || alchemos-shot annotate")) -- region, then mark it up in satty
--- Peek: hide / bring back every window on this workspace (stark/peek.lua). Loaded on its
+-- Peek: hide / bring back every window on this workspace (alchemos/peek.lua). Loaded on its
 -- own, so a mistake in it costs only this bind.
-local peekOk, peek = pcall(require, "stark.peek")
+local peekOk, peek = pcall(require, "alchemos.peek")
 if peekOk then bind("D", peek.toggle) end
 
 -- Move focus / windows with arrows

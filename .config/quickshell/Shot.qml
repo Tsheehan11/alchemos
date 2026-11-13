@@ -1,5 +1,5 @@
 pragma Singleton
-// Screenshots: Print = region, Shift+Print = this monitor, Super+Shift+S = region → annotate (hypr/stark/binds.lua),
+// Screenshots: Print = region, Shift+Print = this monitor, Super+Shift+S = region → annotate (hypr/alchemos/binds.lua),
 // the SCREENSHOT tile in the control center, `qs ipc call shot region|screen|window|annotate`, Jarvis.
 // The capture itself is ~/.local/bin/alchemos-shot (grim / slurp / wl-copy / satty); this only clears the HUD out
 // of the way first, then plays the shutter (ShotFlash.qml) and shows the toast (ShotToast.qml).

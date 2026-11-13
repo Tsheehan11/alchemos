@@ -165,7 +165,7 @@ Singleton {
     Timer { id: arrange; interval: 2500; onTriggered: Roles.arrangeWorkspaces() }
 
     // ── Saving ──
-    // Saves into profile k and writes its arrangement to stark/display-profile.lua
+    // Saves into profile k and writes its arrangement to alchemos/display-profile.lua
     function put(k, patch) {
         const all = Object.assign({}, store.profiles || {});
         all[k] = Object.assign({}, profileFor(k, root.mons), patch);

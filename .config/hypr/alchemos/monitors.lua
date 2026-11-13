@@ -25,7 +25,7 @@ end
 -- next to this file: `return { { output = …, mode = …, … }, … }`. Applied last, so its
 -- rules win. Loaded with loadfile, so Hyprland doesn't watch it: the HUD decides when to
 -- reload (with its reload-loop guard). A missing or broken file just leaves the rules above.
-local path = os.getenv("HOME") .. "/.config/hypr/stark/display-profile.lua"
+local path = os.getenv("HOME") .. "/.config/hypr/alchemos/display-profile.lua"
 local chunk = loadfile(path)
 local ok, rules = pcall(chunk or function() return {} end)
 if ok and type(rules) == "table" then

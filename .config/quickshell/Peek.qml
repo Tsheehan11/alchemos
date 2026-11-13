@@ -1,5 +1,5 @@
 // Peek (Super + D): every window on the active workspace hidden in special:peek<id>, back
-// on the next Super + D. The toggle lives in hypr/stark/peek.lua. Hyprland's special:peek<id>
+// on the next Super + D. The toggle lives in hypr/alchemos/peek.lua. Hyprland's special:peek<id>
 // workspaces are the only state: this follows them (for the bar) and puts windows back
 // whenever leaving them hidden would be wrong:
 //   lock          the doors start to shut (Super+L, lid, idle): nothing stays hidden behind it
@@ -27,7 +27,7 @@ Singleton {
         return m ? Number(m[1]) : -1;
     }
 
-    function run(call) { Quickshell.execDetached(Hypr.luaEval("require(\"stark.peek\")." + call)); }
+    function run(call) { Quickshell.execDetached(Hypr.luaEval("require(\"alchemos.peek\")." + call)); }
     function toggle() { run("toggle()"); }
     function restore(id) { run("restore(" + Number(id) + ")"); }
     // While the screens are still changing (Hotplug.qml), wait until they've settled

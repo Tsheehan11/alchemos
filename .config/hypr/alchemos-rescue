@@ -82,7 +82,7 @@ if [ "${1:-}" = config ]; then
     if [ -n "$sig" ] && timeout 3 hyprctl version >/dev/null 2>&1; then
         say "Hyprland is running; its config errors:"
         timeout 3 hyprctl configerrors
-        say "fix the file it names (the modules are in ~/.config/hypr/stark/), then: hyprctl reload"
+        say "fix the file it names (the modules are in ~/.config/hypr/alchemos/), then: hyprctl reload"
         say "or boot the old .conf: log out (Super+Shift+M; Super+M in emergency mode),"
         say "log in on a TTY and run: alchemos-rescue config"
         exit 0

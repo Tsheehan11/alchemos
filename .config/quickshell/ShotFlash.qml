@@ -1,6 +1,6 @@
 // Shutter effect over what was just captured (Shot.qml): a flash, brackets snapping onto the box and a
 // scan line sweeping down it, on every monitor the shot covers. Click-through, mapped only while it plays
-// (~0.7 s) and without Hyprland's fade (hypr/stark/rules.lua), so it never sits over a fullscreen game.
+// (~0.7 s) and without Hyprland's fade (hypr/alchemos/rules.lua), so it never sits over a fullscreen game.
 // Battery saver (Shot.calm): no effect at all.
 import QtQuick
 import Quickshell

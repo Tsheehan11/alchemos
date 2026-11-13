@@ -96,7 +96,7 @@ local excludes for files the HUD generates:
 stark config filter.alchemos-code-theme.clean '$HOME/.local/bin/alchemos-code-settings-clean'
 stark config filter.alchemos-code-theme.smudge cat
 echo '.config/Code/User/settings.json filter=alchemos-code-theme' >> ~/.alchemos/info/attributes
-printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/alchemos-lock-bg-*' .config/hypr/stark/display-profile.lua \
+printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/alchemos-lock-bg-*' .config/hypr/alchemos/display-profile.lua \
   .config/kitty/alchemos-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
   .config/jarvis/.venv/ >> ~/.alchemos/info/exclude
 ```
@@ -105,7 +105,7 @@ Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (st
 
 ### 3. Your hardware
 
-- **Monitors:** `hypr/stark/monitors.lua` matches the two desk monitors by model + serial (`leftMon`,
+- **Monitors:** `hypr/alchemos/monitors.lua` matches the two desk monitors by model + serial (`leftMon`,
   `midMon`). Put your own `desc:` strings there (`hyprctl monitors` shows them). Screen *roles*
   are worked out by position, so port names don't matter.
 - **Display profiles:** the desk is detected in `quickshell/ProfileLogic.js`. Change the dock /
@@ -275,15 +275,15 @@ What's plugged in picks a profile; each keeps its own arrangement, layout mode
 
 Switching happens on Hyprland's `monitoradded` / `monitorremoved` (debounced 2.5 s) and after
 resume. Settings → DISPLAY: **APPLY + KEEP**, **SAVE CURRENT AS THIS PROFILE**, **RESET PROFILE**.
-`~/.config/hypr/stark/display-profile.lua` is generated from the active profile (a list of
-`hl.monitor` specs that `stark/monitors.lua` applies last). Hyprland doesn't watch that file, so
+`~/.config/hypr/alchemos/display-profile.lua` is generated from the active profile (a list of
+`hl.monitor` specs that `alchemos/monitors.lua` applies last). Hyprland doesn't watch that file, so
 only the HUD decides when to reload, through its 20 s reload-loop guard. From a shell:
 `qs ipc call profiles status | recheck`.
 
 ### Hyprland config (Lua)
 
 Hyprland 0.56 reads `~/.config/hypr/hyprland.lua`, which only loads the modules in
-`~/.config/hypr/stark/`:
+`~/.config/hypr/alchemos/`:
 
 | Module | What's in it |
 | --- | --- |
@@ -297,7 +297,7 @@ Hyprland 0.56 reads `~/.config/hypr/hyprland.lua`, which only loads the modules 
 
 **Edit the modules in place.** Saving one makes Hyprland reload by itself. Never ship or unpack a
 `hyprland.lua` from a zip over this setup: it replaces the loader, and the HUD-written
-`stark/display-profile.lua` and the module split go with it. New binds go in `binds.lua`
+`alchemos/display-profile.lua` and the module split go with it. New binds go in `binds.lua`
 (`bind("D", peek.toggle)` is Peek, a Lua function from `peek.lua`). Scripts that add autostart lines append an
 `hl.on("hyprland.start", …)` block to `autostart.lua` (see `govee/install.fish`).
 
@@ -391,7 +391,7 @@ flowchart LR
     end
 
     subgraph Hyprland
-        H[hyprland.lua + stark/*.lua<br/>binds · rules · display-profile.lua]
+        H[hyprland.lua + alchemos/*.lua<br/>binds · rules · display-profile.lua]
         EV[(event socket<br/>monitoradded · workspace · openwindow)]
     end
 

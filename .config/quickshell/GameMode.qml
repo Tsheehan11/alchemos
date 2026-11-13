@@ -1,5 +1,5 @@
 // Combat mode (gaming mode). ~/.local/bin/alchemos-game (daemon started from
-// hypr/stark/autostart.lua) does the switching: it spots game windows, turns Hyprland
+// hypr/alchemos/autostart.lua) does the switching: it spots game windows, turns Hyprland
 // effects / the power profile / notifications over and puts them back after.
 // The HUD just follows its state file:
 //   • quiet: ambient effects + the visualizer stop, panels hide on the game screen

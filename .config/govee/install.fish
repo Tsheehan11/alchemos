@@ -32,7 +32,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now alchemos-govee-power.service   # plays the boot animation now as a test
 
 echo ":: adding daemon to Hyprland autostart"
-set -l hc ~/.config/hypr/stark/autostart.lua
+set -l hc ~/.config/hypr/alchemos/autostart.lua
 if not grep -q 'alchemos-govee daemon' $hc
     printf '\n-- AlchemOS ambient lights\nhl.on("hyprland.start", function() hl.exec_cmd("~/.local/bin/alchemos-govee daemon") end)\n' >> $hc
 end

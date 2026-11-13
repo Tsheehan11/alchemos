@@ -210,7 +210,7 @@ ShellRoot {
         function menu(): void { LauncherState.togglePower() }        // power button / Super + Esc
     }
 
-    //   Peek (Super + D is bound in hypr/stark/binds.lua; this is for scripts / Jarvis)
+    //   Peek (Super + D is bound in hypr/alchemos/binds.lua; this is for scripts / Jarvis)
     IpcHandler {
         target: "peek"
         function toggle(): void { Peek.toggle() }
@@ -225,7 +225,7 @@ ShellRoot {
         function toggle(): void { GameMode.toggle() }
     }
 
-    //   qs ipc call jarvisapp toggle   (Super + J, hypr/stark/binds.lua)
+    //   qs ipc call jarvisapp toggle   (Super + J, hypr/alchemos/binds.lua)
     IpcHandler {
         target: "jarvisapp"
         function toggle(): void { JarvisLink.toggle() }

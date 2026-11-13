@@ -793,7 +793,7 @@ PanelWindow {
                     Text { text: "CONFIG"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 10
-                        SmallButton { text: "HYPRLAND CONFIG"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hyprland.lua ~/.config/hypr/stark/*.lua")); LauncherState.closeAll(); } }
+                        SmallButton { text: "HYPRLAND CONFIG"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hyprland.lua ~/.config/hypr/alchemos/*.lua")); LauncherState.closeAll(); } }
                         SmallButton { text: "IDLE / SLEEP"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/hypr/hypridle.conf")); LauncherState.closeAll(); } }
                         SmallButton { text: "FULL KDE SETTINGS"; onClicked: { Hyprland.dispatch(Hypr.exec("systemsettings")); LauncherState.closeAll(); } }
                     }

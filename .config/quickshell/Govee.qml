@@ -1,5 +1,5 @@
 // Ambient lights — the Govee strip driven by ~/.local/bin/alchemos-govee (daemon
-// started from hypr/stark/autostart.lua). The mode lives in ~/.config/govee/config.json.
+// started from hypr/alchemos/autostart.lua). The mode lives in ~/.config/govee/config.json.
 pragma Singleton
 import QtQuick
 import Quickshell
