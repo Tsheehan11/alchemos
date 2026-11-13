@@ -13,10 +13,10 @@
 // Profiles, Displays, Roles and Peek act after it. The same check runs every 30 s while
 // idle, in case windows are ever orphaned without a monitor event.
 //
-// While settling, $XDG_RUNTIME_DIR/stark-hotplug-settling exists, touched every 4 s; one
-// older than 10 s is stale, so a crashed HUD can't hold anything up. stark-lock.sh and
+// While settling, $XDG_RUNTIME_DIR/alchemos-hotplug-settling exists, touched every 4 s; one
+// older than 10 s is stale, so a crashed HUD can't hold anything up. alchemos-lock.sh and
 // lid.sh wait for it (2.5 s at most), and Jarvis and the Overview capture nothing.
-// Journal (tag stark-hud, `journalctl --user -t stark-hud`): every re-home, with the
+// Journal (tag alchemos-hud, `journalctl --user -t alchemos-hud`): every re-home, with the
 // windows' classes and the screen their workspace was last seen on.
 pragma Singleton
 import QtQuick
@@ -29,7 +29,7 @@ Singleton {
     id: root
 
     readonly property string laptop: "eDP-1"
-    readonly property string flag: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/stark-hotplug-settling"
+    readonly property string flag: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/alchemos-hotplug-settling"
 
     property bool settling: false
     property var removed: []        // screens removed since settling began
@@ -39,7 +39,7 @@ Singleton {
     property double since: 0        // when it began
     signal settled()
 
-    function log(msg) { Quickshell.execDetached(["logger", "-t", "stark-hud", msg]); }
+    function log(msg) { Quickshell.execDetached(["logger", "-t", "alchemos-hud", msg]); }
 
     function begin(ev) {
         if (!root.settling) {

@@ -4,14 +4,14 @@
 # The last is the HUD skin's busy-cursor folder (Skin.cursorDir, e.g. quickshell/skins/alchemos/cursor):
 # any <name>.svg there replaces src/<name>.svg (the default art); "" or absent = the default art.
 # Renders src/*.svg in that accent, builds an XCursor theme (rsvg-convert + xcursorgen)
-# and a hyprcursor theme (hyprcursor-util, SVG) into ~/.local/share/icons/STARK-OS,
+# and a hyprcursor theme (hyprcursor-util, SVG) into ~/.local/share/icons/ALCHEMOS,
 # points GTK / Qt / KDE / XWayland at it, and applies it live with `hyprctl setcursor`.
 # Called by quickshell/Theme.qml whenever the accent, cursor size or busy animation
-# changes. Builds are cached per colour (~/.cache/stark-cursor), so switching back to a
+# changes. Builds are cached per colour (~/.cache/alchemos-cursor), so switching back to a
 # theme seen before is a copy and a setcursor.
 set -euo pipefail
 
-THEME=STARK-OS
+THEME=ALCHEMOS
 SIZES=(24 32 48)
 SPIN_FRAMES=12          # busy cursors: the 1/3 arc turns 30° a frame
 SPIN_MS=60
@@ -31,7 +31,7 @@ if [[ ! $hex =~ ^[0-9a-f]{6}$ || ! $mode =~ ^(animated|static)$ || ! $size =~ ^(
 fi
 
 icons=${XDG_DATA_HOME:-$HOME/.local/share}/icons
-cache=${XDG_CACHE_HOME:-$HOME/.cache}/stark-cursor
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/alchemos-cursor
 mkdir -p "$icons" "$cache"
 
 # One build at a time; a queued call just runs after (Theme.qml already debounces)
@@ -87,7 +87,7 @@ build_one() {
     for a in "$@"; do ln -sf "$name" "$work/theme/cursors/$a"; done
 }
 
-if [[ ! -f $out/.stark-build ]]; then
+if [[ ! -f $out/.alchemos-build ]]; then
     work=$(mktemp -d "$cache/.work.XXXXXX")
     trap 'rm -rf "$work"' EXIT
     mkdir -p "$work/theme/cursors" "$work/hc"
@@ -114,7 +114,7 @@ Name=$THEME
 Comment=Holographic HUD cursors (#$hex, $mode $style busy cursor, $alpha% fill)
 Inherits=Adwaita
 EOF
-    echo "$key" > "$work/theme/.stark-build"
+    echo "$key" > "$work/theme/.alchemos-build"
     rm -rf "$out"
     mv "$work/theme" "$out"
     # Keep the dozen most recent colours
@@ -124,7 +124,7 @@ fi
 # ── Install (swap the whole directory so a running app never sees half a theme) ──
 dest=$icons/$THEME
 changed=0
-if [[ $(cat "$dest/.stark-build" 2>/dev/null) != "$key" ]]; then
+if [[ $(cat "$dest/.alchemos-build" 2>/dev/null) != "$key" ]]; then
     changed=1
     rm -rf "$icons/.$THEME.new" "$icons/.$THEME.old"
     cp -r "$out" "$icons/.$THEME.new"
@@ -171,8 +171,8 @@ cmp -s "$HOME/.icons/default/.index.tmp" "$HOME/.icons/default/index.theme" \
     || mv "$HOME/.icons/default/.index.tmp" "$HOME/.icons/default/index.theme"
 
 # GTK apps (Zen, …) draw their own cursor and only reload it when the theme *name*
-# changes, so a recolour goes STARK-OS → STARK-OS-reload (same cursors, via
-# Inherits) → STARK-OS. Half a second apart, or the apps only see the last value.
+# changes, so a recolour goes ALCHEMOS → ALCHEMOS-reload (same cursors, via
+# Inherits) → ALCHEMOS. Half a second apart, or the apps only see the last value.
 reload=$icons/$THEME-reload
 [[ -f $reload/index.theme ]] || { mkdir -p "$reload"; printf '[Icon Theme]\nName=%s-reload\nComment=Lets build.sh make GTK apps reload %s\nInherits=%s\nHidden=true\n' "$THEME" "$THEME" "$THEME" > "$reload/index.theme"; }
 if command -v gsettings >/dev/null; then

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """STARK OS screenshots: capture, save, copy.
 
-    stark-shot region     drag a box, or click a window / an empty screen (slurp)
-    stark-shot screen     the focused monitor (native resolution)
-    stark-shot window     the focused window
-    stark-shot annotate   region, then satty on top (saving writes back to the same file + clipboard)
+    alchemos-shot region     drag a box, or click a window / an empty screen (slurp)
+    alchemos-shot screen     the focused monitor (native resolution)
+    alchemos-shot window     the focused window
+    alchemos-shot annotate   region, then satty on top (saving writes back to the same file + clipboard)
     options: --output NAME  (screen: that monitor instead of the focused one)   --json  (one result line for the HUD)
 
-Saved as ~/Pictures/Screenshots/stark-YYYYMMDD-HHMMSS.png and put on the clipboard (image/png).
+Saved as ~/Pictures/Screenshots/alchemos-YYYYMMDD-HHMMSS.png and put on the clipboard (image/png).
 The HUD (quickshell/Shot.qml, `qs ipc call shot …`) runs this after its overlays step aside and shows the
 flash + toast from the --json line. Without the HUD (binds fall back to it) it sends a desktop notification.
 Exit: 0 saved, 1 cancelled (Escape in the selector), 2 failed.
@@ -101,7 +101,7 @@ def pick_region(mons):
     x, y = (int(v) for v in pos.split(","))
     w, h = (int(v) for v in size.split("x"))
     # slurp's surface is gone once it exits; give the compositor a frame to drop it (its layer has no
-    # fade: hypr/stark/rules.lua "stark-shot-selector-no-anim").
+    # fade: hypr/stark/rules.lua "alchemos-shot-selector-no-anim").
     time.sleep(0.06)
     return x, y, w, h
 
@@ -116,7 +116,7 @@ class Fail(Exception):
 
 def target_path():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    stem = "stark-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    stem = "alchemos-" + datetime.now().strftime("%Y%m%d-%H%M%S")
     path, n = OUT_DIR / f"{stem}.png", 2
     while path.exists():                      # two shots in one second
         path, n = OUT_DIR / f"{stem}-{n}.png", n + 1

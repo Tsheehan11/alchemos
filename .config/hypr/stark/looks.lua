@@ -1,5 +1,5 @@
 -- ── Look and feel ────────────────────────────
--- Colours are in theme.lua. Battery saver (PowerMode.qml) and combat mode (stark-game)
+-- Colours are in theme.lua. Battery saver (PowerMode.qml) and combat mode (alchemos-game)
 -- switch blur / shadows / animations at runtime and put them back afterwards.
 hl.config({
     general = {
@@ -48,7 +48,7 @@ hl.config({
         disable_splash_rendering = true,
         anr_missed_pings = 6,
         -- If hyprlock dies the session stays locked; this lets a new hyprlock take over
-        -- (stark-rescue does that from a TTY).
+        -- (alchemos-rescue does that from a TTY).
         allow_session_lock_restore = true,
     },
 

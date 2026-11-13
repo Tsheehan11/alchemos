@@ -14,7 +14,7 @@ PanelWindow {
     visible: LockState.doors !== "open"
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-doors"
+    WlrLayershell.namespace: "alchemos-doors"
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     mask: Region {}
@@ -103,7 +103,7 @@ PanelWindow {
         PanelWindow {
             screen: dw.modelData
             WlrLayershell.layer: WlrLayer.Background
-            WlrLayershell.namespace: "stark-lock-render"
+            WlrLayershell.namespace: "alchemos-lock-render"
             exclusionMode: ExclusionMode.Ignore
             anchors { top: true; left: true }
             implicitWidth: 1; implicitHeight: 1

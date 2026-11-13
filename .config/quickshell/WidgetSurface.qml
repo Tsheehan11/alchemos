@@ -33,7 +33,7 @@ PanelWindow {
         && (pinned ? !Perf.locked && !(GameMode.quiet && Perf.gameScreens[scr?.name] === true)
                    : !Perf.hidden(scr, "widgets"))
     WlrLayershell.layer: pinned ? WlrLayer.Top : WlrLayer.Bottom
-    WlrLayershell.namespace: pinned ? "stark-widgets-pinned" : "stark-widgets"
+    WlrLayershell.namespace: pinned ? "alchemos-widgets-pinned" : "alchemos-widgets"
     WlrLayershell.keyboardFocus: editing ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }

@@ -7,11 +7,11 @@
 #   5. if the fingerprint reader is stuck, resets it (stark-fprint-reset, asks for sudo)
 # Then switch back to Hyprland with Ctrl+Alt+F2.
 #
-# stark-rescue status: is the Hyprland unplug-crash fix (0.57) out / installed / running,
+# alchemos-rescue status: is the Hyprland unplug-crash fix (0.57) out / installed / running,
 # is the HUD's hotplug settle gate idle, and is Jarvis's service (stark-jarvis.service) up,
 # with any stray voice loop outside it. Changes nothing.
 #
-# stark-rescue config: when ~/.config/hypr/hyprland.lua won't load (red error bar, only the
+# alchemos-rescue config: when ~/.config/hypr/hyprland.lua won't load (red error bar, only the
 # emergency binds: Super+Q terminal, Super+R run, Super+M exit). Prints Hyprland's config
 # errors; with no Hyprland running (log out first: Super+Shift+M, Super+M in emergency mode,
 # or loginctl terminate-user), starts it on the old hyprland.conf backup instead:
@@ -36,9 +36,9 @@ find_hyprland() {
 }
 
 if [ "${1:-}" = status ]; then
-    # Read-only: the Hyprland fix (stark-hypr-check) and the HUD's hotplug settle gate
+    # Read-only: the Hyprland fix (alchemos-hypr-check) and the HUD's hotplug settle gate
     find_hyprland
-    r=$("$HOME/.config/hypr/stark-hypr-check" --sync)
+    r=$("$HOME/.config/hypr/alchemos-hypr-check" --sync)
     case "$r" in
         state=waiting*)   say "Hyprland: waiting for 0.57 (unplug-crash fix) in the repos; the settle gate covers it" ;;
         state=available*) say "Hyprland: 0.57 is in the repos (fixes the unplug crash): sudo pacman -Syu, then log out and back in" ;;
@@ -46,7 +46,7 @@ if [ "${1:-}" = status ]; then
         state=running*)   say "Hyprland: running the fixed version; the settle gate stays on anyway" ;;
     esac
     say "  $r"
-    settle="$XDG_RUNTIME_DIR/stark-hotplug-settling"
+    settle="$XDG_RUNTIME_DIR/alchemos-hotplug-settling"
     if [ -f "$settle" ]; then
         say "settle gate: screens settling (flag $(( $(date +%s) - $(stat -c %Y "$settle") )) s old; stale after 10 s)"
     else
@@ -84,7 +84,7 @@ if [ "${1:-}" = config ]; then
         timeout 3 hyprctl configerrors
         say "fix the file it names (the modules are in ~/.config/hypr/stark/), then: hyprctl reload"
         say "or boot the old .conf: log out (Super+Shift+M; Super+M in emergency mode),"
-        say "log in on a TTY and run: stark-rescue config"
+        say "log in on a TTY and run: alchemos-rescue config"
         exit 0
     fi
     [ -f "$backup" ] || { say "no backup at $backup"; exit 1; }
@@ -139,9 +139,9 @@ fi
 # 4. Unlock, or restore the lock.
 restore_lock() {
     lock_restore
-    hexec "$HOME/.config/hypr/stark-lock.sh"
+    hexec "$HOME/.config/hypr/alchemos-lock.sh"
     sleep 3
-    # stark-lock.sh does nothing if its lock file is still held by a stuck run; go direct.
+    # alchemos-lock.sh does nothing if its lock file is still held by a stuck run; go direct.
     pgrep -u "$uid" -x hyprlock >/dev/null || hexec hyprlock
     sleep 1
     if pgrep -u "$uid" -x hyprlock >/dev/null; then

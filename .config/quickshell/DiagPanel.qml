@@ -15,7 +15,7 @@ PanelWindow {
              && !Perf.hidden(modelData, telemetry ? "telemetry" : "diag")
 
     WlrLayershell.layer: WlrLayer.Bottom
-    WlrLayershell.namespace: "stark-diag"
+    WlrLayershell.namespace: "alchemos-diag"
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; right: true }
     margins { top: 70; right: 60 }
@@ -30,7 +30,7 @@ PanelWindow {
         screen: diag.modelData
         visible: diag.visible && diag.telemetry && Perf.telemetryBeside
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.namespace: "stark-telemetry-zone"
+        WlrLayershell.namespace: "alchemos-telemetry-zone"
         anchors { top: true; right: true; bottom: true }
         exclusiveZone: diag.implicitWidth + 60 + 30     // panel + its right margin + a gap
         implicitWidth: 1

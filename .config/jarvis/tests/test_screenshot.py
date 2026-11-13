@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Screenshots: fast-path wording, router intents, the screenshot action against a faked HUD (qs ipc shot …),
-and stark-shot's pure helpers (monitor overlap for the flash, file naming). Temp intents copy + temp dirs;
+and alchemos-shot's pure helpers (monitor overlap for the flash, file naming). Temp intents copy + temp dirs;
 nothing is captured. Run: python tests/test_screenshot.py"""
 import importlib.machinery
 import importlib.util
@@ -90,10 +90,10 @@ class FakeHud:
 real_run, real_sleep = A._run, A.time.sleep
 A.time.sleep = lambda s: None
 try:
-    hud = FakeHud(result={"ok": True, "path": "/new.png", "name": "stark-x.png", "width": 1920, "height": 1080, "copied": True})
+    hud = FakeHud(result={"ok": True, "path": "/new.png", "name": "alchemos-x.png", "width": 1920, "height": 1080, "copied": True})
     A._run = hud.run
     r = A.screenshot("screen")
-    check("screen waits for the file", (r.get("ok"), r.get("file"), r.get("size"), r.get("copied")), (True, "stark-x.png", "1920x1080", True))
+    check("screen waits for the file", (r.get("ok"), r.get("file"), r.get("size"), r.get("copied")), (True, "alchemos-x.png", "1920x1080", True))
     check("screen went through the HUD", ["qs", "ipc", "call", "shot", "screen"] in hud.calls, True)
 
     hud = FakeHud(result={"ok": False, "error": "no focused window"})
@@ -116,7 +116,7 @@ try:
     hud = FakeHud(up=False)
     A._run = hud.run
     r = A.screenshot("window")
-    check("HUD down → stark-shot through Hyprland", (r["ok"], hud.calls[-1]), (True, ["hyprctl", "dispatch", 'hl.dsp.exec_cmd("stark-shot window")']))
+    check("HUD down → alchemos-shot through Hyprland", (r["ok"], hud.calls[-1]), (True, ["hyprctl", "dispatch", 'hl.dsp.exec_cmd("alchemos-shot window")']))
 finally:
     A._run, A.time.sleep = real_run, real_sleep
 
@@ -142,8 +142,8 @@ check("router: a note isn't a shot", str(local("take a note")).startswith("claud
 check("router: reading the screen stays Claude", str(local("read this window")).startswith("claude:"), True)
 shutil.rmtree(tmp, ignore_errors=True)
 
-# ── stark-shot helpers ──
-script = Path.home() / ".local" / "bin" / "stark-shot"
+# ── alchemos-shot helpers ──
+script = Path.home() / ".local" / "bin" / "alchemos-shot"
 loader = importlib.machinery.SourceFileLoader("stark_shot", str(script))
 spec = importlib.util.spec_from_loader("stark_shot", loader)
 S = importlib.util.module_from_spec(spec)
@@ -172,8 +172,8 @@ p1 = S.target_path()
 p1.write_bytes(b"x")
 p2 = S.target_path()
 p2.write_bytes(b"x")
-check("file name (folder made)", p1.name, "stark-20261103-113014.png")
-check("same second → -2, -3", (p2.name, S.target_path().name), ("stark-20261103-113014-2.png", "stark-20261103-113014-3.png"))
+check("file name (folder made)", p1.name, "alchemos-20261103-113014.png")
+check("same second → -2, -3", (p2.name, S.target_path().name), ("alchemos-20261103-113014-2.png", "alchemos-20261103-113014-3.png"))
 shutil.rmtree(d, ignore_errors=True)
 
 print("FAIL" if FAILS else "ok", f"{len(FAILS)} failing" if FAILS else "screenshot")

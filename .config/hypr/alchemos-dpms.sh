@@ -1,5 +1,5 @@
 #!/bin/sh
-# Screens on / off: stark-dpms.sh on|off (hypridle, lid.sh, stark-rescue).
+# Screens on / off: alchemos-dpms.sh on|off (hypridle, lid.sh, alchemos-rescue).
 # Hyprland with the Lua config only takes Lua dispatchers; the hyprland.conf backup
 # (recovery boot) only takes the old syntax, so try Lua first and fall back.
 case "$1" in

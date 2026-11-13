@@ -87,12 +87,12 @@ Singleton {
             property int idleScreenOff: 10
             property int idleSleep: 20
             property bool terminalGlass: false         // kitty background_opacity 0.85 instead of solid
-            property int cursorSize: 24                // STARK-OS cursor: 24 | 32 | 48
+            property int cursorSize: 24                // ALCHEMOS cursor: 24 | 32 | 48
             property bool cursorAnimated: true         // spinning arc-reactor busy cursor (static frame when off)
             property int cursorOpacity: 45             // cursor body fill, % (20–90)
             property real panelOpacity: 0.85           // HUD panel backgrounds: settings, control center, search (0.5–1)
             property var customPresets: []             // user presets: [{ name, primary, secondary, background }]
-            // Combat mode (GameMode.qml); the stark-game daemon reads these too
+            // Combat mode (GameMode.qml); the alchemos-game daemon reads these too
             property bool gameAuto: true                // engage when a game window opens / gamemode starts
             property bool gameHypr: true                // blur, shadows, animations off + tearing for the game
             property bool gameNoVfr: false              // also debug:vfr off (Hyprland advises against it)
@@ -106,7 +106,7 @@ Singleton {
             property bool gameJarvis: true              // pause Jarvis (frees the mic)
             property bool gameNotify: true              // do-not-disturb on the notification daemon
             property var launcherApps: []               // radial launcher (LauncherApps.qml); seeded on first run
-            property string vpnProvider: "proton"       // VPN the tile / Settings act on (VPN.qml, stark-vpn providers.json)
+            property string vpnProvider: "proton"       // VPN the tile / Settings act on (VPN.qml, alchemos-vpn providers.json)
             // Skins (Skin.qml): the look only, never behaviour
             property string skin: "alchemos"            // alchemos | legacy (needs the private skins/legacy overlay)
             property bool skinUnlocked: false           // the SKIN row shows in Settings → APPEARANCE
@@ -412,7 +412,7 @@ Singleton {
             "sh", conf]);
     }
     // ── Kitty ───────────────────────────────────
-    // Writes ~/.config/kitty/stark-theme.conf (included from kitty.conf) and
+    // Writes ~/.config/kitty/alchemos-theme.conf (included from kitty.conf) and
     // SIGUSR1s every kitty so open windows recolor live.
     function luma(c) {
         const f = v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
@@ -478,12 +478,12 @@ Singleton {
     }
     function pushToKitty() {
         Quickshell.execDetached(["sh", "-c",
-            "d=~/.config/kitty; mkdir -p $d && printf '%s' \"$1\" > $d/.stark-theme.tmp && mv $d/.stark-theme.tmp $d/stark-theme.conf && pkill -USR1 -x kitty",
+            "d=~/.config/kitty; mkdir -p $d && printf '%s' \"$1\" > $d/.alchemos-theme.tmp && mv $d/.alchemos-theme.tmp $d/alchemos-theme.conf && pkill -USR1 -x kitty",
             "sh", kittyConf()]);
     }
 
     // ── Heroic ──────────────────────────────────
-    // Writes ~/.config/heroic/themes/stark.css (Heroic's custom theme "stark",
+    // Writes ~/.config/heroic/themes/alchemos.css (Heroic's custom theme "alchemos",
     // customThemesPath = that folder). Heroic reads it on its next launch.
     function heroicCss() {
         const c = x => "#" + hex(x);
@@ -508,12 +508,12 @@ Singleton {
     }
     function pushToHeroic() {
         Quickshell.execDetached(["sh", "-c",
-            "d=~/.config/heroic; [ -d $d ] || exit 0; mkdir -p $d/themes && printf '%s' \"$1\" > $d/themes/.stark.tmp && mv $d/themes/.stark.tmp $d/themes/stark.css",
+            "d=~/.config/heroic; [ -d $d ] || exit 0; mkdir -p $d/themes && printf '%s' \"$1\" > $d/themes/.alchemos.tmp && mv $d/themes/.alchemos.tmp $d/themes/alchemos.css",
             "sh", heroicCss()]);
     }
 
     // ── VS Code ─────────────────────────────────
-    // stark-code-theme merges just these two keys into ~/.config/Code/User/settings.json;
+    // alchemos-code-theme merges just these two keys into ~/.config/Code/User/settings.json;
     // VS Code watches that file, so open windows recolor live. Overlays use alpha,
     // every background stays solid.
     function ink(c, under) {          // lighten toward white until it reads at 4.5:1
@@ -625,16 +625,16 @@ Singleton {
                                 "editor.semanticTokenColorCustomizations": sem });
     }
     function pushToCode() {
-        Quickshell.execDetached(["stark-code-theme", codeTheme()]);
+        Quickshell.execDetached(["alchemos-code-theme", codeTheme()]);
     }
 
     // ── Ambient lights (Govee strip) ────────────
     function pushToGovee() {
-        Quickshell.execDetached(["stark-govee", "theme", hex(primary), hex(secondary)]);
+        Quickshell.execDetached(["alchemos-govee", "theme", hex(primary), hex(secondary)]);
     }
 
     // ── Cursor ──────────────────────────────────
-    // ~/.config/stark-cursor/build.sh renders the STARK-OS cursor theme in the accent
+    // ~/.config/alchemos-cursor/build.sh renders the ALCHEMOS cursor theme in the accent
     // (cached per colour) and applies it with `hyprctl setcursor`. One build at a time;
     // a change mid-build runs once more afterwards with whatever is current then.
     readonly property bool cursorAnimated: adapter.cursorAnimated
@@ -648,7 +648,7 @@ Singleton {
     function pushCursor() {
         if (!root.loaded) return;
         if (cursorBuild.running) { cursorPending = true; return; }
-        cursorBuild.command = [Quickshell.env("HOME") + "/.config/stark-cursor/build.sh", hex(primary),
+        cursorBuild.command = [Quickshell.env("HOME") + "/.config/alchemos-cursor/build.sh", hex(primary),
             cursorAnimated ? "animated" : "static", String(cursorStep(0)), String(cursorFill()),
             Skin.cursorDir];          // the skin's busy-cursor templates ("" = the default art)
         cursorBuild.running = true;

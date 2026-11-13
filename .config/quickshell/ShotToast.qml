@@ -16,7 +16,7 @@ PanelWindow {
     visible: here && (Shot.toastShowing || panel.opacity > 0.01)
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-shot-toast"
+    WlrLayershell.namespace: "alchemos-shot-toast"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { bottom: true; right: true }

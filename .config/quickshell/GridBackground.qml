@@ -25,7 +25,7 @@ PanelWindow {
     readonly property real activity: JarvisState.listening || JarvisState.speaking ? 1 : Math.min(1, SysStats.cpu * 1.4)
 
     WlrLayershell.layer: WlrLayer.Background
-    WlrLayershell.namespace: "stark-grid"
+    WlrLayershell.namespace: "alchemos-grid"
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     color: Theme.bg

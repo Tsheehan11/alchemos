@@ -1,4 +1,4 @@
-// Ambient lights — the Govee strip driven by ~/.local/bin/stark-govee (daemon
+// Ambient lights — the Govee strip driven by ~/.local/bin/alchemos-govee (daemon
 // started from hypr/stark/autostart.lua). The mode lives in ~/.config/govee/config.json.
 pragma Singleton
 import QtQuick
@@ -14,13 +14,13 @@ Singleton {
 
     function setMode(m) {
         root.mode = m;                    // show it right away; the file watch confirms
-        Quickshell.execDetached(["stark-govee", "mode", m]);
+        Quickshell.execDetached(["alchemos-govee", "mode", m]);
     }
     function setSpeed(v) {
         root.animSpeed = v;
-        Quickshell.execDetached(["stark-govee", "speed", String(v)]);
+        Quickshell.execDetached(["alchemos-govee", "speed", String(v)]);
     }
-    function event(name) { Quickshell.execDetached(["stark-govee", "event", name]); }
+    function event(name) { Quickshell.execDetached(["alchemos-govee", "event", name]); }
 
     FileView {
         id: cfgFile

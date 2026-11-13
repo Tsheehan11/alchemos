@@ -13,7 +13,7 @@ PanelWindow {
     visible: LauncherState.powerOpen && Hyprland.focusedMonitor?.name === modelData.name
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-power"
+    WlrLayershell.namespace: "alchemos-power"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
@@ -45,7 +45,7 @@ PanelWindow {
         if (it.confirm && confirming !== it.key) { sel = i; confirming = it.key; autoCancel.restart(); return; }
         LauncherState.closeAll();
         if (it.key === "lock") LockState.requestLock();
-        else if (it.key === "sleep") Quickshell.execDetached(["stark-govee", "suspend"]);
+        else if (it.key === "sleep") Quickshell.execDetached(["alchemos-govee", "suspend"]);
         else if (it.key === "skin") Skin.toggle(false);
         else LockState.power(it.key);
     }

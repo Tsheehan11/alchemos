@@ -199,7 +199,7 @@ ShellRoot {
         function open(tab: string): void { LauncherState.openSettings(tab.toUpperCase()) }
     }
 
-    //   used by ~/.config/hypr/stark-lock.sh
+    //   used by ~/.config/hypr/alchemos-lock.sh
     IpcHandler {
         target: "stark"
         function lock(): void { LockState.requestLock() }            // Super + L
@@ -218,7 +218,7 @@ ShellRoot {
         function status(): string { return JSON.stringify({ active: Peek.active, workspaces: Peek.peeked }) }
     }
 
-    //   used by ~/.local/bin/stark-game after each state change
+    //   used by ~/.local/bin/alchemos-game after each state change
     IpcHandler {
         target: "game"
         function refresh(): void { GameMode.refresh() }

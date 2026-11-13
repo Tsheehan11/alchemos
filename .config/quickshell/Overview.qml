@@ -21,7 +21,7 @@ PanelWindow {
     visible: LauncherState.overviewOpen
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-overview"
+    WlrLayershell.namespace: "alchemos-overview"
     WlrLayershell.keyboardFocus: focusedHere ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }

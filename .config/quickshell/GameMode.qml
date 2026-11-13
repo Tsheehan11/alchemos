@@ -1,4 +1,4 @@
-// Combat mode (gaming mode). ~/.local/bin/stark-game (daemon started from
+// Combat mode (gaming mode). ~/.local/bin/alchemos-game (daemon started from
 // hypr/stark/autostart.lua) does the switching: it spots game windows, turns Hyprland
 // effects / the power profile / notifications over and puts them back after.
 // The HUD just follows its state file:
@@ -24,7 +24,7 @@ Singleton {
     readonly property bool quiet: active && Theme.cfg.gameHud
     readonly property bool batteryWarn: active && owns.indexOf("power") >= 0 && PowerMode.onBattery
 
-    function toggle() { Quickshell.execDetached(["stark-game", "toggle"]); }
+    function toggle() { Quickshell.execDetached(["alchemos-game", "toggle"]); }
     function refresh() { file.reload(); }
 
     // Toast
@@ -35,7 +35,7 @@ Singleton {
 
     FileView {
         id: file
-        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/stark-game/state.json"
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/alchemos-game/state.json"
         blockLoading: true                // known before PowerMode / Jarvis act at startup
         watchChanges: true
         onFileChanged: reload()

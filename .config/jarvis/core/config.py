@@ -13,7 +13,7 @@ VOICES_DIR = DATA_DIR / "voices"
 HUD_SETTINGS = HOME / ".config/quickshell/settings.json"
 SERVERS_FILE = JARVIS_DIR / "servers.json"
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
-GAME_STATE = RUNTIME / "stark-game/state.json"
+GAME_STATE = RUNTIME / "alchemos-game/state.json"
 
 # Model aliases the claude CLI resolves to the latest of each family
 # (`claude --help`: "Provide an alias for the latest model"), so nothing here

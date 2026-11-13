@@ -16,7 +16,7 @@ PanelWindow {
     visible: LauncherState.controlOpen && Hyprland.focusedMonitor?.name === modelData.name
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-control"
+    WlrLayershell.namespace: "alchemos-control"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
@@ -107,7 +107,7 @@ PanelWindow {
             Row {
                 spacing: 8
                 SmallButton { text: Skin.text.lockGlyph + " LOCK"; onClicked: LockState.requestLock() }
-                SmallButton { text: "☾ SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["stark-govee", "suspend"]); } }
+                SmallButton { text: "☾ SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["alchemos-govee", "suspend"]); } }
                 SmallButton { text: "⏻ POWER"; onClicked: LauncherState.togglePower() }
             }
 

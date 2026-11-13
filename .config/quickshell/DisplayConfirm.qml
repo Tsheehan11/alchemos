@@ -13,7 +13,7 @@ PanelWindow {
     visible: Displays.pending
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-display-confirm"
+    WlrLayershell.namespace: "alchemos-display-confirm"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true }

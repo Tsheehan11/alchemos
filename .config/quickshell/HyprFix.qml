@@ -1,6 +1,6 @@
 pragma Singleton
 // Is the Hyprland that fixes the unplug crash (0.57.0) out, installed, running?
-// ~/.config/hypr/stark-hypr-check does the work (also `stark-rescue status`); this runs it
+// ~/.config/hypr/alchemos-hypr-check does the work (also `alchemos-rescue status`); this runs it
 // with --sync (a private, root-free copy of the package databases) a minute after the HUD
 // starts and every 6 hours, and the bar shows HYPR 0.57 while there's something to do:
 // "available" (sudo pacman -Syu) or "installed" (log out and back in). The settle gate
@@ -22,7 +22,7 @@ Singleton {
 
     Process {
         id: check
-        command: [Quickshell.env("HOME") + "/.config/hypr/stark-hypr-check", "--sync"]
+        command: [Quickshell.env("HOME") + "/.config/hypr/alchemos-hypr-check", "--sync"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const kv = {};

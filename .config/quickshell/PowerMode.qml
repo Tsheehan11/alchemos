@@ -25,11 +25,11 @@ Singleton {
     readonly property bool onBattery: SysStats.discharging
     readonly property bool saver: Theme.cfg.autoSaver && onBattery && !overridden
 
-    // Saver switched off by hand for this unplug. Kept in $XDG_RUNTIME_DIR/stark-power/override
+    // Saver switched off by hand for this unplug. Kept in $XDG_RUNTIME_DIR/alchemos-power/override
     // so a HUD restart doesn't bring the saver back; loaded before any profile is touched.
     property bool overridden: false
     property bool loaded: false
-    readonly property string stateDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/stark-power"
+    readonly property string stateDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/alchemos-power"
 
     onSaverChanged: applyTimer.restart()
     onOnBatteryChanged: if (!onBattery) clearOverride()
@@ -87,7 +87,7 @@ Singleton {
     // HUD is a no-op. First run of a session: saver on → power-saver, off → untouched.
     readonly property string profileScript: [
         "command -v powerprofilesctl >/dev/null || exit 0",
-        "d=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/stark-power; mkdir -p $d",
+        "d=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/alchemos-power; mkdir -p $d",
         "last=$(cat $d/saver 2>/dev/null)",
         "[ \"$last\" = \"$1\" ] && exit 0",
         "echo $1 > $d/saver",
@@ -100,7 +100,7 @@ Singleton {
     ].join("\n")
 
     Connections { target: SysStats; function onPolledChanged() { applyTimer.restart(); } }
-    // stark-game restores the blur / profile it found on entry; re-apply in case the
+    // alchemos-game restores the blur / profile it found on entry; re-apply in case the
     // saver flipped meanwhile (no-op for the profile if it didn't)
     Connections {
         target: GameMode

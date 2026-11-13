@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""stark-game: STARK OS combat mode (gaming mode).
+"""alchemos-game: STARK OS combat mode (gaming mode).
 
 The daemon watches Hyprland for game windows and switches the desktop into a
 low-overhead mode while one is open. Whatever it changes is read first and put
 back exactly as it was when the last game closes.
 
 Usage:
-  stark-game daemon            watch Hyprland for game windows (Hyprland exec-once)
-  stark-game on                force on (stays on until `off` / `toggle`)
-  stark-game off               force off (auto-detect resumes once the game closes)
-  stark-game toggle
-  stark-game status            current state as JSON
-  stark-game gamemode-start    gamemoded hooks, see ~/.config/gamemode.ini
-  stark-game gamemode-end
+  alchemos-game daemon            watch Hyprland for game windows (Hyprland exec-once)
+  alchemos-game on                force on (stays on until `off` / `toggle`)
+  alchemos-game off               force off (auto-detect resumes once the game closes)
+  alchemos-game toggle
+  alchemos-game status            current state as JSON
+  alchemos-game gamemode-start    gamemoded hooks, see ~/.config/gamemode.ini
+  alchemos-game gamemode-end
 
 Game windows: class steam_app_<id>, gamescope, or any regex in
-~/.config/stark-game/games.conf. Options live in the HUD's settings.json
+~/.config/alchemos-game/games.conf. Options live in the HUD's settings.json
 (Settings → System → Combat mode). The HUD reads the state file to quiet
 itself and pause Jarvis.
 
@@ -27,11 +27,11 @@ import fcntl, json, os, re, shutil, signal, socket, subprocess, sys, time
 from contextlib import contextmanager
 from pathlib import Path
 
-CFG_DIR = Path(os.environ.get("STARK_GAME_DIR", Path.home() / ".config/stark-game"))
+CFG_DIR = Path(os.environ.get("ALCHEMOS_GAME_DIR", Path.home() / ".config/alchemos-game"))
 GAMES_CONF = CFG_DIR / "games.conf"
 HUD_SETTINGS = Path.home() / ".config/quickshell/settings.json"
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
-STATE_DIR = RUNTIME / "stark-game"
+STATE_DIR = RUNTIME / "alchemos-game"
 STATE, LOCK, DAEMON_LOCK = STATE_DIR / "state.json", STATE_DIR / "lock", STATE_DIR / "daemon.lock"
 
 BUILTIN_GAMES = [r"steam_app_\d+", r"gamescope"]
@@ -59,7 +59,7 @@ EMPTY = {"active": False, "window": False, "gamemode": False, "manual": None,
 
 
 def log(*a):
-    print("[stark-game]", *a, file=sys.stderr, flush=True)
+    print("[alchemos-game]", *a, file=sys.stderr, flush=True)
 
 
 # ---------- files ----------

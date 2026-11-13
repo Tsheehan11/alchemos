@@ -10,7 +10,7 @@ pragma Singleton
 //   glyphs              { ring: [...] signs round the clock, the lock seal and the skin transition; sun }
 //   style               tokens read by the shared components (Style.qml)
 //   components          overrides of the default clock / scene / transition (files in the skin's folder)
-//   cursor              a folder of busy-cursor templates (wait.svg, progress.svg) for stark-cursor/build.sh
+//   cursor              a folder of busy-cursor templates (wait.svg, progress.svg) for alchemos-cursor/build.sh
 //   namer, voices       preset auto-namer (Settings → SAVE AS PRESET) and voice defaults
 //   hidden              listed in Settings only once skins have been unlocked (the legacy skin)
 //
@@ -162,7 +162,7 @@ Singleton {
     readonly property url clockUrl: component("clock")
     readonly property url sceneUrl: component("scene")
     readonly property url transitionUrl: component("transition")
-    // stark-cursor/build.sh: the skin's busy-cursor template folder ("" = the default art)
+    // alchemos-cursor/build.sh: the skin's busy-cursor template folder ("" = the default art)
     readonly property string cursorDir: resolved.own.cursor && resolved.id !== "base" ? Quickshell.shellPath("skins/" + resolved.id + "/" + resolved.own.cursor) : ""
 
     // AUTO's effect per output for who: the skin's voiceRouting over the base's

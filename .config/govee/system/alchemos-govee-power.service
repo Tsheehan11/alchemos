@@ -7,8 +7,8 @@ After=network-online.target
 Type=exec
 RemainAfterExit=yes
 User=@USER@
-ExecStart=@HOME@/.local/bin/stark-govee oneshot boot
-ExecStop=@HOME@/.local/bin/stark-govee oneshot shutdown
+ExecStart=@HOME@/.local/bin/alchemos-govee oneshot boot
+ExecStop=@HOME@/.local/bin/alchemos-govee oneshot shutdown
 TimeoutStartSec=30
 TimeoutStopSec=8
 

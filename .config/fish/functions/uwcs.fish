@@ -16,7 +16,7 @@ function uwcs --description 'Open VS Code on the UWaterloo CS servers'
     set -l err (mktemp)
     set -l dir (ssh -o BatchMode=yes $host "cd $want && pwd" 2>$err)
     if test $status -ne 0 -o -z "$dir"
-        # "UNKNOWN port 65535" = stark-uwcs-proxy couldn't reach the host and has
+        # "UNKNOWN port 65535" = alchemos-uwcs-proxy couldn't reach the host and has
         # already said so (terminal or window); anything else, show ssh's error
         if not string match -q '*UNKNOWN port 65535*' -- (cat $err)
             string replace -a \r '' -- (cat $err) | string match -v -r '^\s*$' > $err.msg
@@ -24,7 +24,7 @@ function uwcs --description 'Open VS Code on the UWaterloo CS servers'
             if isatty stdout
                 cat $err.msg >&2
             else
-                stark-uwcs-proxy --show $err.msg   # launched from the HUD: small window
+                alchemos-uwcs-proxy --show $err.msg   # launched from the HUD: small window
             end
             rm -f $err.msg
         end

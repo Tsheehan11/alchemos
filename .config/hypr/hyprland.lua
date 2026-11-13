@@ -14,7 +14,7 @@
 --   autostart.lua  session env + what starts once at login
 --
 -- If this config ever fails to load, see "Recovery" in ~/.github/README.md
--- (start-hyprland -- --config ~/.config/hypr.conf-backup/hyprland.conf, or stark-rescue).
+-- (start-hyprland -- --config ~/.config/hypr.conf-backup/hyprland.conf, or alchemos-rescue).
 -- Lua API stubs: /usr/share/hypr/stubs (wired into VS Code by .luarc.json here).
 
 -- Each module loads on its own, so a typo in one (shown in the red error bar) can't take

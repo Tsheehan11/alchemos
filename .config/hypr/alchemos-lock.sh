@@ -2,7 +2,7 @@
 # STARK OS lock: plays the lock sound, shows hyprlock, then the unlock animation + sound.
 # Used by Super+L, the launcher's LOCK, and hypridle (idle + before sleep).
 
-log="${XDG_STATE_HOME:-$HOME/.local/state}/stark/hyprlock.log"
+log="${XDG_STATE_HOME:-$HOME/.local/state}/alchemos/hyprlock.log"
 
 # Not locking after all. Super+L shut the doors before calling us, so open them again unless
 # a lock is up or on its way (another run, e.g. lid.sh + hypridle, may be about to start
@@ -19,7 +19,7 @@ give_up() {
 # reader never answers its release), and that run of this script still holds the lock file.
 # That hyprlock isn't a lock any more (its log says it unlocked and the session is
 # unlocked): end it and lock again.
-exec 9>"${XDG_RUNTIME_DIR:-/tmp}/stark-lock.lock"
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/alchemos-lock.lock"
 if ! flock -n 9 || pidof hyprlock >/dev/null; then
     grep -qs 'Unlocked, exiting!' "$log" && [ "$(hyprctl locked 2>/dev/null)" = false ] || give_up
     pkill -x hyprlock
@@ -31,7 +31,7 @@ fi
 # Wait for them, about 2 s at most, so hyprlock never starts on outputs that are changing (it
 # crashes on an output change mid-lock). A flag older than 10 s is stale (a crashed HUD).
 # logind gives a lid / before-sleep lock 5 s (InhibitDelayMaxSec), so this still fits.
-settle="${XDG_RUNTIME_DIR:-/tmp}/stark-hotplug-settling"
+settle="${XDG_RUNTIME_DIR:-/tmp}/alchemos-hotplug-settling"
 for _ in $(seq 40); do      # ~2.2 s with the date/stat calls
     [ -f "$settle" ] && [ $(( $(date +%s) - $(stat -c %Y "$settle" 2>/dev/null || echo 0) )) -lt 10 ] || break
     sleep 0.05
@@ -45,7 +45,7 @@ done
 timeout 0.3 qs ipc call stark locked >/dev/null 2>&1
 mons=$(hyprctl monitors | grep -c '^Monitor ')
 for _ in 1 2 3 4 5; do
-    [ "$(hyprctl layers | grep -c 'namespace: stark-doors')" -ge "$mons" ] && break   # on every screen
+    [ "$(hyprctl layers | grep -c 'namespace: alchemos-doors')" -ge "$mons" ] && break   # on every screen
     sleep 0.05
 done
 sleep 0.05   # one more frame for the doors to be drawn

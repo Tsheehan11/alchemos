@@ -15,7 +15,7 @@ PanelWindow {
     visible: here && (GameMode.showing || panel.opacity > 0.01)
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-combat"
+    WlrLayershell.namespace: "alchemos-combat"
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true }
     margins { top: 110 }

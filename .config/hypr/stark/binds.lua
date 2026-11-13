@@ -15,7 +15,7 @@ bind("R",      exec("qs ipc call search toggle"))     -- app search
 bind("C",      exec("qs ipc call control toggle"))    -- control center
 bind("comma",  exec("qs ipc call settings toggle"))   -- settings
 bind("P",      exec("qs ipc call settings display"))  -- Settings → Display
-bind("M",      exec("~/.config/hypr/stark-music.sh")) -- show/hide Spotify (relaunches if closed)
+bind("M",      exec("~/.config/hypr/alchemos-music.sh")) -- show/hide Spotify (relaunches if closed)
 bind("SHIFT + R", exec(menu))
 bind("E",      exec(files))
 bind("B",      exec(browser))
@@ -24,7 +24,7 @@ bind("F",      hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 bind("V",      hl.dsp.window.float({ action = "toggle" }))
 bind("SHIFT + V", exec("qs ipc call roles cycle"))    -- what this screen's HUD shows: AUTO → CLOCK → STATS → MUSIC → NONE
 bind("SHIFT + K", exec("qs ipc call skin swap"))      -- the other skin (AlchemOS ⇄ legacy); nothing until legacy's first unlock
-bind("L",      exec("qs ipc call stark lock || ~/.config/hypr/stark-lock.sh"))
+bind("L",      exec("qs ipc call stark lock || ~/.config/hypr/alchemos-lock.sh"))
 bind("Tab",    exec("qs ipc call overview toggle"))
 bind("Escape", exec("qs ipc call stark menu"))
 bind("J",      exec("qs ipc call jarvisapp toggle"))  -- JARVIS console (conversations, typed requests, tasks)
@@ -32,11 +32,11 @@ bind("J",      exec("qs ipc call jarvisapp toggle"))  -- JARVIS console (convers
 -- every input event). Plain shell, so it works even if Python or the HUD is stuck.
 bind("SHIFT + Escape", exec("touch \"$XDG_RUNTIME_DIR/jarvis-control-stop\"; qs ipc call jarviscontrol stop"))
 bind("SHIFT + M", hl.dsp.exit())
--- Screenshots (quickshell/Shot.qml → ~/.local/bin/stark-shot): saved to ~/Pictures/Screenshots + copied.
--- Through the HUD so its overlays step out of the shot; straight to stark-shot if the HUD is down.
-hl.bind("Print",         exec("qs ipc call shot region || stark-shot region"))    -- drag a box, or click a window / screen
-hl.bind("SHIFT + Print", exec("qs ipc call shot screen || stark-shot screen"))    -- the monitor you're on
-bind("SHIFT + S",        exec("qs ipc call shot annotate || stark-shot annotate")) -- region, then mark it up in satty
+-- Screenshots (quickshell/Shot.qml → ~/.local/bin/alchemos-shot): saved to ~/Pictures/Screenshots + copied.
+-- Through the HUD so its overlays step out of the shot; straight to alchemos-shot if the HUD is down.
+hl.bind("Print",         exec("qs ipc call shot region || alchemos-shot region"))    -- drag a box, or click a window / screen
+hl.bind("SHIFT + Print", exec("qs ipc call shot screen || alchemos-shot screen"))    -- the monitor you're on
+bind("SHIFT + S",        exec("qs ipc call shot annotate || alchemos-shot annotate")) -- region, then mark it up in satty
 -- Peek: hide / bring back every window on this workspace (stark/peek.lua). Loaded on its
 -- own, so a mistake in it costs only this bind.
 local peekOk, peek = pcall(require, "stark.peek")
@@ -74,4 +74,4 @@ hl.bind("XF86PowerOff",  exec("qs ipc call stark menu"), locked)
 
 -- Lid: closing it (laptop only) locks + turns the screen off; opening turns it back on
 hl.bind("switch:on:Lid Switch",  exec("~/.config/hypr/lid.sh"), locked)
-hl.bind("switch:off:Lid Switch", exec("~/.config/hypr/stark-dpms.sh on"), locked)
+hl.bind("switch:off:Lid Switch", exec("~/.config/hypr/alchemos-dpms.sh on"), locked)

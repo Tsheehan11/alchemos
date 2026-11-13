@@ -16,7 +16,7 @@ PanelWindow {
     visible: box !== null
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-shot-flash"
+    WlrLayershell.namespace: "alchemos-shot-flash"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }

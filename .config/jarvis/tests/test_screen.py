@@ -92,7 +92,7 @@ logged = []
 real_export, real_log, real_flag = S.wlcap.capture_window, S.hud_log, S.SETTLE_FLAG
 S.wlcap.capture_window = lambda a: np.zeros((4, 4, 3), np.uint8)
 S.hud_log = logged.append
-S.SETTLE_FLAG = str(TMP / "stark-hotplug-settling")
+S.SETTLE_FLAG = str(TMP / "alchemos-hotplug-settling")
 
 
 def cap_err(addr):

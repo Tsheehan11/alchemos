@@ -2,7 +2,7 @@
 STARK OS actions for Jarvis: the explicit allowlist of things it may do.
 
 Each action validates its arguments, then wraps an existing command or HUD IPC
-call (hyprctl, qs ipc, stark-govee, stark-vpn, playerctl, wpctl, the uwcs fish
+call (hyprctl, qs ipc, alchemos-govee, alchemos-vpn, playerctl, wpctl, the uwcs fish
 function). Nothing here runs a shell string built from arguments. Used by the
 MCP server (stark_tools.py) and directly by Jarvis's no-AI fast path.
 
@@ -352,7 +352,7 @@ def set_theme(preset):
     return r
 
 
-# ── lights (Govee strip via stark-govee) ───────
+# ── lights (Govee strip via alchemos-govee) ───────
 LIGHT_MODES = ["auto", "music", "theme", "off"]
 _ANIMS = None
 
@@ -360,7 +360,7 @@ _ANIMS = None
 def light_anims():
     global _ANIMS
     if _ANIMS is None:
-        _, out, err = _run(["stark-govee", "anim"])
+        _, out, err = _run(["alchemos-govee", "anim"])
         m = re.search(r"animations:\s*(.+)", err or out)
         _ANIMS = [a.strip() for a in m.group(1).split(",")] if m else []
     return _ANIMS
@@ -371,18 +371,18 @@ def lights(action, value=""):
     """Govee light strip. action: mode (value auto|music|theme|off), on, off, brightness (value 5-100 %), anim (value = animation name)."""
     action = _choice(action, ["mode", "on", "off", "brightness", "anim"], "action")
     if action == "off":
-        return _do("lights off", ["stark-govee", "mode", "off"], "lights off")
+        return _do("lights off", ["alchemos-govee", "mode", "off"], "lights off")
     if action == "on":
-        return _do("lights on (auto)", ["stark-govee", "mode", "auto"], "lights on")
+        return _do("lights on (auto)", ["alchemos-govee", "mode", "auto"], "lights on")
     if action == "mode":
         m = _choice(value, LIGHT_MODES, "mode")
-        return _do(f"lights mode {m}", ["stark-govee", "mode", m], f"lights {m}")
+        return _do(f"lights mode {m}", ["alchemos-govee", "mode", m], f"lights {m}")
     if action == "brightness":
         pct = _int(str(value).rstrip("%"), 5, 100, "brightness")
-        return _do(f"lights {pct}%", ["stark-govee", "level", f"{pct / 100:.2f}"], f"lights at {pct}%")
+        return _do(f"lights {pct}%", ["alchemos-govee", "level", f"{pct / 100:.2f}"], f"lights at {pct}%")
     names = light_anims()
     a = _choice(value, names or ["boot"], "animation")
-    return _do(f"lights animation {a}", ["stark-govee", "anim", a], f"played {a}", timeout=20)
+    return _do(f"lights animation {a}", ["alchemos-govee", "anim", a], f"played {a}", timeout=20)
 
 
 # ── media ──────────────────────────────────────
@@ -467,7 +467,7 @@ def docked():
 
 def combat_mode():
     try:
-        return bool(json.loads(_read(RUNTIME / "stark-game/state.json", "{}")).get("active"))
+        return bool(json.loads(_read(RUNTIME / "alchemos-game/state.json", "{}")).get("active"))
     except ValueError:
         return False
 
@@ -508,9 +508,9 @@ def system_status():
     return s
 
 
-# ── VPN (stark-vpn) ────────────────────────────
+# ── VPN (alchemos-vpn) ────────────────────────────
 def _vpn_state():
-    rc, out, _ = _run(["stark-vpn", "status"], timeout=8)
+    rc, out, _ = _run(["alchemos-vpn", "status"], timeout=8)
     try:
         return json.loads(out) if rc == 0 else {}
     except ValueError:
@@ -533,15 +533,15 @@ def vpn(action):
     if action == "status":
         return {"ok": True, **_vpn_summary(_vpn_state())}
     if action in ("connect_proton", "disconnect"):
-        # Through the HUD (VPN.qml runs stark-vpn detached and shows progress), so this
-        # returns at once instead of blocking ~10 s; stark-vpn directly if the HUD is down.
+        # Through the HUD (VPN.qml runs alchemos-vpn detached and shows progress), so this
+        # returns at once instead of blocking ~10 s; alchemos-vpn directly if the HUD is down.
         on = action == "connect_proton"
         r = _do("connect Proton VPN" if on else "disconnect VPN",
                 _qs("vpn", "connect", "proton") if on else _qs("vpn", "disconnect"),
                 "Proton connecting; the HUD shows when it's up" if on else "VPN disconnecting")
         if r["ok"]:
             return r
-        return _do("", ["stark-vpn", "connect", "proton"] if on else ["stark-vpn", "disconnect"],
+        return _do("", ["alchemos-vpn", "connect", "proton"] if on else ["alchemos-vpn", "disconnect"],
                    "Proton connected" if on else "VPN disconnected", timeout=45)
     if action == "open_school_login":
         st = _vpn_summary(_vpn_state())
@@ -550,7 +550,7 @@ def vpn(action):
         # toggle = the HUD's own path: opens the floating auth window
         return _do("open school VPN login", _qs("vpn", "toggle", "school"), "school VPN login window opened")
     on = action == "killswitch_on"
-    return _do(f"Proton kill switch {'on' if on else 'off'}", ["stark-vpn", "killswitch", "on" if on else "off"],
+    return _do(f"Proton kill switch {'on' if on else 'off'}", ["alchemos-vpn", "killswitch", "on" if on else "off"],
                f"kill switch {'on' if on else 'off'}", timeout=15)
 
 
@@ -605,17 +605,17 @@ def _shot_status():
 
 @safe
 def screenshot(mode="region"):
-    """Screenshot, saved to ~/Pictures/Screenshots/stark-YYYYMMDD-HHMMSS.png and copied to the clipboard.
+    """Screenshot, saved to ~/Pictures/Screenshots/alchemos-YYYYMMDD-HHMMSS.png and copied to the clipboard.
     mode: region (Trevor drags a box or clicks a window), screen (the monitor in use), window (the focused
     window), annotate (region, then opens the markup editor). Through the HUD (quickshell/Shot.qml), which keeps
-    its overlays out of the shot; straight to stark-shot if the HUD is down."""
+    its overlays out of the shot; straight to alchemos-shot if the HUD is down."""
     mode = _choice(mode or "region", SHOT_MODES, "mode")
     if DRY_RUN:
         return {"ok": True, "dry_run": True, "would": f"screenshot {mode}"}
     before = _shot_status()
     rc, out, err = _run(_qs("shot", mode), timeout=4)
     if rc != 0 or before is None:                 # HUD down: plain capture (mode is from the allowlist)
-        return _do(f"screenshot {mode}", _hypr_exec(f"stark-shot {mode}"), "started without the HUD (desktop notification when saved)")
+        return _do(f"screenshot {mode}", _hypr_exec(f"alchemos-shot {mode}"), "started without the HUD (desktop notification when saved)")
     if out.strip('"') == "busy":
         return {"ok": False, "error": "a screenshot is already being taken"}
     if mode in ("region", "annotate"):
@@ -641,7 +641,7 @@ def power(action):
     """Power. action: suspend, shutdown, reboot, logout. Always needs confirmation."""
     action = _choice(action, list(POWER), "action")
     if action == "suspend":
-        return _do("suspend", ["stark-govee", "suspend"], "suspending", timeout=15)  # same as the power menu
+        return _do("suspend", ["alchemos-govee", "suspend"], "suspending", timeout=15)  # same as the power menu
     return _do(action, _qs("stark", "power", action), f"{action} started")
 
 

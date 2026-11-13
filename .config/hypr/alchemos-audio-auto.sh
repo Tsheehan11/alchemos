@@ -5,7 +5,7 @@
 # fall back to the laptop speakers. Only acts when what's plugged in changes,
 # so picking an output by hand in Settings → AUDIO still sticks until the next plug/unplug.
 
-exec 9>"${XDG_RUNTIME_DIR:-/tmp}/stark-audio-auto.lock"
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/alchemos-audio-auto.lock"
 flock -n 9 || exit 0   # already running
 
 command -v jq >/dev/null || { notify-send "STARK audio" "jq missing: sudo pacman -S --needed jq"; exit 1; }

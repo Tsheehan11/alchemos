@@ -1,13 +1,13 @@
 pragma Singleton
 // Screenshots: Print = region, Shift+Print = this monitor, Super+Shift+S = region → annotate (hypr/stark/binds.lua),
 // the SCREENSHOT tile in the control center, `qs ipc call shot region|screen|window|annotate`, Jarvis.
-// The capture itself is ~/.local/bin/stark-shot (grim / slurp / wl-copy / satty); this only clears the HUD out
+// The capture itself is ~/.local/bin/alchemos-shot (grim / slurp / wl-copy / satty); this only clears the HUD out
 // of the way first, then plays the shutter (ShotFlash.qml) and shows the toast (ShotToast.qml).
 //
 // Keeping the HUD out of the picture: Hyprland fades a layer out over ~400 ms when it unmaps, so hiding an
 // overlay by unmapping it would leave its ghost in the shot. Instead every overlay binds its contentItem's
 // opacity to `hiding` (transparent at once, still mapped); a frame later the transient pop-ups are closed
-// (their fade-out is of an empty buffer by then), and a frame after that stark-shot runs. The desktop itself
+// (their fade-out is of an empty buffer by then), and a frame after that alchemos-shot runs. The desktop itself
 // (bar, clock, panels, widgets, background) stays in; so do Settings and the JARVIS console, as windows you
 // may want to capture.
 import QtQuick
@@ -21,14 +21,14 @@ Singleton {
     property bool hiding: false        // HUD overlays transparent while a capture is being taken
     property bool busy: false
     property string mode: ""
-    property var last: ({})            // stark-shot's --json result for the latest saved shot
+    property var last: ({})            // alchemos-shot's --json result for the latest saved shot
     property int serial: 0             // +1 per saved shot; ShotFlash / ShotToast react to it
     property bool toastShowing: false
     property bool toastHover: false    // the pointer is on the toast: it doesn't time out
     readonly property bool calm: PowerMode.saver   // battery saver: no flash, no sweep, no slide
 
     readonly property string home: Quickshell.env("HOME")
-    readonly property string bin: home + "/.local/bin/stark-shot"
+    readonly property string bin: home + "/.local/bin/alchemos-shot"
     readonly property string sound: home + "/.config/quickshell/sounds/shutter.wav"
     property string output: ""
 
@@ -77,10 +77,10 @@ Singleton {
                 try { r = JSON.parse(text.trim().split("\n").pop()); } catch (e) {}
                 root.hiding = false;
                 root.busy = false;
-                if (!r) { console.warn("stark-shot: no result", text); return; }
+                if (!r) { console.warn("alchemos-shot: no result", text); return; }
                 if (!r.ok) {
                     if (!r.cancelled) {
-                        console.warn("stark-shot:", r.error);
+                        console.warn("alchemos-shot:", r.error);
                         root.last = r;               // the toast shows the failure
                         root.serial++;
                         root.toastShowing = true;

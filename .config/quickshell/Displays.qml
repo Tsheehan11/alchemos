@@ -26,7 +26,7 @@ Singleton {
     id: root
 
     readonly property string laptop: "eDP-1"
-    readonly property string flag: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/stark-display-pending"
+    readonly property string flag: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/alchemos-display-pending"
 
     property bool pending: false
     property int countdown: 0

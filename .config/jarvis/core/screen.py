@@ -77,7 +77,7 @@ def locked():
 # then (hyprctl clients: "monitor": -1), and Hyprland 0.56.2 segfaults when one of those is
 # captured through the toplevel export, so nothing is captured while it's up. 0.57.0 fixed the crash and re-homes
 # those workspaces itself (nested repro 2026-11-02); the gate stays anyway.
-SETTLE_FLAG = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "stark-hotplug-settling")
+SETTLE_FLAG = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "alchemos-hotplug-settling")
 
 
 def settling():
@@ -88,9 +88,9 @@ def settling():
 
 
 def hud_log(msg):
-    """One line in the journal under the HUD's tag (journalctl --user -t stark-hud)."""
+    """One line in the journal under the HUD's tag (journalctl --user -t alchemos-hud)."""
     try:
-        subprocess.run(["logger", "-t", "stark-hud", msg[:900]], timeout=2)
+        subprocess.run(["logger", "-t", "alchemos-hud", msg[:900]], timeout=2)
     except Exception:
         pass
 

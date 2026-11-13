@@ -49,7 +49,7 @@ Installed now:
 | `glyphs` | `ring`: signs round the clock, lock seal and transition (any count, `[]` = bare); `sun`: the seal's centre. The clock's ring (the preset wheel) also carries the custom presets' signs (`Theme.customSigns`: the 6 most recently saved + the one in use) | default clock / scene / transition |
 | `style` | tokens for the shared components (below) | `Style.qml` |
 | `components` | `clock`, `scene`, `transition`, `backdrop`, `launcherLook`, `carouselStage`, `carouselPanel`: QML files in the skin folder replacing the defaults | `Skin.component(name)` |
-| `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `stark-cursor/src`) | `stark-cursor/build.sh` |
+| `cursor` | a folder with `wait.svg` / `progress.svg` templates (placeholders as in `alchemos-cursor/src`) | `alchemos-cursor/build.sh` |
 | `namer` | how SAVE AS PRESET suggests a name and glyph for new colours | Settings |
 | `voices` | default voice / speed / pitch / effect per persona | Theme, Settings |
 | `voiceRouting` | what the AUTO effect picks per persona and output: `{ jarvis: { headphones, speaker, btSpeaker }, friday: {…} }` (base: SUIT on headphones, HOLOGRAM on any speaker; ALCHEMOS: ORRIN CHAMBER / ALEMBIC / RESONANT, SELENE RESONANT / ALEMBIC / RESONANT) | `jarvis/core/effects.py` routing(), Settings hint |

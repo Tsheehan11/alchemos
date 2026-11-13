@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""stark-govee: STARK OS ambient lighting for a Govee LAN strip (H618C).
+"""alchemos-govee: STARK OS ambient lighting for a Govee LAN strip (H618C).
 
 The daemon owns the strip: it follows the HUD theme colour, pulses to music
 (via cava; not in combat mode, where it eases to the theme glow until the game ends), and plays boot / login / lock / unlock / logout / shutdown /
@@ -9,34 +9,34 @@ whole-strip command. If segment streaming is turned off or fails, every
 frame collapses to its average colour.
 
 Usage:
-  stark-govee daemon                    run the light daemon (Hyprland exec-once)
-  stark-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
-  stark-govee anim <name>               play an animation only (no lock/sleep state), for testing;
+  alchemos-govee daemon                    run the light daemon (Hyprland exec-once)
+  alchemos-govee event <name> [--wait]     boot|login|lock|unlock|logout|shutdown|sleep|wake
+  alchemos-govee anim <name>               play an animation only (no lock/sleep state), for testing;
                                         "alert" = desktop timer done, "listen" = Jarvis heard you
                                         (both skipped when the strip is off or busy)
-  stark-govee speed <0.5-2.0>           animation speed multiplier
-  stark-govee level <0.05-1.0>          steady-colour brightness (theme / manual modes)
-  stark-govee suspend                   spiral the strip out, then systemctl suspend
-  stark-govee mode <auto|music|theme|off>
-  stark-govee theme <primary> [accent]  hex colours, e.g. 00dcff ff8a00
-  stark-govee color <hex>               manual colour (mode becomes "manual")
-  stark-govee status
-  stark-govee setup                     find the strip and save its IP
-  stark-govee home [--clear]            remember the current network as home
-  stark-govee override <hud> <strip>    send <strip> whenever the theme uses <hud>
-  stark-govee override <hud> --clear    remove one (no args: list them)
-  stark-govee calibrate [--show|--reset] test colours on the strip, nudge r/g/b per hue, saved as hue_balance
-  stark-govee oneshot <name>            play an animation without the daemon
-  stark-govee scan
+  alchemos-govee speed <0.5-2.0>           animation speed multiplier
+  alchemos-govee level <0.05-1.0>          steady-colour brightness (theme / manual modes)
+  alchemos-govee suspend                   spiral the strip out, then systemctl suspend
+  alchemos-govee mode <auto|music|theme|off>
+  alchemos-govee theme <primary> [accent]  hex colours, e.g. 00dcff ff8a00
+  alchemos-govee color <hex>               manual colour (mode becomes "manual")
+  alchemos-govee status
+  alchemos-govee setup                     find the strip and save its IP
+  alchemos-govee home [--clear]            remember the current network as home
+  alchemos-govee override <hud> <strip>    send <strip> whenever the theme uses <hud>
+  alchemos-govee override <hud> --clear    remove one (no args: list them)
+  alchemos-govee calibrate [--show|--reset] test colours on the strip, nudge r/g/b per hue, saved as hue_balance
+  alchemos-govee oneshot <name>            play an animation without the daemon
+  alchemos-govee scan
 """
 import base64, json, math, os, queue, shutil, signal, socket, struct, subprocess, sys, syslog, threading, time
 from pathlib import Path
 
-CFG_DIR = Path(os.environ.get("STARK_GOVEE_DIR", Path.home() / ".config/govee"))
+CFG_DIR = Path(os.environ.get("ALCHEMOS_GOVEE_DIR", Path.home() / ".config/govee"))
 CONFIG, THEME, CAVA_CONF = CFG_DIR / "config.json", CFG_DIR / "theme.json", CFG_DIR / "cava.conf"
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
-SOCK = RUNTIME / "stark-govee.sock"
-GAME_STATE = RUNTIME / "stark-game" / "state.json"   # stark-game (combat mode): {"active": true, …}
+SOCK = RUNTIME / "alchemos-govee.sock"
+GAME_STATE = RUNTIME / "alchemos-game" / "state.json"   # alchemos-game (combat mode): {"active": true, …}
 
 MCAST, SCAN_PORT, LISTEN_PORT, CMD_PORT = "239.255.255.250", 4001, 4002, 4003
 
@@ -53,11 +53,11 @@ DEFAULTS = {
     "gamma": 2.2,              # LED hue correction: screen colours look washed/purple without it
                                # (a number, or [r, g, b] for a gamma per channel)
     "white_balance": [1.0, 1.0, 1.0],  # per-channel trim (r, g, b) if whites look tinted
-    # hue-dependent channel balance (stark-govee calibrate): {"hue°": [r, g, b] gains}, every 15°, linearly
+    # hue-dependent channel balance (alchemos-govee calibrate): {"hue°": [r, g, b] gains}, every 15°, linearly
     # interpolated round the colour wheel, scaled by saturation (whites/greys untouched), brightness kept.
     # Absent = HUE_BALANCE below; hues not listed = [1, 1, 1].
     "require_docked": True,    # only light up with an external monitor connected
-    "home_gateways": [],       # router MACs that count as home (set with: stark-govee home)
+    "home_gateways": [],       # router MACs that count as home (set with: alchemos-govee home)
     "strip_overrides": {},     # {"#hudcolour": "#stripcolour"} for colours LEDs render badly
     "segments": 15,            # H618C: 15 segments, index 0 = the visible end
     "segment_stream": True,    # per-segment frames via razer; False = whole-strip only
@@ -70,9 +70,9 @@ BLACK, WHITE = (0, 0, 0), (255, 255, 255)
 
 
 def log(*a):
-    print("[stark-govee]", *a, file=sys.stderr, flush=True)
+    print("[alchemos-govee]", *a, file=sys.stderr, flush=True)
     if not os.environ.get("JOURNAL_STREAM"):  # not a systemd service: stderr isn't journaled
-        syslog.openlog("stark-govee")
+        syslog.openlog("alchemos-govee")
         syslog.syslog(" ".join(str(x) for x in a))
 
 
@@ -212,7 +212,7 @@ def wait_for_route(ip, timeout):
 
 # The strip's blue emitters read far stronger than its red ones: with gamma alone, a little blue in a
 # pink or magenta turns it purple, and a little green/blue in a red turns it pink (the reason for the
-# first strip_overrides). Starting point, tuned with `stark-govee calibrate`.
+# first strip_overrides). Starting point, tuned with `alchemos-govee calibrate`.
 HUE_BALANCE = {0: (1.0, 0.5, 0.45), 15: (1.0, 0.65, 0.6), 30: (1.0, 0.85, 0.85),
                300: (1.0, 1.0, 0.85), 315: (1.0, 0.92, 0.7), 330: (1.0, 0.85, 0.6), 345: (1.0, 0.75, 0.6)}
 HUE_STEP = 15
@@ -410,7 +410,7 @@ def razer_packet(body):
 
 
 RAZER_ON = razer_packet([0xBB, 0x00, 0x01, 0xB1, 0x01])
-TRACE = bool(os.environ.get("STARK_GOVEE_TRACE"))
+TRACE = bool(os.environ.get("ALCHEMOS_GOVEE_TRACE"))
 RAZER_SETTLE = 0.3  # probe: frames sent sooner than this after enabling are dropped
 
 
@@ -746,7 +746,7 @@ class Logind:
         try:
             res, fds = self.bus.call_with_unix_fd_list_sync(
                 "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-                "Inhibit", self.GLib.Variant("(ssss)", ("sleep", "stark-govee", "Ambient lights off", "delay")),
+                "Inhibit", self.GLib.Variant("(ssss)", ("sleep", "alchemos-govee", "Ambient lights off", "delay")),
                 self.GLib.VariantType("(h)"), self.Gio.DBusCallFlags.NONE, -1, None, None)
             self.fd = fds.get(res.unpack()[0])
         except Exception as e:  # GLib.Error
@@ -1234,7 +1234,7 @@ class Daemon:
     def run(self):
         try:
             ask("status", timeout=1)
-            sys.exit("stark-govee daemon already running")
+            sys.exit("alchemos-govee daemon already running")
         except OSError:
             pass
         try:
@@ -1376,14 +1376,14 @@ def main(argv):
         try:
             v = float(args[0])
         except (IndexError, ValueError):
-            sys.exit("usage: stark-govee speed <0.5-2.0>")
+            sys.exit("usage: alchemos-govee speed <0.5-2.0>")
         update_config(anim_speed=round(clamp(v, 0.5, 2.0), 2))
         _poke()
     elif cmd == "level":
         try:
             v = float(args[0])
         except (IndexError, ValueError):
-            sys.exit("usage: stark-govee level <0.05-1.0>")
+            sys.exit("usage: alchemos-govee level <0.05-1.0>")
         update_config(idle_level=round(clamp(v, 0.05, 1.0), 2))
         _poke()
     elif cmd == "oneshot":
@@ -1402,7 +1402,7 @@ def main(argv):
         _poke()
     elif cmd == "theme":
         if not args:
-            sys.exit("usage: stark-govee theme <primary> [accent]")
+            sys.exit("usage: alchemos-govee theme <primary> [accent]")
         prim = "#%02x%02x%02x" % hex_to_rgb(args[0])
         acc = "#%02x%02x%02x" % hex_to_rgb(args[1]) if len(args) > 1 else "#ffffff"
         cur = load_json(THEME, {})
@@ -1411,7 +1411,7 @@ def main(argv):
             _poke()
     elif cmd == "color":
         if not args:
-            sys.exit("usage: stark-govee color <hex>")
+            sys.exit("usage: alchemos-govee color <hex>")
         update_config(mode="manual", manual_color="#%02x%02x%02x" % hex_to_rgb(args[0]))
         _poke()
     elif cmd == "status":
@@ -1463,7 +1463,7 @@ def main(argv):
         elif len(args) > 1:
             ov[key] = _norm(args[1])
         else:
-            sys.exit("usage: stark-govee override <hud> <strip>")
+            sys.exit("usage: alchemos-govee override <hud> <strip>")
         update_config(strip_overrides=ov)
         _poke()
     elif cmd == "calibrate":
@@ -1534,7 +1534,7 @@ def calibrate(args):
     strip = None
     if not daemon:
         if not cfg.get("ip"):
-            sys.exit("no strip configured (stark-govee setup)")
+            sys.exit("no strip configured (alchemos-govee setup)")
         strip = make_strip(cfg, os.environ.get("GOVEE_IP") or cfg["ip"])
         strip.power(True)
     before = {k: load_json(CONFIG, {}).get(k) for k in ("mode", "manual_color")}

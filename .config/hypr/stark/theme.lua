@@ -2,9 +2,9 @@
 -- These are the colours Hyprland starts with. The HUD (Theme.qml) repaints them in the
 -- active theme a moment later and after every reload, with `hyprctl eval 'hl.config(…)'`.
 
--- ── Cursor ── (stark-cursor/build.sh rewrites these four lines)
-hl.env("HYPRCURSOR_THEME", "STARK-OS")
-hl.env("XCURSOR_THEME", "STARK-OS")
+-- ── Cursor ── (alchemos-cursor/build.sh rewrites these four lines)
+hl.env("HYPRCURSOR_THEME", "ALCHEMOS")
+hl.env("XCURSOR_THEME", "ALCHEMOS")
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 

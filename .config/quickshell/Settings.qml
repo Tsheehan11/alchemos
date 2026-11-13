@@ -16,7 +16,7 @@ PanelWindow {
     visible: LauncherState.settingsOpen && Hyprland.focusedMonitor?.name === modelData.name
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-settings"
+    WlrLayershell.namespace: "alchemos-settings"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
@@ -147,7 +147,7 @@ PanelWindow {
                         SmallButton { text: "ADVANCED (NMTUI)"; onClicked: { Hyprland.dispatch(Hypr.exec("kitty -e nmtui")); LauncherState.closeAll(); } }
                     }
 
-                    // VPN (VPN.qml / stark-vpn)
+                    // VPN (VPN.qml / alchemos-vpn)
                     Text { text: "VPN"; topPadding: 10; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
                     Row {
                         spacing: 8
@@ -177,7 +177,7 @@ PanelWindow {
                             Text {
                                 text: VPN.current.error ? "✕ " + VPN.current.error
                                     : VPN.blocked ? "The VPN dropped and the kill switch is holding the internet off"
-                                    : VPN.state === "disabled" ? "Fill in ~/.config/stark-vpn/providers.json to enable it"
+                                    : VPN.state === "disabled" ? "Fill in ~/.config/alchemos-vpn/providers.json to enable it"
                                     : VPN.connected ? "Server " + VPN.current.server + " · " + [VPN.current.city, VPN.current.country].filter(x => x).join(", ")
                                     : VPN.current.type === "protonvpn" ? "Fastest free server · LAN (Govee, printers) stays reachable"
                                     : VPN.current.auth === "terminal" ? "Connect opens a login window · password + Duo each time, nothing saved" : ""
@@ -786,8 +786,8 @@ PanelWindow {
                     Text { text: "Effects, power and notification changes apply the next time it engages."; color: Theme.faint; font.family: Style.fonts.body; font.pixelSize: 11 }
                     Row {
                         spacing: 10
-                        SmallButton { text: "EDIT GAMES LIST"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/stark-game/games.conf")); LauncherState.closeAll(); } }
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/stark-game/games.conf"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
+                        SmallButton { text: "EDIT GAMES LIST"; onClicked: { Hyprland.dispatch(Hypr.exec("kate ~/.config/alchemos-game/games.conf")); LauncherState.closeAll(); } }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "~/.config/alchemos-game/games.conf"; color: Theme.dim; font.family: Style.fonts.body; font.pixelSize: 11 }
                     }
 
                     Text { text: "CONFIG"; color: Theme.dim; font.family: Style.fonts.display; font.pixelSize: Style.display !== Style.mono ? 13 : 11; font.letterSpacing: 3 }
@@ -802,7 +802,7 @@ PanelWindow {
                     Row {
                         spacing: 10
                         SmallButton { text: "LOCK"; onClicked: LockState.requestLock() }
-                        SmallButton { text: "SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["stark-govee", "suspend"]); } }
+                        SmallButton { text: "SLEEP"; onClicked: { LauncherState.closeAll(); Quickshell.execDetached(["alchemos-govee", "suspend"]); } }
                         ConfirmButton { label: "LOG OUT"; onConfirmed: LockState.power("logout") }
                         ConfirmButton { label: "RESTART"; onConfirmed: LockState.power("reboot") }
                         ConfirmButton { label: "SHUT DOWN"; onConfirmed: LockState.power("shutdown") }

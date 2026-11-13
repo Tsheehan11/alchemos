@@ -1,6 +1,6 @@
 #!/bin/sh
 # git clean filter for ~/.config/Code/User/settings.json (stark repo): commits the real
-# settings without the theme keys stark-code-theme writes from the HUD theme.
+# settings without the theme keys alchemos-code-theme writes from the HUD theme.
 # Unparseable (JSONC) input passes through unchanged.
 in=$(cat)
 printf '%s\n' "$in" | jq --indent 2 'del(."workbench.colorCustomizations", ."editor.tokenColorCustomizations", ."editor.semanticTokenColorCustomizations")' 2>/dev/null \

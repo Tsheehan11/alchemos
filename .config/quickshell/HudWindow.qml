@@ -12,7 +12,7 @@ PanelWindow {
     visible: Roles.shows(modelData) === "clock" && Theme.cfg.showReactor && !Perf.hidden(modelData, "reactor")
 
     WlrLayershell.layer: WlrLayer.Bottom
-    WlrLayershell.namespace: "stark-hud"
+    WlrLayershell.namespace: "alchemos-hud"
     exclusionMode: ExclusionMode.Ignore
 
     // No anchors = centered on the screen

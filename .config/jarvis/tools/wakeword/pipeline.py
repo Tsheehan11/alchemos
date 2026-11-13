@@ -38,7 +38,7 @@ STATE = W / "state"
 TRAIN_PY = W / ".venv/bin/python"
 JARVIS_PY = Path.home() / ".config/jarvis/.venv/bin/python"
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
-GAME_STATE = RUNTIME / "stark-game/state.json"
+GAME_STATE = RUNTIME / "alchemos-game/state.json"
 STAGES = ["gen", "augment", "train", "eval"]
 MAX_TRIES = 3
 SPARE_GB = 20
@@ -77,7 +77,7 @@ def on_ac():
 
 
 def docked():
-    """Any external display connected (stark-govee's rule)."""
+    """Any external display connected (alchemos-govee's rule)."""
     for st in Path("/sys/class/drm").glob("card*-*/status"):
         if st.parent.name.split("-", 1)[1].startswith(("eDP", "LVDS", "DSI", "Writeback")):
             continue

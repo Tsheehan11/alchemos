@@ -17,22 +17,22 @@ hl.window_rule({
 -- holds a layer's fade-in until the session unlocks, so hyprlock faded out onto the bare
 -- desktop while the doors were still fading in: a black flash before the reveal.
 hl.layer_rule({
-    name  = "stark-doors-no-anim",
-    match = { namespace = "stark-doors" },
+    name  = "alchemos-doors-no-anim",
+    match = { namespace = "alchemos-doors" },
     no_anim = true,
 })
 
--- Screenshots (quickshell/Shot.qml, ~/.local/bin/stark-shot). The region selector (slurp, namespace
+-- Screenshots (quickshell/Shot.qml, ~/.local/bin/alchemos-shot). The region selector (slurp, namespace
 -- "selection") and the shutter flash skip the fade: a fading-out selector would land in the capture, and
 -- the flash is too short to fade.
 hl.layer_rule({
-    name  = "stark-shot-no-anim",
-    match = { namespace = "^(selection|stark-shot-flash)$" },
+    name  = "alchemos-shot-no-anim",
+    match = { namespace = "^(selection|alchemos-shot-flash)$" },
     no_anim = true,
 })
 -- satty (annotate) floats over the desktop instead of tiling
 hl.window_rule({
-    name  = "stark-shot-satty",
+    name  = "alchemos-shot-satty",
     match = { class = "^(com.gabm.satty|org.satty.satty)$" },   -- app id changed in 0.21
     float = true,
 })

@@ -1,8 +1,8 @@
 #!/bin/sh
-# stark-uwcs-proxy: ProxyCommand for the UWaterloo CS hosts in ~/.ssh/config.
+# alchemos-uwcs-proxy: ProxyCommand for the UWaterloo CS hosts in ~/.ssh/config.
 #
-# Usage (from ssh): ProxyCommand stark-uwcs-proxy %h %p
-#        stark-uwcs-proxy --show <file>   show a message file in a small window
+# Usage (from ssh): ProxyCommand alchemos-uwcs-proxy %h %p
+#        alchemos-uwcs-proxy --show <file>   show a message file in a small window
 #
 # Tries the host with a short timeout first, so an unreachable server fails in
 # seconds with a message that says what to do (turn on the school VPN, or pick
@@ -14,7 +14,7 @@
 # launcher), to a small floating window: one at a time, at most once a minute,
 # so VS Code's reconnect retries don't stack them up.
 
-run=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/stark-uwcs
+run=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/alchemos-uwcs
 mkdir -p "$run"
 
 show() {    # $1 = message file
@@ -22,28 +22,28 @@ show() {    # $1 = message file
         cat "$1" >/dev/tty
         return
     fi
-    pgrep -f "class stark-uwcs-msg" >/dev/null && return
+    pgrep -f "class alchemos-uwcs-msg" >/dev/null && return
     last=$(cat "$run/shown" 2>/dev/null || echo 0)
     [ $(( $(date +%s) - last )) -lt 60 ] && return
     date +%s > "$run/shown"
     cp "$1" "$run/msg"
     # [[…]] is a Lua long string: the command goes in exactly as the shell leaves it
-    hyprctl dispatch "hl.dsp.exec_cmd([[kitty --class stark-uwcs-msg --title 'STARK // UW CS' sh -c 'cat \"\$0\"; printf \"\\nEnter to close.\"; read _' $run/msg]], { float = true, size = \"760 260\", center = true })" >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.exec_cmd([[kitty --class alchemos-uwcs-msg --title 'STARK // UW CS' sh -c 'cat \"\$0\"; printf \"\\nEnter to close.\"; read _' $run/msg]], { float = true, size = \"760 260\", center = true })" >/dev/null 2>&1
 }
 
 if [ "$1" = --show ]; then
-    show "${2:?usage: stark-uwcs-proxy --show file}"
+    show "${2:?usage: alchemos-uwcs-proxy --show file}"
     exit 0
 fi
 
-h=${1:?usage: stark-uwcs-proxy host [port]}
+h=${1:?usage: alchemos-uwcs-proxy host [port]}
 p=${2:-22}
 
 if socat -T2 -u /dev/null "TCP:$h:$p,connect-timeout=6" 2>/dev/null; then
     exec socat - "TCP:$h:$p"
 fi
 
-vpn=$(stark-vpn status 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("active",""))' 2>/dev/null)
+vpn=$(alchemos-vpn status 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("active",""))' 2>/dev/null)
 msg=$run/unreachable
 {
     echo "STARK // can't reach $h:$p"
@@ -52,7 +52,7 @@ msg=$run/unreachable
         echo "  Try another one: uwcs-002, uwcs-004, uwcs-006, uwcs-008, uwcs-010 or uwcs-012."
     else
         echo "  Off campus, the CS servers may need the school VPN:"
-        echo "  turn on SCHOOL in the VPN tile (Super+C), or run: stark-vpn connect school"
+        echo "  turn on SCHOOL in the VPN tile (Super+C), or run: alchemos-vpn connect school"
         echo "  If it still fails, the host may be down. Try uwcs-002 … uwcs-012."
     fi
 } > "$msg"

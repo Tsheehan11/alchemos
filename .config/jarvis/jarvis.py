@@ -177,10 +177,10 @@ def open_log():
 
 
 def govee_pulse():
-    """A small light swell on the strip with the chime (stark-govee skips it if the strip is off or busy).
+    """A small light swell on the strip with the chime (alchemos-govee skips it if the strip is off or busy).
     Straight to the daemon's Unix socket, fire and forget: no process, never delays listening."""
     import socket
-    path = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}", "stark-govee.sock")
+    path = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}", "alchemos-govee.sock")
 
     def send():
         try:

@@ -59,7 +59,7 @@ The AlchemOS headings use **Cinzel** (SIL OFL, `~/.local/share/fonts/cinzel/`, i
 licence; run `fc-cache -f` after cloning) and the alchemical signs use `noto-fonts` (Noto Sans Symbols / Symbols 2).
 
 Optional: `xorg-xcursorgen` (the cursor build falls back to its own `xcursorgen.py`), `protonvpn`
-(for the Proton provider in stark-vpn), `gamemode`.
+(for the Proton provider in alchemos-vpn), `gamemode`.
 
 ### 2. Clone the dotfiles (bare repo)
 
@@ -93,11 +93,11 @@ Then wire up the VS Code clean filter (tracked `settings.json` stays free of the
 local excludes for files the HUD generates:
 
 ```sh
-stark config filter.stark-code-theme.clean '$HOME/.local/bin/stark-code-settings-clean'
-stark config filter.stark-code-theme.smudge cat
-echo '.config/Code/User/settings.json filter=stark-code-theme' >> ~/.alchemos/info/attributes
-printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/stark-lock-bg-*' .config/hypr/stark/display-profile.lua \
-  .config/kitty/stark-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
+stark config filter.alchemos-code-theme.clean '$HOME/.local/bin/alchemos-code-settings-clean'
+stark config filter.alchemos-code-theme.smudge cat
+echo '.config/Code/User/settings.json filter=alchemos-code-theme' >> ~/.alchemos/info/attributes
+printf '%s\n' .config/hypr/hyprlock.conf '.config/hypr/alchemos-lock-bg-*' .config/hypr/stark/display-profile.lua \
+  .config/kitty/alchemos-theme.conf .config/govee/theme.json .config/quickshell/widgets.json \
   .config/jarvis/.venv/ >> ~/.alchemos/info/exclude
 ```
 
@@ -110,8 +110,8 @@ Day to day: `stark status`, `stark add -p …`, `stark commit`, `stark push` (st
   are worked out by position, so port names don't matter.
 - **Display profiles:** the desk is detected in `quickshell/ProfileLogic.js`. Change the dock /
   monitor IDs there, or just use **SAVE CURRENT AS THIS PROFILE** in Settings → DISPLAY.
-- **Govee strip:** `stark-govee setup` finds the strip on the LAN and saves its IP;
-  `stark-govee home` remembers your home network. Power hook: `fish ~/.config/govee/install.fish`.
+- **Govee strip:** `alchemos-govee setup` finds the strip on the LAN and saves its IP;
+  `alchemos-govee home` remembers your home network. Power hook: `fish ~/.config/govee/install.fish`.
 - **Fingerprint / lock PAM:** `fish ~/.config/hypr/fprint-install.fish` (see
   [Troubleshooting](#troubleshooting-config-lock-screen-fingerprint-lid)).
 
@@ -133,7 +133,7 @@ ln -s ~/.config/jarvis/stark-jarvis ~/.local/bin/stark-jarvis
 systemctl --user daemon-reload
 ```
 
-Log out and back in: Hyprland starts `qs`, `stark-govee daemon`, `stark-game daemon` and the audio
+Log out and back in: Hyprland starts `qs`, `alchemos-govee daemon`, `alchemos-game daemon` and the audio
 watcher; the HUD starts Jarvis (the service) when docked.
 
 ---
@@ -185,9 +185,9 @@ qs ipc call settings open appearance     # open a Settings tab
 | --- | --- | --- |
 | Theme presets + custom presets | APPEARANCE | `settings.json` → `preset`, `primary`, `secondary`, `background`, `customPresets` |
 | Panel opacity, effects frame rate, clock size | APPEARANCE | `panelOpacity`, `effectsFps`, `reactorScale` |
-| Cursor size / opacity / animated busy cursor | APPEARANCE → CURSOR | `cursorSize`, `cursorOpacity`, `cursorAnimated` · `stark-cursor/build.sh` |
-| Terminal glass (kitty transparency) | APPEARANCE | `terminalGlass` → `kitty/stark-theme.conf` |
-| Govee mode + animation speed | APPEARANCE → AMBIENT LIGHTS | `govee/config.json` · `stark-govee mode / speed / level` |
+| Cursor size / opacity / animated busy cursor | APPEARANCE → CURSOR | `cursorSize`, `cursorOpacity`, `cursorAnimated` · `alchemos-cursor/build.sh` |
+| Terminal glass (kitty transparency) | APPEARANCE | `terminalGlass` → `kitty/alchemos-theme.conf` |
+| Govee mode + animation speed | APPEARANCE → AMBIENT LIGHTS | `govee/config.json` · `alchemos-govee mode / speed / level` |
 | Which panels show on which screen | HUD | `showReactor`, `showDiag`, `showMedia`, `hideHudBehindWindows`, `osd` |
 | Display layout + profiles | DISPLAY | `quickshell/display-profiles.json`, `ProfileLogic.js` |
 | Audio outputs / inputs | AUDIO | PipeWire |
@@ -196,8 +196,8 @@ qs ipc call settings open appearance     # open a Settings tab
 | Radial launcher entries | LAUNCHER | `settings.json` → `launcherApps` |
 | Idle dim / lock / screen-off / sleep | SYSTEM | `idleDim`, `idleLock`, `idleScreenOff`, `idleSleep` |
 | Battery saver | SYSTEM | `autoSaver`, `batteryFps`, `saverNoBlur`, `saverLowRefresh`, `saverStopJarvis` |
-| Combat mode | Control center | `game*` keys · `stark-game/games.conf` (extra game window classes) |
-| VPN providers | NETWORK → VPN | `stark-vpn/providers.json` |
+| Combat mode | Control center | `game*` keys · `alchemos-game/games.conf` (extra game window classes) |
+| VPN providers | NETWORK → VPN | `alchemos-vpn/providers.json` |
 
 ### Themes and custom presets
 
@@ -214,8 +214,8 @@ HUD, Hyprland borders, lock screen pictures, kitty, VS Code, cursor and the Gove
 
 ### Cursor recolouring
 
-`~/.config/stark-cursor/build.sh <rrggbb> [animated|static] [24|32|48] [20-90]` renders the SVG
-templates in `src/` (`{{ACCENT}}`, `{{FILL_ALPHA}}`) into `~/.local/share/icons/STARK-OS`: an
+`~/.config/alchemos-cursor/build.sh <rrggbb> [animated|static] [24|32|48] [20-90]` renders the SVG
+templates in `src/` (`{{ACCENT}}`, `{{FILL_ALPHA}}`) into `~/.local/share/icons/ALCHEMOS`: an
 XCursor theme in three sizes plus a hyprcursor theme, with a turning-sigil busy cursor.
 `src/cursors.txt` lists every cursor's hotspot and aliases so nothing falls back to Adwaita. Builds
 are cached per colour (about 1 s cold, 0.15 s cached).
@@ -227,13 +227,13 @@ Spotify) pick up a new colour on restart.
 
 ### kitty and VS Code theme sync
 
-- **kitty:** the HUD writes `~/.config/kitty/stark-theme.conf` (16 ANSI colours tuned for contrast
+- **kitty:** the HUD writes `~/.config/kitty/alchemos-theme.conf` (16 ANSI colours tuned for contrast
   against the theme background, plus opacity from TERMINAL GLASS) and sends `SIGUSR1` to every kitty
-  so open windows recolour live. `kitty.conf` just does `include stark-theme.conf`.
-- **VS Code:** `stark-code-theme` merges `workbench.colorCustomizations` and the token colour keys
+  so open windows recolour live. `kitty.conf` just does `include alchemos-theme.conf`.
+- **VS Code:** `alchemos-code-theme` merges `workbench.colorCustomizations` and the token colour keys
   into `~/.config/Code/User/settings.json` with `jq`, leaving every other setting alone. VS Code
   watches the file, so windows recolour without a reload. The terminal uses the same palette as
-  kitty. The repo's clean filter (`stark-code-settings-clean`) strips those keys on commit.
+  kitty. The repo's clean filter (`alchemos-code-settings-clean`) strips those keys on commit.
 
 ### Radial launcher entries
 
@@ -288,7 +288,7 @@ Hyprland 0.56 reads `~/.config/hypr/hyprland.lua`, which only loads the modules 
 | Module | What's in it |
 | --- | --- |
 | `monitors.lua` | desk monitors by `desc:`, workspace homes (1–3 left, 4–6 middle, 7–9 laptop), then the HUD's `display-profile.lua` |
-| `theme.lua` | cursor env (rewritten by `stark-cursor/build.sh`) and the start-up border / shadow / background colours |
+| `theme.lua` | cursor env (rewritten by `alchemos-cursor/build.sh`) and the start-up border / shadow / background colours |
 | `looks.lua` | gaps, blur, shadows, animations, dwindle, input, misc (`anr_missed_pings`, lock restore) |
 | `binds.lua` | every keybind |
 | `rules.lua` | window rules (no app maximize, Spotify on `special:music`) and the doors' layer rule |
@@ -312,16 +312,16 @@ hyprctl getoption decoration:blur:enabled                                     # 
 ```
 
 `hyprctl reload` still throws runtime changes away and sends `configreloaded`, which is when the
-HUD re-pushes the theme, battery saver and the layout mode, and `stark-game` its combat settings.
+HUD re-pushes the theme, battery saver and the layout mode, and `alchemos-game` its combat settings.
 In QML, `quickshell/Hypr.js` builds these strings (`Hypr.config`, `Hypr.monitors`, `Hypr.exec`, …);
-`hypr/stark-dpms.sh on|off` turns screens on and off under either config format.
+`hypr/alchemos-dpms.sh on|off` turns screens on and off under either config format.
 
 The Lua API stubs are in `/usr/share/hypr/stubs`; `hypr/.luarc.json` points the Lua language server
 at them, so VS Code (with the `sumneko.lua` extension) completes `hl.*` in `~/.config/hypr`.
 
 ### Govee animations
 
-`stark-govee` drives an H618C strip over the LAN, per segment (15 segments at up to 30 fps through
+`alchemos-govee` drives an H618C strip over the LAN, per segment (15 segments at up to 30 fps through
 the DreamView "razer" stream):
 
 - **Modes:** `auto` (theme colour, switching to a music spectrum from cava while audio plays),
@@ -331,8 +331,8 @@ the DreamView "razer" stream):
   finished) and `listen` (Jarvis heard the wake word).
 - **Tuning** in `govee/config.json`: `idle_level`, `music_floor`, `music_gain`, `gamma`,
   `white_balance`, `segment_fps`, `anim_speed`, `require_docked`, `silence_seconds`.
-- **Colour overrides** for hues LEDs render badly: `stark-govee override "#ff5a4d" "#ff2000"`.
-- Test an animation with `stark-govee anim unlock`; see the rest with `stark-govee` (no args).
+- **Colour overrides** for hues LEDs render badly: `alchemos-govee override "#ff5a4d" "#ff2000"`.
+- Test an animation with `alchemos-govee anim unlock`; see the rest with `alchemos-govee` (no args).
 
 ### Jarvis voice presets and settings
 
@@ -410,9 +410,9 @@ flowchart LR
         VO[Kokoro / piper → effects]
     end
 
-    G[stark-govee daemon] --> STRIP[(Govee strip)]
-    VPN[stark-vpn] --> NM[(NetworkManager / Proton)]
-    GAME[stark-game daemon]
+    G[alchemos-govee daemon] --> STRIP[(Govee strip)]
+    VPN[alchemos-vpn] --> NM[(NetworkManager / Proton)]
+    GAME[alchemos-game daemon]
     BT[(Bluetooth speaker)]
 
     K --> H --> IPC
@@ -425,9 +425,9 @@ flowchart LR
     BR --> VO --> BT
     Jarvis -.->|qs ipc call jarvis …| IPC
     T --> H & G
-    T --> KITTY[kitty stark-theme.conf]
-    T --> CODE[stark-code-theme → VS Code]
-    T --> CUR[stark-cursor build.sh]
+    T --> KITTY[kitty alchemos-theme.conf]
+    T --> CODE[alchemos-code-theme → VS Code]
+    T --> CUR[alchemos-cursor build.sh]
     T --> LOCK[hyprlock.conf + lock pictures]
     IPC --> VPN & G
     VPN -.->|watch| IPC
@@ -448,8 +448,8 @@ all use the same entry points (`quickshell/shell.qml`):
 | `widgets` | `add`, `remove`, `move`, `pin`, `resize`, `clear`, `list`, `types` | Jarvis widget tools, scripts |
 | `vpn` | `toggle`, `connect`, `disconnect`, `killswitch`, `status` | Jarvis `vpn`, control center |
 | `profiles` | `status`, `recheck` | debugging |
-| `stark` | `lock`, `locked`, `unlocked`, `power`, `menu` | `stark-lock.sh`, lid, power key |
-| `game` | `refresh`, `toggle` | `stark-game` |
+| `stark` | `lock`, `locked`, `unlocked`, `power`, `menu` | `alchemos-lock.sh`, lid, power key |
+| `game` | `refresh`, `toggle` | `alchemos-game` |
 | `jarvis` | `online` (heartbeat; a restarted HUD answers `resync`), `restore`, `listening`, `transcript`, `thinking`, `tool`, `reply`, `confirm`, `toast`, `error`… | `jarvis/core/hud.py` → the Jarvis toast |
 | `osd` | `brightness` | brightness keys |
 
@@ -467,24 +467,24 @@ palette to:
 | Sink | How |
 | --- | --- |
 | Hyprland | `hyprctl eval 'hl.config({ … })'` for borders, shadows and background |
-| Lock screen | rewrites `hypr/hyprlock.conf` from `hyprlock.template.conf` and redraws one picture per monitor (`stark-lock-bg-<NAME>.png`) |
-| kitty | `kitty/stark-theme.conf` + `SIGUSR1` |
-| VS Code | `stark-code-theme '<json>'` |
-| Cursor | `stark-cursor/build.sh <hex> …` |
-| Govee | `stark-govee theme <primary> <accent>` (with `strip_overrides` applied by the daemon) |
+| Lock screen | rewrites `hypr/hyprlock.conf` from `hyprlock.template.conf` and redraws one picture per monitor (`alchemos-lock-bg-<NAME>.png`) |
+| kitty | `kitty/alchemos-theme.conf` + `SIGUSR1` |
+| VS Code | `alchemos-code-theme '<json>'` |
+| Cursor | `alchemos-cursor/build.sh <hex> …` |
+| Govee | `alchemos-govee theme <primary> <accent>` (with `strip_overrides` applied by the daemon) |
 
 ### The helper daemons
 
-- **stark-govee** (`~/.config/govee/stark-govee.py`, started by Hyprland) owns the strip and
-  listens on `$XDG_RUNTIME_DIR/stark-govee.sock`. The HUD (`Govee.qml`, via the CLI) sends modes, speed and
+- **alchemos-govee** (`~/.config/govee/alchemos-govee.py`, started by Hyprland) owns the strip and
+  listens on `$XDG_RUNTIME_DIR/alchemos-govee.sock`. The HUD (`Govee.qml`, via the CLI) sends modes, speed and
   lock / unlock events; widgets send `alert`; Jarvis sends `listen` and the `lights` tool's commands.
-  `govee/system/stark-govee-power.service` (installed by `govee/install.fish`) covers shutdown.
-- **stark-vpn** (`~/.config/stark-vpn/stark-vpn`) puts Proton VPN and NetworkManager VPNs (e.g.
+  `govee/system/alchemos-govee-power.service` (installed by `govee/install.fish`) covers shutdown.
+- **alchemos-vpn** (`~/.config/alchemos-vpn/alchemos-vpn`) puts Proton VPN and NetworkManager VPNs (e.g.
   a school Cisco VPN) behind one CLI: `status | connect <id> | toggle <id> | disconnect |
   killswitch on|off | watch`. `VPN.qml` runs `watch` for live state; the control center tile, the
   bar, Settings → NETWORK and Jarvis all act through it. Only one provider is up at a time.
-- **stark-game** watches Hyprland for game windows (`steam_app_*`, gamescope, and the regexes in
-  `stark-game/games.conf`) and switches to **combat mode**: blur / animations off, performance power
+- **alchemos-game** watches Hyprland for game windows (`steam_app_*`, gamescope, and the regexes in
+  `alchemos-game/games.conf`) and switches to **combat mode**: blur / animations off, performance power
   profile, HUD paused, COMBAT TELEMETRY on the other screens, Jarvis paused, do-not-disturb.
   Everything returns as it was when the last game closes.
 
@@ -494,7 +494,7 @@ Jarvis never gets a shell. Claude sees only MCP tools: the local **stark** serve
 (`jarvis/mcp/stark_tools.py`, 26 typed tools, with the logic and validation in `stark_actions.py`)
 plus whatever you add to `servers.json`. Those tools act through the same doors as you do:
 `qs ipc call` for themes, widgets, VPN and lock; `hyprctl` for apps, windows and workspaces;
-`stark-govee` for lights; `playerctl` / `wpctl` for media. Jarvis reports its own state back with
+`alchemos-govee` for lights; `playerctl` / `wpctl` for media. Jarvis reports its own state back with
 `qs ipc call jarvis …`, which drives the on-screen toast.
 
 The same server works in the Claude Code CLI too:
@@ -611,7 +611,7 @@ this file.
 
 - Widget: one QML file in `quickshell/widgets/` (copy `Stopwatch.qml`). `Widgets.qml` picks up
   every file there as a type; add it to the `widget_add` tool's `Literal` if Jarvis should make it.
-- Game: a regex line in `~/.config/stark-game/games.conf` (`hyprctl clients | grep class`).
+- Game: a regex line in `~/.config/alchemos-game/games.conf` (`hyprctl clients | grep class`).
 
 ---
 
@@ -642,7 +642,7 @@ to his voice on the fast path, 2–3 s through Claude.
   `PartOf=graphical-session.target`, and it exits by itself once its Hyprland instance is gone), and
   the stop takes its whole cgroup (claude CLI, MCP servers, `pw-record`). One voice loop at a time
   (a lock in `$XDG_RUNTIME_DIR/jarvis/voice.lock`): a hand-run `jarvis` says it's already running.
-  `stark-jarvis status|log|restart`, `journalctl --user -u stark-jarvis`, `stark-rescue status`.
+  `stark-jarvis status|log|restart`, `journalctl --user -u stark-jarvis`, `alchemos-rescue status`.
 - **Hearing:** `jarvisMic` picks the PipeWire source (AUTO follows headsets; a plug / unplug or a
   Settings change restarts capture in place, without losing the pre-wake buffer); pre-roll keeps "hey Jarvis dim the lights"
   in one breath intact; Silero VAD ends the command; music ducks while listening. Barge in with
@@ -666,14 +666,14 @@ line; the other modules still load (`hyprland.lua` loads each one on its own). F
 and Hyprland reloads by itself (`hyprctl configerrors` lists what's left). If nothing loaded at all,
 Hyprland's emergency binds are active: `Super + Q` terminal, `Super + R` run, `Super + M` exit. To
 get back to the old desktop instead, log out, log in on a TTY (Ctrl+Alt+F3) and run
-`stark-rescue config`, which runs `start-hyprland -- --config ~/.config/hypr.conf-backup/hyprland.conf`
+`alchemos-rescue config`, which runs `start-hyprland -- --config ~/.config/hypr.conf-backup/hyprland.conf`
 (the pre-Lua config, kept with its own `monitors.conf`). In that session the HUD's colour pushes and
 window commands don't work (they speak Lua); it's for fixing `hyprland.lua`, not for daily use.
 
-**Locked out?** From a TTY (Ctrl+Alt+F3) run `stark-rescue`. It clears faillock, thaws `user.slice`
+**Locked out?** From a TTY (Ctrl+Alt+F3) run `alchemos-rescue`. It clears faillock, thaws `user.slice`
 if suspend left it frozen, turns the screens on, and unlocks hyprlock (or restarts a hung one under
 `allow_session_lock_restore`). Back with Ctrl+Alt+F2.
-`stark-rescue status` changes nothing: the Hyprland fix, the hotplug settle gate, and Jarvis's service
+`alchemos-rescue status` changes nothing: the Hyprland fix, the hotplug settle gate, and Jarvis's service
 (running / failed, mode, crash restarts, any stray voice loop outside it).
 
 **Fingerprint and faillock.** hyprlock takes the password or the fingerprint, whichever comes
@@ -694,16 +694,16 @@ Install with `fish ~/.config/hypr/fprint-install.fish` (keeps `.orig` backups; r
 
 **Lid.** Docked, closing the lid does nothing. Undocked, `hypr/lid.sh` shuts the doors, waits for
 hyprlock, then turns the screen off; logind suspends and hypridle holds sleep until the lock is up.
-While hyprlock opens the fingerprint reader (about half a second after it starts), `stark-lock.sh`
+While hyprlock opens the fingerprint reader (about half a second after it starts), `alchemos-lock.sh`
 holds a `handle-lid-switch:sleep` block lock (3 s at most): a suspend that starts mid-open wedges the
 Elan reader until a power-off, and logind suspends the moment the lock ends. If it wedges anyway:
 `stark-fprint-reset` (the HUD says so).
 Each monitor gets its own lock picture of the shut doors, so unlocking cuts seamlessly to the real
 doors opening.
 
-**Logs:** `journalctl -b | grep -E 'hyprlock|faillock'`, `~/.local/state/stark/hyprlock.log`,
-`journalctl -u fprintd -b`, `journalctl --user -u stark-jarvis` (or `~/.local/share/jarvis/jarvis.log`), `stark-govee status`,
-`stark-vpn status`.
+**Logs:** `journalctl -b | grep -E 'hyprlock|faillock'`, `~/.local/state/alchemos/hyprlock.log`,
+`journalctl -u fprintd -b`, `journalctl --user -u stark-jarvis` (or `~/.local/share/jarvis/jarvis.log`), `alchemos-govee status`,
+`alchemos-vpn status`.
 
 ---
 

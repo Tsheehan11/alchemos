@@ -49,7 +49,7 @@ from . import wlinput
 RUN = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
 STOP_FLAG = RUN / "jarvis-control-stop"          # touched by the kill bind / "stop"; newer than a session = stop
 STATE_FILE = RUN / "jarvis-control.json"         # the live session (pid, window, step), for "stop" and the CLI
-COMBAT_FILE = RUN / "stark-game" / "state.json"
+COMBAT_FILE = RUN / "alchemos-game" / "state.json"
 HERE = Path(__file__).resolve().parent.parent
 
 ACTIONS = ("click", "double_click", "right_click", "type", "key", "scroll", "wait")

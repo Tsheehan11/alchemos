@@ -13,7 +13,7 @@ PanelWindow {
     readonly property var m: Widgets.maker
     visible: m !== null && m.screen === modelData.name
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-widget-maker"
+    WlrLayershell.namespace: "alchemos-widget-maker"
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }

@@ -112,7 +112,7 @@ def cast_details():
 
 def govee():
     try:
-        p = subprocess.run(["stark-govee", "scan"], capture_output=True, text=True, timeout=10)
+        p = subprocess.run(["alchemos-govee", "scan"], capture_output=True, text=True, timeout=10)
         return p.stdout.strip()
     except (OSError, subprocess.TimeoutExpired):
         return ""
@@ -156,7 +156,7 @@ def main():
     ]
     lines += [f"| {n} | {t} | {a} | {api} |" for n, t, a, api in rows] or ["| (nothing found) | | | |"]
     if gv:
-        lines += ["", "## Govee (stark-govee scan)", "", "```", gv, "```"]
+        lines += ["", "## Govee (alchemos-govee scan)", "", "```", gv, "```"]
     lines += ["", "## Notes", "",
               "- Google Cast / Nest speakers and displays: local Cast protocol (pychromecast) covers media and volume; "
               "Google Home routines and Nest thermostats/cameras need Google's cloud APIs (Device Access / SDM).",

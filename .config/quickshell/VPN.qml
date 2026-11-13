@@ -1,8 +1,8 @@
 pragma Singleton
-// VPN — ~/.local/bin/stark-vpn does the work, for every provider listed in
-// ~/.config/stark-vpn/providers.json (Proton VPN; a school openconnect slot).
-// The HUD keeps `stark-vpn watch` running, which wakes only on NetworkManager
-// events and rewrites $XDG_RUNTIME_DIR/stark-vpn/state.json; this follows that
+// VPN — ~/.local/bin/alchemos-vpn does the work, for every provider listed in
+// ~/.config/alchemos-vpn/providers.json (Proton VPN; a school openconnect slot).
+// The HUD keeps `alchemos-vpn watch` running, which wakes only on NetworkManager
+// events and rewrites $XDG_RUNTIME_DIR/alchemos-vpn/state.json; this follows that
 // file, so there's no polling. One VPN at a time: connecting one drops the other.
 // Off at login: Proton's NM connection is in-memory only and nothing autoconnects.
 import QtQuick
@@ -29,7 +29,7 @@ Singleton {
     function pick(id) { if (get(id)) Theme.cfg.vpnProvider = id; }
     function run(args) {
         // Show the phase straight away; the state file catches up as NM moves
-        Quickshell.execDetached(["stark-vpn"].concat(args));
+        Quickshell.execDetached(["alchemos-vpn"].concat(args));
     }
     function toggle(id) { id = id || root.selected; pick(id); run(["toggle", id]); }
     function connect(id) { id = id || root.selected; pick(id); run(["connect", id]); }
@@ -43,7 +43,7 @@ Singleton {
 
     FileView {
         id: file
-        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/stark-vpn/state.json"
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/alchemos-vpn/state.json"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.read(text())
@@ -58,7 +58,7 @@ Singleton {
     // Event-driven status: blocks on `nmcli monitor`, restarted if it ever exits
     Process {
         id: watcher
-        command: ["stark-vpn", "watch"]
+        command: ["alchemos-vpn", "watch"]
         running: true
         // Each line = "state file rewritten"; the file stays the one source of truth,
         // so a line can't land after (and undo) a newer write from a connect / disconnect
@@ -68,8 +68,8 @@ Singleton {
     Timer { id: restart; interval: 5000; onTriggered: { watcher.running = true; file.reload(); } }
     // providers.json edits (e.g. enabling the school VPN) show up without a HUD restart
     FileView {
-        path: Quickshell.env("HOME") + "/.config/stark-vpn/providers.json"
+        path: Quickshell.env("HOME") + "/.config/alchemos-vpn/providers.json"
         watchChanges: true
-        onFileChanged: Quickshell.execDetached(["stark-vpn", "status"])
+        onFileChanged: Quickshell.execDetached(["alchemos-vpn", "status"])
     }
 }

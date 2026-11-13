@@ -1,7 +1,7 @@
 // Lock / unlock / power transitions. Drives the lock scene (the skin's doors) on every screen.
 //
 //   requestLock()   – Super+L, LOCK buttons: doors slam shut (with sound), then hyprlock
-//   locked()        – from stark-lock.sh: snaps the doors shut instantly (lid / idle locks),
+//   locked()        – from alchemos-lock.sh: snaps the doors shut instantly (lid / idle locks),
 //                     so the desktop never flashes when the laptop wakes
 //   unlocked()      – ACCESS GRANTED, then the doors open onto the desktop
 //   power(action)   – "shutdown" | "reboot" | "logout": doors close, screen powers down, then it happens
@@ -66,12 +66,12 @@ Singleton {
         ScriptAction { script: root.captureAndLock() }
     }
 
-    // Each screen's shut doors are hyprlock's background on that screen (stark-lock-bg-<NAME>.png,
+    // Each screen's shut doors are hyprlock's background on that screen (alchemos-lock-bg-<NAME>.png,
     // one background block per monitor in hyprlock.conf, written by Theme). Lid / idle locks don't
     // capture, so SecurityDoors redraws each picture offscreen whenever it goes stale (colours,
     // size or role; recorded in a .key stamp next to it). Super+L also captures the live doors.
     function bgPath(screenName) {
-        return Quickshell.env("HOME") + "/.config/hypr/stark-lock-bg-" + screenName + ".png";
+        return Quickshell.env("HOME") + "/.config/hypr/alchemos-lock-bg-" + screenName + ".png";
     }
     function bgKey(size, main) {
         return ["v5", Skin.current, Theme.hex(Theme.primary), Theme.hex(Theme.secondary), Theme.hex(Theme.bg), size, main ? "main" : "other"].join(" ");
@@ -89,14 +89,14 @@ Singleton {
         if (root.pendingCaptures <= 0) return;
         if (--root.pendingCaptures > 0) return;
         captureFallback.stop();
-        Quickshell.execDetached(["sh", "-c", "~/.config/hypr/stark-lock.sh"]);
+        Quickshell.execDetached(["sh", "-c", "~/.config/hypr/alchemos-lock.sh"]);
     }
     Timer { id: captureFallback; interval: 700; onTriggered: { root.pendingCaptures = 1; root.captureDone(); } }
 
     // ── Lid / idle lock (no animation — must be instant) ──
     function locked() {
         if (lockSeq.running) return;
-        // requestLock() already sent "lock" and stark-lock.sh calls back here once the doors are shut
+        // requestLock() already sent "lock" and alchemos-lock.sh calls back here once the doors are shut
         if (root.doors !== "closed") Govee.event("lock");
         unlockSeq.stop();
         LauncherState.closeAll();
@@ -113,7 +113,7 @@ Singleton {
         root.byFingerprint = false;
         unlockSeq.start();
     }
-    // stark-lock.sh calls this right before unlocked() when the finger matched
+    // alchemos-lock.sh calls this right before unlocked() when the finger matched
     function fingerprint() { root.byFingerprint = true; }
     SequentialAnimation {
         id: flareSeq
@@ -174,7 +174,7 @@ Singleton {
     // Log out: let the strip finish its drain (event logout --wait returns when it ends), then leave Hyprland
     Process {
         id: logoutLights
-        command: ["stark-govee", "event", "logout", "--wait"]
+        command: ["alchemos-govee", "event", "logout", "--wait"]
         onExited: root.exitHyprland()
     }
     // daemon hung? leave anyway. The drain is ~1.9 s at NORMAL; stretch for the SLOW setting

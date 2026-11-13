@@ -1,7 +1,7 @@
 {
   "_help": [
-    "VPN providers for stark-vpn and the HUD (Control Center tile, bar, Settings → NETWORK).",
-    "Fields: id (used by `stark-vpn toggle <id>` and `qs ipc call vpn toggle <id>`), name (short, shown on the tile),",
+    "VPN providers for alchemos-vpn and the HUD (Control Center tile, bar, Settings → NETWORK).",
+    "Fields: id (used by `alchemos-vpn toggle <id>` and `qs ipc call vpn toggle <id>`), name (short, shown on the tile),",
     "label (longer, shown in Settings), type (protonvpn | nm), enabled.",
     "Only one provider is connected at a time; connecting one disconnects the others."
   ],
@@ -31,7 +31,7 @@
         "Runs through openconnect + NetworkManager (openconnect, networkmanager-openconnect), no Cisco client.",
         "NM connection, recreate with:",
         "  nmcli con add type vpn vpn-type openconnect con-name 'UWaterloo VPN' autoconnect no vpn.data 'gateway=vpn.uwaterloo.ca,protocol=anyconnect,cookie-flags=2,gateway-flags=2,gwcert-flags=2,enable_csd_trojan=no'",
-        "auth \"terminal\": every connect opens a small login window (or prompts in the terminal you ran stark-vpn from);",
+        "auth \"terminal\": every connect opens a small login window (or prompts in the terminal you ran alchemos-vpn from);",
         "nmcli --ask runs `openconnect --authenticate` and NM gets only the one-time session cookie. Nothing is saved."
       ]
     }

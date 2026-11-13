@@ -1,4 +1,4 @@
-// Network: VPN state (VPN.qml, stark-vpn's state file), Wi-Fi name + signal, and live throughput
+// Network: VPN state (VPN.qml, alchemos-vpn's state file), Wi-Fi name + signal, and live throughput
 // (SysStats, which already slows down in battery saver / combat mode). The Wi-Fi name comes from
 // `nmcli monitor` events while the widget is on screen, not a poll.
 import QtQuick

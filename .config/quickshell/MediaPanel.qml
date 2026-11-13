@@ -15,7 +15,7 @@ PanelWindow {
     visible: Roles.shows(modelData) === "music" && Theme.cfg.showMedia && !Perf.hidden(modelData, "media")
 
     WlrLayershell.layer: WlrLayer.Bottom
-    WlrLayershell.namespace: "stark-media"
+    WlrLayershell.namespace: "alchemos-media"
     exclusionMode: ExclusionMode.Ignore
     implicitWidth: 1120
     implicitHeight: 800

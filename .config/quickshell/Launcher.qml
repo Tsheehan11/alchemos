@@ -22,7 +22,7 @@ PanelWindow {
     visible: LauncherState.open && cursorHere
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-launcher"
+    WlrLayershell.namespace: "alchemos-launcher"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }

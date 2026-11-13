@@ -13,7 +13,7 @@ PanelWindow {
 
     visible: IgniteState.playing && !GameMode.quiet
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-ignite"
+    WlrLayershell.namespace: "alchemos-ignite"
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
     mask: Region {}

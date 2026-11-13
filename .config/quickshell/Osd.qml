@@ -14,7 +14,7 @@ PanelWindow {
     visible: here && (OsdState.showing || panel.opacity > 0.01)
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-osd"
+    WlrLayershell.namespace: "alchemos-osd"
     exclusionMode: ExclusionMode.Ignore
     anchors { bottom: true }
     margins { bottom: 90 }

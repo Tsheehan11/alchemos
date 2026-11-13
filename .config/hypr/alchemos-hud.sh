@@ -31,7 +31,7 @@ cap() {
         [ "$used" -gt "$max" ] || continue
         len=$(( (size - keep) / 4096 * 4096 ))
         [ "$len" -gt 0 ] && fallocate -p -o 0 -l "$len" "$f" 2>/dev/null \
-            && logger -t stark-hud "log cap: ${f#"$dir"/} kept the last $((keep / 1048576)) MiB of $((size / 1048576)) MiB"
+            && logger -t alchemos-hud "log cap: ${f#"$dir"/} kept the last $((keep / 1048576)) MiB of $((size / 1048576)) MiB"
     done
     # Instances are live while a by-pid/<pid> link to their folder has a running pid
     bypid="${dir%/by-id}/by-pid"
@@ -47,7 +47,7 @@ cap() {
 
 # One cap loop per session
 sock="${XDG_RUNTIME_DIR}/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/.socket.sock"
-loop_lock="${XDG_RUNTIME_DIR}/stark-hud-logcap.lock"
+loop_lock="${XDG_RUNTIME_DIR}/alchemos-hud-logcap.lock"
 (
     flock -n 9 || exit 0
     while [ -S "$sock" ]; do cap; sleep 300; done

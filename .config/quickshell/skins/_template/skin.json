@@ -69,5 +69,5 @@
     "//voices": "the skin's default voices: { \"jarvis\": { \"voice\": \"bm_george\", \"speed\": 0.94, \"pitch\": -0.5 }, \"friday\": { … } } with an \"effect\" per persona or one \"effect\" for both (Kokoro / piper voice names as in Settings; effect presets from jarvis/effects.json). Applied the first time the skin is used; after that whatever is set in Settings is remembered per skin. null = keep the current voices.",
 
     "cursor": "",
-    "//cursor": "a folder here with wait.svg / progress.svg busy-cursor templates (see stark-cursor/src for the placeholders); \"\" = the default art"
+    "//cursor": "a folder here with wait.svg / progress.svg busy-cursor templates (see alchemos-cursor/src for the placeholders); \"\" = the default art"
 }

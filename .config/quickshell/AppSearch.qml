@@ -14,7 +14,7 @@ PanelWindow {
     visible: LauncherState.searchOpen && Hyprland.focusedMonitor?.name === modelData.name
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "stark-search"
+    WlrLayershell.namespace: "alchemos-search"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
