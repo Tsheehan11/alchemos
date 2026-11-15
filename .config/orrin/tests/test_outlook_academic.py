@@ -218,11 +218,11 @@ check("Crowdmark redirected by UW (From kept, SRS Return-Path, ARC pass)",
           arc_authentication_results="i=1; mx.microsoft.com 1; dkim=pass header.d=crowdmark.com; spf=pass")),
       ("CS137|a5", "Crowdmark"))
 check("mailbox forwarding: original only in Return-Path (SRS)",
-      N(H(from_="Trevor <t2sheeha@uwaterloo.ca>", subject="MATH 135 Assignment 7: feedback is now available",
+      N(H(from_="Student <student@uwaterloo.ca>", subject="MATH 135 Assignment 7: feedback is now available",
           return_path="<SRS0=x=yy=crowdmark.com=noreply@uwaterloo.ca>")), ("MATH135|a7", "Crowdmark"))
 check("FW: from his UW address, sender in the snippet",
-      N(H(from_="Trevor Sheehan <t2sheeha@uwaterloo.ca>", subject="FW: CS 137 Assignment 5 has been graded"),
-        "From: Crowdmark <noreply@crowdmark.com> Sent: Thursday, October 29, 2026 4:02 PM To: Trevor"), ("CS137|a5", "Crowdmark"))
+      N(H(from_="Sam Student <student@uwaterloo.ca>", subject="FW: CS 137 Assignment 5 has been graded"),
+        "From: Crowdmark <noreply@crowdmark.com> Sent: Thursday, October 29, 2026 4:02 PM To: Student"), ("CS137|a5", "Crowdmark"))
 check("classmate at uwaterloo.ca", N(H(from_="Sam <s123@uwaterloo.ca>", subject="CS 137: Grade released for Assignment 5")), None)
 check("FW from outside UW doesn't vouch", N(H(from_="x@gmail.com", subject="FW: CS 137 Assignment 5 has been graded"),
                                             "From: Crowdmark <noreply@crowdmark.com>"), None)

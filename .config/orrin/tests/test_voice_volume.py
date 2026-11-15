@@ -68,16 +68,16 @@ from core import voice as V  # noqa: E402
 
 class Spk:
     def sink(self):
-        return "bluez_output.20_DF_B9_08_87_74.1"
+        return "bluez_output.AA_BB_CC_DD_EE_01.1"
 
 
 v = V.Voice.__new__(V.Voice)
 v.overrides, v.speaker = {}, Spk()
 v.cfg = {"orrinVoiceVolume": 60, "orrinSpeakerVolume": -1}
 check("default 60 %", v.volume(), 0.6)
-check("speaker follows voice when SAME", v.volume("bluez_output.20_DF_B9_08_87_74.1"), 0.6)
+check("speaker follows voice when SAME", v.volume("bluez_output.AA_BB_CC_DD_EE_01.1"), 0.6)
 v.cfg["orrinSpeakerVolume"] = 35
-check("speaker's own level on the speaker", v.volume("bluez_output.20_DF_B9_08_87_74.1"), 0.35)
+check("speaker's own level on the speaker", v.volume("bluez_output.AA_BB_CC_DD_EE_01.1"), 0.35)
 check("…not on other outputs", v.volume("alsa_output.pci-0000_00_1f.3.analog-stereo"), 0.6)
 v.cfg["orrinVoiceVolume"] = 0
 check("0 % is silent", v.volume(), 0.0)
@@ -102,7 +102,7 @@ check("a step down stops at 10", (A.orrin_volume("down")["percent"], A.orrin_vol
 check("set 0 allowed", A.orrin_volume("set", 0)["percent"], 0)
 A.orrin_volume("set", 95)
 check("up stops at 100", (A.orrin_volume("up")["percent"], A.orrin_volume("up").get("note")), (100, "already at the limit"))
-A.HUD_SETTINGS.write_text(json.dumps({"orrinVoiceVolume": 60, "orrinSpeakerVolume": 30, "orrinSpeaker": "20:DF:B9:08:87:74"}))
+A.HUD_SETTINGS.write_text(json.dumps({"orrinVoiceVolume": 60, "orrinSpeakerVolume": 30, "orrinSpeaker": "AA:BB:CC:DD:EE:01"}))
 A._speaker_in_use = lambda mac: True
 check("on the speaker with its own level: changes that", (A.orrin_volume("up")["where"], read()["orrinSpeakerVolume"], read()["orrinVoiceVolume"]),
       ("Bluetooth speaker", 45, 60))
@@ -116,7 +116,7 @@ check("never needs a yes", A.confirmation_prompt("orrin_volume", {"action": "set
 
 # laptop mode: the Bluetooth room speaker is never wanted
 from core import config as CF, voice as VV  # noqa: E402
-spk = VV.Speaker({"orrinSpeaker": "20:DF:B9:08:87:74"}, log=lambda *a: None)
+spk = VV.Speaker({"orrinSpeaker": "AA:BB:CC:DD:EE:01"}, log=lambda *a: None)
 VV.effects.on_headphones = lambda: False
 import audio_devices as AD  # noqa: E402
 AD.explicit_output = lambda sig=None: None   # not the live $XDG_RUNTIME_DIR/orrin/audio-choice.json: a real output pick

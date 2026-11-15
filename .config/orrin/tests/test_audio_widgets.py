@@ -55,15 +55,15 @@ check("speaker has no mic", res("speaker", "in")[0], "none")
 check("garbage", res("toaster")[0], "none")
 two = OUTS + [dev("bluez_output.AA_BB.1", "AirPods", "headphones")]
 check("two headphones ask", res("headphones", devs=two), ("ask", ["bluez_output.80_99.1", "bluez_output.AA_BB.1"]))
-AD.room_speaker_mac = lambda: "20:DF:B9:08:87:74"
-check("room speaker not connected → connect", res("speakers"), ("connect", "20:DF:B9:08:87:74"))
+AD.room_speaker_mac = lambda: "AA:BB:CC:DD:EE:01"
+check("room speaker not connected → connect", res("speakers"), ("connect", "AA:BB:CC:DD:EE:01"))
 AD.room_speaker_mac = lambda: ""
 check("no room speaker → laptop", res("speakers"), ("ok", "alsa_output.Speaker__sink"))
 
 # classify from PipeWire properties
 check("classify bt headset", AD.classify({"name": "bluez_output.80_99_E7.1", "properties": {"device.form_factor": "headset"}}, "out"), "headphones")
-check("classify room speaker", AD.classify({"name": "bluez_output.20_DF_B9_08_87_74.1", "properties": {"api.bluez5.address": "20:DF:B9:08:87:74"}},
-                                           "out", "20:DF:B9:08:87:74"), "speaker")
+check("classify room speaker", AD.classify({"name": "bluez_output.AA_BB_CC_DD_EE_01.1", "properties": {"api.bluez5.address": "AA:BB:CC:DD:EE:01"}},
+                                           "out", "AA:BB:CC:DD:EE:01"), "speaker")
 check("classify hdmi", AD.classify({"name": "alsa_output.pci.HiFi__HDMI1__sink", "properties": {"device.icon_name": "video-display", "device.bus": "pci"}}, "out"), "tv")
 check("classify usb mic", AD.classify({"name": "alsa_input.usb-JMTek", "properties": {"device.bus": "usb"}}, "in"), "usb")
 

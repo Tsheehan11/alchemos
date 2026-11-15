@@ -732,7 +732,7 @@ Also on the list: screenshot gallery, a one-shot bootstrap script, per-profile t
 
 ## License
 
-MIT, except the bundled Cinzel font (SIL OFL, licence in its folder).
+MIT (see [LICENSE](../LICENSE)), except the bundled Cinzel and Marcellus fonts (SIL OFL, licences in their folders).
 
 ---
 

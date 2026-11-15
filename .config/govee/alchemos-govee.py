@@ -609,7 +609,7 @@ def front(frm, to, order, sec, fps, head=None, glow=0.8, curve=ease_in_out, soft
         yield out
 
 
-def anim_boot(p, a, cur, fps, n):  # arc reactor charging: three accelerating sweeps, then ignite
+def anim_boot(p, a, cur, fps, n):  # the circle charging: three accelerating sweeps, then ignite
     yield "on"
     yield from hold(BLACK, 0.3, fps, n)
     lvl, e = BLACK, edge_color(p)
