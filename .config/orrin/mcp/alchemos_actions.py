@@ -76,8 +76,11 @@ def _hypr_dispatch(dsp):
     return ["hyprctl", "dispatch", dsp]
 
 
-def _hypr_exec(cmd):
-    """Start a program through Hyprland so it isn't a child of Orrin."""
+def _hypr_exec(cmd, workspace=0):
+    """Start a program through Hyprland so it isn't a child of Orrin. workspace: open it there (a rule on the
+    exec, so a slow app like Steam still lands there if he moves on before it maps)."""
+    if workspace:
+        return _hypr_dispatch(f"hl.dsp.exec_cmd({_lua(cmd)}, {{ workspace = {_lua(str(workspace))} }})")
     return _hypr_dispatch(f"hl.dsp.exec_cmd({_lua(cmd)})")
 
 
@@ -218,15 +221,25 @@ def _show_window(win, found):
 
 
 @safe
-def open_app(name):
-    """Open an installed application by name (e.g. "spotify", "vs code", "discord"). Shows it if it's already running."""
+def open_app(name, workspace=0):
+    """Open an installed application by name (e.g. "spotify", "vs code", "discord"). Shows it if it's already running.
+    workspace (1-10, 0 = the current one): open it on that workspace and go there ("open Steam on workspace one"
+    is one call, not a switch and then an open)."""
     cmd, found = find_app(str(name))
     if not cmd:
         raise Invalid(f'no installed app called "{name}"')
+    ws = _int(workspace, 1, 10, "workspace") if workspace not in (None, "", 0, "0") else 0
     win = _running_window(cmd)
     if win:
-        return _show_window(win, found)
-    return _do(f"open {found} ({cmd})", _hypr_exec(cmd), f"opened {found}")
+        return _show_window(win, found)       # a single-instance app already up: show it where it is
+    if not ws:
+        return _do(f"open {found} ({cmd})", _hypr_exec(cmd), f"opened {found}")
+    r = _do(f"open {found} ({cmd}) on workspace {ws}", _hypr_exec(cmd, ws), f"opened {found} on workspace {ws}")
+    if r["ok"] and not DRY_RUN:
+        go = _do(f"workspace {ws}", _hypr_dispatch(f"hl.dsp.focus({{ workspace = {ws} }})"))
+        if not go["ok"]:
+            r["result"] += f" (couldn't switch to workspace {ws})"
+    return r
 
 
 @safe
@@ -1660,7 +1673,7 @@ def tool_label(tool, args):
     a = args or {}
     v = lambda k: str(a.get(k, "")).replace("_", " ").upper()
     labels = {
-        "open_app": lambda: f"OPEN → {v('name')}",
+        "open_app": lambda: f"OPEN → {v('name')}" + (f" · WS {v('workspace')}" if a.get("workspace") not in (None, "", 0, "0") else ""),
         "close_focused_window": lambda: "WINDOW → CLOSE",
         "switch_workspace": lambda: f"WORKSPACE → {v('n')}",
         "move_window_to_workspace": lambda: f"MOVE → WS {v('n')}",

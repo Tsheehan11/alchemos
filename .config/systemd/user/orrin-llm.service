@@ -1,0 +1,28 @@
+# AlchemOS: Orrin's local model (core/local_llm.py), llama.cpp's llama-server on the Arc iGPU (Vulkan).
+#
+# Not enabled. Orrin's voice process starts and stops it (core/local_llm.Power): warm while docked,
+# on demand in laptop mode, stopped during combat mode. PartOf=orrin.service, so it also stops whenever
+# Orrin does (Settings toggle, battery under 20 %, session end). `orrin brain bench` runs it by hand.
+#
+# Loopback only (--host 127.0.0.1) and an API key (llama-server allows every CORS origin by default, so
+# any page in the browser could otherwise POST to it). The key file is made on first start, 0600.
+# Model files live outside the repo: ~/.local/share/llama.cpp/models. The processed system prompt + tools (~4.2k
+# tokens, ~33 s to compute cold on the iGPU) is saved to ~/.cache/orrin-llm/slots once and restored on every start
+# (~0.1 s; core/local_llm.py warm_up), so on-demand starts in laptop mode are ready in seconds. Mesa's Vulkan shader
+# cache is ~/.cache/mesa_shader_cache (persistent already). Override MODEL / CTX / PORT / EXTRA
+# in ~/.config/llama-server/orrin.env (untracked).
+[Unit]
+Description=AlchemOS Orrin local model (llama.cpp, Vulkan iGPU, loopback only)
+PartOf=orrin.service
+
+[Service]
+Type=exec
+Environment=MODEL=%h/.local/share/llama.cpp/models/Qwen3.5-9B-Q4_K_M.gguf CTX=16384 PORT=8181 EXTRA=
+EnvironmentFile=-%h/.config/llama-server/orrin.env
+ExecStartPre=/bin/sh -c 'umask 077; mkdir -p %h/.config/llama-server %h/.cache/orrin-llm/slots; test -s %h/.config/llama-server/api-key || head -c 32 /dev/urandom | base64 | tr -d "/+=" > %h/.config/llama-server/api-key'
+ExecStart=/usr/bin/llama-server -m ${MODEL} --host 127.0.0.1 --port ${PORT} -ngl 999 -c ${CTX} -np 1 -fa on --jinja --reasoning-format deepseek --no-webui --metrics --api-key-file %h/.config/llama-server/api-key --cors-origins http://127.0.0.1:${PORT} --slot-save-path %h/.cache/orrin-llm/slots $EXTRA
+Restart=on-failure
+RestartSec=3
+Nice=5
+NoNewPrivileges=yes
+SyslogIdentifier=orrin-llm

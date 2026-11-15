@@ -24,6 +24,11 @@ Never learned, never asked about, thresholds only ever raised: email / calendar 
 grade intents (claude-only), window control, deletions, power, lock, VPN control, anything that sends.
 
 Store: ~/.local/share/orrin/learned_intents.json (untracked). Outcomes: orrin_db.router_outcomes.
+The local model tier (core/local_llm.py) keeps its per-intent trust here too, under "llm":
+{intent: {state shadow|live, streak, agree, disagree, escalated, live_ok, live_neg, updated}}. An intent goes
+live after orrinLocalPromote agreements with Claude in a row (shadow mode); a disagreement resets the streak, and
+a correction, undo, reworded repeat, kill switch, declined confirmation or failed call of a live one sends it back
+to shadow. Its events share the events list ("llm-live", "llm-demoted").
 Shared by both personas: nothing here knows who answered.
 """
 import fcntl
@@ -99,7 +104,7 @@ def path():
 
 def empty():
     return {"_doc": DOC, "version": VERSION, "next_id": 1, "examples": {}, "offsets": {}, "negatives": {},
-            "forgotten": {}, "choices": {}, "events": []}
+            "forgotten": {}, "choices": {}, "llm": {}, "events": []}
 
 
 def _upgrade(raw):
@@ -265,9 +270,10 @@ def stats(days=7):
         return round(100.0 * x / of, 1) if of else 0.0
     return {
         "days": days, "requests": c["requests"],
-        "local_pct": pct(c["fast"] + c["local"] + c["ask"], n), "router_pct": pct(c["local"], n), "fast_pct": pct(c["fast"], n),
+        "local_pct": pct(c["fast"] + c["local"] + c["llm"] + c["ask"], n), "router_pct": pct(c["local"], n), "fast_pct": pct(c["fast"], n),
+        "llm_pct": pct(c["llm"], n),
         "claude_pct": pct(c["claude"], n), "ask_pct": pct(c["ask"], n),
-        "today": {"requests": today["requests"], "local_pct": pct(today["fast"] + today["local"] + today["ask"], today["requests"])},
+        "today": {"requests": today["requests"], "local_pct": pct(today["fast"] + today["local"] + today["llm"] + today["ask"], today["requests"])},
         "router_decisions": c["router"], "router_hit_pct": pct(c["router_local"], c["router"]),
         "outcomes": {k: sum(1 for o in outs if o["outcome"] == k) for k in ("pos", "neg", "ask_yes", "ask_no")},
         "learned": states, "offsets": {k: v for k, v in data["offsets"].items() if v},
@@ -315,7 +321,7 @@ def cli(argv):
             print(json.dumps(s))
             return 0
         print(f"last {s['days']} days: {s['requests']} requests · handled locally {s['local_pct']}% "
-              f"(fast path {s['fast_pct']}%, router {s['router_pct']}%) · Claude {s['claude_pct']}% · asked {s['ask_pct']}%")
+              f"(fast path {s['fast_pct']}%, router {s['router_pct']}%, local model {s['llm_pct']}%) · Claude {s['claude_pct']}% · asked {s['ask_pct']}%")
         print(f"today: {s['today']['requests']} requests, {s['today']['local_pct']}% local · "
               f"router acted on {s['router_hit_pct']}% of {s['router_decisions']} decisions")
         print("outcomes: " + ", ".join(f"{k} {v}" for k, v in s["outcomes"].items()))

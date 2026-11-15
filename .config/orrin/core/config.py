@@ -55,6 +55,10 @@ DEFAULTS = {
     "orrinDecisions": "local",         # local = regex fast path, then the local router (core/router_local.py), then Claude | claude
     "orrinRouterThreshold": 0.70,
     "orrinRouterAsk": True,            # near misses get "Did you mean …?" instead of going straight to Claude (core/router_local.py)
+    "orrinBrain": "auto",              # auto = fast path → router → local model → Claude | claude = no local model (core/local_llm.py)
+    "orrinBrainShadow": True,          # shadow: the local model only proposes, Claude still acts, agreement is logged per
+                                        # intent; off: intents it has earned (orrinLocalPromote agreements in a row) run locally
+    "orrinLocalPromote": 5,
     "orrinWatchInterval": 10,
     "orrinDjChatter": "rare",          # DJ mode lines between tracks: off | rare (every 4-5) | normal (every 2-3) (core/dj.py)          # seconds between a watcher's captures (core/watch.py)
     "orrinCaptureBlocklist": ["bank", "banking", "rbc royal", "td canada", "scotiabank", "cibc", "bmo", "tangerine",

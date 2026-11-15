@@ -8,6 +8,7 @@
 #   orrinctl restart                 restart in the current mode
 #   orrinctl status                  one line: <state> <mode> <pid>   e.g. "active docked 41233"
 #   orrinctl log                     follow the journal
+#   orrinctl strays                  voice loops running outside the service (start / stop kill them)
 #
 # start writes %t/orrin/service.env from the caller's session env, so the service always has the
 # right WAYLAND_DISPLAY / HYPRLAND_INSTANCE_SIGNATURE even when systemd's own env is stale.
@@ -26,9 +27,10 @@ status() {
     echo "${st:-unknown} $(mode_of_env) ${pid:-0}"
 }
 
-# voice loops (orrin.py with no arguments) that aren't in the service's cgroup
+# voice loops (orrin.py with no arguments: the command line ends in /orrin.py) that aren't in the service's cgroup.
+# (Before the AlchemOS rename this looked for jarvis.py, so after it no stray was ever found.)
 strays() {
-    for p in $(pgrep -f '[j]arvis\.py$'); do
+    for p in $(pgrep -f '/[o]rrin\.py$'); do
         grep -q "/$unit\$" "/proc/$p/cgroup" 2>/dev/null || echo "$p"
     done
 }
@@ -72,6 +74,8 @@ case "${1:-status}" in
         status ;;
     status)
         status ;;
+    strays)                       # list them (pids), kill nothing: tests/test_service.py
+        strays ;;
     log)
         exec journalctl --user -u "$unit" -f -n 50 ;;
     *)

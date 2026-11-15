@@ -7,7 +7,8 @@ JARVIS: Claude-powered voice assistant for the desktop (AlchemOS; STARK OS in th
     keeps its first word; see core/hearing.py) → faster-whisper → fast path
     (local rules, no AI: media, lock, workspaces, lights, VPN, apps, themes,
     timers, weather) → local router (core/router_local.py: sentence embedding vs
-    intents.json, acts only when sure and every slot is filled) → Claude (Agent SDK on the Pro login, tools from MCP
+    intents.json, acts only when sure and every slot is filled) → local model (core/local_llm.py: Qwen3.5-9B
+    on the iGPU, shadow mode until an intent has earned it) → Claude (Agent SDK on the Pro login, tools from MCP
     servers in servers.json, reply spoken sentence by sentence as it streams)
     → spoken reply (Kokoro) + HUD toast.
   Anything that goes wrong after the chime gets a short spoken line and the
@@ -50,6 +51,9 @@ Spotify + DJ mode (mcp/spotify_api.py, core/dj.py, core/spotify_cli.py):
 Local router (intents.json, tools/eval_router.py):
   orrin intents [list | log [N]]                        intents, recent decisions
   orrin router stats | review | approve ID | forget ID | reset-learned   what it learned (core/router_learn.py)
+
+Local model tier (core/local_llm.py, orrin-llm.service):
+  orrin brain status | shadow on|off|report [DAYS] | bench
 """
 import argparse
 import asyncio
@@ -112,6 +116,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["secrets"]:
 if __name__ == "__main__" and sys.argv[1:2] == ["usage"]:
     from core import usage                 # whole-account Claude usage for the HUD (no Claude, no tokens)
     sys.exit(usage.main(sys.argv[2:]))
+if __name__ == "__main__" and sys.argv[1:2] == ["brain"]:
+    from core import local_llm             # status / shadow / report / bench of the local model tier (no models loaded)
+    sys.exit(local_llm.cli(sys.argv[2:]))
 if __name__ == "__main__" and sys.argv[1:2] == ["router"]:
     sys.path.insert(0, str(ORRIN_DIR / "mcp"))
     from core import router_learn          # stats / review / forget / reset-learned need no model (approve loads it)
@@ -256,6 +263,14 @@ class Orrin:
                 self.learning.append(th)
         except Exception as e:                 # no model files and offline, bad intents.json…: Claude only
             log(f"ORRIN: local router unavailable ({type(e).__name__}: {e}); using Claude only")
+        # The local model tier (core/local_llm.py): proposes for what the router wasn't sure of. Never warm until
+        # the voice loop's Power has started and warmed orrin-llm.service, so text mode / tests skip it unless asked.
+        self.llm = None
+        try:
+            from core.local_llm import LocalTier
+            self.llm = LocalTier(cfg, router=self.router, log=log, record=not dry_run)
+        except Exception as e:
+            log(f"ORRIN: local model tier unavailable ({type(e).__name__}: {e})")
 
     # Brain (asyncio thread) asks; the main thread answers (it owns the mic / terminal)
     async def _confirm_async(self, prompt):
@@ -367,6 +382,7 @@ class Orrin:
             self._last_tier = "control:stop"
             return "Stopped, sir. I've let go of the window."
         self._resolved = None
+        prop = None                           # the local model's proposal (core/local_llm.py), when it ran this
         prev = self._take_watch()             # the local action just before this, if it's still being judged
         if prev and (c := self._correction(text, prev)):
             if c[0] != "meant":
@@ -399,8 +415,19 @@ class Orrin:
             reply, tools = self.run_steps(steps, confirm)
             tier = f"{d.path}:{d.intent}"
             self._after_local(text, d, tools)
+        elif (prop := self._local_model(text, d))[0] is not None:
+            prop = prop[0]                              # an intent the local model has earned, checked: run it here
+            trace.t("route", to="llm", intent=prop.intent, ms=round(prop.ms))
+            steps = prop.steps
+            reply, tools = self.run_steps(steps, confirm)
+            tier = f"llm:{prop.intent}"
+            self.llm.record_live(prop, tools)
+            self._after_local(text, prop, tools)
         else:
-            trace.t("route", to="claude", **({"why": d.path.split(":", 1)[1]} if d else {}))
+            llm_fut = prop[1]                           # its proposal, compared with what Claude does (shadow)
+            prop = None
+            # why: the router's reason (claude:<why>), or "ask" when he said no to "Did you mean …?"
+            trace.t("route", to="claude", **({"why": d.path.split(":", 1)[-1]} if d else {}))
             self._thinking()
             self.last_query = text
             src = "typed" if self.surface == "typed" else "voice"
@@ -417,13 +444,16 @@ class Orrin:
                 self._resolved = (r.calls[0][1], r.calls[0][2])
             if d and not r.error:
                 self._learn(text, d, r)
+            if llm_fut is not None:
+                self.llm.compare_later(llm_fut, r)
         if steps is not None and any(t.endswith("[failed]") for t in tools):
             self.error = "tool"
         if steps is not None and len([s for s in steps if s["tool"]]) == 1 and not _refused(tools):
             s = next(s for s in steps if s["tool"])
             self._resolved = (s["tool"], dict(s["args"]))
         if prev:
-            self._judge_next(prev, text, d if tier.startswith(("local:", "ask:")) else None, self._resolved)
+            now = prop if tier.startswith("llm:") else d if tier.startswith(("local:", "ask:")) else None
+            self._judge_next(prev, text, now, self._resolved)
         ms = int((time.monotonic() - t0) * 1000)
         self._last_tools, self._last_tier = tools, tier
         self._log_action(text, tier, tools, reply, ms)
@@ -471,6 +501,40 @@ class Orrin:
             log(f"ORRIN: local router failed: {type(e).__name__}: {e}")
             return None
 
+    def _local_model(self, text, d):
+        """The local model tier (core/local_llm.py) for a request the router passed on. → (proposal to run here, None)
+        when the intent is earned and shadow mode is off; else (None, future of its proposal, to compare with what
+        Claude does) or (None, None) when it doesn't apply (not eligible, off, not warm)."""
+        tier = self.llm
+        if tier is None or self.cfg["orrinDecisions"] != "local" or (d is not None and d.path in ("local", "ask")):
+            return None, None
+        ok, why = tier.eligible(text, d)
+        if not ok:
+            return None, None
+        if tier.power:
+            tier.power.demand()                       # laptop mode: wanted now (it starts for the next request)
+        if not tier.ready():
+            return None, None
+        src = "typed" if self.surface == "typed" else "voice"
+        fut = tier.submit(text, d, src)
+        if not tier.should_wait(d):
+            return None, fut
+        try:
+            p = fut.result(timeout=tier.budget(src))
+        except Exception:                             # too slow (or failed): Claude, still compared afterwards
+            return None, fut
+        if p.ok and tier.is_live(p.intent):
+            return p, None
+        return None, fut
+
+    def _outcome(self, info, outcome, why=""):
+        """What came after a local action: the router's learning, or the local model's trust for its intent."""
+        if info.get("tier") == "llm":
+            if self.llm:
+                self.llm.outcome(info, outcome, why)
+            return
+        self.router.outcome(info, outcome, why)
+
     def _learn(self, text, d, r):
         """Claude answered with exactly one alchemos tool call that went through: evidence for the intent that
         covers it (core/router_learn.py decides whether it ever goes live)."""
@@ -510,7 +574,7 @@ class Orrin:
             return
         if any("[declined]" in t for t in tools):
             info = d.info()
-            self._bg(lambda: self.router.outcome(info, "neg", "declined"))
+            self._bg(lambda: self._outcome(info, "neg", "declined"))
             return
         if any(t.endswith("[failed]") for t in tools):
             return
@@ -551,7 +615,7 @@ class Orrin:
             stopped = control.STOP_FLAG.stat().st_mtime > w["wall"]
         except OSError:
             stopped = False
-        self.router.outcome(w["info"], "neg" if stopped else "pos", "kill-switch" if stopped else "weak-positive")
+        self._outcome(w["info"], "neg" if stopped else "pos", "kill-switch" if stopped else "weak-positive")
 
     def _correction(self, text, prev):
         """ "undo" / "that's wrong" / "no, I meant X" right after a local action → (kind, X), and the
@@ -561,7 +625,7 @@ class Orrin:
         c = L.correction(clean(text))
         if c:
             info = prev["info"]
-            self._bg(lambda: self.router.outcome(info, "neg", "undo" if c[0] == "undo" else "correction"))
+            self._bg(lambda: self._outcome(info, "neg", "undo" if c[0] == "undo" else "correction"))
         return c
 
     def _judge_next(self, prev, text, d, resolved):
@@ -583,7 +647,7 @@ class Orrin:
             if not why:
                 self._finish(prev)
                 return
-            self.router.outcome(info, "neg", why)
+            self._outcome(info, "neg", why)
             if why == "reworded" and resolved:
                 self.router.learn(prev["raw"], resolved[0], resolved[1], source="correction")
         self._bg(judge)
@@ -625,6 +689,9 @@ def text_mode(args):
         return False
 
     j = Orrin(cfg, dry_run=args.dry_run, confirm_sync=confirm)
+    from core import local_llm
+    if j.llm and j.llm.enabled() and local_llm.healthy():   # the voice loop's server is up: use it (shadow or live)
+        j.llm.warm_up(timeout=120)
     voice = None
     if args.speak:
         from core.voice import Voice
@@ -640,6 +707,8 @@ def text_mode(args):
                 voice.speak(reply)
     for th in j.learning:                     # onnxruntime aborts if the interpreter exits mid-inference
         th.join(10)
+    if j.llm:
+        j.llm.pool.shutdown(wait=True)        # shadow comparisons still in flight get logged
     asyncio.run_coroutine_threadsafe(j.brain.disconnect(), j.loop).result(10)
 
 
@@ -873,6 +942,10 @@ class VoiceLoop:
         self.voice.warm()
         A.apps()
         self.j = Orrin(self.cfg, confirm_sync=self.confirm)
+        self.power = None
+        if self.j.llm:                         # orrin-llm.service follows the power rules (core/local_llm.Power)
+            from core.local_llm import Power
+            self.power = Power(self.j.llm, C.LAPTOP, log=log)
         from core.status import Status
         self.status = self.j.status = Status(log=log)
         self.mic.status_cb = self.status.mic
@@ -1103,6 +1176,15 @@ class VoiceLoop:
                 self.mic.start()
                 self.wake.reset()
             hud.paused(want)
+
+    def check_llm(self):
+        """The local model: warm while docked, on demand in laptop mode, stopped in combat mode (games get the iGPU,
+        even with the wake word left on)."""
+        if self.power:
+            try:
+                self.power.tick(A.combat_mode())
+            except Exception as e:
+                log(f"ORRIN: local model power: {type(e).__name__}: {e}")
 
     def check_dj(self):
         """A DJ line (core/dj.py), said between conversations with the music faded to DUCK_DJ and back.
@@ -1457,6 +1539,7 @@ class VoiceLoop:
             self.check_background()
             self.check_combat()
             self.check_dj()
+            self.check_llm()
             if self.paused:
                 time.sleep(1)
                 continue

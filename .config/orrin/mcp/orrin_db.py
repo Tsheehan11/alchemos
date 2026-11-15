@@ -18,6 +18,8 @@ Orrin memory: one SQLite file shared by the voice loop and the MCP server.
   tasks       background Agent SDK jobs (core/tasks.py): queued → running → done | failed | cancelled | interrupted
   task_log    a task's steps (tool calls) and text, for the app's live log
   claude_turns Claude turns per request (ResultMessage.num_turns), for the app's "turns today"
+  llm_log     the local model tier (core/local_llm.py): what it proposed per eligible request, and in shadow
+              mode what Claude did instead and whether they agreed (pruned after 90 days)
 
 WAL mode + a busy timeout, since two processes write to it.
 """
@@ -220,6 +222,22 @@ CREATE TABLE IF NOT EXISTS control_log (
     outcome TEXT NOT NULL,       -- done | stopped:<why> | refused:<why>
     detail TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS llm_log (
+    id INTEGER PRIMARY KEY,
+    ts REAL NOT NULL,
+    request TEXT NOT NULL,
+    source TEXT NOT NULL,        -- voice | typed
+    mode TEXT NOT NULL,          -- shadow (Claude ran it) | live (the local model ran it)
+    intent TEXT NOT NULL DEFAULT '',   -- the intent the local model chose ('' = it escalated)
+    call TEXT,                   -- JSON [tool, args] it proposed
+    claude TEXT,                 -- JSON [tool, args] Claude ran (shadow), [] = no action, null = unknown
+    claude_intent TEXT NOT NULL DEFAULT '',
+    verdict TEXT NOT NULL,       -- agree | disagree | escalated | unknown | live | live-failed
+    why TEXT NOT NULL DEFAULT '',
+    ms REAL,
+    think INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS llm_log_ts ON llm_log(ts);
 """
 
 STOPWORDS = set("""a an the and or but to of in on at for with by from is are was were be been am i me my
@@ -324,7 +342,21 @@ def prune_log(days=LOG_DAYS):
         db.execute("DELETE FROM router_log WHERE ts < ?", (time.time() - days * 86400,))
         db.execute("DELETE FROM router_outcomes WHERE ts < ?", (time.time() - 3 * days * 86400,))   # calibration wants history
         db.execute("DELETE FROM claude_turns WHERE ts < ?", (time.time() - days * 86400,))
+        db.execute("DELETE FROM llm_log WHERE ts < ?", (time.time() - 3 * days * 86400,))
         return db.execute("DELETE FROM action_log WHERE ts < ?", (time.time() - days * 86400,)).rowcount
+
+
+def log_llm(request, source, mode, intent, call, claude, claude_intent, verdict, why="", ms=None, think=False):
+    with _db() as db:
+        db.execute("INSERT INTO llm_log(ts, request, source, mode, intent, call, claude, claude_intent, verdict, why, ms, think) "
+                   "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                   (time.time(), request[:500], source, mode, intent or "", None if call is None else json.dumps(call, default=str)[:1000],
+                    None if claude is None else json.dumps(claude, default=str)[:1000], claude_intent or "", verdict, why[:300], ms, int(think)))
+
+
+def llm_log(days=14):
+    with _db() as db:
+        return [dict(r) for r in db.execute("SELECT * FROM llm_log WHERE ts >= ? ORDER BY ts", (time.time() - days * 86400,))]
 
 
 def log_decision(request, path, intent, top3, slots, ms):
@@ -353,9 +385,9 @@ def router_counts(since):
     with _db() as db:
         tiers = [r[0] for r in db.execute("SELECT tier FROM action_log WHERE ts >= ?", (since,))]
         paths = [r[0] for r in db.execute("SELECT path FROM router_log WHERE ts >= ?", (since,))]
-    c = {"requests": len(tiers), "fast": 0, "local": 0, "ask": 0, "claude": 0, "other": 0}
+    c = {"requests": len(tiers), "fast": 0, "local": 0, "llm": 0, "ask": 0, "claude": 0, "other": 0}
     for t in tiers:
-        k = ("fast" if t == "fast" else "local" if t.startswith("local:") else "ask" if t.startswith("ask:")
+        k = ("fast" if t == "fast" else "local" if t.startswith("local:") else "llm" if t.startswith("llm:") else "ask" if t.startswith("ask:")
              else "claude" if t.startswith(("claude", "error:")) else "other")
         c[k] += 1
     c["router"] = len(paths)

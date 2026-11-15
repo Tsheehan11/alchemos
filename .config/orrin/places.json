@@ -1,0 +1,18 @@
+{
+  "_doc": "Places the local model tier (core/local_llm.py) may ask the weather for. Words in 'home' mean Settings → orrinPlace (Waterloo). A place not listed goes to Claude instead of guessing (a geocoder once answered Austin for Waterloo). Keys are what he says, values what the weather tool gets. 'London' is left out on purpose: Ontario or England is Claude's call.",
+  "home": ["home", "here", "outside", "campus", "school", "uni", "university", "uw", "the university", "waterloo", "waterloo ontario", "my place", "the walk", "today", "tonight", "tomorrow"],
+  "places": {
+    "kitchener": "Kitchener, Ontario",
+    "cambridge": "Cambridge, Ontario",
+    "guelph": "Guelph, Ontario",
+    "toronto": "Toronto, Ontario",
+    "mississauga": "Mississauga, Ontario",
+    "hamilton": "Hamilton, Ontario",
+    "ottawa": "Ottawa, Ontario",
+    "montreal": "Montreal, Quebec",
+    "vancouver": "Vancouver, British Columbia",
+    "calgary": "Calgary, Alberta",
+    "new york": "New York, New York",
+    "niagara falls": "Niagara Falls, Ontario"
+  }
+}

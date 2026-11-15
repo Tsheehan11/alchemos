@@ -28,9 +28,10 @@ def out(r):
 
 
 @mcp.tool(structured_output=False)
-def open_app(name: str) -> str:
-    """Open an installed app by name, e.g. spotify, vs code, discord."""
-    return out(A.open_app(name))
+def open_app(name: str, workspace: int = 0) -> str:
+    """Open an installed app by name, e.g. spotify, vs code, discord. workspace 1-10 opens it there and goes
+    there ("open Steam on workspace one" is this one call); 0 = the current workspace."""
+    return out(A.open_app(name, workspace))
 
 
 @mcp.tool(structured_output=False)

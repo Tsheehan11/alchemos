@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Orrin as its own service (orrin.service): the HUD snapshot a restarted Quickshell gets back
-(core/hud.py), the single-instance lock and the session guard (core/session.py).
+(core/hud.py), the single-instance lock and the session guard (core/session.py), and orrinctl's stray check
+(a voice loop outside the service is found by its name, orrin.py, since the AlchemOS rename).
 Nothing is sent to the real HUD; the lock lives in a temp dir. Run: python tests/test_service.py"""
 import json
 import os
@@ -58,6 +59,27 @@ answers[:] = ["resync"]
 hud.online()
 check("resync → one restore queued", [f for f, _ in sent], ["restore"])
 check("restore carries the snapshot", json.loads(sent[0][1][0])["phase"], "listening")
+
+# ── orrinctl strays: a voice loop outside orrin.service (start / stop kill it) ──
+import time  # noqa: E402
+ctl = os.path.join(ROOT, "orrinctl")
+fake = Path(tempfile.mkdtemp())
+(fake / "orrin.py").write_text("import time\ntime.sleep(60)\n")
+loop = subprocess.Popen([sys.executable, str(fake / "orrin.py")])                 # like the voice loop: no arguments
+cli = subprocess.Popen([sys.executable, str(fake / "orrin.py"), "--text", "x"])   # text mode: not a voice loop
+time.sleep(0.3)
+try:
+    found = subprocess.run([ctl, "strays"], capture_output=True, text=True, timeout=20).stdout.split()
+    check("stray voice loop found", str(loop.pid) in found, True)
+    check("orrin.py with arguments isn't one", str(cli.pid) in found, False)
+    svc = subprocess.run(["systemctl", "--user", "show", "-P", "MainPID", "orrin.service"], capture_output=True, text=True).stdout.strip()
+    if svc not in ("", "0"):
+        check("the service's own loop isn't one", svc in found, False)
+finally:
+    loop.kill()
+    cli.kill()
+    loop.wait()
+    cli.wait()
 
 # ── single-instance lock (a second process can't take it) ──
 with tempfile.TemporaryDirectory() as d:
