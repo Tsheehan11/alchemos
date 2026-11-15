@@ -6,6 +6,9 @@
 #
 # Loopback only (--host 127.0.0.1) and an API key (llama-server allows every CORS origin by default, so
 # any page in the browser could otherwise POST to it). The key file is made on first start, 0600.
+# Two slots (-np 2, CTX is shared: 16k each) so a spoken command never queues behind a thinking request: slot 0 is
+# kept for voice requests Orrin is waiting on, slot 1 takes shadow proposals and typed / thinking ones. Cost: +0.6 GB
+# iGPU memory. Measured 2026-11-15: voice sent 2 s into a thinking request 35.1 s with one slot, 6.9 s with two.
 # Model files live outside the repo: ~/.local/share/llama.cpp/models. The processed system prompt + tools (~4.2k
 # tokens, ~33 s to compute cold on the iGPU) is saved to ~/.cache/orrin-llm/slots once and restored on every start
 # (~0.1 s; core/local_llm.py warm_up), so on-demand starts in laptop mode are ready in seconds. Mesa's Vulkan shader
@@ -17,10 +20,10 @@ PartOf=orrin.service
 
 [Service]
 Type=exec
-Environment=MODEL=%h/.local/share/llama.cpp/models/Qwen3.5-9B-Q4_K_M.gguf CTX=16384 PORT=8181 EXTRA=
+Environment=MODEL=%h/.local/share/llama.cpp/models/Qwen3.5-9B-Q4_K_M.gguf CTX=32768 PORT=8181 EXTRA=
 EnvironmentFile=-%h/.config/llama-server/orrin.env
 ExecStartPre=/bin/sh -c 'umask 077; mkdir -p %h/.config/llama-server %h/.cache/orrin-llm/slots; test -s %h/.config/llama-server/api-key || head -c 32 /dev/urandom | base64 | tr -d "/+=" > %h/.config/llama-server/api-key'
-ExecStart=/usr/bin/llama-server -m ${MODEL} --host 127.0.0.1 --port ${PORT} -ngl 999 -c ${CTX} -np 1 -fa on --jinja --reasoning-format deepseek --no-webui --metrics --api-key-file %h/.config/llama-server/api-key --cors-origins http://127.0.0.1:${PORT} --slot-save-path %h/.cache/orrin-llm/slots $EXTRA
+ExecStart=/usr/bin/llama-server -m ${MODEL} --host 127.0.0.1 --port ${PORT} -ngl 999 -c ${CTX} -np 2 -fa on --jinja --reasoning-format deepseek --no-webui --metrics --api-key-file %h/.config/llama-server/api-key --cors-origins http://127.0.0.1:${PORT} --slot-save-path %h/.cache/orrin-llm/slots $EXTRA
 Restart=on-failure
 RestartSec=3
 Nice=5

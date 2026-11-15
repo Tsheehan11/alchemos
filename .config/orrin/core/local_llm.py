@@ -298,8 +298,13 @@ class LocalTier:
     def __init__(self, cfg, router=None, log=print, record=True):
         """record: write verdicts / trust / llm_log (off for dry runs)."""
         self.cfg, self.router, self.log, self.record = cfg, router, log, record
-        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="orrin-llm")
-        self.warm = False                     # the system prompt + tools are in the server's prompt cache
+        # Two server slots (orrin-llm.service -np 2), one worker each, so a spoken command never queues behind a
+        # long thinking request: slot 0 = voice requests Orrin is waiting on; slot 1 = everything else (shadow
+        # proposals, typed / thinking requests). Measured 2026-11-15: a voice request sent 2 s into a thinking
+        # request took 35.1 s with one slot, 6.9 s with two (7.0 s alone); +0.6 GB iGPU memory.
+        self.pools = [ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"orrin-llm-slot{i}") for i in range(2)]
+        self.slots = 1                        # the server's slot count (/props), set at warm-up
+        self.warm = False                     # the system prompt + tools are in the slots' prompt caches
         self.warm_from = ""                   # "restored from disk" | "computed and saved"
         self.power = None                     # Power, in the voice process
         self._tools = None
@@ -362,27 +367,52 @@ class LocalTier:
         return True, ""
 
     # ── asking it ──
-    def prefix_file(self):
-        """The saved prompt cache's name: a hash of everything before his words, so a changed prompt, tool list or
-        model never restores a stale one."""
+    def server_slots(self):
+        """→ (slots, context per slot) of the running server."""
+        try:
+            j = request("/props", timeout=3)
+            return int(j.get("total_slots") or 1), int((j.get("default_generation_settings") or {}).get("n_ctx") or 0)
+        except (OSError, ValueError, TypeError):
+            return 1, 0
+
+    def prefix_file(self, layout=None):
+        """The saved prompt cache's name: a hash of everything before his words and of the server's slot layout
+        (a cache saved with one slot won't load into a two-slot server: "n_stream mismatch"), so a changed prompt,
+        tool list, model or layout never restores a stale one."""
         import hashlib
-        key = json.dumps({"system": SYSTEM, "tools": self.tools(), "model": model_name()}, sort_keys=True)
+        layout = layout or self.server_slots()
+        key = json.dumps({"system": SYSTEM, "tools": self.tools(), "model": model_name(), "layout": list(layout)}, sort_keys=True)
         return f"orrin-prefix-{hashlib.sha1(key.encode()).hexdigest()[:16]}.bin"
 
+    def flush(self, timeout=60):
+        """Wait until every proposal submitted so far (and its shadow comparison) is done."""
+        for p in self.pools:
+            p.submit(lambda: None).result(timeout)
+
+    def shutdown(self):
+        for p in self.pools:
+            p.shutdown(wait=True)
+
     def warm_up(self, timeout=180):
-        """Put the system prompt + tools into the server's prompt cache. From the saved copy when there is one
-        (~0.1 s); otherwise compute it (~33 s cold on the iGPU: ~4.2k tokens at ~130 tokens/s) and save it for the
-        next start. → True when warm."""
-        name, restored = self.prefix_file(), False
+        """Put the system prompt + tools into every slot's prompt cache. From the saved copy when there is one
+        (~0.1 s per slot); otherwise compute it in slot 0 (~33 s cold on the iGPU: ~4.2k tokens at ~130 tokens/s),
+        save it for the next start and load it into the other slots. → True when warm."""
+        layout = self.server_slots()
+        self.slots = max(1, min(layout[0], len(self.pools)))
+        name = self.prefix_file(layout)
+
+        def restore(slot):
+            try:
+                if (SLOT_DIR / name).exists():
+                    request(f"/slots/{slot}?action=restore", {"filename": name}, timeout=60)
+                    return True
+            except (OSError, ValueError) as e:
+                self.log(f"ORRIN: local model: saved prompt cache not restored into slot {slot} ({e})")
+            return False
+
+        restored = restore(0)
         try:
-            if (SLOT_DIR / name).exists():
-                request("/slots/0?action=restore", {"filename": name}, timeout=60)
-                restored = True
-        except (OSError, ValueError) as e:
-            self.log(f"ORRIN: local model: saved prompt cache not restored ({e})")
-        try:
-            j = request("/v1/chat/completions", self._body("warm up", False, max_tokens=1), timeout=timeout)
-            self.warm = True
+            j = request("/v1/chat/completions", dict(self._body("warm up", False, max_tokens=1), id_slot=0), timeout=timeout)
         except (OSError, ValueError) as e:
             self.warm = False
             self.log(f"ORRIN: local model warm-up failed: {e}")
@@ -397,6 +427,9 @@ class LocalTier:
                         old.unlink(missing_ok=True)
             except (OSError, ValueError) as e:
                 self.log(f"ORRIN: local model: couldn't save the prompt cache ({e})")
+        for slot in range(1, self.slots):           # the other slots get the same prefix (computed once)
+            restore(slot)
+        self.warm = True
         return True
 
     def _body(self, text, think, max_tokens=None):
@@ -405,16 +438,23 @@ class LocalTier:
                 "max_tokens": max_tokens or MAX_TOKENS[think], "temperature": 0.2, "top_p": 0.9,
                 "chat_template_kwargs": {"enable_thinking": think}}
 
-    def submit(self, text, d=None, source="voice"):
-        """Non-blocking: the proposal runs on this tier's own worker thread; Orrin goes on to Claude at once."""
-        return self.pool.submit(self.propose, text, d, source, time.monotonic())
+    def slot_for(self, source, urgent):
+        """Slot 0 only for a voice request Orrin is waiting on; everything else in the last slot."""
+        return 0 if (urgent and source == "voice") or self.slots < 2 else self.slots - 1
 
-    def propose(self, text, d=None, source="voice", queued=None):
+    def submit(self, text, d=None, source="voice", urgent=False):
+        """Non-blocking: the proposal runs on its slot's own worker thread; Orrin goes on (to Claude, or to waiting
+        for it when urgent) at once. urgent: Orrin will wait for this one (an earned intent is likely)."""
+        slot = self.slot_for(source, urgent)
+        return self.pools[slot].submit(self.propose, text, d, source, time.monotonic(), slot)
+
+    def propose(self, text, d=None, source="voice", queued=None, slot=0):
         think = THINK.get(source, False)
         p = Proposal(text=text, source=source, think=think, queued=queued or time.monotonic())
         t0 = time.monotonic()
         try:
-            j = request("/v1/chat/completions", self._body(text, think), timeout=BUDGET.get(source, 8.0) + 30)
+            j = request("/v1/chat/completions", dict(self._body(text, think), id_slot=slot),
+                        timeout=BUDGET.get(source, 8.0) + 30)
             msg = j["choices"][0]["message"]
         except (OSError, ValueError, KeyError, IndexError) as e:
             p.escalate, p.ms = f"server: {type(e).__name__}", (time.monotonic() - t0) * 1000

@@ -210,6 +210,9 @@ ANSWERS = {}            # user text (lower) → (tool, args) | None (talks) ; "w
 SEEN = []
 SLOW = {}               # user text (lower) → seconds the fake model takes
 SLOTS = {"restored": False}
+THINK_S = {"s": 0.0}    # how long a thinking request takes on the fake server
+SLOT_LOCKS = [threading.Lock(), threading.Lock()]   # like llama-server: one request at a time per slot
+ON_SLOT = []            # (text, slot, thinking)
 LL.SLOT_DIR = TMP / "slots"
 LL.SLOT_DIR.mkdir()
 
@@ -229,22 +232,28 @@ class Fake(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get("Authorization") != "Bearer test-key":
             return self._send(401, {"error": "key"})
+        if self.path == "/props":
+            return self._send(200, {"total_slots": 2, "default_generation_settings": {"n_ctx": 16384}})
         self._send(200, {"status": "ok"} if self.path == "/health" else {"data": [{"id": "fake.gguf"}]})
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.headers.get("Authorization") != "Bearer test-key":
             return self._send(401, {"error": "key"})
-        if self.path.startswith("/slots/0?action=save"):
+        if "action=save" in self.path:
             (LL.SLOT_DIR / body["filename"]).write_text("kv")
             return self._send(200, {"n_saved": 4200})
-        if self.path.startswith("/slots/0?action=restore"):
+        if "action=restore" in self.path:
             if not (LL.SLOT_DIR / body["filename"]).exists():
                 return self._send(404, {"error": "no file"})
             SLOTS["restored"] = True
             return self._send(200, {"n_restored": 4200})
         text = body["messages"][-1]["content"]
-        time.sleep(SLOW.get(text.lower(), 0))
+        think = body["chat_template_kwargs"]["enable_thinking"]
+        slot = int(body.get("id_slot", 0))
+        with SLOT_LOCKS[slot]:
+            ON_SLOT.append((text, slot, think))
+            time.sleep(SLOW.get(text.lower(), 0) + (THINK_S["s"] if think else 0))
         SEEN.append((text, body["chat_template_kwargs"]["enable_thinking"], len(body["tools"])))
         a = ANSWERS.get(text.lower())
         msg = {"role": "assistant", "content": "Could you say that again?"}
@@ -303,6 +312,7 @@ check("next start restores it", (t2.warm_up(), t2.warm_from), (True, "restored f
 check("a restored start saves nothing new", sorted(f.name for f in LL.SLOT_DIR.iterdir()),
       sorted([j.llm.prefix_file(), "orrin-prefix-0000000000000000.bin"]))
 (LL.SLOT_DIR / j.llm.prefix_file()).unlink()
+SLOTS["restored"] = False
 t3 = LL.LocalTier(cfg, router=router, log=quiet)
 t3.warm_up()
 check("a new prompt replaces the old saved one", [f.name for f in LL.SLOT_DIR.iterdir()], [t3.prefix_file()])
@@ -312,7 +322,7 @@ def say(text):
     out = j.handle(text, source="cli", confirm=lambda p: False)
     for th in list(j.learning):
         th.join(15)
-    j.llm.pool.submit(lambda: None).result(30)     # shadow comparisons (done callbacks) have run
+    j.llm.flush()                                   # shadow comparisons (done callbacks) have run
     return out
 
 
@@ -361,7 +371,7 @@ j.handle(SILVER, source="cli", confirm=lambda p: False)
 took = time.monotonic() - t0
 check("shadow: the reply didn't wait for the slow proposal", took < 1.5, True)
 check("… and the comparison wasn't logged yet", len(db.llm_log(1)), rows)
-j.llm.pool.submit(lambda: None).result(30)
+j.llm.flush()
 check("… it was logged once the proposal came in", (len(db.llm_log(1)), last_llm().get("verdict")), (rows + 1, "agree"))
 SLOW.clear()
 
@@ -424,7 +434,7 @@ jd.router, jd.llm.router, jd.brain, jd._learn = router, router, FakeBrain(), (la
 jd.llm.warm_up()
 Cfg.over["orrinBrainShadow"] = True
 jd.handle(SILVER, source="cli", confirm=lambda p: False)
-jd.llm.pool.submit(lambda: None).result(30)
+jd.llm.flush()
 check("dry run: nothing logged", len(db.llm_log(1)), rows)
 
 # "Did you mean …?" answered no: on to Claude (this crashed in the route trace before 2026-11-15)
@@ -435,6 +445,50 @@ n_claude = len(FakeBrain.asked)
 check("declined ask → Claude, no crash", (say("do I need an umbrella for my walk"), j._last_tier, len(FakeBrain.asked)),
       ("Pardon?", "claude:haiku", n_claude + 1))
 j.route_local = real_route
+
+# voice first: two server slots, slot 0 only for a voice request Orrin waits on
+check("two slots from /props", j.llm.slots, 2)
+check("slot for a waited-on voice request", j.llm.slot_for("voice", True), 0)
+check("shadow voice proposals use the other slot", j.llm.slot_for("voice", False), 1)
+check("typed requests use the other slot", j.llm.slot_for("typed", True), 1)
+one = LL.LocalTier(cfg, router=router, log=quiet)
+check("a one-slot server: everything in slot 0", (one.slot_for("voice", True), one.slot_for("typed", False)), (0, 0))
+THINK_S["s"] = 3.0
+ft = j.llm.submit(SILVER, None, "typed")                   # a 3 s thinking request on slot 1
+time.sleep(0.3)
+t0 = time.monotonic()
+pv = j.llm.submit(SILVER, None, "voice", urgent=True).result(10)
+check("voice during a thinking request: not queued behind it", (time.monotonic() - t0 < 1.0, pv.ok), (True, True))
+check("… while the thinking one still runs", ft.done(), False)
+ft.result(10)
+check("slots used", [x[1:] for x in ON_SLOT[-2:]], [(1, True), (0, False)])
+
+# … and through Orrin: a typed request waiting on its thinking proposal gives the turn to a spoken one
+with L.edit() as st:
+    st["llm"]["set_theme"] = dict(LL._blank(), state="live", streak=2)
+Cfg.over["orrinBrainShadow"] = False
+THINK_S["s"] = 3.0
+typed = {}
+
+
+def typed_turn():
+    t0 = time.monotonic()
+    typed["reply"] = j.handle(SILVER, source="typed", confirm=lambda p: False)
+    typed["tier"], typed["s"] = j._last_tier, time.monotonic() - t0
+
+
+th = threading.Thread(target=typed_turn)
+th.start()
+time.sleep(0.4)                                            # it's waiting on its 3 s thinking proposal now
+t0 = time.monotonic()
+j.handle(SILVER, source="cli", confirm=lambda p: False)   # (not say(): that waits for every proposal to finish)
+voice_s = time.monotonic() - t0
+th.join(10)
+check("spoken request: ran locally, fast", (j._last_tier, voice_s < 2.0), ("llm:set_theme", True))
+check("typed one stopped waiting and went to Claude", (typed.get("tier"), typed.get("s", 9) < 2.0), ("claude:haiku", True))
+THINK_S["s"] = 0.0
+j.llm.flush()
+Cfg.over["orrinBrainShadow"] = True
 
 # a dead server: Claude only, no error
 LL.URL = "http://127.0.0.1:9"

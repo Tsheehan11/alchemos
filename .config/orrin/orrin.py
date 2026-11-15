@@ -249,6 +249,7 @@ class Orrin:
         self.notify = lambda ev: None          # set by AppBridge once the socket is up
         self.status = None                     # core.status.Status (voice mode): the widgets' state file
         self.turn_lock = threading.RLock()
+        self.voice_pending = threading.Event()  # a spoken request is waiting for the turn: a typed one stops waiting on the local model
         self.surface = "voice"                 # who's asking right now: voice (HUD toast) | typed (app only)
         self.busy = False
         self.conv = Conversations(lambda ev: self.notify(ev))
@@ -342,7 +343,12 @@ class Orrin:
             self.brain.history = ""
             asyncio.run_coroutine_threadsafe(self.brain.reset(), self.loop)
             return "Fresh start, sir."
+        voice = source != "typed"
+        if voice:
+            self.voice_pending.set()
         with self.turn_lock:
+            if voice:
+                self.voice_pending.clear()
             carry = self.conv.carry_on()
             if carry and not self.brain.history:  # same thread, but Claude's context has dropped since
                 self.brain.history = carry
@@ -516,13 +522,24 @@ class Orrin:
         if not tier.ready():
             return None, None
         src = "typed" if self.surface == "typed" else "voice"
-        fut = tier.submit(text, d, src)
-        if not tier.should_wait(d):
+        wait = tier.should_wait(d)
+        fut = tier.submit(text, d, src, urgent=wait)  # a voice request Orrin waits on gets the voice slot to itself
+        if not wait:
             return None, fut
-        try:
-            p = fut.result(timeout=tier.budget(src))
-        except Exception:                             # too slow (or failed): Claude, still compared afterwards
-            return None, fut
+        from concurrent.futures import TimeoutError as FutTimeout
+        deadline = time.monotonic() + tier.budget(src)
+        while True:
+            try:
+                p = fut.result(timeout=0.1)
+                break
+            except FutTimeout:
+                if time.monotonic() > deadline:       # too slow: Claude, still compared afterwards
+                    return None, fut
+                if src == "typed" and self.voice_pending.is_set():
+                    log("  ◇ local model: a spoken request is waiting, so this typed one goes to Claude now")
+                    return None, fut
+            except Exception:                         # failed: Claude
+                return None, fut
         if p.ok and tier.is_live(p.intent):
             return p, None
         return None, fut
@@ -708,7 +725,7 @@ def text_mode(args):
     for th in j.learning:                     # onnxruntime aborts if the interpreter exits mid-inference
         th.join(10)
     if j.llm:
-        j.llm.pool.shutdown(wait=True)        # shadow comparisons still in flight get logged
+        j.llm.shutdown()                      # shadow comparisons still in flight get logged
     asyncio.run_coroutine_threadsafe(j.brain.disconnect(), j.loop).result(10)
 
 
